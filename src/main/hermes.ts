@@ -446,7 +446,7 @@ function sendMessageViaCli(
   const mc = getModelConfig(profile);
   const profileEnv = readEnv(profile);
 
-  const args = [HERMES_SCRIPT];
+  const args: string[] = [];
   if (profile && profile !== "default") {
     args.push("-p", profile);
   }
@@ -530,7 +530,7 @@ function sendMessageViaCli(
     delete env.OPENROUTER_BASE_URL;
   }
 
-  const proc = spawn(HERMES_PYTHON, args, {
+  const proc = spawn(HERMES_SCRIPT, args, {
     cwd: HERMES_REPO,
     env,
     stdio: ["ignore", "pipe", "pipe"],
@@ -709,7 +709,7 @@ export function startGateway(profile?: string): boolean {
     }
   }
 
-  gatewayProcess = spawn(HERMES_PYTHON, [HERMES_SCRIPT, "gateway"], {
+  gatewayProcess = spawn(HERMES_SCRIPT, ["gateway"], {
     cwd: HERMES_REPO,
     env: gatewayEnv,
     stdio: "ignore",

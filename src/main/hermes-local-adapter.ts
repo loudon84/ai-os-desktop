@@ -110,7 +110,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       }
     }
 
-    const proc = spawn(HERMES_PYTHON, [HERMES_SCRIPT, "gateway"], {
+    const proc = spawn(HERMES_SCRIPT, ["gateway"], {
       cwd: HERMES_REPO,
       env,
       stdio: ["ignore", "pipe", "pipe"],

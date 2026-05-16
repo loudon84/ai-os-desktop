@@ -142,7 +142,21 @@ export type EnterpriseErrorCode =
   | "E_ROLLBACK_CHECKSUM_MISMATCH"
   | "E_ROLLBACK_SNAPSHOT_NOT_FOUND"
   | "E_REPAIR_FAILED"
-  | "E_DIR_PERMISSION_FAILED";
+  | "E_DIR_PERMISSION_FAILED"
+  | "WIN_POWERSHELL_BLOCKED"
+  | "WIN_LONG_PATH_DISABLED"
+  | "HERMES_CMD_NOT_FOUND"
+  | "HERMES_INSTALL_INCOMPLETE"
+  | "HERMES_VERSION_MISMATCH"
+  | "UV_INSTALL_FAILED"
+  | "PYTHON_VENV_MISSING"
+  | "NODE_VERSION_CONFLICT"
+  | "PLAYWRIGHT_CHROMIUM_MISSING"
+  | "API_SERVER_DISABLED"
+  | "API_SERVER_UNAUTHORIZED"
+  | "PROFILE_PORT_CONFLICT"
+  | "GATEWAY_START_TIMEOUT"
+  | "GATEWAY_CRASHED";
 
 export const ENTERPRISE_ERROR_MESSAGES: Record<EnterpriseErrorCode, string> = {
   E_DEPLOY_SCHEMA_INVALID: "deployment.json schema 校验失败",
@@ -177,6 +191,20 @@ export const ENTERPRISE_ERROR_MESSAGES: Record<EnterpriseErrorCode, string> = {
   E_ROLLBACK_SNAPSHOT_NOT_FOUND: "回滚快照不存在",
   E_REPAIR_FAILED: "修复失败",
   E_DIR_PERMISSION_FAILED: "目录权限不足",
+  WIN_POWERSHELL_BLOCKED: "PowerShell 执行策略阻止脚本运行",
+  WIN_LONG_PATH_DISABLED: "Windows 长路径支持未启用",
+  HERMES_CMD_NOT_FOUND: "hermes 命令未找到",
+  HERMES_INSTALL_INCOMPLETE: "Hermes Agent 安装不完整",
+  HERMES_VERSION_MISMATCH: "Hermes Agent 版本不匹配",
+  UV_INSTALL_FAILED: "uv 安装失败",
+  PYTHON_VENV_MISSING: "Python venv 不存在",
+  NODE_VERSION_CONFLICT: "Node.js 版本冲突",
+  PLAYWRIGHT_CHROMIUM_MISSING: "Playwright Chromium 未安装",
+  API_SERVER_DISABLED: "API Server 未启用",
+  API_SERVER_UNAUTHORIZED: "API Server 认证失败",
+  PROFILE_PORT_CONFLICT: "Profile 端口冲突",
+  GATEWAY_START_TIMEOUT: "Gateway 启动超时",
+  GATEWAY_CRASHED: "Gateway 已崩溃",
 };
 
 export const DEFAULT_PROFILE_NAMES = [
@@ -193,10 +221,10 @@ export type ProfileName = (typeof DEFAULT_PROFILE_NAMES)[number];
 
 export const DEFAULT_PROFILE_PORTS: Record<ProfileName, number> = {
   default: 8642,
-  writer: 8643,
-  coding: 8644,
-  research: 8645,
-  recruiters: 8646,
-  finance: 8647,
-  agenter: 8648,
+  writer: 8652,
+  coding: 8662,
+  research: 8672,
+  recruiters: 8682,
+  finance: 8692,
+  agenter: 8702,
 };

@@ -44,7 +44,11 @@ export class BrowserSecurityGuard {
 
   isDomainAllowed(url: string): boolean {
     try {
-      const hostname = new URL(url).hostname;
+      const parsed = new URL(url);
+      const hostname = parsed.hostname;
+      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "0.0.0.0") {
+        return true;
+      }
       return this.config.allowedDomains.some((pattern) =>
         this.matchDomain(hostname, pattern)
       );

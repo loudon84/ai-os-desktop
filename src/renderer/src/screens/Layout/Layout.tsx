@@ -17,6 +17,7 @@ import { WebOperatorScreen } from "../WebOperator/WebOperatorScreen";
 import { ProfileRuntimeScreen } from "../ProfileRuntime/ProfileRuntimeScreen";
 import { AIOSWorkspaceScreen } from "../AIOSWorkspace/AIOSWorkspaceScreen";
 import { ProfileWorkspaceScreen } from "../ProfileWorkspace/ProfileWorkspaceScreen";
+import { RuntimeSetupScreen } from "../RuntimeSetup/RuntimeSetupScreen";
 import hermeslogo from "../../assets/hermes.png";
 import {
   ChatBubble,
@@ -36,6 +37,7 @@ import {
   Globe,
   LayoutDashboard,
   Cpu,
+  Activity,
 } from "../../assets/icons";
 import type { LucideIcon } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
@@ -58,6 +60,7 @@ type View =
   | "settings"
   | "aios-workspace"
   | "profile-runtime"
+  | "runtime-setup"
   | `profile-workspace:${string}`;
 
 const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
@@ -73,6 +76,7 @@ const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
   { view: "tools", icon: Wrench, labelKey: "navigation.tools" },
   { view: "schedules", icon: Timer, labelKey: "navigation.schedules" },
   { view: "gateway", icon: Signal, labelKey: "navigation.gateway" },
+  { view: "runtime-setup", icon: Activity, labelKey: "navigation.runtimeSetup" },
   { view: "web-operator", icon: Globe, labelKey: "navigation.webOperator" },
   { view: "settings", icon: SettingsIcon, labelKey: "navigation.settings" },
 ];
@@ -358,6 +362,7 @@ function Layout(): React.JSX.Element {
             <Gateway profile={activeProfile} />
           ))}
         {view === "web-operator" && <WebOperatorScreen />}
+        {view === "runtime-setup" && <RuntimeSetupScreen />}
         {view === "profile-runtime" && <ProfileRuntimeScreen />}
         {view === "aios-workspace" && <AIOSWorkspaceScreen profile="default" />}
         {typeof view === "string" && view.startsWith("profile-workspace:") && (

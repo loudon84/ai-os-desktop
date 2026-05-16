@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { ArrowRight, Copy } from "../../assets/icons";
 import { useI18n } from "../../components/useI18n";
+import { AgentSourceSelect } from "./AgentSourceSelect";
+import type { AgentSourceConfig } from "./AgentSourceSelect";
 
 interface InstallProgress {
   step: number;
@@ -17,6 +19,7 @@ interface InstallProps {
 
 function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
   const { t } = useI18n();
+  const [sourceSelected, setSourceSelected] = useState(false);
   const [progress, setProgress] = useState<InstallProgress>({
     step: 0,
     totalSteps: 7,
@@ -29,26 +32,31 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  function handleSourceConfirm(config: AgentSourceConfig): void {
+    setSourceSelected(true);
+    startInstallWithSource(config);
+  }
+
+  function startInstallWithSource(config: AgentSourceConfig): void {
     const cleanup = window.hermesAPI.onInstallProgress((p) => {
       setProgress(p);
     });
 
     window.hermesAPI
-      .startInstall()
-      .then((result) => {
+      .startInstallWithSource(config)
+      .then((result: { success: boolean; error?: string }) => {
         if (result.success) {
           setDone(true);
         } else {
           setFailed(result.error || t("install.installationFailedHint"));
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         setFailed(err.message || t("install.installationFailedHint"));
       });
 
-    return cleanup;
-  }, []);
+    cleanup();
+  }
 
   useEffect(() => {
     if (logRef.current) {
@@ -61,6 +69,27 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleRetry(): void {
+    setFailed(null);
+    setSourceSelected(false);
+    setProgress({
+      step: 0,
+      totalSteps: 7,
+      title: t("install.preparing"),
+      detail: t("install.startingInstall"),
+      log: "",
+    });
+  }
+
+  if (!sourceSelected) {
+    return (
+      <AgentSourceSelect
+        onConfirm={handleSourceConfirm}
+        onCancel={() => onFailed("cancelled")}
+      />
+    );
   }
 
   const percent =
@@ -92,27 +121,10 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
         <div className="install-error-banner">
           <p className="install-error-text">{failed}</p>
           <div className="install-error-actions">
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setFailed(null);
-                setProgress({
-                  step: 0,
-                  totalSteps: 7,
-                  title: t("install.preparing"),
-                  detail: t("install.startingInstall"),
-                  log: "",
-                });
-                // Re-trigger install via parent
-                onFailed(failed);
-              }}
-            >
+            <button className="btn btn-primary btn-sm" onClick={handleRetry}>
               {t("install.retryInstallation")}
             </button>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleCopyLogs}
-            >
+            <button className="btn btn-secondary btn-sm" onClick={handleCopyLogs}>
               <Copy size={13} />
               {copied ? t("install.copied") : t("install.copyLogs")}
             </button>

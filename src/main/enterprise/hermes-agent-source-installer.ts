@@ -1,13 +1,81 @@
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { execSync, spawn } from "node:child_process";
+import { execSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 
-import type {
-  DeploymentConfig,
-  EnterpriseErrorResult,
-} from "../../shared/enterprise/enterprise-schema";
+import { getDesktopAgentDir } from "./windows/path-resolver";
 
-import { getHermesBasePath } from "./deployment-config";
+const isWindows = process.platform === "win32";
+
+async function extractZip(zipPath: string, targetDir: string): Promise<void> {
+  mkdirSync(targetDir, { recursive: true });
+
+  if (isWindows) {
+    execSync(
+      `powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${targetDir}' -Force"`,
+      { encoding: "utf-8", timeout: 300000 },
+    );
+  } else {
+    execSync(`unzip -o "${zipPath}" -d "${targetDir}"`, {
+      encoding: "utf-8",
+      timeout: 300000,
+    });
+  }
+}
+
+function isSingleSubdir(dir: string): string | null {
+  const entries = readdirSync(dir).filter((e) => !e.startsWith("."));
+  if (entries.length === 1) {
+    const sub = join(dir, entries[0]);
+    try {
+      const stat = require("fs").statSync(sub);
+      if (stat.isDirectory()) return sub;
+    } catch { /* not a dir */ }
+  }
+  return null;
+}
+
+function hasProjectFiles(dir: string): boolean {
+  return existsSync(join(dir, "pyproject.toml")) || existsSync(join(dir, "setup.py"));
+}
+
+function promoteSubdir(targetDir: string): string {
+  if (hasProjectFiles(targetDir)) return targetDir;
+
+  const sub = isSingleSubdir(targetDir);
+  if (sub && hasProjectFiles(sub)) {
+    const tmpStage = join(tmpdir(), `hermes-promote-${randomUUID()}`);
+    mkdirSync(tmpStage, { recursive: true });
+
+    const entries = readdirSync(sub);
+    for (const entry of entries) {
+      renameSync(join(sub, entry), join(tmpStage, entry));
+    }
+
+    try { rmSync(sub, { recursive: true }); } catch { /* keep empty dir */ }
+
+    for (const entry of readdirSync(tmpStage)) {
+      renameSync(join(tmpStage, entry), join(targetDir, entry));
+    }
+    try { rmSync(tmpStage, { recursive: true }); } catch { /* cleanup */ }
+
+    return targetDir;
+  }
+
+  const deepEntries = readdirSync(targetDir);
+  for (const entry of deepEntries) {
+    const candidate = join(targetDir, entry);
+    try {
+      const stat = require("fs").statSync(candidate);
+      if (stat.isDirectory() && hasProjectFiles(candidate)) {
+        return candidate;
+      }
+    } catch { /* skip */ }
+  }
+
+  return targetDir;
+}
 
 export interface AgentInstallProgress {
   stage: "extracting" | "cloning" | "checking-out" | "completed";
@@ -24,76 +92,78 @@ export interface AgentInstallResult {
   message?: string;
 }
 
-export async function installHermesAgentSource(
-  config: DeploymentConfig,
-  runtimePath: string,
+export type UserSourceType = "local-zip" | "git-clone";
+
+export interface UserSourceConfig {
+  sourceType: UserSourceType;
+  localZipPath?: string;
+  gitUrl?: string;
+  gitBranch?: string;
+  gitShallow?: boolean;
+}
+
+export async function installHermesAgentFromUserSource(
+  userConfig: UserSourceConfig,
   onProgress?: AgentProgressCallback,
 ): Promise<AgentInstallResult> {
-  const basePath = getHermesBasePath();
-  const agentTargetPath = join(basePath, "agent", "hermes-agent");
-  mkdirSync(dirname(agentTargetPath), { recursive: true });
+  const agentTargetPath = getDesktopAgentDir();
 
-  const { hermesAgent } = config;
+  if (existsSync(agentTargetPath) && hasProjectFiles(agentTargetPath)) {
+    onProgress?.({ stage: "completed", message: `hermes-agent 已存在于 ${agentTargetPath}` });
+    return { ok: true, agentPath: agentTargetPath };
+  }
 
-  switch (hermesAgent.sourceType) {
-    case "release-zip": {
-      const bundleAgentPath = join(runtimePath, "agent", "hermes-agent-release.zip");
-      const bundleExtractedPath = join(runtimePath, "agent", "hermes-agent");
+  if (existsSync(agentTargetPath) && readdirSync(agentTargetPath).length > 0) {
+    try { rmSync(agentTargetPath, { recursive: true }); } catch { /* partial cleanup */ }
+  }
+  mkdirSync(agentTargetPath, { recursive: true });
 
-      if (existsSync(bundleExtractedPath)) {
-        onProgress?.({ stage: "extracting", message: "从 Bundle 提取 hermes-agent..." });
-        if (!existsSync(agentTargetPath)) {
-          cpSync(bundleExtractedPath, agentTargetPath, { recursive: true });
-        }
-      } else if (existsSync(bundleAgentPath)) {
-        onProgress?.({ stage: "extracting", message: "解压 hermes-agent-release.zip..." });
-        mkdirSync(agentTargetPath, { recursive: true });
-        try {
-          const { Extract } = await import("unzipper");
-          const { pipeline } = await import("node:stream/promises");
-          const { createReadStream } = await import("node:fs");
-          await pipeline(createReadStream(bundleAgentPath), Extract({ path: agentTargetPath }));
-        } catch (err) {
-          return {
-            ok: false,
-            errorCode: "E_AGENT_SOURCE_NOT_FOUND",
-            message: `解压 agent 失败: ${err instanceof Error ? err.message : String(err)}`,
-          };
-        }
-      } else {
+  switch (userConfig.sourceType) {
+    case "local-zip": {
+      const zipPath = userConfig.localZipPath;
+      if (!zipPath || !existsSync(zipPath)) {
         return {
           ok: false,
           errorCode: "E_AGENT_SOURCE_NOT_FOUND",
-          message: "Runtime Bundle 中未找到 hermes-agent",
+          message: `ZIP 文件不存在: ${zipPath || "(未指定)"}`,
+        };
+      }
+      onProgress?.({ stage: "extracting", message: `解压 ${zipPath} 到 ${agentTargetPath}...` });
+      try {
+        await extractZip(zipPath, agentTargetPath);
+        const resolvedPath = promoteSubdir(agentTargetPath);
+        if (resolvedPath !== agentTargetPath) {
+          onProgress?.({ stage: "extracting", message: `检测到子目录结构，源码路径: ${resolvedPath}` });
+        }
+      } catch (err) {
+        return {
+          ok: false,
+          errorCode: "E_BUNDLE_EXTRACT_FAILED",
+          message: `解压失败: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
       break;
     }
 
     case "git-clone": {
-      if (!hermesAgent.gitUrl) {
-        return { ok: false, errorCode: "E_GIT_CLONE_FAILED", message: "gitUrl 为空" };
+      const gitUrl = userConfig.gitUrl;
+      if (!gitUrl) {
+        return { ok: false, errorCode: "E_GIT_CLONE_FAILED", message: "Git URL 为空" };
       }
 
-      onProgress?.({ stage: "cloning", message: `克隆 ${hermesAgent.gitUrl}...` });
-
-      const env: Record<string, string> = { ...process.env as Record<string, string> };
-
-      if (hermesAgent.authMode === "personal-access-token") {
-        const token = process.env.HTTPS_AIO_TOKEN || "";
-        if (!token) {
-          return { ok: false, errorCode: "E_GIT_AUTH_FAILED", message: "HTTPS_AIO_TOKEN 环境变量未设置" };
-        }
-        env.HTTPS_AIO_TOKEN = token;
-      }
+      onProgress?.({ stage: "cloning", message: `克隆 ${gitUrl}...` });
 
       const cloneArgs = ["clone"];
-      if (hermesAgent.shallowClone) cloneArgs.push("--depth", "1");
-      if (hermesAgent.branch) cloneArgs.push("-b", hermesAgent.branch);
-      cloneArgs.push(hermesAgent.gitUrl, agentTargetPath);
+      if (userConfig.gitShallow !== false) cloneArgs.push("--depth", "1");
+      if (userConfig.gitBranch) cloneArgs.push("-b", userConfig.gitBranch);
+      cloneArgs.push(gitUrl, agentTargetPath);
 
       try {
-        execSync(`git ${cloneArgs.join(" ")}`, { encoding: "utf-8", timeout: 120000, env });
+        execSync(`git ${cloneArgs.join(" ")}`, {
+          encoding: "utf-8",
+          timeout: 300000,
+          env: process.env as Record<string, string>,
+        });
       } catch (err) {
         return {
           ok: false,
@@ -101,31 +171,35 @@ export async function installHermesAgentSource(
           message: `Git clone 失败: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
-
-      if (hermesAgent.commit) {
-        onProgress?.({ stage: "checking-out", message: `Checkout ${hermesAgent.commit}...` });
-        try {
-          execSync(`git checkout ${hermesAgent.commit}`, { cwd: agentTargetPath, encoding: "utf-8", timeout: 30000 });
-        } catch (err) {
-          return {
-            ok: false,
-            errorCode: "E_GIT_CHECKOUT_FAILED",
-            message: `Git checkout 失败: ${err instanceof Error ? err.message : String(err)}`,
-          };
-        }
-      }
       break;
     }
   }
 
-  onProgress?.({ stage: "completed", message: "hermes-agent 安装完成" });
+  if (!hasProjectFiles(agentTargetPath)) {
+    return {
+      ok: false,
+      errorCode: "E_AGENT_SOURCE_NOT_FOUND",
+      message: `未找到 pyproject.toml 或 setup.py，解压可能不正确`,
+    };
+  }
 
-  return { ok: true, agentPath: agentTargetPath, version: hermesAgent.version };
+  onProgress?.({ stage: "completed", message: `hermes-agent 安装完成 → ${agentTargetPath}` });
+  return { ok: true, agentPath: agentTargetPath };
 }
 
-function dirname(p: string): string {
-  const sep = p.lastIndexOf("/");
-  const sep2 = p.lastIndexOf("\\");
-  const idx = Math.max(sep, sep2);
-  return idx === -1 ? "." : p.slice(0, idx);
+export async function installHermesAgentSource(
+  _config: unknown,
+  _runtimePath: string,
+  onProgress?: AgentProgressCallback,
+): Promise<AgentInstallResult> {
+  const agentTargetPath = getDesktopAgentDir();
+  if (existsSync(agentTargetPath) && hasProjectFiles(agentTargetPath)) {
+    onProgress?.({ stage: "completed", message: `hermes-agent 已存在` });
+    return { ok: true, agentPath: agentTargetPath };
+  }
+  return {
+    ok: false,
+    errorCode: "E_AGENT_SOURCE_NOT_FOUND",
+    message: "hermes-agent 未安装，请通过首次初始化选择安装源",
+  };
 }

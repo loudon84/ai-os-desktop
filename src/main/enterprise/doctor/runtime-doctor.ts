@@ -12,6 +12,7 @@ import { checkAgentFiles } from "./check-agent-files";
 import { checkProfileDb } from "./check-profile-db";
 import { checkSkills } from "./check-skills";
 import { checkPolicy, checkPortBinding, checkDirPermission, checkConfigValidity } from "./check-misc";
+import { runWindowsDoctorChecks, checkHermesCmd, checkPythonVenv, checkApiServer } from "./check-windows";
 import { getHermesBasePath } from "../deployment-config";
 
 export interface DoctorInput {
@@ -39,6 +40,10 @@ export async function runAllChecks(input: DoctorInput): Promise<DoctorReport> {
     Promise.resolve().then(() => checkPortBinding(config.gateway.host, defaultPort)),
     Promise.resolve().then(() => checkDirPermission(basePath)),
     Promise.resolve().then(() => checkConfigValidity(join(hermesHome, "config.yaml"))),
+    Promise.resolve().then(() => checkHermesCmd()),
+    Promise.resolve().then(() => checkPythonVenv(join(basePath, "venv"))),
+    Promise.resolve().then(() => checkApiServer(config.gateway.host, defaultPort)),
+    ...runWindowsDoctorChecks().map((r) => Promise.resolve(r as DoctorCheckResult)),
   ];
 
   const results = await Promise.allSettled(checkPromises);

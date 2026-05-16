@@ -11,5 +11,6 @@ export default {
   tools: "Tools",
   schedules: "Schedules",
   gateway: "Gateway",
+  runtimeSetup: "Runtime Setup",
   settings: "Settings",
 } as const;

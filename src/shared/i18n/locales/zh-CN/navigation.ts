@@ -11,5 +11,6 @@ export default {
   tools: "工具",
   schedules: "计划任务",
   gateway: "网关",
+  runtimeSetup: "运行时诊断",
   settings: "设置",
 } as const;
