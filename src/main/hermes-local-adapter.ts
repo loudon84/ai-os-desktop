@@ -1,0 +1,270 @@
+import { spawn, type ChildProcess } from "child_process";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
+import { HERMES_HOME, HERMES_REPO, HERMES_PYTHON, HERMES_SCRIPT } from "./installer";
+import type { RuntimeAdapter } from "./runtime-adapter";
+import type { ProfileGatewayState } from "../shared/profile-runtime/profile-runtime-contract";
+import {
+  getProfile,
+  getRuntimeInstance,
+  updateRuntimeStatus,
+} from "./profile-runtime-db";
+import { ProfileRuntimeError } from "../shared/profile-runtime/profile-runtime-errors";
+import { startCollecting, stopCollecting } from "./gateway-log-collector";
+
+const HEALTH_TIMEOUT_MS = 1500;
+
+const gatewayProcesses = new Map<string, ChildProcess>();
+
+function profileHome(name?: string): string {
+  if (!name || name === "default") return HERMES_HOME;
+  return join(HERMES_HOME, "profiles", name);
+}
+
+async function checkHealth(host: string, port: number): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`http://${host}:${port}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    clearTimeout(timer);
+    return false;
+  }
+}
+
+async function waitForHealth(host: string, port: number, maxRetries = 30): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    if (await checkHealth(host, port)) return true;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+export const hermesLocalAdapter: RuntimeAdapter = {
+  type: "hermes-local",
+  title: "Hermes Local Runtime",
+  version: "1.0.0",
+
+  async validate(profileId: string): Promise<void> {
+    const profile = getProfile(profileId);
+    if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+    if (!existsSync(HERMES_REPO)) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", "hermes-agent not found");
+  },
+
+  async deploy(profileId: string): Promise<void> {
+    const profile = getProfile(profileId);
+    if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+    const home = profileHome(profile.name);
+    if (!existsSync(home)) {
+      const { mkdirSync } = await import("fs");
+      mkdirSync(home, { recursive: true });
+    }
+  },
+
+  async start(profileId: string): Promise<ProfileGatewayState> {
+    const profile = getProfile(profileId);
+    if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+
+    const instance = getRuntimeInstance(profileId);
+    if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
+
+    updateRuntimeStatus(profileId, "starting");
+
+    const home = profileHome(profile.name);
+    const configPath = join(home, "config.yaml");
+
+    try {
+      let configContent = "";
+      if (existsSync(configPath)) {
+        configContent = readFileSync(configPath, "utf-8");
+      }
+
+      const apiServerBlock = `\nplatforms:\n  api_server:\n    host: "${instance.host}"\n    port: ${instance.port}\n`;
+      if (configContent.includes("api_server:")) {
+        configContent = configContent.replace(
+          /platforms:\s*\n\s*api_server:\s*\n(\s*host:.*\n)?(\s*port:.*\n)?/,
+          `platforms:\n  api_server:\n    host: "${instance.host}"\n    port: ${instance.port}\n`,
+        );
+      } else {
+        configContent += apiServerBlock;
+      }
+      writeFileSync(configPath, configContent, "utf-8");
+    } catch {
+      // Config injection failure is non-fatal
+    }
+
+    const env = { ...process.env } as Record<string, string>;
+    const envFile = join(home, ".env");
+    if (existsSync(envFile)) {
+      const envContent = readFileSync(envFile, "utf-8");
+      for (const line of envContent.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#")) {
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx > 0) {
+            env[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1);
+          }
+        }
+      }
+    }
+
+    const proc = spawn(HERMES_PYTHON, [HERMES_SCRIPT, "gateway"], {
+      cwd: HERMES_REPO,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
+    });
+    proc.unref();
+
+    gatewayProcesses.set(profileId, proc);
+
+    startCollecting(profileId, proc);
+
+    proc.on("exit", (code, signal) => {
+      gatewayProcesses.delete(profileId);
+      stopCollecting(profileId);
+      if (code !== 0 && code !== null) {
+        const now = new Date().toISOString();
+        const instance = getRuntimeInstance(profileId);
+        const currentRestartCount = (instance?.restart_count ?? 0) + 1;
+        updateRuntimeStatus(profileId, "failed", {
+          lastError: `Gateway exited with code ${code}${signal ? ` (signal: ${signal})` : ""}`,
+          lastExitCode: code,
+          lastCrashAt: now,
+          restartCount: currentRestartCount,
+        });
+      }
+    });
+
+    const healthy = await waitForHealth(instance.host, instance.port);
+    if (!healthy) {
+      updateRuntimeStatus(profileId, "failed", { lastError: "Health check timeout after start" });
+      throw new ProfileRuntimeError("PROFILE_GATEWAY_HEALTH_TIMEOUT");
+    }
+
+    updateRuntimeStatus(profileId, "running", {
+      pid: proc.pid ?? null,
+      startedAt: new Date().toISOString(),
+    });
+
+    return {
+      profileId,
+      status: "running",
+      port: instance.port,
+      pid: proc.pid ?? null,
+      baseUrl: instance.base_url,
+      lastError: null,
+    };
+  },
+
+  async stop(profileId: string): Promise<ProfileGatewayState> {
+    const instance = getRuntimeInstance(profileId);
+    if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
+
+    updateRuntimeStatus(profileId, "stopping");
+
+    const proc = gatewayProcesses.get(profileId);
+    if (proc && !proc.killed) {
+      try { proc.kill("SIGTERM"); } catch { /* already dead */ }
+    }
+    gatewayProcesses.delete(profileId);
+    stopCollecting(profileId);
+
+    const pidPath = join(profileHome(), "gateway.pid");
+    if (existsSync(pidPath)) {
+      try {
+        const pid = parseInt(readFileSync(pidPath, "utf-8").trim(), 10);
+        if (!isNaN(pid)) {
+          try { process.kill(pid, "SIGTERM"); } catch { /* already dead */ }
+        }
+      } catch { /* ignore */ }
+    }
+
+    updateRuntimeStatus(profileId, "stopped", {
+      pid: null,
+      stoppedAt: new Date().toISOString(),
+    });
+
+    return {
+      profileId,
+      status: "stopped",
+      port: instance.port,
+      pid: null,
+      baseUrl: instance.base_url,
+      lastError: null,
+    };
+  },
+
+  async restart(profileId: string): Promise<ProfileGatewayState> {
+    const instance = getRuntimeInstance(profileId);
+    if (instance?.status === "running" || instance?.status === "starting") {
+      await hermesLocalAdapter.stop(profileId);
+    }
+    return hermesLocalAdapter.start(profileId);
+  },
+
+  async health(profileId: string): Promise<ProfileGatewayState> {
+    const instance = getRuntimeInstance(profileId);
+    if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
+
+    const healthy = await checkHealth(instance.host, instance.port);
+    const status = healthy ? "running" : "stopped";
+    updateRuntimeStatus(profileId, status, {
+      lastHealthCheckAt: new Date().toISOString(),
+    });
+
+    return {
+      profileId,
+      status,
+      port: instance.port,
+      pid: instance.pid,
+      baseUrl: instance.base_url,
+      lastError: healthy ? null : "Health check failed",
+    };
+  },
+
+  async sendMessage(input: {
+    profileId: string;
+    message: string;
+    sessionId?: string;
+    history?: Array<{ role: string; content: string }>;
+  }): Promise<{ response: string; sessionId?: string }> {
+    const instance = getRuntimeInstance(input.profileId);
+    if (!instance || instance.status !== "running") {
+      throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", input.profileId);
+    }
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (input.sessionId) {
+      headers["x-hermes-session-id"] = input.sessionId;
+    }
+
+    const body: Record<string, unknown> = {
+      messages: [
+        ...(input.history ?? []),
+        { role: "user", content: input.message },
+      ],
+      stream: false,
+    };
+
+    const res = await fetch(`${instance.base_url}/v1/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new ProfileRuntimeError("PROFILE_DELEGATION_FAILED", `HTTP ${res.status}`);
+    }
+
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }>; id?: string };
+    const responseSessionId = res.headers.get("x-hermes-session-id") ?? input.sessionId;
+
+    return {
+      response: data.choices?.[0]?.message?.content ?? "",
+      sessionId: responseSessionId,
+    };
+  },
+};

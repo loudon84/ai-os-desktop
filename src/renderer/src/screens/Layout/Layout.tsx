@@ -13,6 +13,10 @@ import Models from "../Models/Models";
 import Providers from "../Providers/Providers";
 import Schedules from "../Schedules/Schedules";
 import RemoteNotice from "../../components/RemoteNotice";
+import { WebOperatorScreen } from "../WebOperator/WebOperatorScreen";
+import { ProfileRuntimeScreen } from "../ProfileRuntime/ProfileRuntimeScreen";
+import { AIOSWorkspaceScreen } from "../AIOSWorkspace/AIOSWorkspaceScreen";
+import { ProfileWorkspaceScreen } from "../ProfileWorkspace/ProfileWorkspaceScreen";
 import hermeslogo from "../../assets/hermes.png";
 import {
   ChatBubble,
@@ -29,9 +33,13 @@ import {
   KeyRound,
   Timer,
   Download,
+  Globe,
+  LayoutDashboard,
+  Cpu,
 } from "../../assets/icons";
 import type { LucideIcon } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
+import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 
 type View =
   | "chat"
@@ -46,7 +54,11 @@ type View =
   | "tools"
   | "schedules"
   | "gateway"
-  | "settings";
+  | "web-operator"
+  | "settings"
+  | "aios-workspace"
+  | "profile-runtime"
+  | `profile-workspace:${string}`;
 
 const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
   { view: "chat", icon: ChatBubble, labelKey: "navigation.chat" },
@@ -61,6 +73,7 @@ const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
   { view: "tools", icon: Wrench, labelKey: "navigation.tools" },
   { view: "schedules", icon: Timer, labelKey: "navigation.schedules" },
   { view: "gateway", icon: Signal, labelKey: "navigation.gateway" },
+  { view: "web-operator", icon: Globe, labelKey: "navigation.webOperator" },
   { view: "settings", icon: SettingsIcon, labelKey: "navigation.settings" },
 ];
 
@@ -74,6 +87,13 @@ function Layout(): React.JSX.Element {
   const [officeVisited, setOfficeVisited] = useState(false);
   // Remote-only mode — SSH tunnel has full access; only pure HTTP remote mode restricts screens
   const [remoteMode, setRemoteMode] = useState(false);
+  const [profileEntries, setProfileEntries] = useState<ProfileEntrySummary[]>([]);
+
+  useEffect(() => {
+    try {
+      window.profileEntry.listProfileEntries().then(setProfileEntries).catch(() => {});
+    } catch { /* profileEntry not available */ }
+  }, []);
 
   // Re-check remote mode on tab switch (picks up Settings changes)
   useEffect(() => {
@@ -177,6 +197,41 @@ function Layout(): React.JSX.Element {
               {t(labelKey)}
             </button>
           ))}
+
+          {profileEntries.length > 0 && (
+            <>
+              <div className="sidebar-nav-divider" />
+              <div className="sidebar-nav-group-label">AI-OS</div>
+              <button
+                className={`sidebar-nav-item ${view === "aios-workspace" ? "active" : ""}`}
+                onClick={() => setView("aios-workspace")}
+              >
+                <LayoutDashboard size={16} />
+                AI-OS
+              </button>
+              <div className="sidebar-nav-group-label">Experts</div>
+              {profileEntries
+                .filter((e) => e.entryType === "specialist-workspace")
+                .map((entry) => (
+                  <button
+                    key={entry.profileId}
+                    className={`sidebar-nav-item ${view === `profile-workspace:${entry.profileId}` ? "active" : ""}`}
+                    onClick={() => setView(`profile-workspace:${entry.profileId}`)}
+                  >
+                    <Users size={16} />
+                    {entry.title}
+                  </button>
+                ))}
+              <div className="sidebar-nav-group-label">Runtime</div>
+              <button
+                className={`sidebar-nav-item ${view === "profile-runtime" ? "active" : ""}`}
+                onClick={() => setView("profile-runtime")}
+              >
+                <Cpu size={16} />
+                Profile Runtime
+              </button>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -302,6 +357,12 @@ function Layout(): React.JSX.Element {
           ) : (
             <Gateway profile={activeProfile} />
           ))}
+        {view === "web-operator" && <WebOperatorScreen />}
+        {view === "profile-runtime" && <ProfileRuntimeScreen />}
+        {view === "aios-workspace" && <AIOSWorkspaceScreen profile="default" />}
+        {typeof view === "string" && view.startsWith("profile-workspace:") && (
+          <ProfileWorkspaceScreen profileId={view.split(":")[1]} />
+        )}
         <div
           style={{
             display: view === "settings" ? "flex" : "none",

@@ -1,5 +1,7 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 import type { AppLocale } from "../shared/i18n/types";
+import type { AiosBrowserAPI } from "./browser-api";
+import type { ProfileRuntimeAPI, ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -463,5 +465,8 @@ declare global {
   interface Window {
     electron: ElectronAPI;
     hermesAPI: HermesAPI;
+    aiosBrowser: AiosBrowserAPI;
+    profileRuntime: ProfileRuntimeAPI;
+    profileEntry: ProfileEntryAPI;
   }
 }

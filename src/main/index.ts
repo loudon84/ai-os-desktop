@@ -118,6 +118,15 @@ import {
 } from "./cronjobs";
 import { getAppLocale, setAppLocale } from "./locale";
 import type { AppLocale } from "../shared/i18n/types";
+import { BrowserViewManager } from "./browser/browser-view-manager";
+import { BrowserSecurityGuard } from "./browser/browser-security";
+import { BrowserAuditLogger } from "./browser/browser-audit";
+import { BrowserController } from "./browser/browser-controller";
+import { BrowserIPC } from "./browser/browser-ipc";
+import { BrowserToolBridge } from "./browser/browser-tool-bridge";
+import { BrowserToolServer } from "./browser/browser-tool-server";
+import { profileHome } from "./utils";
+import { join } from "path";
 import {
   sshListInstalledSkills,
   sshGetSkillContent,
@@ -173,6 +182,8 @@ process.on("unhandledRejection", (reason) => {
 
 let mainWindow: BrowserWindow | null = null;
 let currentChatAbort: (() => void) | null = null;
+let browserIPC: BrowserIPC | null = null;
+let browserToolServer: BrowserToolServer | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -235,6 +246,12 @@ function createWindow(): void {
 }
 
 function setupIPC(): void {
+  // Profile Runtime IPC
+  try {
+    const { setupProfileRuntimeIPC } = require("./profile-runtime-ipc");
+    setupProfileRuntimeIPC();
+  } catch { /* profile-runtime not available in early setup */ }
+
   // Installation
   ipcMain.handle("check-install", () => {
     return checkInstallStatus();
@@ -1124,6 +1141,39 @@ app.whenReady().then(() => {
   buildMenu();
   setupIPC();
   createWindow();
+
+  // Initialize Web Operator browser module
+  if (mainWindow) {
+    try {
+      const webOperatorDir = join(profileHome(), "desktop", "web-operator");
+      const configPath = join(webOperatorDir, "web-operator.config.json");
+      const logDir = join(webOperatorDir, "logs");
+
+      const viewManager = new BrowserViewManager(mainWindow);
+      const securityGuard = new BrowserSecurityGuard(configPath);
+      const auditLogger = new BrowserAuditLogger(logDir);
+      const controller = new BrowserController(viewManager, securityGuard, auditLogger);
+      controller.setMainWindow(mainWindow);
+
+      browserIPC = new BrowserIPC(controller, viewManager);
+      browserIPC.register();
+
+      const toolBridge = new BrowserToolBridge(controller);
+      browserToolServer = new BrowserToolServer(toolBridge);
+      browserToolServer.start().catch((err) => {
+        console.error("[BROWSER] Tool server failed to start:", err);
+      });
+
+      auditLogger.onLog((record) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("browser.on_audit_update", record);
+        }
+      });
+    } catch (err) {
+      console.error("[BROWSER] Failed to initialize Web Operator:", err);
+    }
+  }
+
   setupUpdater();
 
   // Auto-start SSH tunnel if configured
@@ -1151,6 +1201,7 @@ app.on("window-all-closed", () => {
     stopGateway();
     stopSshTunnel();
     stopClaw3d();
+    if (browserToolServer) browserToolServer.stop();
     app.quit();
   }
 });
@@ -1161,6 +1212,10 @@ app.on("before-quit", () => {
     currentChatAbort();
     currentChatAbort = null;
   }
+  try {
+    const { onBeforeQuit } = require("./profile-runtime-manager");
+    onBeforeQuit();
+  } catch { /* best effort */ }
   stopGateway();
   stopSshTunnel();
   stopClaw3d();
