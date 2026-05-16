@@ -252,6 +252,12 @@ function setupIPC(): void {
     setupProfileRuntimeIPC();
   } catch { /* profile-runtime not available in early setup */ }
 
+  // Enterprise Install IPC
+  try {
+    const { setupEnterpriseInstallIPC } = require("./enterprise/enterprise-ipc");
+    if (mainWindow) setupEnterpriseInstallIPC(mainWindow);
+  } catch { /* enterprise install not available in early setup */ }
+
   // Installation
   ipcMain.handle("check-install", () => {
     return checkInstallStatus();

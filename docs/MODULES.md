@@ -207,6 +207,129 @@
 
 ---
 
+## V1.2.1 Enterprise Install 模块 (src/main/enterprise/)
+
+### deployment-config.ts — Deployment 配置加载
+
+- **职责**: 读取 deployment.json → 校验 → 返回 DeploymentConfig；提供默认配置（7 Profile + 8642-8648 端口 + windows-native）
+- **核心方法**: loadDeploymentConfig(configPath?), getDefaultDeploymentConfig(), getHermesBasePath(), getInstallBasePath(), getDeploymentConfigPaths()
+- **依赖**: deployment-schema.ts
+
+### deployment-schema.ts — Deployment Schema 校验
+
+- **职责**: 31 字段手动校验 + 条件联动校验（bundleUrl/sourceType 联动、gitUrl/branch/sourceType 联动、gateway.host 安全约束 127.0.0.1）
+- **核心方法**: validateDeploymentConfig(config): SchemaValidationResult
+
+### checksum-verifier.ts — SHA-256 校验
+
+- **职责**: 流式 SHA-256 计算（crypto.createHash），支持大文件；可选 manifest 签名校验
+- **核心方法**: verifySha256(filePath, expectedHash), verifyManifestSignature(manifestPath)
+
+### runtime-bundle-manager.ts — Runtime Bundle 管理
+
+- **职责**: 三种 Bundle 来源（artifact 在线下载/离线路径/内嵌）+ 断点续传 + SHA-256 校验 + 解压 + 复用检测
+- **核心方法**: resolveRuntimeBundle(config, onProgress, existingBundleHash?)
+- **错误码**: E_BUNDLE_DOWNLOAD_FAILED, E_BUNDLE_SHA256_MISMATCH, E_BUNDLE_DISK_FULL, E_BUNDLE_EXTRACT_FAILED
+
+### preflight-checker.ts — 环境预检
+
+- **职责**: 20 项检查（P0 阻断 10 项 + P1 警告 5 项 + P2 信息 5 项），禁止修改系统状态
+- **核心方法**: runPreflight(config): PreflightReport
+- **P0 检查**: WIN-VERSION, DISK-SPACE, INSTALL-DIR-WRITABLE, HERMES-HOME-WRITABLE, PORT-AVAILABLE, PYTHON-AVAILABLE, VENV-CREATABLE, BUNDLE-SHA256, PROFILE-DB-CREATABLE, DEPLOY-SCHEMA
+
+### hermes-agent-source-installer.ts — Agent 源码安装
+
+- **职责**: Git clone / Bundle 两种模式安装 hermes-agent，PAT 通过环境变量注入不落盘
+- **核心方法**: installHermesAgentSource(config, runtimePath, onProgress)
+- **错误码**: E_GIT_CLONE_FAILED, E_GIT_AUTH_FAILED, E_GIT_CHECKOUT_FAILED, E_AGENT_VERSION_MISMATCH, E_AGENT_SOURCE_NOT_FOUND
+
+### python-venv-installer.ts — Python Venv 管理
+
+- **职责**: venv 创建/复用 + 依赖安装（优先 uv，fallback pip；优先 wheelhouse，fallback pipIndexUrl）
+- **核心方法**: createOrReuseSharedVenv(config), installPythonDependencies(config, venvPath, agentPath, onProgress)
+- **错误码**: E_VENV_CREATE_FAILED, E_VENV_REUSED_BROKEN, E_PIP_INSTALL_FAILED, E_PIP_INDEX_UNREACHABLE
+
+### runtime-bootstrapper.ts — Python 运行时检测
+
+- **职责**: 检测系统 Python 版本，判断使用 bundled 或系统 Python
+- **核心方法**: detectAndBootstrapRuntime(config)
+
+### enterprise-config-provisioner.ts — ~/.hermes 初始化
+
+- **职责**: 创建 ~/.hermes 目录结构 + config.yaml + .env + SOUL.md（已有配置保留）
+- **核心方法**: provisionDefaultHermesHome(config, agentPath, venvPath)
+
+### profile-runtime-bootstrapper.ts — Profile 引导
+
+- **职责**: 7 个 Profile 独立引导（HERMES_HOME 创建 + config.yaml + 端口递增分配 + SOUL.md）
+- **核心方法**: bootstrapProfiles(config, agentPath, venvPath, onProgress)
+- **错误码**: E_PORT_EXHAUSTED
+
+### profile-policy-installer.ts — Skills 安装与 Policy
+
+- **职责**: Bundle Skills 复制到 Profile 目录 + Policy 只读标记
+- **核心方法**: installBundledSkills(config, profileName, profileHome, runtimePath), applyPolicyReadOnly(profileId)
+
+### install-lock.ts — 安装锁
+
+- **职责**: 独占文件锁（fs.open wx），stale lock 5 分钟自动清理
+- **核心方法**: acquireInstallLock(timeoutMs): InstallLock
+- **错误码**: E_INSTALL_LOCK_TIMEOUT
+
+### install-marker.ts — 安装标记
+
+- **职责**: 读写 install-marker.json（schemaVersion/desktopVersion/agentVersion/profiles/rollbackSnapshots）
+- **核心方法**: writeInstallMarker(marker), readInstallMarker(), existsInstallMarker()
+
+### install-log.ts — 安装日志
+
+- **职责**: JSON Lines 格式日志 + 敏感信息自动脱敏（token/password/secret/key/auth → ***）
+- **核心方法**: createInstallLogger(logDir?): InstallLogger
+
+### enterprise-installer.ts — 企业安装流水线
+
+- **职责**: 20 步有序安装流水线编排 + 13 个 IPC handler 注册 + 进度推送
+- **流水线**: checkEnterpriseInstall → loadDeploymentConfig → acquireInstallLock → runPreflight → resolveRuntimeBundle → installHermesAgentSource → createOrReuseSharedVenv → installPythonDependencies → provisionDefaultHermesHome → bootstrapProfiles → installBundledSkills → applyPolicy → writeInstallMarker → openAIOSWorkspace
+- **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor
+- **核心方法**: executeEnterpriseInstallPipeline(mainWindow, input?), setupEnterpriseInstallIPC(mainWindow)
+
+### enterprise-ipc.ts — IPC 重导出
+
+- **职责**: 从 enterprise-installer 重导出 setupEnterpriseInstallIPC
+
+### doctor/ — Runtime Doctor 模块
+
+#### runtime-doctor.ts — 诊断编排
+
+- **职责**: 9 项并发检查 + 报告导出，单项超时 10s
+- **核心方法**: runAllChecks(input): DoctorReport, exportDoctorReport(report, exportDir?)
+
+#### check-gateway-reachable.ts — Gateway 可达性检查
+
+- **核心方法**: checkGatewayReachable(host, port, timeoutMs?)
+
+#### check-python-deps.ts — Python 依赖完整性检查
+
+- **核心方法**: checkPythonDeps(venvPath, agentPath)
+
+#### check-agent-files.ts — Agent 文件完整性检查
+
+- **核心方法**: checkAgentFiles(agentPath)
+
+#### check-profile-db.ts — Profile DB 完整性检查
+
+- **核心方法**: checkProfileDb(dbPath) — PRAGMA integrity_check
+
+#### check-skills.ts — Skills 完整性检查
+
+- **核心方法**: checkSkills(skillsDir)
+
+#### check-misc.ts — 辅助检查
+
+- **核心方法**: checkPolicy(profileId), checkPortBinding(host, port), checkDirPermission(dirPath), checkConfigValidity(configPath)
+
+---
+
 ### browser/ — Web Operator 模块
 
 基于 `hermes-desktop` 二开，扩展为 **AI-OS Desktop Web Operator**，让 Electron 桌面端打开外部 Web 页面，用户可手工操作，Hermes 通过受控 Browser Tool Bridge 操作同一页面。

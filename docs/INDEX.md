@@ -13,15 +13,17 @@ V1.1 在 V1.0 基础上新增 **Multi Profile Gateway Runtime**，将单 Gateway
 
 V1.2 在 V1.1 基础上增强 **Runtime 稳定性**：Gateway 崩溃检测/自动重启、端口冲突检测、启动超时、App 重启后状态恢复、日志收集与查看。
 
+V1.2.1 在 V1.2 基础上新增 **Enterprise Install 企业级一键部署**：Deployment Config + Schema 校验、Runtime Bundle Manager（在线/离线/内嵌 + SHA-256）、Preflight Checker（20 项 P0/P1/P2 预检）、Hermes Agent Installer（Git/Bundle 双模式 + Venv）、Profile Runtime Bootstrapper（7 Profile + 端口递增）、Enterprise Installer 20 步流水线 + 13 IPC handler、Runtime Doctor（9 项诊断）、Install Lock/Marker/Log、安全策略（仅 127.0.0.1/无 UAC/HKLM/PATH/Token 不落盘）。
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
 |---|---|---|
-| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime 多智能体运行时**、**V1.2: Gateway 日志收集/健康监管增强/运行时恢复** | 需按任务范围 |
+| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime 多智能体运行时**、**V1.2: Gateway 日志收集/健康监管增强/运行时恢复**、**V1.2.1: Enterprise Install 企业级一键部署** | 需按任务范围 |
 | `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer | 按需扩展 |
 | `src/preload/` | 预加载桥接层 — contextBridge 暴露 hermesAPI + aiosBrowser + **profileRuntime + profileEntry** | 谨慎修改，影响全进程通信 |
 | `src/renderer/` | 渲染进程 — React UI 页面和组件 | 主要开发区 |
-| `src/shared/` | 共享模块 — i18n 国际化 + browser IPC 契约类型 + **profile-runtime 契约类型/错误码** | 谨慎修改 |
+| `src/shared/` | 共享模块 — i18n 国际化 + browser IPC 契约类型 + **profile-runtime 契约类型/错误码** + **V1.2.1: enterprise 契约类型/常量/错误码** | 谨慎修改 |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件 | 按需扩展 |

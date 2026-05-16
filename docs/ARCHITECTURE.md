@@ -45,6 +45,19 @@ src/
 │  ├── sse-parser.ts  SSE 流解析                  │
 │  ├── gateway-log-collector.ts V1.2 日志收集    │
 │  ├── runtime-reconciler.ts   V1.2 状态恢复     │
+│  ├── enterprise/   V1.2.1 企业级一键部署        │
+│  │   ├── deployment-config.ts  配置加载        │
+│  │   ├── deployment-schema.ts  Schema 校验     │
+│  │   ├── checksum-verifier.ts  SHA-256 校验    │
+│  │   ├── runtime-bundle-manager.ts Bundle 管理 │
+│  │   ├── preflight-checker.ts  环境预检        │
+│  │   ├── hermes-agent-source-installer.ts Agent│
+│  │   ├── python-venv-installer.ts  Venv 管理   │
+│  │   ├── enterprise-installer.ts  流水线编排    │
+│  │   ├── install-lock.ts  安装锁              │
+│  │   ├── install-marker.ts 安装标记           │
+│  │   ├── install-log.ts  安装日志             │
+│  │   └── doctor/  Runtime Doctor 9 项诊断      │
 │  └── browser/       Web Operator 模块           │
 │       ├── browser-view-manager.ts               │
 │       ├── browser-controller.ts                 │
@@ -286,3 +299,79 @@ gateway-supervisor.ts (增强)
 - `GatewayLogLevel` — 日志级别
 - `RuntimeStatusChangeEvent` — 状态变更事件
 - `PROFILE_STARTUP_TIMEOUT` — 新增错误码
+
+---
+
+## V1.2.1 Enterprise Install 架构
+
+### 安装流水线
+
+```
+NSIS Installer
+  → Hermes Desktop App
+    → Enterprise Install Screen
+      → Preflight Checker (20 项)
+      → Runtime Bundle Manager (下载/校验/解压)
+      → Hermes Agent Source Installer (Git/Bundle)
+      → Python Venv Installer (创建/复用 + 依赖)
+      → Enterprise Config Provisioner (~/.hermes)
+      → Profile Runtime Bootstrapper (7 Profile)
+      → Install Lock / Marker / Log
+      → Gateway Supervisor (启动 default)
+      → Runtime Doctor (9 项诊断)
+      → AI-OS Desktop
+```
+
+### 安装目录结构
+
+```
+%LOCALAPPDATA%\AIOS-Hermes\
+  app\        Hermes Desktop.exe
+  runtime\    python\ git\ uv\ wheels\
+  agent\      hermes-agent\
+  venv\       Scripts\python.exe
+  logs\       install.log  gateway\*.log
+  cache\      downloads\ extracted\ backups\
+
+%USERPROFILE%\.hermes\
+  config.yaml  .env  state.db  SOUL.md
+  desktop\     profile-runtime.db  profile-runtime.yaml
+  profiles\    writer\ coding\ research\ recruiters\ finance\ agenter\
+```
+
+### IPC 通道 (13 个)
+
+| 通道 | 方向 | 说明 |
+|------|------|------|
+| `enterprise:get-deployment-config` | Renderer → Main | 获取 deployment 配置 |
+| `enterprise:validate-deployment-config` | Renderer → Main | 校验 deployment 配置 |
+| `enterprise:preflight` | Renderer → Main | 运行预检 |
+| `enterprise:install` | Renderer → Main | 执行安装流水线 |
+| `enterprise:install-cancel` | Renderer → Main | 取消安装 |
+| `enterprise:update` | Renderer → Main | 更新 |
+| `enterprise:repair` | Renderer → Main | 修复 |
+| `enterprise:rollback` | Renderer → Main | 回滚 |
+| `enterprise:get-install-marker` | Renderer → Main | 获取安装标记 |
+| `enterprise:get-install-log` | Renderer → Main | 获取安装日志 |
+| `enterprise:open-log-dir` | Renderer → Main | 打开日志目录 |
+| `enterprise:run-doctor` | Renderer → Main | 运行诊断 |
+| `enterprise:export-doctor` | Renderer → Main | 导出诊断报告 |
+| `enterprise-install:progress` | Main → Renderer | 安装进度推送 |
+
+### Shared 契约
+
+```
+src/shared/enterprise/
+  enterprise-constants.ts  ← 枚举/错误码/常量 (32 错误码, 20 InstallStage)
+  enterprise-schema.ts     ← 数据结构类型 (31 字段 DeploymentConfig, InstallMarker, DoctorReport...)
+  enterprise-contract.ts   ← API 契约层 (EnterpriseInstallAPI 13 方法, Input/Result 类型)
+```
+
+### 安全约束
+
+- Gateway 仅监听 127.0.0.1
+- 不创建 Windows Service，不写 HKLM，不修改系统 PATH
+- Token/API Key 不落盘（不进 deployment.json / install-marker / 日志）
+- Release Bundle 必须校验 SHA-256
+- Git PAT 通过环境变量注入，不写入文件或日志
+- Profile Policy 安装后只读

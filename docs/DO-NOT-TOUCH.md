@@ -22,6 +22,15 @@
 
 - `src/shared/i18n/config.ts` — i18n 配置（语言代码、回退链）
 - `src/shared/i18n/types.ts` — i18n 类型定义
+- `src/shared/enterprise/enterprise-constants.ts` — V1.2.1 Enterprise 枚举/错误码/常量（32 错误码，20 InstallStage）
+- `src/shared/enterprise/enterprise-schema.ts` — V1.2.1 Enterprise 数据结构类型（DeploymentConfig 31 字段）
+- `src/shared/enterprise/enterprise-contract.ts` — V1.2.1 Enterprise API 契约（EnterpriseInstallAPI 13 方法）
+
+## Enterprise Install 核心
+
+- `src/main/enterprise/enterprise-installer.ts` — 安装流水线编排 + IPC 注册（影响全部 13 个 enterprise IPC 通道）
+- `src/main/enterprise/deployment-schema.ts` — Deployment Schema 校验（影响配置合法性判断）
+- `src/main/enterprise/preflight-checker.ts` — 环境预检（20 项检查影响安装阻断逻辑）
 
 ## 构建资源
 
@@ -35,5 +44,7 @@
 - Gateway 管理变更影响消息收发和进程生命周期
 - 构建配置变更影响打包产物和自动更新
 - i18n 配置变更影响所有语言的加载
+- Enterprise 契约变更影响安装流水线和 IPC 通信
+- 安装流水线变更影响企业部署完整性和安全性
 
 任何修改需要明确理解影响范围并获得批准。

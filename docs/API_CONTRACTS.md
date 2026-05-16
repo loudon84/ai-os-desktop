@@ -215,6 +215,78 @@
 
 ---
 
+## V1.2.1 Enterprise Install IPC 契约
+
+### enterprise:* — 企业级一键部署
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `enterprise:get-deployment-config` | — | `LoadConfigResult` | 获取 deployment.json 配置 |
+| `enterprise:validate-deployment-config` | — | `ValidationResult` | 校验 deployment.json schema |
+| `enterprise:preflight` | — | `PreflightReport` | 运行 20 项环境预检 |
+| `enterprise:install` | `EnterpriseInstallInput?` | `EnterpriseInstallResult` | 执行 20 步安装流水线 |
+| `enterprise:install-cancel` | — | `{ ok: boolean }` | 取消当前安装 |
+| `enterprise:update` | `EnterpriseUpdateInput?` | `EnterpriseUpdateResult` | 更新 Desktop/Agent |
+| `enterprise:repair` | `EnterpriseRepairInput?` | `EnterpriseRepairResult` | L1-L5 递进修复 |
+| `enterprise:rollback` | `EnterpriseRollbackInput` | `EnterpriseRollbackResult` | 回滚到指定快照 |
+| `enterprise:get-install-marker` | — | `InstallMarker \| null` | 获取安装标记 |
+| `enterprise:get-install-log` | `{ type: InstallPhase }` | `string` | 获取安装日志 |
+| `enterprise:open-log-dir` | — | `{ ok: boolean }` | 打开日志目录 |
+| `enterprise:run-doctor` | `RuntimeDoctorInput?` | `DoctorReport` | 运行 9 项诊断检查 |
+| `enterprise:export-doctor` | — | `{ ok: boolean, path: string }` | 导出诊断报告 |
+
+### Enterprise Install 推送事件 (Main → Renderer)
+
+| 事件 Channel | 数据类型 | 说明 |
+|---|---|---|
+| `enterprise-install:progress` | `InstallProgressEvent` | 安装进度实时推送（stage/status/progress/message/errorCode） |
+
+### Enterprise Install 错误码
+
+| 错误码 | 说明 |
+|---|---|
+| E_DEPLOY_SCHEMA_INVALID | deployment.json schema 校验失败 |
+| E_DEPLOY_FILE_NOT_FOUND | deployment.json 文件不存在 |
+| E_DEPLOY_FILE_READ_FAILED | deployment.json 读取失败 |
+| E_BUNDLE_DOWNLOAD_FAILED | Runtime Bundle 下载失败 |
+| E_BUNDLE_SHA256_MISMATCH | Runtime Bundle SHA-256 校验不匹配 |
+| E_BUNDLE_SIGNATURE_INVALID | Runtime Bundle 签名校验失败 |
+| E_BUNDLE_DISK_FULL | 磁盘空间不足 |
+| E_BUNDLE_EXTRACT_FAILED | Runtime Bundle 解压失败 |
+| E_GIT_CLONE_FAILED | Git clone 失败 |
+| E_GIT_AUTH_FAILED | Git 认证失败 |
+| E_GIT_CHECKOUT_FAILED | Git checkout 失败 |
+| E_AGENT_VERSION_MISMATCH | Hermes Agent 版本不匹配 |
+| E_AGENT_SOURCE_NOT_FOUND | Hermes Agent 源码不存在 |
+| E_VENV_CREATE_FAILED | Python venv 创建失败 |
+| E_VENV_REUSED_BROKEN | 复用的 Python venv 已损坏 |
+| E_PIP_INSTALL_FAILED | pip 依赖安装失败 |
+| E_PIP_INDEX_UNREACHABLE | PyPI 索引不可达 |
+| E_PORT_EXHAUSTED | 可用端口耗尽 |
+| E_PORT_CONFLICT | 端口冲突 |
+| E_GATEWAY_STARTUP_TIMEOUT | Gateway 启动超时 |
+| E_GATEWAY_HEALTH_FAILED | Gateway 健康检查失败 |
+| E_INSTALL_LOCK_TIMEOUT | 安装锁获取超时 |
+| E_INSTALL_CANCELLED | 安装已取消 |
+| E_PROFILE_DB_CREATE_FAILED | Profile Runtime DB 创建失败 |
+| E_PROFILE_BOOTSTRAP_FAILED | Profile 引导失败 |
+| E_PROFILE_HOME_NOT_WRITABLE | Profile 目录不可写 |
+| E_POLICY_APPLY_FAILED | Policy 应用失败 |
+| E_DOCTOR_CHECK_FAILED | Doctor 检查失败 |
+| E_ROLLBACK_CHECKSUM_MISMATCH | 回滚快照校验不匹配 |
+| E_ROLLBACK_SNAPSHOT_NOT_FOUND | 回滚快照不存在 |
+| E_REPAIR_FAILED | 修复失败 |
+| E_DIR_PERMISSION_FAILED | 目录权限不足 |
+
+### Enterprise Install 状态机
+
+```
+splash → check-install → load-deployment-config → preflight → runtime-bundle
+  → install-agent → bootstrap-profiles → start-gateway → doctor → setup → main
+```
+
+---
+
 ## Hermes Python Backend API
 
 | 接口 | 方法 | 请求体 | 响应 | 说明 |
