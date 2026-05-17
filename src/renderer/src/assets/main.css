@@ -967,6 +967,198 @@ body {
   flex-direction: column;
 }
 
+/* Desktop shell (v1.4) */
+.desktop-shell__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.desktop-shell__header {
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.desktop-shell__outlet {
+  flex: 1;
+  min-height: 0;
+}
+
+.desktop-shell__status {
+  flex-shrink: 0;
+}
+
+.sidebar-nav-divider {
+  height: 1px;
+  margin: 8px 4px;
+  background: var(--border);
+}
+
+.sidebar-nav-group-label {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag,
+.no-drag * {
+  -webkit-app-region: no-drag;
+}
+
+.page-header__leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.page-header__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.page-header__subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.page-header__profile {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 24px;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+.status-bar__item {
+  white-space: nowrap;
+}
+
+.layout-titlebar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.layout-titlebar__left {
+  padding-left: 12px;
+  font-size: 13px;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.window-controls {
+  height: 36px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.window-control-button {
+  width: 46px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary, #e5e7eb);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.window-control-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.window-control-button--close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.installer-precheck-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-tertiary);
+}
+
+.installer-precheck-card--warning {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+}
+
+.installer-precheck-card--error {
+  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+}
+
+.installer-precheck-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.installer-precheck-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.installer-precheck-item--pass {
+  color: var(--success);
+}
+
+.installer-precheck-item--missing,
+.installer-precheck-item--occupied {
+  color: var(--warning);
+}
+
 /* ========================================================================
    CHAT
    ======================================================================== */

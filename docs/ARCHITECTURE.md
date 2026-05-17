@@ -17,14 +17,17 @@ src/
 ```
 ┌─────────────────────────────────────────────────┐
 │              Renderer Process (React)            │
-│  App.tsx → screens/ → components/               │
+│  App.tsx → screens/ → components/layout/        │
 │  调用: window.hermesAPI.*                        │
+│        window.hermesAPI.windowControls (V1.4.1) │
+│        window.profileRuntime / profileEntry      │
 └──────────────────────┬──────────────────────────┘
                        │ ipcRenderer.invoke()
 ┌──────────────────────┴──────────────────────────┐
 │           Preload Bridge (contextBridge)         │
 │  src/preload/index.ts                           │
-│  暴露: window.hermesAPI + window.electron       │
+│  暴露: hermesAPI（含 windowControls）+ electron  │
+│        + aiosBrowser + profileRuntime + profileEntry │
 └──────────────────────┬──────────────────────────┘
                        │ IPC (ipcMain.handle)
 ┌──────────────────────┴──────────────────────────┐
@@ -45,7 +48,10 @@ src/
 │  ├── sse-parser.ts  SSE 流解析                  │
 │  ├── gateway-log-collector.ts V1.2 日志收集    │
 │  ├── runtime-reconciler.ts   V1.2 状态恢复     │
+│  ├── window/       V1.4 窗口控制 IPC            │
+│  │   └── window-ipc.ts                          │
 │  ├── enterprise/   V1.2.1 企业级一键部署        │
+│  │   └── installer-precheck-reader.ts (V1.4)   │
 │  │   ├── deployment-config.ts  配置加载        │
 │  │   ├── deployment-schema.ts  Schema 校验     │
 │  │   ├── checksum-verifier.ts  SHA-256 校验    │
@@ -125,11 +131,56 @@ splash → welcome → installing → setup → main(Layout)
 | Welcome | 首次使用 | 安装/远程模式选择 |
 | Install | 需要安装 | 执行 Hermes Agent 安装 |
 | Setup | 安装完成 | API Key 配置向导 |
-| Layout | 配置完成 | 主界面（14 个视图 + V1.1 新增 AI-OS/Experts/Runtime 分组） |
+| Layout | 配置完成 | 主界面（DesktopShell 编排，14+ 视图） |
+
+## V1.4 Desktop Shell 布局
+
+主界面由 **编排层** `Layout.tsx` 组合 **DesktopShell** 子组件，不再在单文件中内联全部 JSX：
+
+```
+Layout.tsx (编排)
+  ├── useDesktopNavigation()   view / chat / session / menu IPC
+  ├── useUpdateState()         自动更新
+  ├── useRemoteMode(view)      远程模式
+  ├── useProfileEntries()      AI-OS / Experts 导航项
+  └── DesktopShell
+        ├── DesktopSidebar     NAV_ITEMS + profile 分组 + 更新按钮
+        ├── PageHeader         标题 + active profile + WindowControls
+        ├── WorkspaceOutlet    各 screen 条件渲染（保留挂载策略）
+        ├── StatusBar          profile / mode / update
+        ├── ModalLayer         全局 Modal 占位
+        └── DrawerLayer        全局 Drawer 占位
+```
+
+### 视图挂载策略（WorkspaceOutlet 必须保持）
+
+| 视图 | 策略 |
+|---|---|
+| Chat | `display: none` 保持挂载，切换不丢状态 |
+| Office | 首次访问 lazy mount，之后保持挂载 |
+| Providers | `visible` prop 控制 |
+| Settings | `display: none` 保持挂载 |
+| remoteMode | 部分视图显示 `RemoteNotice` |
+
+### 窗口标题栏（V1.4 + V1.4.1 hotfix）
+
+| 平台 | BrowserWindow | UI |
+|---|---|---|
+| Windows / Linux | `frame: false` + `titleBarStyle: "hidden"` | 自定义 `WindowControls`（minimize / maximize / close） |
+| macOS | `titleBarStyle: "hiddenInset"` + traffic lights | 不显示 WindowControls；`App.tsx` 保留 `drag-region` |
+
+**WindowControls 挂载位置**：
+
+| 生命周期屏 | 挂载点 |
+|---|---|
+| `main`（Layout） | `PageHeader` 右侧（`app-drag-region` + `no-drag`） |
+| splash / welcome / installing / setup | `App.tsx` 顶部 `layout-titlebar`（Win/Linux only） |
+
+Preload API：`window.hermesAPI.windowControls` → IPC `window:*`（`registerWindowIpc()` 在 `setupIPC()` 注册一次）
 
 ## 主布局导航
 
-Layout.tsx 侧边栏包含 14 个视图 + V1.1 新增导航分组：
+`DesktopSidebar` 包含 14 个基础视图 + V1.1 新增导航分组（逻辑原 `Layout.tsx` 侧边栏）：
 
 | 视图 | 路径 | 说明 |
 |---|---|---|
@@ -145,6 +196,7 @@ Layout.tsx 侧边栏包含 14 个视图 + V1.1 新增导航分组：
 | Tools | /tools | 工具集开关 |
 | Schedules | /schedules | 定时任务 |
 | Gateway | /gateway | 消息平台配置 |
+| Runtime Setup | /runtime-setup | 运行时诊断 + **V1.4** NSIS 安装器预检展示 |
 | Web Operator | /web-operator | Web Operator（三栏布局：Hermes任务面板/浏览器视口/状态面板） |
 | Settings | /settings | 通用设置 |
 
@@ -171,7 +223,7 @@ Layout.tsx 侧边栏包含 14 个视图 + V1.1 新增导航分组：
 
 | 平台 | 格式 | 配置 |
 |---|---|---|
-| Windows | NSIS `.exe` 安装器 | oneClick, perMachine=false |
+| Windows | NSIS `.exe` 安装器 | **assisted**（`oneClick: false`），可选安装目录，`perMachine: false`，`build/installer.nsh` |
 | macOS | `.dmg` | notarize=false |
 | Linux | `.AppImage` / `.deb` / `.rpm` / `.snap` | vendor=Nous Research |
 
@@ -304,12 +356,31 @@ gateway-supervisor.ts (增强)
 
 ## V1.2.1 Enterprise Install 架构
 
-### 安装流水线
+### 安装职责划分（V1.4 方案 A）
+
+```text
+NSIS Installer（仅 Windows 安装器层）
+  ├── 安装目录选择、文件释放
+  ├── customInit: VC++ Runtime 阻断检查
+  ├── customInstall: bin/runtime/shim/registry/PATH
+  ├── 写出 runtime/installer-precheck.json（Git/Python/uv/端口，非阻断）
+  └── 写出 runtime/logs/nsis-install.log
+
+Electron First Run / Enterprise Install（运行时层）
+  ├── Hermes Agent 来源：local zip / git clone
+  ├── Python venv / pip / uv
+  ├── Enterprise Preflight (20 项) + 20 步流水线
+  └── Runtime Doctor
+```
+
+### 安装流水线（Electron 侧）
 
 ```
-NSIS Installer
-  → Hermes Desktop App
-    → Enterprise Install Screen
+NSIS Installer（预检 JSON + VC++）
+  → SMC Copilot App 启动
+    → Welcome / Install / Setup / Main
+    → RuntimeSetupScreen 可读 installer-precheck.json
+    → Enterprise Install Screen（可选）
       → Preflight Checker (20 项)
       → Runtime Bundle Manager (下载/校验/解压)
       → Hermes Agent Source Installer (Git/Bundle)
@@ -339,10 +410,11 @@ NSIS Installer
   profiles\    writer\ coding\ research\ recruiters\ finance\ agenter\
 ```
 
-### IPC 通道 (13 个)
+### IPC 通道（Enterprise + V1.4）
 
 | 通道 | 方向 | 说明 |
 |------|------|------|
+| `enterprise:get-installer-precheck` | Renderer → Main | **V1.4** 读取 NSIS `installer-precheck.json` |
 | `enterprise:get-deployment-config` | Renderer → Main | 获取 deployment 配置 |
 | `enterprise:validate-deployment-config` | Renderer → Main | 校验 deployment 配置 |
 | `enterprise:preflight` | Renderer → Main | 运行预检 |
@@ -358,13 +430,47 @@ NSIS Installer
 | `enterprise:export-doctor` | Renderer → Main | 导出诊断报告 |
 | `enterprise-install:progress` | Main → Renderer | 安装进度推送 |
 
+### Window 控制 IPC（V1.4.1）
+
+| 通道 | 方向 | 说明 |
+|------|------|------|
+| `window:minimize` | Renderer → Main | 最小化主窗口 |
+| `window:maximize-or-restore` | Renderer → Main | 最大化或还原 |
+| `window:close` | Renderer → Main | 关闭主窗口 |
+| `window:is-maximized` | Renderer → Main | 查询是否最大化 |
+
+Preload：`window.hermesAPI.windowControls`（`minimize` / `maximizeOrRestore` / `close` / `isMaximized`）
+
+Main：`src/main/window/window-ipc.ts` → `registerWindowIpc()`（仅注册一次，不暴露 BrowserWindow 给 Renderer）
+
+### installer-precheck.json（NSIS → Electron）
+
+安装完成后由 NSIS 写入 `$INSTDIR/runtime/installer-precheck.json`，Electron 通过 `readInstallerPrecheck()` 读取：
+
+```json
+{
+  "schemaVersion": "1.3.1",
+  "vcRuntime": "pass",
+  "git": "pass",
+  "python": "missing",
+  "uv": "missing",
+  "port8642": "available",
+  "installDir": "...",
+  "runtimeRoot": "...\\runtime",
+  "binDir": "...\\bin",
+  "result": "warning"
+}
+```
+
+`RuntimeSetupScreen` 在文件存在时展示 **Installer Precheck** 卡片；缺失时不报错（开发环境或非 NSIS 安装）。
+
 ### Shared 契约
 
 ```
 src/shared/enterprise/
   enterprise-constants.ts  ← 枚举/错误码/常量 (32 错误码, 20 InstallStage)
   enterprise-schema.ts     ← 数据结构类型 (31 字段 DeploymentConfig, InstallMarker, DoctorReport...)
-  enterprise-contract.ts   ← API 契约层 (EnterpriseInstallAPI 13 方法, Input/Result 类型)
+  enterprise-contract.ts   ← API 契约层 (EnterpriseInstallAPI, InstallerPrecheck, Input/Result 类型)
 ```
 
 ### 安全约束

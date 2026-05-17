@@ -17,6 +17,9 @@ import {
   writeRuntimeConfig,
   createDefaultRuntimeConfig,
 } from "./enterprise/desktop-runtime-config";
+import { installHermesAgentDependencies } from "./enterprise/agent-deps-installer";
+import type { PipMirrorPresetId } from "../shared/enterprise/pip-mirror-presets";
+import { resolvePipMirrorConfig } from "./enterprise/pip-mirror-config";
 
 const _resolved = resolveRuntimePaths();
 
@@ -596,28 +599,29 @@ export async function runInstallWithSource(
     throw new Error(`venv 创建失败: ${(err as Error).message}`);
   }
 
-  emit(3, "安装 Python 依赖", "pip install...");
+  const pipMirror = resolvePipMirrorConfig({
+    pipIndexUrl: cfg.pipIndexUrl,
+    trustedHost: cfg.trustedHost,
+    pipMirrorPreset: cfg.pipMirrorPreset as PipMirrorPresetId | undefined,
+  });
+
+  emit(
+    3,
+    "安装 Python 依赖",
+    `pip install（索引: ${pipMirror.pipIndexUrl}）...`,
+  );
   const pipBin = isWindows ? join(venvDir, "Scripts", "pip.exe") : join(venvDir, "bin", "pip");
   const pythonBin = isWindows ? join(venvDir, "Scripts", "python.exe") : join(venvDir, "bin", "python");
 
   try {
-    const hasUv = (() => { try { execSync("uv --version", { encoding: "utf-8", timeout: 5000 }); return true; } catch { return false; } })();
-
-    if (hasUv) {
-      execSync(`uv pip install -p "${pythonBin}" .`, {
-        encoding: "utf-8",
-        timeout: 300000,
-        cwd: agentDir,
-      });
-    } else {
-      execSync(`"${pipBin}" install .`, {
-        encoding: "utf-8",
-        timeout: 300000,
-        cwd: agentDir,
-      });
-    }
+    installHermesAgentDependencies(agentDir, pythonBin, pipBin, {
+      offlineFirst: cfg.sourceType === "local-zip",
+      pipIndexUrl: pipMirror.pipIndexUrl,
+      trustedHost: pipMirror.trustedHost,
+      pipMirrorPreset: cfg.pipMirrorPreset,
+    });
   } catch (err) {
-    throw new Error(`pip install 失败: ${(err as Error).message}`);
+    throw new Error((err as Error).message);
   }
 
   emit(4, "安装完成", `hermes-agent → ${agentDir}`);
@@ -631,13 +635,19 @@ export async function runInstallWithSource(
 
   ensureShims();
   writeRuntimeConfig(
-    createDefaultRuntimeConfig({
-      sourceType: cfg.sourceType,
-      localZipPath: cfg.localZipPath,
-      gitUrl: cfg.gitUrl,
-      gitBranch: cfg.gitBranch,
-      gitShallow: cfg.gitShallow,
-    }),
+    createDefaultRuntimeConfig(
+      {
+        sourceType: cfg.sourceType,
+        localZipPath: cfg.localZipPath,
+        gitUrl: cfg.gitUrl,
+        gitBranch: cfg.gitBranch,
+        gitShallow: cfg.gitShallow,
+        pipIndexUrl: pipMirror.pipIndexUrl,
+        trustedHost: pipMirror.trustedHost,
+        pipMirrorPreset: cfg.pipMirrorPreset,
+      },
+      pipMirror,
+    ),
   );
 }
 

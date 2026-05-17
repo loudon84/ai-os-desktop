@@ -154,6 +154,10 @@ export interface UserSourceConfig {
   gitUrl?: string;
   gitBranch?: string;
   gitShallow?: boolean;
+  /** PyPI simple index URL (e.g. intranet mirror) */
+  pipIndexUrl?: string;
+  trustedHost?: string;
+  pipMirrorPreset?: string;
 }
 
 export async function installHermesAgentFromUserSource(

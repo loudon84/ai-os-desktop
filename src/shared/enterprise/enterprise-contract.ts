@@ -121,6 +121,25 @@ export interface EnterpriseRollbackResult {
   errorCode?: string;
 }
 
+export type InstallerPrecheckStatus = "pass" | "missing";
+export type InstallerPortStatus = "available" | "occupied";
+export type InstallerPrecheckResult = "pass" | "warning" | "error";
+
+export interface InstallerPrecheck {
+  schemaVersion: string;
+  createdAt?: string;
+  windowsVersion?: string;
+  vcRuntime: InstallerPrecheckStatus;
+  git: InstallerPrecheckStatus;
+  python: InstallerPrecheckStatus;
+  uv: InstallerPrecheckStatus;
+  port8642: InstallerPortStatus;
+  installDir: string;
+  runtimeRoot: string;
+  binDir: string;
+  result: InstallerPrecheckResult;
+}
+
 export interface RuntimeDoctorInput {
   profileId?: string;
   checks?: string[];

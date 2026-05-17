@@ -1,24 +1,3 @@
-import { useState, useCallback, useEffect } from "react";
-import Chat, { ChatMessage } from "../Chat/Chat";
-import Sessions from "../Sessions/Sessions";
-import Agents from "../Agents/Agents";
-import Settings from "../Settings/Settings";
-import Skills from "../Skills/Skills";
-import Soul from "../Soul/Soul";
-import Memory from "../Memory/Memory";
-import Tools from "../Tools/Tools";
-import Gateway from "../Gateway/Gateway";
-import Office from "../Office/Office";
-import Models from "../Models/Models";
-import Providers from "../Providers/Providers";
-import Schedules from "../Schedules/Schedules";
-import RemoteNotice from "../../components/RemoteNotice";
-import { WebOperatorScreen } from "../WebOperator/WebOperatorScreen";
-import { ProfileRuntimeScreen } from "../ProfileRuntime/ProfileRuntimeScreen";
-import { AIOSWorkspaceScreen } from "../AIOSWorkspace/AIOSWorkspaceScreen";
-import { ProfileWorkspaceScreen } from "../ProfileWorkspace/ProfileWorkspaceScreen";
-import { RuntimeSetupScreen } from "../RuntimeSetup/RuntimeSetupScreen";
-import hermeslogo from "../../assets/hermes.png";
 import {
   ChatBubble,
   Clock,
@@ -33,37 +12,23 @@ import {
   Layers,
   KeyRound,
   Timer,
-  Download,
   Globe,
-  LayoutDashboard,
-  Cpu,
   Activity,
 } from "../../assets/icons";
-import type { LucideIcon } from "lucide-react";
-import { useI18n } from "../../components/useI18n";
-import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
+import { DesktopShell } from "../../components/layout/DesktopShell";
+import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
+import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { StatusBar } from "../../components/layout/StatusBar";
+import { ModalLayer } from "../../components/layout/ModalLayer";
+import { DrawerLayer } from "../../components/layout/DrawerLayer";
+import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
+import { useUpdateState } from "../../hooks/useUpdateState";
+import { useRemoteMode } from "../../hooks/useRemoteMode";
+import { useProfileEntries } from "../../hooks/useProfileEntries";
+import type { NavItem } from "../../types/desktop-shell";
 
-type View =
-  | "chat"
-  | "sessions"
-  | "agents"
-  | "office"
-  | "models"
-  | "providers"
-  | "skills"
-  | "soul"
-  | "memory"
-  | "tools"
-  | "schedules"
-  | "gateway"
-  | "web-operator"
-  | "settings"
-  | "aios-workspace"
-  | "profile-runtime"
-  | "runtime-setup"
-  | `profile-workspace:${string}`;
-
-const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
+const NAV_ITEMS: NavItem[] = [
   { view: "chat", icon: ChatBubble, labelKey: "navigation.chat" },
   { view: "sessions", icon: Clock, labelKey: "navigation.sessions" },
   { view: "agents", icon: Users, labelKey: "navigation.agents" },
@@ -82,327 +47,64 @@ const NAV_ITEMS: { view: View; icon: LucideIcon; labelKey: string }[] = [
 ];
 
 function Layout(): React.JSX.Element {
-  const { t } = useI18n();
-  const [view, setView] = useState<View>("chat");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [activeProfile, setActiveProfile] = useState("default");
-  // Lazy mount: only render Office after first visit, then keep mounted
-  const [officeVisited, setOfficeVisited] = useState(false);
-  // Remote-only mode — SSH tunnel has full access; only pure HTTP remote mode restricts screens
-  const [remoteMode, setRemoteMode] = useState(false);
-  const [profileEntries, setProfileEntries] = useState<ProfileEntrySummary[]>([]);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem("smc-v13-navigate-runtime-setup") === "1") {
-        sessionStorage.removeItem("smc-v13-navigate-runtime-setup");
-        setView("runtime-setup");
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.profileEntry.listProfileEntries().then(setProfileEntries).catch(() => {});
-    } catch { /* profileEntry not available */ }
-  }, []);
-
-  // Re-check remote mode on tab switch (picks up Settings changes)
-  useEffect(() => {
-    window.hermesAPI.isRemoteOnlyMode().then(setRemoteMode);
-  }, [view]);
-
-  // Auto-update state
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [updateState, setUpdateState] = useState<
-    "available" | "downloading" | "ready" | null
-  >(null);
-  const [downloadPercent, setDownloadPercent] = useState(0);
-
-  useEffect(() => {
-    const cleanupAvailable = window.hermesAPI.onUpdateAvailable((info) => {
-      setUpdateVersion(info.version);
-      setUpdateState("available");
-    });
-    const cleanupProgress = window.hermesAPI.onUpdateDownloadProgress(
-      (info) => {
-        setDownloadPercent(info.percent);
-        setUpdateState("downloading");
-      },
-    );
-    const cleanupDownloaded = window.hermesAPI.onUpdateDownloaded(() => {
-      setUpdateState("ready");
-    });
-    const cleanupError = window.hermesAPI.onUpdateError((message) => {
-      setUpdateError(message);
-      setUpdateState(null);
-    });
-    return () => {
-      cleanupAvailable();
-      cleanupProgress();
-      cleanupDownloaded();
-      cleanupError?.();
-    };
-  }, []);
-
-  async function handleUpdate(): Promise<void> {
-    if (updateState === "available") {
-      setUpdateState("downloading");
-      await window.hermesAPI.downloadUpdate();
-    } else if (updateState === "ready") {
-      await window.hermesAPI.installUpdate();
-    }
-  }
-
-  const handleNewChat = useCallback(() => {
-    // Abort any in-flight chat before clearing
-    window.hermesAPI.abortChat();
-    setMessages([]);
-    setCurrentSessionId(null);
-    setView("chat");
-  }, []);
-
-  // Listen for menu IPC events (Cmd+N, Cmd+K from app menu)
-  useEffect(() => {
-    const cleanupNewChat = window.hermesAPI.onMenuNewChat(() => {
-      handleNewChat();
-    });
-    const cleanupSearch = window.hermesAPI.onMenuSearchSessions(() => {
-      setView("sessions");
-    });
-    return () => {
-      cleanupNewChat();
-      cleanupSearch();
-    };
-  }, [handleNewChat]);
-
-  const handleSelectProfile = useCallback((name: string) => {
-    setActiveProfile(name);
-    setMessages([]);
-    setCurrentSessionId(null);
-  }, []);
-
-  const handleResumeSession = useCallback(async (sessionId: string) => {
-    const dbMessages = await window.hermesAPI.getSessionMessages(sessionId);
-    const chatMessages: ChatMessage[] = dbMessages.map((m) => ({
-      id: `db-${m.id}`,
-      role: m.role === "user" ? "user" : "agent",
-      content: m.content,
-    }));
-    setMessages(chatMessages);
-    setCurrentSessionId(sessionId);
-    setView("chat");
-  }, []);
+  const navigation = useDesktopNavigation();
+  const {
+    updateVersion,
+    updateState,
+    downloadPercent,
+    updateError,
+    handleUpdate,
+  } = useUpdateState();
+  const remoteMode = useRemoteMode(navigation.view);
+  const profileEntries = useProfileEntries();
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <img src={hermeslogo} height={30} alt="" />
-        </div>
-
-        <nav className="sidebar-nav">
-          {NAV_ITEMS.map(({ view: v, icon: Icon, labelKey }) => (
-            <button
-              key={v}
-              className={`sidebar-nav-item ${view === v ? "active" : ""}`}
-              onClick={() => {
-                if (v === "office") setOfficeVisited(true);
-                setView(v);
-              }}
-            >
-              <Icon size={16} />
-              {t(labelKey)}
-            </button>
-          ))}
-
-          {profileEntries.length > 0 && (
-            <>
-              <div className="sidebar-nav-divider" />
-              <div className="sidebar-nav-group-label">AI-OS</div>
-              <button
-                className={`sidebar-nav-item ${view === "aios-workspace" ? "active" : ""}`}
-                onClick={() => setView("aios-workspace")}
-              >
-                <LayoutDashboard size={16} />
-                AI-OS
-              </button>
-              <div className="sidebar-nav-group-label">Experts</div>
-              {profileEntries
-                .filter((e) => e.entryType === "specialist-workspace")
-                .map((entry) => (
-                  <button
-                    key={entry.profileId}
-                    className={`sidebar-nav-item ${view === `profile-workspace:${entry.profileId}` ? "active" : ""}`}
-                    onClick={() => setView(`profile-workspace:${entry.profileId}`)}
-                  >
-                    <Users size={16} />
-                    {entry.title}
-                  </button>
-                ))}
-              <div className="sidebar-nav-group-label">Runtime</div>
-              <button
-                className={`sidebar-nav-item ${view === "profile-runtime" ? "active" : ""}`}
-                onClick={() => setView("profile-runtime")}
-              >
-                <Cpu size={16} />
-                Profile Runtime
-              </button>
-            </>
-          )}
-        </nav>
-
-        <div className="sidebar-footer">
-          {updateError && (
-            <div className="sidebar-update-error" role="alert">
-              {updateError}
-            </div>
-          )}
-          {updateState && (
-            <button className="sidebar-update-btn" onClick={handleUpdate}>
-              <Download size={13} />
-              {updateState === "available" && (
-                <span>
-                  {t("common.updateAvailable", { version: updateVersion })}
-                </span>
-              )}
-              {updateState === "downloading" && (
-                <span>
-                  {t("common.downloading", { percent: downloadPercent })}
-                </span>
-              )}
-              {updateState === "ready" && (
-                <span>{t("common.restartToUpdate")}</span>
-              )}
-            </button>
-          )}
-          <div className="sidebar-footer-text">
-            {activeProfile === "default" ? t("common.appName") : activeProfile}
-          </div>
-        </div>
-      </aside>
-
-      <main className="content">
-        <div
-          style={{
-            display: view === "chat" ? "flex" : "none",
-            flex: 1,
-            flexDirection: "column",
-            overflow: "hidden",
+    <DesktopShell
+      sidebar={
+        <DesktopSidebar
+          view={navigation.view}
+          navItems={NAV_ITEMS}
+          profileEntries={profileEntries}
+          activeProfile={navigation.activeProfile}
+          updateState={updateState}
+          updateError={updateError}
+          updateVersion={updateVersion}
+          downloadPercent={downloadPercent}
+          onNavigate={navigation.navigateToView}
+          onUpdate={handleUpdate}
+        />
+      }
+      header={
+        <PageHeader view={navigation.view} activeProfile={navigation.activeProfile} />
+      }
+      outlet={
+        <WorkspaceOutlet
+          view={navigation.view}
+          remoteMode={remoteMode}
+          activeProfile={navigation.activeProfile}
+          messages={navigation.messages}
+          setMessages={navigation.setMessages}
+          currentSessionId={navigation.currentSessionId}
+          officeVisited={navigation.officeVisited}
+          onNewChat={navigation.handleNewChat}
+          onResumeSession={navigation.handleResumeSession}
+          onSelectProfile={navigation.handleSelectProfile}
+          onChatWithProfile={(name) => {
+            navigation.handleSelectProfile(name);
+            navigation.setView("chat");
           }}
-        >
-          <Chat
-            messages={messages}
-            setMessages={setMessages}
-            sessionId={currentSessionId}
-            profile={activeProfile}
-            onNewChat={handleNewChat}
-          />
-        </div>
-        {view === "sessions" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Sessions" />
-          ) : (
-            <Sessions
-              onResumeSession={handleResumeSession}
-              onNewChat={handleNewChat}
-              currentSessionId={currentSessionId}
-            />
-          ))}
-        {view === "agents" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Profiles" />
-          ) : (
-            <Agents
-              activeProfile={activeProfile}
-              onSelectProfile={handleSelectProfile}
-              onChatWith={(name: string) => {
-                handleSelectProfile(name);
-                setView("chat");
-              }}
-            />
-          ))}
-        {officeVisited && (
-          <div
-            style={{
-              display: view === "office" ? "flex" : "none",
-              flex: 1,
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-            <Office visible={view === "office"} />
-          </div>
-        )}
-        {view === "models" && <Models />}
-        <div
-          style={{
-            display: view === "providers" ? "flex" : "none",
-            flex: 1,
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {remoteMode ? (
-            view === "providers" && <RemoteNotice feature="Providers" />
-          ) : (
-            <Providers profile={activeProfile} visible={view === "providers"} />
-          )}
-        </div>
-        {view === "skills" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Skills" />
-          ) : (
-            <Skills profile={activeProfile} />
-          ))}
-        {view === "soul" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Persona" />
-          ) : (
-            <Soul profile={activeProfile} />
-          ))}
-        {view === "memory" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Memory" />
-          ) : (
-            <Memory profile={activeProfile} />
-          ))}
-        {view === "tools" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Tools" />
-          ) : (
-            <Tools profile={activeProfile} />
-          ))}
-        {view === "schedules" && <Schedules profile={activeProfile} />}
-        {view === "gateway" &&
-          (remoteMode ? (
-            <RemoteNotice feature="Gateway" />
-          ) : (
-            <Gateway profile={activeProfile} />
-          ))}
-        {view === "web-operator" && <WebOperatorScreen />}
-        {view === "runtime-setup" && <RuntimeSetupScreen />}
-        {view === "profile-runtime" && <ProfileRuntimeScreen />}
-        {view === "aios-workspace" && <AIOSWorkspaceScreen profile="default" />}
-        {typeof view === "string" && view.startsWith("profile-workspace:") && (
-          <ProfileWorkspaceScreen profileId={view.split(":")[1]} />
-        )}
-        <div
-          style={{
-            display: view === "settings" ? "flex" : "none",
-            flex: 1,
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <Settings profile={activeProfile} />
-        </div>
-      </main>
-    </div>
+        />
+      }
+      statusBar={
+        <StatusBar
+          activeProfile={navigation.activeProfile}
+          remoteMode={remoteMode}
+          updateState={updateState}
+        />
+      }
+      modalLayer={<ModalLayer />}
+      drawerLayer={<DrawerLayer />}
+    />
   );
 }
 

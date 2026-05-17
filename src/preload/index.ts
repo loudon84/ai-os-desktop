@@ -21,6 +21,7 @@ import type {
   EnterpriseUpdateResult,
 } from "../shared/enterprise/enterprise-contract";
 import type { MigrationStatus } from "../shared/enterprise/migration-contract";
+import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
 import { aiosBrowser } from "./browser-api";
 import { profileRuntimeApi } from "./profile-runtime-api";
 import { profileEntryApi } from "./profile-entry-api";
@@ -817,6 +818,17 @@ const hermesAPI = {
     ): void => callback(state);
     ipcRenderer.on("first-run-wizard:on-state-change", handler);
     return () => ipcRenderer.removeListener("first-run-wizard:on-state-change", handler);
+  },
+
+  getInstallerPrecheck: (): Promise<InstallerPrecheck | null> =>
+    ipcRenderer.invoke("enterprise:get-installer-precheck"),
+
+  windowControls: {
+    minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
+    maximizeOrRestore: (): Promise<void> =>
+      ipcRenderer.invoke("window:maximize-or-restore"),
+    close: (): Promise<void> => ipcRenderer.invoke("window:close"),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke("window:is-maximized"),
   },
 };
 

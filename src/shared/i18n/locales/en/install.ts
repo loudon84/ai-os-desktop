@@ -28,4 +28,15 @@ export default {
   gitBranch: "Branch",
   shallowClone: "Shallow Clone",
   startInstall: "Start Install",
+  pipMirrorTitle: "PyPI mirror",
+  pipMirrorDesc:
+    "Used when installing Python dependencies; choose Custom for an internal mirror",
+  pipMirrorTsinghua: "Tsinghua (recommended)",
+  pipMirrorAliyun: "Aliyun",
+  pipMirrorTencent: "Tencent Cloud",
+  pipMirrorOfficial: "Official PyPI",
+  pipMirrorCustom: "Custom (intranet)",
+  pipMirrorUrl: "Index URL",
+  pipMirrorTrustedHost: "Trusted host",
+  pipMirrorUrlRequired: "Please enter a PyPI mirror URL",
 } as const;

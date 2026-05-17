@@ -9,6 +9,10 @@ import {
   Spinner,
   X,
 } from "../../assets/icons";
+import {
+  PipMirrorFields,
+  createDefaultPipMirrorSelection,
+} from "../install/PipMirrorFields";
 
 type WizardStage =
   | "detect"
@@ -57,6 +61,7 @@ function InstallWizard({
   );
   const [gitBranch, setGitBranch] = useState("main");
   const [gitShallow, setGitShallow] = useState(true);
+  const [pipMirror, setPipMirror] = useState(createDefaultPipMirrorSelection);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -114,6 +119,10 @@ function InstallWizard({
       setError(t("install.gitUrlRequired") || "Please enter a Git URL");
       return;
     }
+    if (pipMirror.pipMirrorPreset === "custom" && !pipMirror.pipIndexUrl.trim()) {
+      setError(t("install.pipMirrorUrlRequired") || "Please enter a PyPI mirror URL");
+      return;
+    }
 
     setError("");
     setState({ ...state, stage: "installing" });
@@ -124,6 +133,9 @@ function InstallWizard({
       gitUrl: sourceType === "git-clone" ? gitUrl : undefined,
       gitBranch: sourceType === "git-clone" ? gitBranch : undefined,
       gitShallow: sourceType === "git-clone" ? gitShallow : undefined,
+      pipMirrorPreset: pipMirror.pipMirrorPreset,
+      pipIndexUrl: pipMirror.pipIndexUrl,
+      trustedHost: pipMirror.trustedHost,
     };
 
     try {
@@ -294,6 +306,8 @@ function InstallWizard({
                 </div>
               </div>
             )}
+
+            <PipMirrorFields value={pipMirror} onChange={setPipMirror} />
 
             {error && (
               <div className="flex items-center gap-2 text-red-500 text-sm">

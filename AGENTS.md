@@ -8,8 +8,8 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.5（V1.2.1 Enterprise Install） |
-| appId | `com.nousresearch.hermes` |
+| 版本 | 0.3.5（V1.4.1 Desktop Shell + 安装加固） |
+| appId | `com.smc.smc-ai-copilot`（productName: SMC Copilot） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
 ## 架构：三层进程（必须遵守）
@@ -38,7 +38,8 @@ Hermes Python Backend (Gateway)
 |---|---|---|
 | `src/main/` | 主进程：IPC、Gateway、配置、SQLite、Enterprise Install | 新 IPC、后端逻辑 |
 | `src/main/browser/` | Web Operator（BrowserView、安全、审计、Tool Server） | 浏览器自动化 |
-| `src/main/enterprise/` | V1.2.1 企业一键部署流水线 | 安装/预检/Doctor |
+| `src/main/enterprise/` | 企业安装、本地 zip/git 源、**agent-deps-installer**、**pip-mirror-config** | 安装/预检/Doctor/依赖 |
+| `src/main/window/` | V1.4.1 窗口 IPC（`registerWindowIpc`） | 标题栏按钮 |
 | `src/preload/` | contextBridge：`hermesAPI`、`aiosBrowser`、`profileRuntime`、`profileEntry` | API 桥接（影响面大） |
 | `src/renderer/src/` | React UI：`screens/`、`components/` | **主要 UI 开发区** |
 | `src/shared/` | 共享类型：i18n、profile-runtime、enterprise、browser 契约 | 类型/错误码/常量 |
@@ -51,7 +52,7 @@ Hermes Python Backend (Gateway)
 
 | 全局对象 | 文件 | 用途 |
 |---|---|---|
-| `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等（30+ 方法） |
+| `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等；**含 `windowControls`、`getInstallerPrecheck`** |
 | `window.aiosBrowser` | `src/preload/browser-api.ts` | Web Operator（13 方法 + 事件） |
 | `window.profileRuntime` | `src/preload/profile-runtime-api.ts` | 多 Profile 运行时（20 方法，含日志/自动重启） |
 | `window.profileEntry` | `src/preload/profile-entry-api.ts` | Profile 页面入口与布局（5 方法） |
@@ -133,10 +134,36 @@ Renderer Install 屏
   → 20 步流水线：预检 → Bundle → Agent → Venv → Hermes Home → Profile Bootstrap → Marker
 ```
 
-安装目录（Windows）：`%LOCALAPPDATA%\AIOS-Hermes\`（runtime/agent/venv/logs）。  
+安装目录（Windows）：`%LOCALAPPDATA%\Programs\SMC Copilot\` 或注册表解析的 `$INSTDIR`（`runtime/hermes-agent/venv/logs`）。  
 用户数据：`%USERPROFILE%\.hermes\`。
 
 安全：仅 `127.0.0.1`、不写 HKLM/系统 PATH、Token 不落盘、Bundle 必须 SHA-256。
+
+### 用户源安装 + PyPI 镜像（V1.4.1）
+
+欢迎页 / Install 向导选择 **本地 zip** 或 **Git clone** 时：
+
+```
+AgentSourceSelect / install-wizard
+  → PipMirrorFields（预设：清华/阿里/腾讯/官方/自定义）
+  → hermesAPI.startInstallWithSource({ sourceType, localZipPath?, pipIndexUrl, trustedHost, pipMirrorPreset })
+  → installer.runInstallWithSource
+      → hermes-agent-source-installer（解压 zip / git clone）
+      → agent-deps-installer.installHermesAgentDependencies
+          → resolvePipMirrorConfig（UI → desktop-runtime.json → deployment.json → 环境变量 → 清华默认）
+          → uv --no-config 优先 requirements.txt；有 wheels 则离线；失败回退 pip
+  → desktop-runtime.json 持久化 pipMirror + agentSource
+```
+
+**环境变量（可选，覆盖 UI）**：`HERMES_PIP_INDEX_URL`、`HERMES_PIP_TRUSTED_HOST`（或 `PIP_INDEX_URL` / `PIP_TRUSTED_HOST`）。
+
+**离线 wheel**：`$INSTDIR/runtime/wheels/` 或 `hermes-agent/wheels/`（`--offline` / `--find-links`）。
+
+### 窗口控制（V1.4.1）
+
+- Preload：`window.hermesAPI.windowControls` → IPC `window:minimize|maximize-or-restore|close|is-maximized`
+- Main：`src/main/window/window-ipc.ts` → `registerWindowIpc()`（`setupIPC()` 内一次）
+- Renderer：`WindowControls` 挂于 `PageHeader`；splash/welcome/install/setup 用 `App.tsx` 的 `layout-titlebar`
 
 ## 配置文件位置
 
@@ -149,6 +176,9 @@ Renderer Install 屏
 | `~/.hermes/profiles/<name>/` | 各 Profile 目录 |
 | `~/.hermes/desktop/profile-runtime.db` | 运行时控制面 |
 | `~/.hermes/desktop/web-operator/` | Web Operator 配置与审计日志 |
+| `$INSTDIR/runtime/desktop-runtime.json` | 安装目录、agent 源、**pipMirror**（V1.4.1） |
+| `$INSTDIR/runtime/deployment.json` | 企业部署配置；默认 `runtime.pipIndexUrl` 清华源 |
+| `$INSTDIR/runtime/installer-precheck.json` | NSIS 预检结果（`enterprise:get-installer-precheck`） |
 
 ## 新增/修改功能 checklist
 
@@ -200,7 +230,11 @@ npm run lint         # ESLint
 |---|---|---|
 | 入口 | `index.ts` | BrowserWindow + 全部 IPC 注册 |
 | Gateway/聊天 | `hermes.ts` | 消息双路由 + Gateway 生命周期 |
-| 安装 | `installer.ts` | Python/Hermes 安装与 Doctor |
+| 安装 | `installer.ts` | `runInstallWithSource`、Doctor；委托 **agent-deps-installer** |
+| 依赖安装 | `enterprise/agent-deps-installer.ts` | uv/pip、镜像、wheelhouse、requirements 优先 |
+| PyPI 镜像 | `enterprise/pip-mirror-config.ts` + `shared/enterprise/pip-mirror-presets.ts` | 解析/预设 |
+| 窗口 IPC | `window/window-ipc.ts` | `registerWindowIpc` |
+| NSIS 预检读 | `enterprise/installer-precheck-reader.ts` | `installer-precheck.json` |
 | 配置 | `config.ts` | desktop.json / .env / config.yaml |
 | 会话 | `sessions.ts`, `session-cache.ts` | state.db 查询 + 本地缓存 |
 | 模型/档案 | `models.ts`, `profiles.ts` | models.json + profile 目录 |
@@ -225,7 +259,9 @@ npm run lint         # ESLint
 | 任务 | 起点文件 |
 |---|---|
 | 改聊天 | `screens/Chat/Chat.tsx` → `hermes.ts` → `sse-parser.ts` |
-| 改安装 | `screens/Install/` → `installer.ts` 或 `enterprise/enterprise-installer.ts` |
+| 改安装 | `screens/Install/AgentSourceSelect` → `installer.ts` → `agent-deps-installer.ts` |
+| 改 PyPI 镜像 | `PipMirrorFields.tsx` → `pip-mirror-presets.ts` → `pip-mirror-config.ts` |
+| 改窗口按钮 | `WindowControls.tsx` → `window-ipc.ts` → preload `windowControls` |
 | 改多 Profile | `ProfileRuntimeScreen.tsx` → `profile-runtime-manager.ts` |
 | 改 Web Operator | `WebOperatorScreen.tsx` → `browser/browser-controller.ts` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/` |
@@ -237,6 +273,8 @@ npm run lint         # ESLint
 | V1.1 | Multi Profile Gateway、AI-OS/Experts 工作台 | `profile-runtime-*`, `AIOSWorkspace`, `ProfileWorkspace` |
 | V1.2 | 崩溃检测、自动重启、端口冲突、启动超时、日志、状态恢复 | `gateway-supervisor`, `gateway-log-collector`, `runtime-reconciler`, `LogViewer` |
 | V1.2.1 | Enterprise 一键部署、Preflight、Bundle、Doctor | `src/main/enterprise/`, `src/shared/enterprise/` |
+| V1.4 | Desktop Shell、NSIS 预检、WindowControls、RuntimeSetup 预检卡片 | `components/layout/`, `build/nsis/`, `installer-precheck-reader` |
+| V1.4.1 | 窗口 IPC 加固、PyPI 镜像 UI、`agent-deps-installer`、`--no-config` uv | `pip-mirror-*`, `agent-deps-installer`, `window-ipc` |
 
 ---
 

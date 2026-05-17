@@ -9,6 +9,10 @@ import type {
 
 import { getDesktopAgentDir } from "./windows/path-resolver";
 import { resolveInstallLocation } from "./windows/install-location-resolver";
+import {
+  discoverWheelhouseDirs,
+  installHermesAgentDependencies,
+} from "./agent-deps-installer";
 
 export interface VenvResult {
   ok: boolean;
@@ -80,51 +84,37 @@ export function installPythonDependencies(
 ): { ok: boolean; errorCode?: string; message?: string } {
   const isWindows = process.platform === "win32";
   const pipExe = isWindows ? join(venvPath, "Scripts", "pip.exe") : join(venvPath, "bin", "pip");
-  const uvExe = isWindows ? join(venvPath, "Scripts", "uv.exe") : join(venvPath, "bin", "uv");
-
-  const useUv = config.runtime.useBundledUv && existsSync(uvExe);
+  const pythonExe = isWindows
+    ? join(venvPath, "Scripts", "python.exe")
+    : join(venvPath, "bin", "python");
 
   const requirementsFile = join(agentPath, "requirements.txt");
   const setupPy = join(agentPath, "setup.py");
   const pyprojectToml = join(agentPath, "pyproject.toml");
 
-  let cmd = "";
-
-  if (useUv) {
-    onProgress?.({ message: "使用 uv 安装依赖..." });
-    const indexArgs = config.runtime.pipIndexUrl ? `--index-url ${config.runtime.pipIndexUrl}` : "";
-    const findLinksArgs = config.runtime.preferWheelhouse && config.runtime.wheelhousePath
-      ? `--find-links ${config.runtime.wheelhousePath}`
-      : "";
-
-    if (existsSync(requirementsFile)) {
-      cmd = `"${uvExe}" pip install ${indexArgs} ${findLinksArgs} -r "${requirementsFile}"`.trim();
-    } else if (existsSync(pyprojectToml) || existsSync(setupPy)) {
-      cmd = `"${uvExe}" pip install ${indexArgs} ${findLinksArgs} -e "${agentPath}"`.trim();
-    }
-  } else {
-    onProgress?.({ message: "使用 pip 安装依赖..." });
-    const indexArgs = config.runtime.pipIndexUrl ? `-i ${config.runtime.pipIndexUrl}` : "";
-    const trustedHostArgs = config.runtime.trustedHost ? `--trusted-host ${config.runtime.trustedHost}` : "";
-    const findLinksArgs = config.runtime.preferWheelhouse && config.runtime.wheelhousePath
-      ? `--find-links ${config.runtime.wheelhousePath}`
-      : "";
-
-    if (existsSync(requirementsFile)) {
-      cmd = `"${pipExe}" install ${indexArgs} ${trustedHostArgs} ${findLinksArgs} -r "${requirementsFile}"`.trim();
-    } else if (existsSync(pyprojectToml) || existsSync(setupPy)) {
-      cmd = `"${pipExe}" install ${indexArgs} ${trustedHostArgs} ${findLinksArgs} -e "${agentPath}"`.trim();
-    }
-  }
-
-  if (!cmd) {
+  if (
+    !existsSync(requirementsFile) &&
+    !existsSync(pyprojectToml) &&
+    !existsSync(setupPy)
+  ) {
     return { ok: true, message: "无可安装的依赖文件" };
   }
+
+  const wheelhouses = discoverWheelhouseDirs(agentPath);
+  const hasWheelhouse =
+    wheelhouses.length > 0 ||
+    (config.runtime.preferWheelhouse &&
+      config.runtime.wheelhousePath &&
+      existsSync(config.runtime.wheelhousePath));
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       onProgress?.({ message: `安装依赖 (尝试 ${attempt}/2)...` });
-      execSync(cmd, { encoding: "utf-8", timeout: 300000, env: { ...process.env as Record<string, string> } });
+      installHermesAgentDependencies(agentPath, pythonExe, pipExe, {
+        offlineFirst: Boolean(hasWheelhouse),
+        pipIndexUrl: config.runtime.pipIndexUrl,
+        trustedHost: config.runtime.trustedHost,
+      });
       return { ok: true };
     } catch (err) {
       if (attempt === 2) {

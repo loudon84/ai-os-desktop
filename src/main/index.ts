@@ -193,10 +193,15 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : undefined,
     ...(process.platform === "darwin"
-      ? { trafficLightPosition: { x: 16, y: 16 } }
-      : {}),
+      ? {
+          titleBarStyle: "hiddenInset" as const,
+          trafficLightPosition: { x: 16, y: 16 },
+        }
+      : {
+          frame: false,
+          titleBarStyle: "hidden" as const,
+        }),
     ...(process.platform === "linux" ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -243,9 +248,18 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
+
 }
 
+
 function setupIPC(): void {
+  try {
+    const { registerWindowIpc } = require("./window/window-ipc");
+    registerWindowIpc();
+  } catch (err) {
+    console.error("[WINDOW] Failed to register window IPC:", err);
+  }
+
   // Profile Runtime IPC
   try {
     const { setupProfileRuntimeIPC } = require("./profile-runtime-ipc");

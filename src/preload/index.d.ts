@@ -2,6 +2,7 @@ import { ElectronAPI } from "@electron-toolkit/preload";
 import type { AppLocale } from "../shared/i18n/types";
 import type { AiosBrowserAPI } from "./browser-api";
 import type { ProfileRuntimeAPI, ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
+import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -524,6 +525,17 @@ interface HermesAPI {
   onFirstRunWizardStateChange: (
     callback: (state: unknown) => void,
   ) => () => void;
+
+  getInstallerPrecheck: () => Promise<InstallerPrecheck | null>;
+
+  windowControls: WindowControlsAPI;
+}
+
+interface WindowControlsAPI {
+  minimize(): Promise<void>;
+  maximizeOrRestore(): Promise<void>;
+  close(): Promise<void>;
+  isMaximized(): Promise<boolean>;
 }
 
 declare global {

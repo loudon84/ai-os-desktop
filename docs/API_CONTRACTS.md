@@ -236,6 +236,17 @@
 | `enterprise:export-doctor-report` | — | `{ ok: boolean, path: string }` | 导出诊断报告 JSON |
 | `enterprise:reinstall-runtime` | — | `EnterpriseInstallResult` | 强制重装（`force: true`） |
 | `enterprise:get-migration-status` | — | `MigrationStatus` | 启动迁移结果与 warning |
+| `enterprise:get-installer-precheck` | — | `InstallerPrecheck \| null` | 读取 NSIS 安装器预检 JSON |
+
+### Window 控制（`window.desktopWindow`）
+
+| Channel | 参数 | 返回 | 说明 |
+|---|---|---|---|
+| `window:minimize` | — | `void` | 最小化主窗口 |
+| `window:maximize-or-restore` | — | `void` | 最大化或还原 |
+| `window:close` | — | `void` | 关闭主窗口 |
+| `window:is-maximized` | — | `boolean` | 是否最大化 |
+| `window:maximized-change` (event) | `boolean` | — | 最大化状态变化 |
 
 ### Renderer 便捷封装（`window.hermesAPI`）
 
@@ -248,6 +259,17 @@
 | `enterpriseInstall` | `enterprise:install` | 企业安装（支持 `force`） |
 | `onEnterpriseInstallProgress` | `enterprise-install:progress` | 安装/修复进度 |
 | `onUpdateError` | `update-error` | 自动更新失败 |
+| `getInstallerPrecheck` | `enterprise:get-installer-precheck` | NSIS 安装器预检结果 |
+
+### `window.desktopWindow` Preload
+
+| Preload 方法 | IPC | 说明 |
+|---|---|---|
+| `minimize` | `window:minimize` | 最小化 |
+| `maximizeOrRestore` | `window:maximize-or-restore` | 最大化/还原 |
+| `close` | `window:close` | 关闭 |
+| `isMaximized` | `window:is-maximized` | 查询最大化 |
+| `onMaximizedChange` | `window:maximized-change` | 最大化状态事件 |
 
 ### Enterprise Install 推送事件 (Main → Renderer)
 

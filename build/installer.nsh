@@ -4,6 +4,7 @@
 !include LogicLib.nsh
 !include WinMessages.nsh
 !include "nsis\Include\AddToPathSafe.nsh"
+!include "nsis\Include\RuntimePrecheck.nsh"
 
 Var ExistingInstallDir
 Var RuntimeRoot
@@ -53,6 +54,17 @@ Var PreviousAppVersion
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$ExistingInstallDir"
 !macroend
 
+!macro customInit
+  ; --- Blocking checks ---
+
+  ; VC++ Runtime: block if missing and user refuses install
+  !insertmacro EnsureVCRuntime
+
+  ; --- Non-blocking advisory checks (logged, not blocking) ---
+  ; Git/Python/uv status and port check are written to precheck JSON
+  ; in customInstall after $INSTDIR is finalized.
+!macroend
+
 !macro customInstall
   DetailPrint "Preparing SMC Copilot upgrade-safe directories..."
 
@@ -68,6 +80,10 @@ Var PreviousAppVersion
   CreateDirectory "$INSTDIR\runtime\logs"
   CreateDirectory "$INSTDIR\runtime\cache"
   CreateDirectory "$INSTDIR\runtime\downloads"
+
+  ; Run precheck and write installer-precheck.json + install log
+  DetailPrint "Running environment precheck..."
+  !insertmacro RunRuntimePrecheck "$INSTDIR"
 
   ; Desktop launcher shim
   FileOpen $0 "$INSTDIR\bin\smc-copilot.cmd" w
@@ -120,6 +136,12 @@ Var PreviousAppVersion
   Delete "$DESKTOP\Hermes Desktop.lnk"
   Delete "$SMPROGRAMS\Hermes Agent.lnk"
   Delete "$SMPROGRAMS\Hermes Desktop.lnk"
+
+  ; Log install completion
+  FileOpen $3 "$INSTDIR\runtime\logs\nsis-install.log" a
+  FileSeek $3 0 END
+  FileWrite $3 "[install] version=${VERSION} dir=$INSTDIR date=${__DATE__} ${__TIME__}$\r$\n"
+  FileClose $3
 
   System::Call 'user32::SendMessageTimeout(i 0xffff, i ${WM_SETTINGCHANGE}, i 0, t "Environment", i 0, i 5000, *i .r0)'
 !macroend

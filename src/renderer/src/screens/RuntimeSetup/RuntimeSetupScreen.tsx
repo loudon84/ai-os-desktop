@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { InstallerPrecheck } from "../../../../shared/enterprise/enterprise-contract";
 import { useI18n } from "../../components/useI18n";
 import {
   Activity,
@@ -68,6 +69,9 @@ function RuntimeSetupScreen(): React.JSX.Element {
 
   const [expandedChecks, setExpandedChecks] = useState<Set<string>>(new Set());
   const [migrationWarnings, setMigrationWarnings] = useState<string[]>([]);
+  const [installerPrecheck, setInstallerPrecheck] = useState<InstallerPrecheck | null>(
+    null,
+  );
 
   const loadState = useCallback(async () => {
     try {
@@ -88,6 +92,7 @@ function RuntimeSetupScreen(): React.JSX.Element {
         setMigrationWarnings(status.migrationWarnings);
       }
     }).catch(() => { /* non-fatal */ });
+    window.hermesAPI.getInstallerPrecheck().then(setInstallerPrecheck).catch(() => {});
   }, [loadState]);
 
   async function runDoctor(): Promise<void> {
@@ -146,6 +151,38 @@ function RuntimeSetupScreen(): React.JSX.Element {
   return (
     <div className="settings-container overflow-y-auto">
       <h1 className="settings-header">{t("gateway.runtimeSetup") || "Runtime Setup"}</h1>
+
+      {installerPrecheck && (
+        <div className="settings-section">
+          <div
+            className={`installer-precheck-card installer-precheck-card--${installerPrecheck.result}`}
+          >
+            <div className="settings-section-title mb-0">Installer Precheck</div>
+            <p className="text-sm text-gray-500 mt-1 mb-0">
+              Results from NSIS setup (schema {installerPrecheck.schemaVersion})
+            </p>
+            <div className="installer-precheck-grid">
+              {(
+                [
+                  ["Git", installerPrecheck.git],
+                  ["Python", installerPrecheck.python],
+                  ["uv", installerPrecheck.uv],
+                  ["VC++ Runtime", installerPrecheck.vcRuntime],
+                  ["Port 8642", installerPrecheck.port8642],
+                ] as const
+              ).map(([label, status]) => (
+                <div
+                  key={label}
+                  className={`installer-precheck-item installer-precheck-item--${status === "pass" || status === "available" ? "pass" : "missing"}`}
+                >
+                  <span>{label}</span>
+                  <span className="font-mono">{status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {migrationWarnings.length > 0 && (
         <div className="settings-section">

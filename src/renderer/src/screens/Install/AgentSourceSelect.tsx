@@ -6,6 +6,11 @@ import {
   ArrowRight,
   AlertTriangle,
 } from "../../assets/icons";
+import {
+  PipMirrorFields,
+  createDefaultPipMirrorSelection,
+  type PipMirrorSelection,
+} from "../../components/install/PipMirrorFields";
 
 export type AgentSourceType = "local-zip" | "git-clone";
 
@@ -15,6 +20,9 @@ export interface AgentSourceConfig {
   gitUrl: string;
   gitBranch: string;
   gitShallow: boolean;
+  pipMirrorPreset: PipMirrorSelection["pipMirrorPreset"];
+  pipIndexUrl: string;
+  trustedHost: string;
 }
 
 interface AgentSourceSelectProps {
@@ -29,6 +37,7 @@ function AgentSourceSelect({ onConfirm, onCancel }: AgentSourceSelectProps): Rea
   const [gitUrl, setGitUrl] = useState("https://github.com/NousResearch/hermes-agent.git");
   const [gitBranch, setGitBranch] = useState("main");
   const [gitShallow, setGitShallow] = useState(true);
+  const [pipMirror, setPipMirror] = useState(createDefaultPipMirrorSelection);
   const [error, setError] = useState("");
 
   async function handleBrowse(): Promise<void> {
@@ -46,6 +55,14 @@ function AgentSourceSelect({ onConfirm, onCancel }: AgentSourceSelectProps): Rea
   }
 
   function handleConfirm(): void {
+    if (
+      pipMirror.pipMirrorPreset === "custom" &&
+      !pipMirror.pipIndexUrl.trim()
+    ) {
+      setError(t("install.pipMirrorUrlRequired") || "请填写 PyPI 镜像地址");
+      return;
+    }
+
     if (sourceType === "local-zip") {
       if (!localZipPath.trim()) {
         setError(t("install.zipPathRequired") || "请选择或输入 zip 文件路径");
@@ -58,7 +75,16 @@ function AgentSourceSelect({ onConfirm, onCancel }: AgentSourceSelectProps): Rea
       }
     }
     setError("");
-    onConfirm({ sourceType, localZipPath, gitUrl, gitBranch, gitShallow });
+    onConfirm({
+      sourceType,
+      localZipPath,
+      gitUrl,
+      gitBranch,
+      gitShallow,
+      pipMirrorPreset: pipMirror.pipMirrorPreset,
+      pipIndexUrl: pipMirror.pipIndexUrl,
+      trustedHost: pipMirror.trustedHost,
+    });
   }
 
   return (
@@ -176,6 +202,8 @@ function AgentSourceSelect({ onConfirm, onCancel }: AgentSourceSelectProps): Rea
             </div>
           </div>
         )}
+
+        <PipMirrorFields value={pipMirror} onChange={setPipMirror} />
 
         {error && (
           <div className="flex items-center gap-2 text-red-500 text-sm">

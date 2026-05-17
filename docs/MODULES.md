@@ -5,8 +5,14 @@
 ### index.ts — 主进程入口
 
 - **职责**: 创建 BrowserWindow、注册全部 IPC handler、构建应用菜单、设置自动更新、生命周期管理
-- **关键行为**: before-quit 时清理 gateway 和 claw3d 进程
+- **关键行为**: before-quit 时清理 gateway 和 claw3d 进程；**V1.4.1**: Win/Linux `frame: false` + `titleBarStyle: "hidden"`，macOS 保留 `hiddenInset`；`setupIPC()` 中调用 `registerWindowIpc()`（只注册一次）
 - **导出**: 无（入口文件）
+
+### window/window-ipc.ts — V1.4.1 窗口控制 IPC
+
+- **职责**: 主窗口最小化/最大化/关闭/最大化状态查询（通过 `BrowserWindow.getAllWindows()[0]` 定位主窗口）
+- **IPC Channels**: `window:minimize`, `window:maximize-or-restore`, `window:close`, `window:is-maximized`
+- **核心方法**: `registerWindowIpc()` — 在 `setupIPC()` 中调用一次，带 `registered` 防重复注册
 
 ### hermes.ts — Hermes 引擎通信
 
@@ -288,10 +294,16 @@
 
 ### enterprise-installer.ts — 企业安装流水线
 
-- **职责**: 20 步有序安装流水线编排 + 13 个 IPC handler 注册 + 进度推送
+- **职责**: 20 步有序安装流水线编排 + IPC handler 注册 + 进度推送
 - **流水线**: checkEnterpriseInstall → loadDeploymentConfig → acquireInstallLock → runPreflight → resolveRuntimeBundle → installHermesAgentSource → createOrReuseSharedVenv → installPythonDependencies → provisionDefaultHermesHome → bootstrapProfiles → installBundledSkills → applyPolicy → writeInstallMarker → openAIOSWorkspace
-- **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor
+- **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor, **V1.4**: get-installer-precheck
 - **核心方法**: executeEnterpriseInstallPipeline(mainWindow, input?), setupEnterpriseInstallIPC(mainWindow)
+
+### installer-precheck-reader.ts — V1.4 NSIS 预检结果读取
+
+- **职责**: 从 `resolveInstallLocation().runtimeRoot/installer-precheck.json` 读取 NSIS 安装器预检结果
+- **核心方法**: `readInstallerPrecheck(): InstallerPrecheck | null`（文件不存在或格式无效返回 `null`）
+- **依赖**: install-location-resolver.ts
 
 ### enterprise-ipc.ts — IPC 重导出
 
@@ -385,7 +397,7 @@
 
 - **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**
 - **关键**: 将所有 IPC invoke/on 封装为 Promise/回调 API
-- **暴露对象**: hermesAPI (30+ 方法), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (20 方法)**, **profileEntry (5 方法)**
+- **暴露对象**: hermesAPI (30+ 方法，**含 getInstallerPrecheck**、**V1.4.1 windowControls**), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (20 方法)**, **profileEntry (5 方法)**
 
 ### browser-api.ts — Web Operator Preload API
 
@@ -395,7 +407,7 @@
 
 ### index.d.ts — 类型声明
 
-- **职责**: HermesAPI + AiosBrowserAPI + **ProfileRuntimeAPI + ProfileEntryAPI** 接口完整 TypeScript 类型定义，声明全局 Window 扩展
+- **职责**: HermesAPI（含 **WindowControlsAPI**）+ AiosBrowserAPI + **ProfileRuntimeAPI + ProfileEntryAPI** 接口完整 TypeScript 类型定义，声明全局 Window 扩展
 
 ### profile-runtime-api.ts — V1.1+V1.2 Profile Runtime Preload API
 
@@ -415,6 +427,7 @@
 
 - **职责**: 屏幕路由 (splash → welcome → installing → setup → main)
 - **状态管理**: 安装状态检查、远程模式检测
+- **V1.4.1**: Win/Linux 在非 `main` 屏显示 `layout-titlebar` + `WindowControls`；macOS 保留顶部 `drag-region`
 
 ### constants.ts — 常量定义
 
@@ -431,7 +444,8 @@
 | Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
 | Install | screens/Install/Install.tsx | 安装流程+进度 |
 | Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
-| Layout | screens/Layout/Layout.tsx | 主布局(侧边栏+内容区) |
+| Layout | screens/Layout/Layout.tsx | **V1.4** 编排层：组合 DesktopShell + hooks，不再内联全部 JSX |
+| **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
 | Chat | screens/Chat/Chat.tsx | 消息输入/流式输出/工具进度/Usage |
 | Sessions | screens/Sessions/Sessions.tsx | 会话历史浏览/搜索 |
 | Agents | screens/Agents/Agents.tsx | 配置档案管理 |
@@ -463,6 +477,47 @@
 | Versions | components/Versions.tsx | 版本信息展示 |
 | HermesLogo | components/common/HermesLogo.tsx | Logo 组件 |
 
+### components/layout/ — V1.4 Desktop Shell
+
+| 组件 | 文件 | 职责 |
+|---|---|---|
+| DesktopShell | components/layout/DesktopShell.tsx | 壳布局：sidebar + header + outlet + statusBar + modal/drawer 挂载位 |
+| DesktopSidebar | components/layout/DesktopSidebar.tsx | 侧边栏导航、Profile 分组、更新按钮 |
+| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | 主工作区视图路由（保留 Chat/Office/Settings 挂载策略） |
+| PageHeader | components/layout/PageHeader.tsx | 页头：`app-drag-region`、标题、active profile、右侧 `WindowControls` |
+| WindowControls | components/layout/WindowControls.tsx | Win/Linux 自定义窗口按钮；调用 `hermesAPI.windowControls`；macOS 返回 null |
+| StatusBar | components/layout/StatusBar.tsx | 底栏：profile、连接模式、更新状态 |
+| ModalLayer | components/layout/ModalLayer.tsx | 全局 Modal 挂载点（占位） |
+| DrawerLayer | components/layout/DrawerLayer.tsx | 全局 Drawer 挂载点（占位） |
+
+### hooks/ — V1.4 从 Layout 抽离
+
+| Hook | 文件 | 职责 |
+|---|---|---|
+| useDesktopNavigation | hooks/useDesktopNavigation.ts | view 状态、菜单事件、会话恢复、office lazy 标记 |
+| useUpdateState | hooks/useUpdateState.ts | 自动更新事件与下载进度 |
+| useRemoteMode | hooks/useRemoteMode.ts | 远程模式检测（随 view 刷新） |
+| useProfileEntries | hooks/useProfileEntries.ts | profileEntry 列表加载 |
+
+### types/ — V1.4 桌面壳类型
+
+| 文件 | 职责 |
+|---|---|
+| types/desktop-shell.ts | `View`、`NavItem`、`UpdateState`、`resolveViewTitleKey()` |
+
+---
+
+## 构建与安装器 (build/)
+
+| 文件 | 职责 |
+|---|---|
+| installer.nsh | NSIS 自定义宏：preInit / **customInit (VC++)** / customInstall / customUnInstall |
+| nsis/Include/AddToPathSafe.nsh | 用户 PATH 安全增删 |
+| nsis/Include/VCRuntimeCheck.nsh | **V1.4** VC++ 2015–2022 x64 检测与可选安装 |
+| nsis/Include/RuntimePrecheck.nsh | **V1.4** Git/Python/uv/8642 检测，写出 installer-precheck.json |
+
+安装产物路径示例：`$INSTDIR/runtime/installer-precheck.json`、`$INSTDIR/runtime/logs/nsis-install.log`
+
 ---
 
 ## 共享模块 (src/shared/)
@@ -473,6 +528,14 @@
 |---|---|
 | profile-runtime-contract.ts | 全部 TypeScript 类型定义（V1.2: 115+ 接口/类型/枚举），含 ProfileRuntimeAPI + ProfileEntryAPI 接口 + V1.2 新增 RuntimeReconcileResult/GatewayLogEntry/GatewayLogQueryOptions/GatewayLogLevel/RuntimeStatusChangeEvent |
 | profile-runtime-errors.ts | 19 个错误码（V1.2 新增 PROFILE_STARTUP_TIMEOUT） + ProfileRuntimeError 类 + createProfileError() 工厂函数 |
+
+### enterprise/ — V1.2.1+V1.4 Enterprise 契约
+
+| 文件 | 职责 |
+|---|---|
+| enterprise-contract.ts | API 契约；**V1.4 新增** `InstallerPrecheck` 及预检状态类型 |
+| enterprise-schema.ts | 数据结构类型 |
+| enterprise-constants.ts | 枚举/错误码/常量 |
 
 ### i18n/ — 国际化
 

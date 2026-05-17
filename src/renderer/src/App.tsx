@@ -6,6 +6,7 @@ import Install from "./screens/Install/Install";
 import Setup from "./screens/Setup/Setup";
 import Layout from "./screens/Layout/Layout";
 import SplashScreen from "./screens/SplashScreen/SplashScreen";
+import { WindowControls } from "./components/layout/WindowControls";
 import { useI18n } from "./components/useI18n";
 
 type Screen = "splash" | "welcome" | "installing" | "setup" | "main";
@@ -18,7 +19,10 @@ function App(): React.JSX.Element {
   const { t } = useI18n();
   const [screen, setScreen] = useState<Screen>("splash");
   const [installError, setInstallError] = useState<string | null>(null);
-  const isMac = window.electron?.process?.platform === "darwin";
+  const isMac =
+    window.electron?.process?.platform === "darwin" ||
+    navigator.platform.toLowerCase().includes("mac");
+  const showAppTitlebar = !isMac && screen !== "main";
 
   const runInstallCheck = useCallback(async () => {
     const startedAt = Date.now();
@@ -168,6 +172,14 @@ function App(): React.JSX.Element {
       <ErrorBoundary>
         <div className="app">
           {isMac && <div className="drag-region" />}
+          {showAppTitlebar ? (
+            <div className="layout-titlebar app-drag-region">
+              <div className="layout-titlebar__left no-drag">
+                Hermes Desktop
+              </div>
+              <WindowControls />
+            </div>
+          ) : null}
           <div className="app-content">{renderScreen()}</div>
         </div>
       </ErrorBoundary>

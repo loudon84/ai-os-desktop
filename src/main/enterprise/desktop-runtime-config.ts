@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
+import type { PipMirrorConfig } from "../../shared/enterprise/pip-mirror-presets";
 import { resolveInstallLocation } from "./windows/install-location-resolver";
 import { getRegistryInfo } from "./windows/install-location-resolver";
 
@@ -18,6 +19,9 @@ export interface AgentSourceConfig {
   gitUrl?: string;
   gitBranch?: string;
   gitShallow?: boolean;
+  pipIndexUrl?: string;
+  trustedHost?: string;
+  pipMirrorPreset?: string;
 }
 
 export interface DesktopRuntimeConfig {
@@ -28,6 +32,7 @@ export interface DesktopRuntimeConfig {
   hermesHome: string;
   addToPath: boolean;
   agentSource?: AgentSourceConfig;
+  pipMirror?: PipMirrorConfig;
 }
 
 const CONFIG_FILENAME = "desktop-runtime.json";
@@ -76,6 +81,7 @@ export function verifyRegistryConsistency(): boolean {
 
 export function createDefaultRuntimeConfig(
   agentSource?: AgentSourceConfig,
+  pipMirror?: PipMirrorConfig,
 ): DesktopRuntimeConfig {
   const loc = resolveInstallLocation();
   return {
@@ -86,5 +92,6 @@ export function createDefaultRuntimeConfig(
     hermesHome: join(homedir(), ".hermes"),
     addToPath: true,
     agentSource,
+    pipMirror,
   };
 }

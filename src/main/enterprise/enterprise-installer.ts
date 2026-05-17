@@ -20,6 +20,7 @@ import type {
   EnterpriseRepairResult,
   EnterpriseRollbackInput,
   EnterpriseRollbackResult,
+  InstallerPrecheck,
 } from "../../shared/enterprise/enterprise-contract";
 
 import type { InstallPhase } from "../../shared/enterprise/enterprise-constants";
@@ -366,4 +367,12 @@ export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
   ipcMain.handle("enterprise:get-migration-status", async () => {
     return getMigrationStatus();
   });
+
+  ipcMain.handle(
+    "enterprise:get-installer-precheck",
+    async (): Promise<InstallerPrecheck | null> => {
+      const { readInstallerPrecheck } = require("./installer-precheck-reader");
+      return readInstallerPrecheck();
+    },
+  );
 }
