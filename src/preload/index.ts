@@ -25,6 +25,7 @@ import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract
 import { aiosBrowser } from "./browser-api";
 import { profileRuntimeApi } from "./profile-runtime-api";
 import { profileEntryApi } from "./profile-entry-api";
+import { aiosApi } from "./aios-api";
 
 const hermesAPI = {
   // Installation
@@ -839,6 +840,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("aiosBrowser", aiosBrowser);
     contextBridge.exposeInMainWorld("profileRuntime", profileRuntimeApi);
     contextBridge.exposeInMainWorld("profileEntry", profileEntryApi);
+    contextBridge.exposeInMainWorld("aiosRuntime", aiosApi);
   } catch (error) {
     console.error(error);
   }
@@ -853,4 +855,6 @@ if (process.contextIsolated) {
   window.profileRuntime = profileRuntimeApi;
   // @ts-ignore (define in dts)
   window.profileEntry = profileEntryApi;
+  // @ts-ignore (define in dts)
+  window.aiosRuntime = aiosApi;
 }

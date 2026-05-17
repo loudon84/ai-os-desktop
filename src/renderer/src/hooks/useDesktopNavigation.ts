@@ -18,7 +18,7 @@ export interface UseDesktopNavigationResult {
 }
 
 export function useDesktopNavigation(): UseDesktopNavigationResult {
-  const [view, setView] = useState<View>("chat");
+  const [view, setView] = useState<View>("aios-home");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState("default");

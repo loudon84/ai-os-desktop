@@ -14,6 +14,7 @@ import {
   Timer,
   Globe,
   Activity,
+  LayoutDashboard,
 } from "../../assets/icons";
 import { DesktopShell } from "../../components/layout/DesktopShell";
 import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
@@ -29,6 +30,7 @@ import { useProfileEntries } from "../../hooks/useProfileEntries";
 import type { NavItem } from "../../types/desktop-shell";
 
 const NAV_ITEMS: NavItem[] = [
+  { view: "aios-home", icon: LayoutDashboard, labelKey: "navigation.aiosHome" },
   { view: "chat", icon: ChatBubble, labelKey: "navigation.chat" },
   { view: "sessions", icon: Clock, labelKey: "navigation.sessions" },
   { view: "agents", icon: Users, labelKey: "navigation.agents" },
@@ -93,6 +95,7 @@ function Layout(): React.JSX.Element {
             navigation.handleSelectProfile(name);
             navigation.setView("chat");
           }}
+          onNavigate={navigation.navigateToView}
         />
       }
       statusBar={

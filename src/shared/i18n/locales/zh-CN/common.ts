@@ -45,4 +45,18 @@ export default {
   errorMessage: "发生了意外错误。",
   tryAgain: "重试",
   copied: "已复制！",
+  runtimeGuard: {
+    title: "Hermes Agent Gateway 未运行",
+    description: "AI-OS Desktop 依赖本地 Hermes Gateway 提供模型、工具与 Agent 调度能力。请先启动 Gateway，或进入 Hermes Agent 设置面板完成配置。",
+    gatewayError: "Gateway 遇到错误，请查看日志了解详情。",
+    startGateway: "启动 Hermes Gateway",
+    openSetup: "Hermes 设置",
+    viewLogs: "查看日志",
+    runDiagnostics: "运行诊断",
+  },
+  aiosHome: {
+    noServices: "尚未注册运行时服务",
+    webAppPlaceholder: "AI-OS Web 应用将在运行时就绪后加载于此。",
+    webAppHint: "AI-OS 前端通过本地 WebContentsView 提供，所有服务运行后自动挂载。",
+  },
 } as const;

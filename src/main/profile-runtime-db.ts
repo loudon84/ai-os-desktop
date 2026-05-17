@@ -19,11 +19,19 @@ import type {
   ShareMode,
   CapabilityName,
 } from "../shared/profile-runtime/profile-runtime-contract";
+import type {
+  RuntimeServiceRecord,
+  RuntimeEventRecord,
+  RuntimeSettingRecord,
+  AiOsServiceId,
+  RuntimeServiceStatus,
+  RuntimeEventLevel,
+} from "../shared/aios/aios-contract";
 
 const DB_DIR = join(HERMES_HOME, "desktop");
 const DB_PATH = join(DB_DIR, "profile-runtime.db");
 
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 let dbInstance: Database.Database | null = null;
 
@@ -214,22 +222,78 @@ function createIndexes(db: Database.Database): void {
   `);
 }
 
+function createTablesV2(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS runtime_services (
+      service_id TEXT PRIMARY KEY,
+      service_type TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'unknown',
+      pid INTEGER,
+      port INTEGER,
+      url TEXT,
+      install_path TEXT,
+      started_at TEXT,
+      stopped_at TEXT,
+      last_health_at TEXT,
+      last_error TEXT,
+      restart_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS runtime_service_events (
+      id TEXT PRIMARY KEY,
+      service_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      level TEXT NOT NULL DEFAULT 'info',
+      message TEXT NOT NULL,
+      payload_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS runtime_settings (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
+function createIndexesV2(db: Database.Database): void {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_rt_svc_status ON runtime_services(status);
+    CREATE INDEX IF NOT EXISTS idx_rt_svc_events_svc ON runtime_service_events(service_id);
+    CREATE INDEX IF NOT EXISTS idx_rt_svc_events_ts ON runtime_service_events(created_at);
+  `);
+}
+
 export function initProfileRuntimeDb(): Database.Database {
   const db = getDb();
+
+  // Ensure schema_version table exists for first-time init
+  db.exec(`CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL
+  )`);
+
   const currentVersion = db
     .prepare("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
     .get() as { version: number } | undefined;
+  const ver = currentVersion?.version ?? 0;
 
-  if (!currentVersion || currentVersion.version < CURRENT_SCHEMA_VERSION) {
+  if (ver < CURRENT_SCHEMA_VERSION) {
     const migrate = db.transaction(() => {
-      createTables(db);
-      createIndexes(db);
-      if (!currentVersion) {
-        db.prepare("INSERT INTO schema_version (version, applied_at) VALUES (?, ?)").run(
-          CURRENT_SCHEMA_VERSION,
-          now(),
-        );
+      if (ver < 1) {
+        createTables(db);
+        createIndexes(db);
       }
+      if (ver < 2) {
+        createTablesV2(db);
+        createIndexesV2(db);
+      }
+      db.prepare(
+        "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
+      ).run(CURRENT_SCHEMA_VERSION, now());
     });
     migrate();
   }
@@ -533,6 +597,114 @@ export function deleteSharedContext(id: string): boolean {
   const db = getDb();
   const result = db.prepare("DELETE FROM shared_contexts WHERE id = ?").run(id);
   return result.changes > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Runtime Services CRUD (v1.5 AI-OS tables)
+// ---------------------------------------------------------------------------
+
+export function upsertRuntimeService(record: RuntimeServiceRecord): RuntimeServiceRecord {
+  const db = getDb();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO runtime_services (service_id, service_type, display_name, status, pid, port, url, install_path, started_at, stopped_at, last_health_at, last_error, restart_count, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(service_id) DO UPDATE SET
+       status = excluded.status,
+       pid = excluded.pid,
+       port = excluded.port,
+       url = excluded.url,
+       install_path = excluded.install_path,
+       started_at = excluded.started_at,
+       stopped_at = excluded.stopped_at,
+       last_health_at = excluded.last_health_at,
+       last_error = excluded.last_error,
+       restart_count = excluded.restart_count,
+       updated_at = excluded.updated_at`,
+  ).run(
+    record.service_id, record.service_type, record.display_name, record.status,
+    record.pid, record.port, record.url, record.install_path,
+    record.started_at, record.stopped_at, record.last_health_at, record.last_error,
+    record.restart_count, ts,
+  );
+  return { ...record, updated_at: ts };
+}
+
+export function getRuntimeService(serviceId: AiOsServiceId): RuntimeServiceRecord | null {
+  const db = getDb();
+  return db.prepare("SELECT * FROM runtime_services WHERE service_id = ?").get(serviceId) as RuntimeServiceRecord | null;
+}
+
+export function listRuntimeServices(): RuntimeServiceRecord[] {
+  const db = getDb();
+  return db.prepare("SELECT * FROM runtime_services ORDER BY service_id").all() as RuntimeServiceRecord[];
+}
+
+export function updateRuntimeServiceStatus(
+  serviceId: AiOsServiceId,
+  status: RuntimeServiceStatus,
+  extra?: Partial<Pick<RuntimeServiceRecord, "pid" | "port" | "url" | "started_at" | "stopped_at" | "last_health_at" | "last_error" | "restart_count">>,
+): void {
+  const db = getDb();
+  const ts = now();
+  const current = getRuntimeService(serviceId);
+  if (!current) return;
+
+  db.prepare(
+    `UPDATE runtime_services SET status = ?, pid = ?, port = ?, url = ?, started_at = ?, stopped_at = ?, last_health_at = ?, last_error = ?, restart_count = ?, updated_at = ? WHERE service_id = ?`,
+  ).run(
+    status,
+    extra?.pid ?? current.pid,
+    extra?.port ?? current.port,
+    extra?.url ?? current.url,
+    extra?.started_at ?? current.started_at,
+    extra?.stopped_at ?? current.stopped_at,
+    extra?.last_health_at ?? current.last_health_at,
+    extra?.last_error ?? current.last_error,
+    extra?.restart_count ?? current.restart_count,
+    ts,
+    serviceId,
+  );
+}
+
+export function insertRuntimeServiceEvent(record: Omit<RuntimeEventRecord, "created_at">): RuntimeEventRecord {
+  const db = getDb();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO runtime_service_events (id, service_id, event_type, level, message, payload_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(record.id, record.service_id, record.event_type, record.level, record.message, record.payload_json, ts);
+  return { ...record, created_at: ts };
+}
+
+export function listRuntimeServiceEvents(
+  serviceId?: string,
+  options?: { limit?: number; level?: RuntimeEventLevel; since?: string },
+): RuntimeEventRecord[] {
+  const db = getDb();
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (serviceId) { conditions.push("service_id = ?"); params.push(serviceId); }
+  if (options?.level) { conditions.push("level = ?"); params.push(options.level); }
+  if (options?.since) { conditions.push("created_at >= ?"); params.push(options.since); }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limit = options?.limit ?? 200;
+  return db.prepare(`SELECT * FROM runtime_service_events ${where} ORDER BY created_at DESC LIMIT ?`).all(...params, limit) as RuntimeEventRecord[];
+}
+
+export function getRuntimeSetting(key: string): string | null {
+  const db = getDb();
+  const row = db.prepare("SELECT value_json FROM runtime_settings WHERE key = ?").get(key) as { value_json: string } | undefined;
+  return row?.value_json ?? null;
+}
+
+export function setRuntimeSetting(key: string, valueJson: string): void {
+  const db = getDb();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO runtime_settings (key, value_json, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+  ).run(key, valueJson, ts);
 }
 
 export { randomUUID as generateId };

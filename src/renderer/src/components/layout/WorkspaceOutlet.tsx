@@ -17,6 +17,7 @@ import { ProfileRuntimeScreen } from "../../screens/ProfileRuntime/ProfileRuntim
 import { AIOSWorkspaceScreen } from "../../screens/AIOSWorkspace/AIOSWorkspaceScreen";
 import { ProfileWorkspaceScreen } from "../../screens/ProfileWorkspace/ProfileWorkspaceScreen";
 import { RuntimeSetupScreen } from "../../screens/RuntimeSetup/RuntimeSetupScreen";
+import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
 import type { View } from "../../types/desktop-shell";
 
 export interface WorkspaceOutletProps {
@@ -31,6 +32,7 @@ export interface WorkspaceOutletProps {
   onResumeSession: (sessionId: string) => Promise<void>;
   onSelectProfile: (name: string) => void;
   onChatWithProfile: (name: string) => void;
+  onNavigate: (view: View) => void;
 }
 
 export function WorkspaceOutlet({
@@ -45,9 +47,11 @@ export function WorkspaceOutlet({
   onResumeSession,
   onSelectProfile,
   onChatWithProfile,
+  onNavigate,
 }: WorkspaceOutletProps): React.JSX.Element {
   return (
     <>
+      {view === "aios-home" && <AIOSHomeScreen onNavigate={onNavigate} />}
       <div
         style={{
           display: view === "chat" ? "flex" : "none",

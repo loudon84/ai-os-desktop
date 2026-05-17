@@ -278,6 +278,12 @@ function setupIPC(): void {
     registerFirstRunWizardIPC();
   } catch { /* first-run wizard not available in early setup */ }
 
+  // AI-OS Runtime IPC
+  try {
+    const { registerAiosIpc } = require("./aios/aios-ipc");
+    if (mainWindow) registerAiosIpc(mainWindow);
+  } catch { /* aios runtime not available in early setup */ }
+
   // Installation
   ipcMain.handle("check-install", () => {
     return checkInstallStatus();
@@ -1235,6 +1241,14 @@ app.whenReady().then(() => {
     } catch (err) {
       console.error("[BROWSER] Failed to initialize Web Operator:", err);
     }
+
+    // Initialize AI-OS WebContentsView controller
+    try {
+      const { AiOsWebContentsController } = require("./aios/aios-webcontents-controller");
+      new AiOsWebContentsController(mainWindow);
+    } catch (err) {
+      console.error("[AIOS] Failed to initialize WebContentsController:", err);
+    }
   }
 
   setupUpdater();
@@ -1278,6 +1292,10 @@ app.on("before-quit", () => {
   try {
     const { onBeforeQuit } = require("./profile-runtime-manager");
     onBeforeQuit();
+  } catch { /* best effort */ }
+  try {
+    const { onBeforeQuit: aiosQuit } = require("./aios/aios-runtime-supervisor");
+    aiosQuit();
   } catch { /* best effort */ }
   stopGateway();
   stopSshTunnel();

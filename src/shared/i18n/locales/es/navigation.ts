@@ -1,4 +1,5 @@
 export default {
+  aiosHome: "AI-OS Inicio",
   chat: "Chat",
   sessions: "Sesiones",
   agents: "Perfiles",
@@ -12,5 +13,9 @@ export default {
   schedules: "Programaciones",
   gateway: "Gateway",
   runtimeSetup: "Configuración de Runtime",
+  webOperator: "Web Operator",
+  aiosWorkspace: "AI-OS Workspace",
+  profileRuntime: "Profile Runtime",
+  profileWorkspace: "Profile Workspace",
   settings: "Configuración",
 } as const;

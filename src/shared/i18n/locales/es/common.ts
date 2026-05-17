@@ -45,4 +45,18 @@ export default {
   errorMessage: "Ocurrió un error inesperado.",
   tryAgain: "Intentar de nuevo",
   copied: "¡Copiado!",
+  runtimeGuard: {
+    title: "Hermes Agent Gateway no está ejecutándose",
+    description: "AI-OS Desktop depende del Hermes Gateway local para acceso a modelos, ejecución de herramientas y orquestación de agentes. Inicie el Gateway o complete la configuración primero.",
+    gatewayError: "El Gateway encontró un error. Revise los registros para más detalles.",
+    startGateway: "Iniciar Hermes Gateway",
+    openSetup: "Configuración de Hermes",
+    viewLogs: "Ver Registros",
+    runDiagnostics: "Ejecutar Diagnósticos",
+  },
+  aiosHome: {
+    noServices: "No hay servicios de runtime registrados",
+    webAppPlaceholder: "La aplicación web AI-OS se cargará aquí cuando el runtime esté listo.",
+    webAppHint: "El frontend de AI-OS se sirve mediante un WebContentsView local una vez que todos los servicios estén ejecutándose.",
+  },
 } as const;

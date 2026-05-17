@@ -1,4 +1,5 @@
 export default {
+  aiosHome: "AI-OS 首页",
   chat: "聊天",
   sessions: "会话",
   agents: "档案",
@@ -12,5 +13,9 @@ export default {
   schedules: "计划任务",
   gateway: "网关",
   runtimeSetup: "运行时诊断",
+  webOperator: "Web 操作",
+  aiosWorkspace: "AI-OS 工作台",
+  profileRuntime: "Profile 运行时",
+  profileWorkspace: "Profile 工作区",
   settings: "设置",
 } as const;
