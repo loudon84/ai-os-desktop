@@ -1,5 +1,6 @@
 import type { BrowserWindow } from "electron";
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
+import { join } from "node:path";
 
 import type {
   LoadConfigResult,
@@ -34,7 +35,22 @@ import { bootstrapProfiles } from "./profile-runtime-bootstrapper";
 import { installBundledSkills, applyPolicyReadOnly } from "./profile-policy-installer";
 import { acquireInstallLock } from "./install-lock";
 import { writeInstallMarker, readInstallMarker, existsInstallMarker } from "./install-marker";
-import { createInstallLogger } from "./install-log";
+import { createInstallLogger, readLatestInstallLog } from "./install-log";
+import { runAllChecks, exportDoctorReport } from "./doctor/runtime-doctor";
+import { ensureShims } from "./shim-manager";
+import { resolveInstallLocation } from "./windows/install-location-resolver";
+import { getMigrationStatus } from "../migrations/migration-runner";
+import {
+  requestEnterpriseInstallCancel,
+  resetEnterpriseInstallCancel,
+  throwIfInstallCancelled,
+} from "./install-cancel";
+
+export {
+  requestEnterpriseInstallCancel,
+  resetEnterpriseInstallCancel,
+  isEnterpriseInstallCancelled,
+} from "./install-cancel";
 
 type ProgressCallback = (event: InstallProgressEvent) => void;
 
@@ -51,10 +67,10 @@ export async function executeEnterpriseInstallPipeline(
   };
 
   const logger = createInstallLogger();
-  const cancellationToken = { cancelled: false };
+  resetEnterpriseInstallCancel();
 
   try {
-    if (existsInstallMarker()) {
+    if (!input?.force && existsInstallMarker()) {
       const marker = readInstallMarker();
       onProgress(makeProgress("check-enterprise-install", "completed", 100, "已安装"));
       return { ok: true, marker: marker || undefined };
@@ -62,8 +78,10 @@ export async function executeEnterpriseInstallPipeline(
 
     onProgress(makeProgress("check-enterprise-install", "running", 0, "检查安装状态..."));
     logger.info("check-enterprise-install", "开始企业安装");
+    throwIfInstallCancelled();
 
     onProgress(makeProgress("load-deployment-config", "running", 5, "加载配置..."));
+    throwIfInstallCancelled();
     const configResult = loadDeploymentConfig();
     if (!configResult.ok || !configResult.config) {
       onProgress(makeProgress("load-deployment-config", "failed", 5, "配置加载失败", "E_DEPLOY_SCHEMA_INVALID"));
@@ -79,6 +97,7 @@ export async function executeEnterpriseInstallPipeline(
       return { ok: false, errorCode: "E_INSTALL_LOCK_TIMEOUT", message: "另一个安装进程正在运行" };
     }
     onProgress(makeProgress("acquire-install-lock", "completed", 10, "安装锁已获取"));
+    throwIfInstallCancelled();
 
     if (!input?.skipPreflight) {
       onProgress(makeProgress("run-preflight", "running", 10, "运行预检..."));
@@ -92,6 +111,7 @@ export async function executeEnterpriseInstallPipeline(
     }
 
     onProgress(makeProgress("resolve-runtime-bundle", "running", 15, "准备 Runtime Bundle..."));
+    throwIfInstallCancelled();
     const bundleResult = await resolveRuntimeBundle(config, (p) => {
       onProgress(makeProgress("resolve-runtime-bundle", "running", 15 + p.percent * 0.15, p.message));
     });
@@ -103,6 +123,7 @@ export async function executeEnterpriseInstallPipeline(
     onProgress(makeProgress("resolve-runtime-bundle", "completed", 30, "Bundle 准备完成"));
 
     onProgress(makeProgress("install-hermes-agent-source", "running", 40, "安装 Hermes Agent..."));
+    throwIfInstallCancelled();
     const agentResult = await installHermesAgentSource(config, bundleResult.runtimePath!, (p) => {
       onProgress(makeProgress("install-hermes-agent-source", "running", 40, p.message));
     });
@@ -184,6 +205,10 @@ export async function executeEnterpriseInstallPipeline(
 
     return { ok: true, marker };
   } catch (err) {
+    if (err instanceof Error && err.message === "INSTALL_CANCELLED") {
+      logger.warn("check-enterprise-install", "安装已取消");
+      return { ok: false, errorCode: "E_INSTALL_CANCELLED", message: "安装已取消" };
+    }
     logger.error("check-enterprise-install", `安装异常: ${err instanceof Error ? err.message : String(err)}`);
     return { ok: false, message: `安装失败: ${err instanceof Error ? err.message : String(err)}` };
   } finally {
@@ -218,38 +243,127 @@ export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("enterprise:install-cancel", async (): Promise<{ ok: boolean }> => {
+    requestEnterpriseInstallCancel();
     return { ok: true };
   });
 
-  ipcMain.handle("enterprise:update", async (_event, _input?: EnterpriseUpdateInput): Promise<EnterpriseUpdateResult> => {
-    return { ok: false, message: "尚未实现" };
+  ipcMain.handle("enterprise:reinstall-runtime", async (): Promise<EnterpriseInstallResult> => {
+    return executeEnterpriseInstallPipeline(mainWindow, { force: true, skipPreflight: true });
   });
 
-  ipcMain.handle("enterprise:repair", async (_event, _input?: EnterpriseRepairInput): Promise<EnterpriseRepairResult> => {
-    return { ok: false, message: "尚未实现", level: 1 };
+  ipcMain.handle("enterprise:update", async (_event, _input?: EnterpriseUpdateInput): Promise<EnterpriseUpdateResult> => {
+    const configResult = loadDeploymentConfig();
+    if (!configResult.ok || !configResult.config) {
+      return { ok: false, message: configResult.error?.message || "配置加载失败" };
+    }
+    const config = configResult.config;
+    ensureShims();
+    const venvResult = createOrReuseSharedVenv(config);
+    if (!venvResult.ok) {
+      return { ok: false, message: venvResult.message, errorCode: venvResult.errorCode };
+    }
+    const agentPath = resolveInstallLocation().agentDir;
+    const pipResult = installPythonDependencies(config, venvResult.venvPath!, agentPath);
+    if (!pipResult.ok) {
+      return { ok: false, message: pipResult.message, errorCode: pipResult.errorCode };
+    }
+    ensureShims();
+    return { ok: true, message: "运行时组件已更新" };
+  });
+
+  ipcMain.handle("enterprise:repair", async (_event, input?: EnterpriseRepairInput): Promise<EnterpriseRepairResult> => {
+    const level = input?.level ?? 1;
+    const configResult = loadDeploymentConfig();
+    if (!configResult.ok || !configResult.config) {
+      return { ok: false, level, message: configResult.error?.message || "配置加载失败" };
+    }
+    const config = configResult.config;
+    const marker = readInstallMarker();
+
+    try {
+      ensureShims();
+      if (level >= 1) {
+        const venvResult = createOrReuseSharedVenv(config);
+        if (!venvResult.ok) {
+          return { ok: false, level, message: venvResult.message, errorCode: venvResult.errorCode };
+        }
+        const agentPath = resolveInstallLocation().agentDir;
+        const pipResult = installPythonDependencies(config, venvResult.venvPath!, agentPath);
+        if (!pipResult.ok) {
+          return { ok: false, level, message: pipResult.message, errorCode: pipResult.errorCode };
+        }
+      }
+      if (level >= 2) {
+        const bundleResult = await resolveRuntimeBundle(config);
+        if (bundleResult.ok && bundleResult.runtimePath) {
+          await installHermesAgentSource(config, bundleResult.runtimePath);
+        }
+      }
+      ensureShims();
+      const doctorReport = await runAllChecks({ config, marker });
+      const ok =
+        doctorReport.overallStatus === "pass" || doctorReport.overallStatus === "warn";
+      return { ok, level, doctorReport, message: ok ? "修复完成" : "仍有问题，请查看诊断报告" };
+    } catch (err) {
+      return {
+        ok: false,
+        level,
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
   });
 
   ipcMain.handle("enterprise:rollback", async (_event, _input: EnterpriseRollbackInput): Promise<EnterpriseRollbackResult> => {
-    return { ok: false, message: "尚未实现" };
+    const marker = readInstallMarker();
+    ensureShims();
+    return {
+      ok: false,
+      message: marker?.rollbackSnapshots?.length
+        ? "完整回滚尚未实现；已刷新 CLI shim，请查看 install-marker 中的快照信息"
+        : "无可用回滚快照；已刷新 CLI shim",
+    };
   });
 
   ipcMain.handle("enterprise:get-install-marker", async (): Promise<InstallMarker | null> => {
     return readInstallMarker();
   });
 
-  ipcMain.handle("enterprise:get-install-log", async (_event, input: { type: InstallPhase }): Promise<string> => {
-    return "";
+  ipcMain.handle("enterprise:get-install-log", async (_event, _input: { type: InstallPhase }): Promise<string> => {
+    return readLatestInstallLog();
   });
 
   ipcMain.handle("enterprise:open-log-dir", async (): Promise<{ ok: boolean }> => {
-    return { ok: true };
+    const logDir = join(resolveInstallLocation().runtimeRoot, "logs");
+    const result = await shell.openPath(logDir);
+    return { ok: result === "" };
   });
 
   ipcMain.handle("enterprise:run-doctor", async (): Promise<DoctorReport> => {
-    return { id: "", checks: [], overallStatus: "skip", createdAt: new Date().toISOString(), totalDurationMs: 0 };
+    const configResult = loadDeploymentConfig();
+    if (!configResult.ok || !configResult.config) {
+      return {
+        id: "",
+        checks: [],
+        overallStatus: "error",
+        createdAt: new Date().toISOString(),
+        totalDurationMs: 0,
+      };
+    }
+    const marker = readInstallMarker();
+    return runAllChecks({ config: configResult.config, marker });
   });
 
   ipcMain.handle("enterprise:export-doctor-report", async (): Promise<{ ok: boolean; path: string }> => {
-    return { ok: false, path: "" };
+    const configResult = loadDeploymentConfig();
+    if (!configResult.ok || !configResult.config) {
+      return { ok: false, path: "" };
+    }
+    const marker = readInstallMarker();
+    const report = await runAllChecks({ config: configResult.config, marker });
+    return exportDoctorReport(report);
+  });
+
+  ipcMain.handle("enterprise:get-migration-status", async () => {
+    return getMigrationStatus();
   });
 }

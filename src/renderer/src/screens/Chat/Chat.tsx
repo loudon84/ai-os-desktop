@@ -710,7 +710,7 @@ function Chat({
           window.hermesAPI.getAppVersion(),
         ]);
         pushLocalResponse(
-          `**Hermes Agent:** ${hermesVer || "unknown"}\n**Desktop App:** v${appVer}`,
+          `**SMC Copilot:** ${hermesVer || "unknown"}\n**Desktop App:** v${appVer}`,
         );
         return true;
       }

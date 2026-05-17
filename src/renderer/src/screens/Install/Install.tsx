@@ -32,16 +32,19 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const cleanup = window.hermesAPI.onInstallProgress((p) => {
+      setProgress(p);
+    });
+    return cleanup;
+  }, []);
+
   function handleSourceConfirm(config: AgentSourceConfig): void {
     setSourceSelected(true);
     startInstallWithSource(config);
   }
 
   function startInstallWithSource(config: AgentSourceConfig): void {
-    const cleanup = window.hermesAPI.onInstallProgress((p) => {
-      setProgress(p);
-    });
-
     window.hermesAPI
       .startInstallWithSource(config)
       .then((result: { success: boolean; error?: string }) => {
@@ -54,8 +57,6 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
       .catch((err: Error) => {
         setFailed(err.message || t("install.installationFailedHint"));
       });
-
-    cleanup();
   }
 
   useEffect(() => {

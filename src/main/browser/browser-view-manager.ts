@@ -1,4 +1,4 @@
-import { BrowserWindow, WebContentsView, session } from "electron";
+import { BrowserWindow, WebContentsView } from "electron";
 import type { BrowserViewBounds } from "../../shared/browser/browser-contract";
 import { BROWSER_PARTITION } from "./browser-types";
 
@@ -23,8 +23,9 @@ export class BrowserViewManager {
       return;
     }
 
-    const ses = session.fromPartition(BROWSER_PARTITION);
-    this.view = new WebContentsView({ session: ses, webPreferences: { sandbox: true } });
+    this.view = new WebContentsView({
+      webPreferences: { sandbox: true, partition: BROWSER_PARTITION },
+    });
     this.mainWindow.contentView.addChildView(this.view);
 
     await this.view.webContents.loadURL(url);

@@ -1,5 +1,5 @@
 /* ========================================================================
-   Hermes Agent Desktop — Clean Design System
+   SMC Copilot Desktop — Clean Design System
    Dark + Light mode, no gradients, flat design
    ======================================================================== */
 
@@ -915,6 +915,17 @@ body {
 
 .sidebar-update-btn:hover {
   background: var(--accent-hover);
+}
+
+.sidebar-update-error {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
 }
 
 /* Theme Switcher */

@@ -9,6 +9,7 @@ import type {
   BrowserExtractTableRequest,
   BrowserAuditRecord,
   BrowserActionSource,
+  BrowserActionName,
   PendingSensitiveAction
 } from "../../shared/browser/browser-contract";
 import { createBrowserError } from "../../shared/browser/browser-errors";

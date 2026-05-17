@@ -13,7 +13,7 @@ import { checkProfileDb } from "./check-profile-db";
 import { checkSkills } from "./check-skills";
 import { checkPolicy, checkPortBinding, checkDirPermission, checkConfigValidity } from "./check-misc";
 import { runWindowsDoctorChecks, checkHermesCmd, checkPythonVenv, checkApiServer } from "./check-windows";
-import { getHermesBasePath } from "../deployment-config";
+import { resolveInstallLocation } from "../windows/install-location-resolver";
 
 export interface DoctorInput {
   config: DeploymentConfig;
@@ -27,21 +27,23 @@ export async function runAllChecks(input: DoctorInput): Promise<DoctorReport> {
   const checks: DoctorCheckResult[] = [];
 
   const hermesHome = join(homedir(), ".hermes");
-  const basePath = getHermesBasePath();
+  const loc = resolveInstallLocation();
+  const agentDir = loc.agentDir;
+  const venvDir = join(agentDir, "venv");
   const defaultPort = config.profiles.ports?.default || 8642;
 
   const checkPromises: Promise<DoctorCheckResult>[] = [
     checkGatewayReachable(config.gateway.host, defaultPort).catch((err) => makeErrorCheck("gateway-reachable", "Gateway 可达性", err)),
-    Promise.resolve().then(() => checkPythonDeps(join(basePath, "venv"), join(basePath, "agent", "hermes-agent"))),
-    Promise.resolve().then(() => checkAgentFiles(join(basePath, "agent", "hermes-agent"))),
+    Promise.resolve().then(() => checkPythonDeps(venvDir, agentDir)),
+    Promise.resolve().then(() => checkAgentFiles(agentDir)),
     Promise.resolve().then(() => checkProfileDb(join(hermesHome, "desktop", "profile-runtime.db"))),
     Promise.resolve().then(() => checkSkills(join(hermesHome, "skills"))),
     Promise.resolve().then(() => checkPolicy("default")),
     Promise.resolve().then(() => checkPortBinding(config.gateway.host, defaultPort)),
-    Promise.resolve().then(() => checkDirPermission(basePath)),
+    Promise.resolve().then(() => checkDirPermission(loc.runtimeRoot)),
     Promise.resolve().then(() => checkConfigValidity(join(hermesHome, "config.yaml"))),
     Promise.resolve().then(() => checkHermesCmd()),
-    Promise.resolve().then(() => checkPythonVenv(join(basePath, "venv"))),
+    Promise.resolve().then(() => checkPythonVenv(venvDir)),
     Promise.resolve().then(() => checkApiServer(config.gateway.host, defaultPort)),
     ...runWindowsDoctorChecks().map((r) => Promise.resolve(r as DoctorCheckResult)),
   ];
@@ -81,7 +83,7 @@ function makeErrorCheck(id: string, name: string, err: unknown): DoctorCheckResu
 }
 
 export function exportDoctorReport(report: DoctorReport, exportDir?: string): { ok: boolean; path: string } {
-  const dir = exportDir || join(getHermesBasePath(), "logs");
+  const dir = exportDir || join(resolveInstallLocation().runtimeRoot, "logs");
   const path = join(dir, `doctor-report-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   try {
     writeFileSync(path, JSON.stringify(report, null, 2), "utf-8");

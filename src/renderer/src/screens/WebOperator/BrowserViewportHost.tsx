@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import type { BrowserViewBounds } from "../../../../../shared/browser/browser-contract";
+import type { BrowserViewBounds } from "../../../../shared/browser/browser-contract";
 
 interface BrowserViewportHostProps {
   className?: string;

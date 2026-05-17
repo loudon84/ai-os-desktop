@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { BrowserAuditRecord, BrowserActionSource, BrowserActionStatus } from "../../../../../../shared/browser/browser-contract";
+import type { BrowserAuditRecord, BrowserActionSource, BrowserActionStatus } from "../../../../../shared/browser/browser-contract";
 
 export function useAuditLog() {
   const [records, setRecords] = useState<BrowserAuditRecord[]>([]);

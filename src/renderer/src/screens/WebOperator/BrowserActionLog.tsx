@@ -1,5 +1,5 @@
 import { useAuditLog } from "./hooks/use-audit-log";
-import type { BrowserActionSource, BrowserActionStatus } from "../../../../../shared/browser/browser-contract";
+import type { BrowserActionSource, BrowserActionStatus } from "../../../../shared/browser/browser-contract";
 
 interface BrowserActionLogProps {
   className?: string;

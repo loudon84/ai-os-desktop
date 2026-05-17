@@ -1,4 +1,4 @@
-import { mkdirSync, appendFileSync, existsSync } from "node:fs";
+import { mkdirSync, appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { InstallStage } from "../../shared/enterprise/enterprise-constants";
@@ -46,4 +46,23 @@ export function createInstallLogger(logDir?: string): InstallLogger {
     error(stage, message, errorCode) { writeLine("error", stage, message, errorCode); },
     close() { /* no-op for append mode */ },
   };
+}
+
+/** Returns contents of the newest install-*.log under runtime logs, or empty string. */
+export function readLatestInstallLog(): string {
+  const dir = join(getHermesBasePath(), "logs");
+  if (!existsSync(dir)) return "";
+
+  const files = readdirSync(dir)
+    .filter((f) => f.startsWith("install-") && f.endsWith(".log"))
+    .sort()
+    .reverse();
+
+  if (files.length === 0) return "";
+
+  try {
+    return readFileSync(join(dir, files[0]), "utf-8");
+  } catch {
+    return "";
+  }
 }

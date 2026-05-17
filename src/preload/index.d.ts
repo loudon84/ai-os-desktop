@@ -21,8 +21,15 @@ interface InstallProgress {
 interface HermesAPI {
   // Installation
   checkInstall: () => Promise<InstallStatus>;
+  checkInstallStatus: () => Promise<InstallStatus>;
   verifyInstall: () => Promise<boolean>;
   startInstall: () => Promise<{ success: boolean; error?: string }>;
+  startInstallWithSource: (
+    sourceConfig: unknown,
+  ) => Promise<{ success: boolean; error?: string }>;
+  showOpenDialog: (
+    opts: Electron.OpenDialogOptions,
+  ) => Promise<Electron.OpenDialogReturnValue>;
   onInstallProgress: (
     callback: (progress: InstallProgress) => void,
   ) => () => void;
@@ -370,6 +377,39 @@ interface HermesAPI {
     callback: (info: { percent: number }) => void,
   ) => () => void;
   onUpdateDownloaded: (callback: () => void) => () => void;
+  onUpdateError: (callback: (message: string) => void) => () => void;
+
+  // Runtime setup / enterprise
+  runDoctor: () => Promise<import("../shared/enterprise/enterprise-schema").DoctorReport>;
+  runRepair: (errorCode?: string) => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseRepairResult>;
+  reinstallRuntime: () => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseInstallResult>;
+  enterpriseGetDeploymentConfig: () => Promise<import("../shared/enterprise/enterprise-schema").LoadConfigResult>;
+  enterpriseValidateConfig: () => Promise<import("../shared/enterprise/enterprise-schema").ValidationResult>;
+  enterprisePreflight: () => Promise<import("../shared/enterprise/enterprise-schema").PreflightReport>;
+  enterpriseInstall: (
+    input?: import("../shared/enterprise/enterprise-contract").EnterpriseInstallInput,
+  ) => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseInstallResult>;
+  enterpriseInstallCancel: () => Promise<{ ok: boolean }>;
+  enterpriseUpdate: (
+    input?: import("../shared/enterprise/enterprise-contract").EnterpriseUpdateInput,
+  ) => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseUpdateResult>;
+  enterpriseRepair: (
+    input?: import("../shared/enterprise/enterprise-contract").EnterpriseRepairInput,
+  ) => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseRepairResult>;
+  enterpriseRollback: (
+    input: import("../shared/enterprise/enterprise-contract").EnterpriseRollbackInput,
+  ) => Promise<import("../shared/enterprise/enterprise-contract").EnterpriseRollbackResult>;
+  enterpriseGetInstallMarker: () => Promise<import("../shared/enterprise/enterprise-schema").InstallMarker | null>;
+  enterpriseGetInstallLog: (input: {
+    type: import("../shared/enterprise/enterprise-constants").InstallPhase;
+  }) => Promise<string>;
+  enterpriseOpenLogDir: () => Promise<{ ok: boolean }>;
+  enterpriseRunDoctor: () => Promise<import("../shared/enterprise/enterprise-schema").DoctorReport>;
+  enterpriseExportDoctorReport: () => Promise<{ ok: boolean; path: string }>;
+  enterpriseGetMigrationStatus: () => Promise<import("../shared/enterprise/migration-contract").MigrationStatus>;
+  onEnterpriseInstallProgress: (
+    callback: (progress: import("../shared/enterprise/enterprise-schema").InstallProgressEvent) => void,
+  ) => () => void;
 
   // Menu events
   onMenuNewChat: (callback: () => void) => () => void;
@@ -459,6 +499,31 @@ interface HermesAPI {
     logFile?: string,
     lines?: number,
   ) => Promise<{ content: string; path: string }>;
+
+  // First Run Wizard
+  firstRunWizardDetectAgent: () => Promise<{
+    stage: string;
+    agentInstalled: boolean;
+    agentPath?: string;
+  }>;
+
+  firstRunWizardStartInstall: (sourceConfig: unknown) => Promise<{
+    success: boolean;
+    agentPath?: string;
+    error?: string;
+  }>;
+
+  firstRunWizardCancelInstall: () => Promise<boolean>;
+
+  firstRunWizardSelectZipFile: () => Promise<Electron.OpenDialogReturnValue>;
+
+  onFirstRunWizardProgress: (
+    callback: (progress: { stage: string; message: string }) => void,
+  ) => () => void;
+
+  onFirstRunWizardStateChange: (
+    callback: (state: unknown) => void,
+  ) => () => void;
 }
 
 declare global {

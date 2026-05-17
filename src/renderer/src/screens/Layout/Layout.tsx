@@ -92,6 +92,18 @@ function Layout(): React.JSX.Element {
   // Remote-only mode — SSH tunnel has full access; only pure HTTP remote mode restricts screens
   const [remoteMode, setRemoteMode] = useState(false);
   const [profileEntries, setProfileEntries] = useState<ProfileEntrySummary[]>([]);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("smc-v13-navigate-runtime-setup") === "1") {
+        sessionStorage.removeItem("smc-v13-navigate-runtime-setup");
+        setView("runtime-setup");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -119,15 +131,21 @@ function Layout(): React.JSX.Element {
     const cleanupProgress = window.hermesAPI.onUpdateDownloadProgress(
       (info) => {
         setDownloadPercent(info.percent);
+        setUpdateState("downloading");
       },
     );
     const cleanupDownloaded = window.hermesAPI.onUpdateDownloaded(() => {
       setUpdateState("ready");
     });
+    const cleanupError = window.hermesAPI.onUpdateError((message) => {
+      setUpdateError(message);
+      setUpdateState(null);
+    });
     return () => {
       cleanupAvailable();
       cleanupProgress();
       cleanupDownloaded();
+      cleanupError?.();
     };
   }, []);
 
@@ -239,6 +257,11 @@ function Layout(): React.JSX.Element {
         </nav>
 
         <div className="sidebar-footer">
+          {updateError && (
+            <div className="sidebar-update-error" role="alert">
+              {updateError}
+            </div>
+          )}
           {updateState && (
             <button className="sidebar-update-btn" onClick={handleUpdate}>
               <Download size={13} />

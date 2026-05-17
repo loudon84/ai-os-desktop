@@ -13,7 +13,7 @@ export function verifySha256(filePath: string, expectedHash: string): Promise<Sh
     const hash = createHash("sha256");
     const stream = createReadStream(filePath);
 
-    stream.on("data", (chunk: Buffer) => {
+    stream.on("data", (chunk: string | Buffer) => {
       hash.update(chunk);
     });
 

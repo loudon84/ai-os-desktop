@@ -11,7 +11,7 @@ import type {
   BrowserScreenshotResult,
   BrowserAuditRecord,
   PendingSensitiveAction
-} from "../../shared/browser/browser-contract";
+} from "../shared/browser/browser-contract";
 
 export interface AiosBrowserAPI {
   open(request: BrowserOpenRequest): Promise<BrowserOpenResult>;

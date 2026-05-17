@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { existsSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { resolveInstallLocation } from "./install-location-resolver";
 
 const isWindows = process.platform === "win32";
-const isMac = process.platform === "darwin";
 
 export interface WindowsPaths {
   localAppData: string;
@@ -32,36 +32,43 @@ export interface ResolvedRuntimePaths {
 
 export function getWindowsPaths(): WindowsPaths | null {
   if (!isWindows) return null;
-  const localAppData = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  const localAppData =
+    process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  const loc = resolveInstallLocation();
   return {
     localAppData,
-    programsDir: join(localAppData, "Programs", "HermesDesktop"),
-    desktopControlDir: join(localAppData, "HermesDesktop"),
-    desktopLogsDir: join(localAppData, "HermesDesktop", "logs"),
-    desktopCacheDir: join(localAppData, "HermesDesktop", "cache"),
-    desktopDownloadsDir: join(localAppData, "HermesDesktop", "downloads"),
-    desktopRuntimeDbDir: join(localAppData, "HermesDesktop", "runtime-db"),
+    programsDir: loc.installDir,
+    desktopControlDir: loc.runtimeRoot,
+    desktopLogsDir: join(loc.runtimeRoot, "logs"),
+    desktopCacheDir: join(loc.runtimeRoot, "cache"),
+    desktopDownloadsDir: join(loc.runtimeRoot, "downloads"),
+    desktopRuntimeDbDir: join(loc.runtimeRoot, "runtime-db"),
     hermesInfrastructureDir: join(localAppData, "hermes"),
-    hermesCmdPath: join(localAppData, "hermes", "bin", "hermes.cmd"),
+    hermesCmdPath: join(loc.binDir, "hermes.cmd"),
     hermesHome: join(homedir(), ".hermes"),
   };
 }
 
 export function getDesktopAgentDir(): string {
   if (isWindows) {
-    const localAppData = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
-    return join(localAppData, "HermesDesktop", "hermes-agent");
+    const loc = resolveInstallLocation();
+    return loc.agentDir;
   }
   return join(homedir(), ".hermes", "hermes-agent");
 }
 
 export function resolveRuntimePaths(): ResolvedRuntimePaths {
-  const hermesHome = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+  const hermesHome =
+    process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
   const hermesRepo = getDesktopAgentDir();
   const hermesVenv = join(hermesRepo, "venv");
 
-  const pythonBin = isWindows ? join("Scripts", "python.exe") : join("bin", "python");
-  const scriptBin = isWindows ? join("Scripts", "hermes.exe") : join("bin", "hermes");
+  const pythonBin = isWindows
+    ? join("Scripts", "python.exe")
+    : join("bin", "python");
+  const scriptBin = isWindows
+    ? join("Scripts", "hermes.exe")
+    : join("bin", "hermes");
 
   return {
     hermesHome,
@@ -78,10 +85,13 @@ export function resolveRuntimePaths(): ResolvedRuntimePaths {
 export function getEnhancedPathWin32(): string {
   if (!isWindows) return process.env.PATH || "";
 
-  const localAppData = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  const loc = resolveInstallLocation();
+  const localAppData =
+    process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
   const extra = [
-    join(localAppData, "HermesDesktop", "hermes-agent", "venv", "Scripts"),
-    join(localAppData, "HermesDesktop", "hermes-agent"),
+    loc.binDir,
+    join(loc.agentDir, "venv", "Scripts"),
+    loc.agentDir,
     join(localAppData, "Programs", "Python", "Python311"),
     join(localAppData, "Programs", "Python", "Python311", "Scripts"),
   ];
@@ -117,7 +127,8 @@ function resolveNvmBin(home: string): string[] {
   const versionsDir = join(nvmDir, "versions", "node");
   if (!existsSync(versionsDir)) return [];
   try {
-    const { readdirSync, readFileSync: read } = require("fs") as typeof import("fs");
+    const { readdirSync, readFileSync: read } =
+      require("fs") as typeof import("fs");
     const aliasFile = join(nvmDir, "alias", "default");
     if (existsSync(aliasFile)) {
       const alias = read(aliasFile, "utf-8").trim();
@@ -131,7 +142,9 @@ function resolveNvmBin(home: string): string[] {
       .sort()
       .reverse();
     if (versions.length > 0) return [join(versionsDir, versions[0], "bin")];
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
   return [];
 }
 
@@ -149,14 +162,16 @@ export interface PowerShellCheckResult {
 export function checkPowerShell(): PowerShellCheckResult {
   if (!isWindows) return { available: false, canRunScripts: false };
   try {
-    const version = execSync("powershell -Command \"$PSVersionTable.PSVersion.ToString()\"", {
-      encoding: "utf-8",
-      timeout: 5000,
-    }).trim();
-    const policy = execSync("powershell -Command \"Get-ExecutionPolicy\"", {
-      encoding: "utf-8",
-      timeout: 5000,
-    }).trim();
+    const version = execFileSync(
+      "powershell",
+      ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+      { encoding: "utf-8", timeout: 5000 },
+    ).trim();
+    const policy = execFileSync(
+      "powershell",
+      ["-NoProfile", "-Command", "Get-ExecutionPolicy"],
+      { encoding: "utf-8", timeout: 5000 },
+    ).trim();
     const canRunScripts = !["Restricted", "Undefined"].includes(policy);
     return { available: true, version, executionPolicy: policy, canRunScripts };
   } catch {
@@ -190,8 +205,14 @@ export function getWindowsEnvironmentReport(): WindowsEnvironmentReport {
 function checkLongPathsEnabled(): boolean {
   if (!isWindows) return true;
   try {
-    const result = execSync(
-      "reg query HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem /v LongPathsEnabled",
+    const result = execFileSync(
+      "reg",
+      [
+        "query",
+        "HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+        "/v",
+        "LongPathsEnabled",
+      ],
       { encoding: "utf-8", timeout: 5000 },
     );
     return result.includes("0x1");

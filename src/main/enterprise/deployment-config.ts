@@ -8,31 +8,32 @@ import type {
 } from "../../shared/enterprise/enterprise-schema";
 
 import {
-  DEFAULT_PROFILE_NAMES,
   DEFAULT_PROFILE_PORTS,
 } from "../../shared/enterprise/enterprise-constants";
 
 import { validateDeploymentConfig } from "./deployment-schema";
+import { resolveInstallLocation } from "./windows/install-location-resolver";
 
 function getInstallBasePath(): string {
   return process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
 }
 
-function getHermesBasePath(): string {
-  return join(getInstallBasePath(), "AIOS-Hermes");
+/** Runtime root under install dir ($INSTDIR/runtime). */
+export function getHermesBasePath(): string {
+  return resolveInstallLocation().runtimeRoot;
 }
 
-export function getDeploymentConfigPaths(): { primary: string; fallback: string } {
-  const basePath = getHermesBasePath();
+export function getDeploymentConfigPaths(): { primary: string; legacy: string } {
+  const runtimeRoot = getHermesBasePath();
   const programData = process.env.PROGRAMDATA || join("C:", "ProgramData");
   return {
-    primary: join(programData, "AIOS-Hermes", "deployment.json"),
-    fallback: join(basePath, "deployment.json"),
+    primary: join(runtimeRoot, "deployment.json"),
+    legacy: join(programData, "AIOS-Hermes", "deployment.json"),
   };
 }
 
 export function getDefaultDeploymentConfig(): DeploymentConfig {
-  const basePath = getHermesBasePath();
+  const runtimeRoot = getHermesBasePath();
   const hermesHome = join(homedir(), ".hermes");
 
   return {
@@ -71,7 +72,7 @@ export function getDefaultDeploymentConfig(): DeploymentConfig {
       pipIndexUrl: "https://pypi.org/simple",
       trustedHost: "",
       preferWheelhouse: true,
-      wheelhousePath: join(basePath, "runtime", "wheels"),
+      wheelhousePath: join(runtimeRoot, "wheels"),
     },
     profiles: {
       enabled: true,
@@ -122,8 +123,8 @@ export function loadDeploymentConfig(configPath?: string): LoadConfigResult {
   const resolvedPath = configPath || paths.primary;
 
   if (!existsSync(resolvedPath)) {
-    if (resolvedPath !== paths.fallback && existsSync(paths.fallback)) {
-      return loadDeploymentConfig(paths.fallback);
+    if (resolvedPath !== paths.legacy && existsSync(paths.legacy)) {
+      return loadDeploymentConfig(paths.legacy);
     }
     const defaultConfig = getDefaultDeploymentConfig();
     return { ok: true, config: defaultConfig, usedDefault: true };
@@ -155,4 +156,4 @@ export function loadDeploymentConfig(configPath?: string): LoadConfigResult {
   }
 }
 
-export { getHermesBasePath, getInstallBasePath };
+export { getInstallBasePath };

@@ -1,6 +1,26 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { AppLocale } from "../shared/i18n/types";
+import type {
+  DoctorReport,
+  InstallMarker,
+  InstallProgressEvent,
+  LoadConfigResult,
+  PreflightReport,
+  ValidationResult,
+} from "../shared/enterprise/enterprise-schema";
+import type { InstallPhase } from "../shared/enterprise/enterprise-constants";
+import type {
+  EnterpriseInstallInput,
+  EnterpriseInstallResult,
+  EnterpriseRepairInput,
+  EnterpriseRepairResult,
+  EnterpriseRollbackInput,
+  EnterpriseRollbackResult,
+  EnterpriseUpdateInput,
+  EnterpriseUpdateResult,
+} from "../shared/enterprise/enterprise-contract";
+import type { MigrationStatus } from "../shared/enterprise/migration-contract";
 import { aiosBrowser } from "./browser-api";
 import { profileRuntimeApi } from "./profile-runtime-api";
 import { profileEntryApi } from "./profile-entry-api";
@@ -11,6 +31,13 @@ const hermesAPI = {
     installed: boolean;
     configured: boolean;
     hasApiKey: boolean;
+  }> => ipcRenderer.invoke("check-install"),
+
+  checkInstallStatus: (): Promise<{
+    installed: boolean;
+    configured: boolean;
+    hasApiKey: boolean;
+    verified?: boolean;
   }> => ipcRenderer.invoke("check-install"),
 
   verifyInstall: (): Promise<boolean> => ipcRenderer.invoke("verify-install"),
@@ -558,6 +585,76 @@ const hermesAPI = {
     return () => ipcRenderer.removeListener("update-downloaded", handler);
   },
 
+  onUpdateError: (callback: (message: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: unknown): void =>
+      callback(String(message));
+    ipcRenderer.on("update-error", handler);
+    return () => ipcRenderer.removeListener("update-error", handler);
+  },
+
+  // Runtime setup / enterprise install
+  runDoctor: (): Promise<DoctorReport> =>
+    ipcRenderer.invoke("enterprise:run-doctor"),
+
+  runRepair: (errorCode?: string): Promise<EnterpriseRepairResult> =>
+    ipcRenderer.invoke("enterprise:repair", {
+      level: errorCode ? 2 : 1,
+    }),
+
+  reinstallRuntime: (): Promise<EnterpriseInstallResult> =>
+    ipcRenderer.invoke("enterprise:reinstall-runtime"),
+
+  enterpriseGetDeploymentConfig: (): Promise<LoadConfigResult> =>
+    ipcRenderer.invoke("enterprise:get-deployment-config"),
+
+  enterpriseValidateConfig: (): Promise<ValidationResult> =>
+    ipcRenderer.invoke("enterprise:validate-deployment-config"),
+
+  enterprisePreflight: (): Promise<PreflightReport> =>
+    ipcRenderer.invoke("enterprise:preflight"),
+
+  enterpriseInstall: (input?: EnterpriseInstallInput): Promise<EnterpriseInstallResult> =>
+    ipcRenderer.invoke("enterprise:install", input),
+
+  enterpriseInstallCancel: (): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke("enterprise:install-cancel"),
+
+  enterpriseUpdate: (input?: EnterpriseUpdateInput): Promise<EnterpriseUpdateResult> =>
+    ipcRenderer.invoke("enterprise:update", input),
+
+  enterpriseRepair: (input?: EnterpriseRepairInput): Promise<EnterpriseRepairResult> =>
+    ipcRenderer.invoke("enterprise:repair", input),
+
+  enterpriseRollback: (input: EnterpriseRollbackInput): Promise<EnterpriseRollbackResult> =>
+    ipcRenderer.invoke("enterprise:rollback", input),
+
+  enterpriseGetInstallMarker: (): Promise<InstallMarker | null> =>
+    ipcRenderer.invoke("enterprise:get-install-marker"),
+
+  enterpriseGetInstallLog: (input: { type: InstallPhase }): Promise<string> =>
+    ipcRenderer.invoke("enterprise:get-install-log", input),
+
+  enterpriseOpenLogDir: (): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke("enterprise:open-log-dir"),
+
+  enterpriseRunDoctor: (): Promise<DoctorReport> =>
+    ipcRenderer.invoke("enterprise:run-doctor"),
+
+  enterpriseExportDoctorReport: (): Promise<{ ok: boolean; path: string }> =>
+    ipcRenderer.invoke("enterprise:export-doctor-report"),
+
+  enterpriseGetMigrationStatus: (): Promise<MigrationStatus> =>
+    ipcRenderer.invoke("enterprise:get-migration-status"),
+
+  onEnterpriseInstallProgress: (
+    callback: (progress: InstallProgressEvent) => void,
+  ): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: unknown): void =>
+      callback(progress as InstallProgressEvent);
+    ipcRenderer.on("enterprise-install:progress", handler);
+    return () => ipcRenderer.removeListener("enterprise-install:progress", handler);
+  },
+
   // Menu events (from native menu bar)
   onMenuNewChat: (callback: () => void): (() => void) => {
     const handler = (): void => callback();
@@ -679,6 +776,48 @@ const hermesAPI = {
     lines?: number,
   ): Promise<{ content: string; path: string }> =>
     ipcRenderer.invoke("read-logs", logFile, lines),
+
+  // First Run Wizard
+  firstRunWizardDetectAgent: (): Promise<{
+    stage: string;
+    agentInstalled: boolean;
+    agentPath?: string;
+  }> => ipcRenderer.invoke("first-run-wizard:detect-agent"),
+
+  firstRunWizardStartInstall: (sourceConfig: unknown): Promise<{
+    success: boolean;
+    agentPath?: string;
+    error?: string;
+  }> => ipcRenderer.invoke("first-run-wizard:start-install", sourceConfig),
+
+  firstRunWizardCancelInstall: (): Promise<boolean> =>
+    ipcRenderer.invoke("first-run-wizard:cancel-install"),
+
+  firstRunWizardSelectZipFile: (): Promise<Electron.OpenDialogReturnValue> =>
+    ipcRenderer.invoke("first-run-wizard:select-zip-file"),
+
+  onFirstRunWizardProgress: (
+    callback: (progress: { stage: string; message: string }) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: unknown,
+    ): void =>
+      callback(progress as { stage: string; message: string });
+    ipcRenderer.on("first-run-wizard:on-progress", handler);
+    return () => ipcRenderer.removeListener("first-run-wizard:on-progress", handler);
+  },
+
+  onFirstRunWizardStateChange: (
+    callback: (state: unknown) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: unknown,
+    ): void => callback(state);
+    ipcRenderer.on("first-run-wizard:on-state-change", handler);
+    return () => ipcRenderer.removeListener("first-run-wizard:on-state-change", handler);
+  },
 };
 
 if (process.contextIsolated) {

@@ -12,6 +12,11 @@ import {
   getDesktopAgentDir,
 } from "./enterprise/windows/path-resolver";
 import { installHermesAgentFromUserSource, type UserSourceConfig } from "./enterprise/hermes-agent-source-installer";
+import { ensureShims } from "./enterprise/shim-manager";
+import {
+  writeRuntimeConfig,
+  createDefaultRuntimeConfig,
+} from "./enterprise/desktop-runtime-config";
 
 const _resolved = resolveRuntimePaths();
 
@@ -623,6 +628,17 @@ export async function runInstallWithSource(
   if (!existsSync(HERMES_ENV_FILE)) {
     writeFileSync(HERMES_ENV_FILE, "# Hermes Agent environment\n# Add your API keys below\n", "utf-8");
   }
+
+  ensureShims();
+  writeRuntimeConfig(
+    createDefaultRuntimeConfig({
+      sourceType: cfg.sourceType,
+      localZipPath: cfg.localZipPath,
+      gitUrl: cfg.gitUrl,
+      gitBranch: cfg.gitBranch,
+      gitShallow: cfg.gitShallow,
+    }),
+  );
 }
 
 // ────────────────────────────────────────────────────

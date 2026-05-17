@@ -127,7 +127,6 @@ import { BrowserIPC } from "./browser/browser-ipc";
 import { BrowserToolBridge } from "./browser/browser-tool-bridge";
 import { BrowserToolServer } from "./browser/browser-tool-server";
 import { profileHome } from "./utils";
-import { join } from "path";
 import {
   sshListInstalledSkills,
   sshGetSkillContent,
@@ -258,6 +257,12 @@ function setupIPC(): void {
     const { setupEnterpriseInstallIPC } = require("./enterprise/enterprise-ipc");
     if (mainWindow) setupEnterpriseInstallIPC(mainWindow);
   } catch { /* enterprise install not available in early setup */ }
+
+  // First Run Wizard IPC
+  try {
+    const { registerFirstRunWizardIPC } = require("./enterprise/first-run-wizard");
+    registerFirstRunWizardIPC();
+  } catch { /* first-run wizard not available in early setup */ }
 
   // Installation
   ipcMain.handle("check-install", () => {
@@ -1144,7 +1149,9 @@ function setupUpdater(): void {
     return true;
   });
 
-  ipcMain.handle("install-update", () => {
+  ipcMain.handle("install-update", async () => {
+    const { prepareForAppUpdate } = await import("./update/update-lifecycle");
+    await prepareForAppUpdate();
     autoUpdater.quitAndInstall(false, true);
   });
 
@@ -1154,12 +1161,26 @@ function setupUpdater(): void {
 }
 
 app.whenReady().then(() => {
-  app.name = "Hermes";
-  electronApp.setAppUserModelId("com.nousresearch.hermes");
+  app.name = "SMC Copilot";
+  electronApp.setAppUserModelId("com.smc.smc-ai-copilot");
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
+
+  try {
+    const { runDesktopMigrations } = require("./migrations/migration-runner");
+    runDesktopMigrations();
+  } catch (err) {
+    console.error("[MIGRATION] Failed:", err);
+  }
+
+  try {
+    const { ensureShims } = require("./enterprise/shim-manager");
+    ensureShims();
+  } catch (err) {
+    console.error("[SHIM] Failed to ensure shims:", err);
+  }
 
   buildMenu();
   setupIPC();
@@ -1185,6 +1206,11 @@ app.whenReady().then(() => {
       browserToolServer = new BrowserToolServer(toolBridge);
       browserToolServer.start().catch((err) => {
         console.error("[BROWSER] Tool server failed to start:", err);
+      });
+
+      const { registerBrowserToolServerStop } = require("./update/update-lifecycle");
+      registerBrowserToolServerStop(() => {
+        if (browserToolServer) browserToolServer.stop();
       });
 
       auditLogger.onLog((record) => {
@@ -1242,4 +1268,5 @@ app.on("before-quit", () => {
   stopGateway();
   stopSshTunnel();
   stopClaw3d();
+  if (browserToolServer) browserToolServer.stop();
 });

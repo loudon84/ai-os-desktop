@@ -62,6 +62,7 @@ import type {
   InstallProgressEvent,
   LoadConfigResult,
   RollbackSnapshot,
+  ValidationResult,
 } from "./enterprise-schema";
 
 import type {
@@ -74,6 +75,8 @@ import type {
 export interface EnterpriseInstallInput {
   skipPreflight?: boolean;
   skipDoctor?: boolean;
+  /** When true, re-run pipeline even if install-marker exists. */
+  force?: boolean;
 }
 
 export interface EnterpriseInstallResult {

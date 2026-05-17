@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import type { ProfileEntryAPI } from "../../shared/profile-runtime/profile-runtime-contract";
+import type { ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
 
 export const profileEntryApi: ProfileEntryAPI = {
   listProfileEntries: () => ipcRenderer.invoke("profile-entry:list"),

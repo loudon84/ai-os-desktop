@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import type { ProfileRuntimeAPI, RuntimeStatusChangeEvent, GatewayLogQueryOptions, GatewayLogEntry } from "../../shared/profile-runtime/profile-runtime-contract";
+import type { ProfileRuntimeAPI, RuntimeStatusChangeEvent } from "../shared/profile-runtime/profile-runtime-contract";
 
 export const profileRuntimeApi: ProfileRuntimeAPI = {
   importConfig: (filePath: string) => ipcRenderer.invoke("profile-runtime:importConfig", filePath),

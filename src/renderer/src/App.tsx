@@ -101,6 +101,12 @@ function App(): React.JSX.Element {
 
   function handleInstallComplete(): void {
     setInstallError(null);
+    try {
+      sessionStorage.setItem("smc-v13-navigate-runtime-setup", "1");
+      sessionStorage.setItem("smc-v13-run-doctor", "1");
+    } catch {
+      /* sessionStorage unavailable */
+    }
     setScreen("setup");
   }
 
@@ -140,7 +146,18 @@ function App(): React.JSX.Element {
           />
         );
       case "setup":
-        return <Setup onComplete={() => setScreen("main")} />;
+        return (
+          <Setup
+            onComplete={() => {
+              try {
+                sessionStorage.setItem("smc-v13-navigate-runtime-setup", "1");
+              } catch {
+                /* ignore */
+              }
+              setScreen("main");
+            }}
+          />
+        );
       case "main":
         return <Layout />;
     }

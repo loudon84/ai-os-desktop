@@ -4,7 +4,7 @@ import type {
   BrowserOpenResult,
   BrowserStateResult,
   BrowserScreenshotResult
-} from "../../../../../../shared/browser/browser-contract";
+} from "../../../../../shared/browser/browser-contract";
 
 export function useBrowserActions() {
   const [isLoading, setIsLoading] = useState(false);

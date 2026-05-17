@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { BrowserPageState, BrowserStateResult } from "../../../../../../shared/browser/browser-contract";
+import type { BrowserPageState, BrowserStateResult } from "../../../../../shared/browser/browser-contract";
 
 export function useBrowserState() {
   const [state, setState] = useState<BrowserPageState | null>(null);

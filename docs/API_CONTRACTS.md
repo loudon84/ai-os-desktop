@@ -232,14 +232,41 @@
 | `enterprise:get-install-marker` | — | `InstallMarker \| null` | 获取安装标记 |
 | `enterprise:get-install-log` | `{ type: InstallPhase }` | `string` | 获取安装日志 |
 | `enterprise:open-log-dir` | — | `{ ok: boolean }` | 打开日志目录 |
-| `enterprise:run-doctor` | `RuntimeDoctorInput?` | `DoctorReport` | 运行 9 项诊断检查 |
-| `enterprise:export-doctor` | — | `{ ok: boolean, path: string }` | 导出诊断报告 |
+| `enterprise:run-doctor` | `RuntimeDoctorInput?` | `DoctorReport` | 运行诊断检查（`runAllChecks`） |
+| `enterprise:export-doctor-report` | — | `{ ok: boolean, path: string }` | 导出诊断报告 JSON |
+| `enterprise:reinstall-runtime` | — | `EnterpriseInstallResult` | 强制重装（`force: true`） |
+| `enterprise:get-migration-status` | — | `MigrationStatus` | 启动迁移结果与 warning |
+
+### Renderer 便捷封装（`window.hermesAPI`）
+
+| Preload 方法 | IPC | 说明 |
+|---|---|---|
+| `checkInstallStatus` | `check-install` | RuntimeSetup 安装状态 |
+| `runDoctor` | `enterprise:run-doctor` | 运行诊断 |
+| `runRepair` | `enterprise:repair` | 按 `RepairLevel` 修复（可选 errorCode → level 2） |
+| `reinstallRuntime` | `enterprise:reinstall-runtime` | 强制企业流水线重装 |
+| `enterpriseInstall` | `enterprise:install` | 企业安装（支持 `force`） |
+| `onEnterpriseInstallProgress` | `enterprise-install:progress` | 安装/修复进度 |
+| `onUpdateError` | `update-error` | 自动更新失败 |
 
 ### Enterprise Install 推送事件 (Main → Renderer)
 
 | 事件 Channel | 数据类型 | 说明 |
 |---|---|---|
 | `enterprise-install:progress` | `InstallProgressEvent` | 安装进度实时推送（stage/status/progress/message/errorCode） |
+| `update-available` | `{ version, releaseNotes }` | 检测到新版本 |
+| `update-download-progress` | `{ percent }` | 下载进度 |
+| `update-downloaded` | — | 下载完成，可安装 |
+| `update-error` | `string` | 自动更新错误 |
+
+### V1.3 手动验收矩阵（PRD §14）
+
+1. **首次安装**：自定义目录（如 `D:\SMC\Copilot`），User PATH 仅一条 `bin`，`runtime/hermes-agent` 可首启后安装。
+2. **覆盖升级**：1.0.0 → 1.0.1 目录不变、`runtime` 与 `~/.hermes` 保留、PATH 不重复、注册表 `PreviousVersion` 写入。
+3. **自动更新**：`prepareForAppUpdate` 后 `quitAndInstall` 无文件锁；重启后 shim 正确、Gateway 可启。
+4. **旧 Hermes 迁移**：不装第二套；`~/.hermes` 保留；旧快捷方式清理。
+5. **修复链路**：Doctor 失败项 → Repair → re-Doctor 通过。
+6. **卸载**：PATH 精确移除、注册表清理、`runtime` 与 `~/.hermes` 保留。
 
 ### Enterprise Install 错误码
 

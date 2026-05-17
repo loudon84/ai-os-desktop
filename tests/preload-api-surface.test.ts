@@ -93,6 +93,55 @@ describe("New APIs from v0.8/v0.9 features", () => {
   });
 });
 
+describe("Desktop Install V1.3 APIs", () => {
+  const v13Methods = [
+    "checkInstallStatus",
+    "startInstallWithSource",
+    "runDoctor",
+    "runRepair",
+    "reinstallRuntime",
+    "enterpriseGetDeploymentConfig",
+    "enterpriseValidateConfig",
+    "enterprisePreflight",
+    "enterpriseInstall",
+    "enterpriseInstallCancel",
+    "enterpriseUpdate",
+    "enterpriseRepair",
+    "enterpriseRollback",
+    "enterpriseGetInstallMarker",
+    "enterpriseGetInstallLog",
+    "enterpriseOpenLogDir",
+    "enterpriseRunDoctor",
+    "enterpriseExportDoctorReport",
+    "enterpriseGetMigrationStatus",
+    "onEnterpriseInstallProgress",
+    "onUpdateError",
+    "firstRunWizardDetectAgent",
+    "firstRunWizardStartInstall",
+    "firstRunWizardCancelInstall",
+    "onFirstRunWizardProgress",
+  ];
+
+  for (const method of v13Methods) {
+    it(`preload has ${method}`, () => {
+      expect(preloadMethods).toContain(method);
+    });
+
+    it(`types have ${method}`, () => {
+      expect(typeMethods).toContain(method);
+    });
+  }
+
+  it("registers enterprise IPC channels", () => {
+    const channels = [...preloadSrc.matchAll(/ipcRenderer\.invoke\(\s*["'](enterprise:[^"']+)["']/g)].map(
+      (m) => m[1],
+    );
+    expect(channels).toContain("enterprise:run-doctor");
+    expect(channels).toContain("enterprise:get-migration-status");
+    expect(channels).toContain("enterprise:reinstall-runtime");
+  });
+});
+
 // ─── Legacy APIs still present ──────────────────────────
 
 describe("Legacy APIs preserved (backward compat)", () => {
@@ -195,9 +244,9 @@ describe("IPC channel consistency", () => {
     const invokeChannels = [...preloadSrc.matchAll(/ipcRenderer\.invoke\(\s*["']([^"']+)["']/g)]
       .map((m) => m[1]);
     expect(invokeChannels.length).toBeGreaterThan(30);
-    // Every channel should be kebab-case
+    // Every channel should be kebab-case (enterprise:* uses colon namespace)
     for (const ch of invokeChannels) {
-      expect(ch).toMatch(/^[a-z][a-z0-9-]*$/);
+      expect(ch).toMatch(/^[a-z][a-z0-9:-]*$/);
     }
   });
 
@@ -206,7 +255,7 @@ describe("IPC channel consistency", () => {
       .map((m) => m[1]);
     expect(onChannels.length).toBeGreaterThan(0);
     for (const ch of onChannels) {
-      expect(ch).toMatch(/^[a-z][a-z0-9-]*$/);
+      expect(ch).toMatch(/^[a-z][a-z0-9:-]*$/);
     }
   });
 });

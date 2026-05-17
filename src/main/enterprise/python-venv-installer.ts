@@ -7,7 +7,8 @@ import type {
   DeploymentConfig,
 } from "../../shared/enterprise/enterprise-schema";
 
-import { getHermesBasePath } from "./deployment-config";
+import { getDesktopAgentDir } from "./windows/path-resolver";
+import { resolveInstallLocation } from "./windows/install-location-resolver";
 
 export interface VenvResult {
   ok: boolean;
@@ -22,8 +23,9 @@ export interface VenvResult {
 export function createOrReuseSharedVenv(
   config: DeploymentConfig,
 ): VenvResult {
-  const basePath = getHermesBasePath();
-  const venvPath = join(basePath, "venv");
+  const agentDir = getDesktopAgentDir();
+  const venvPath = join(agentDir, "venv");
+  const runtimeRoot = resolveInstallLocation().runtimeRoot;
 
   const isWindows = process.platform === "win32";
   const pythonExe = isWindows ? join(venvPath, "Scripts", "python.exe") : join(venvPath, "bin", "python");
@@ -39,7 +41,7 @@ export function createOrReuseSharedVenv(
 
   let pythonCmd = "python";
   if (config.runtime.useBundledPython) {
-    const bundledPython = join(basePath, "runtime", "python", isWindows ? "python.exe" : "bin/python3");
+    const bundledPython = join(runtimeRoot, "python", isWindows ? "python.exe" : "bin/python3");
     if (existsSync(bundledPython)) {
       pythonCmd = bundledPython;
     }

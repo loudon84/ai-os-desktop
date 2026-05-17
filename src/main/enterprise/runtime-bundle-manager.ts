@@ -1,9 +1,6 @@
 import { existsSync, mkdirSync, createWriteStream, unlinkSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { createReadStream } from "node:fs";
-import { createUnzip } from "node:zlib";
-import { pipeline } from "node:stream/promises";
-import { homedir } from "node:os";
+import { execFileSync } from "node:child_process";
 
 import type {
   DeploymentConfig,
@@ -12,6 +9,8 @@ import type {
 
 import { verifySha256 } from "./checksum-verifier";
 import { getHermesBasePath } from "./deployment-config";
+import { getDesktopAgentDir } from "./windows/path-resolver";
+import { safeExtractZip } from "./command-security-guard";
 
 export interface BundleProgress {
   stage: "downloading" | "verifying" | "extracting" | "skipped" | "completed";
@@ -31,7 +30,7 @@ export interface ResolveBundleResult {
 }
 
 function getRuntimePath(): string {
-  return join(getHermesBasePath(), "runtime");
+  return getHermesBasePath();
 }
 
 async function downloadWithRetry(
@@ -110,11 +109,14 @@ async function extractZip(
     message: "解压中...",
   });
 
-  const { Extract } = await import("unzipper");
-  await pipeline(
-    createReadStream(zipPath),
-    Extract({ path: destDir }),
-  );
+  if (process.platform === "win32") {
+    safeExtractZip(zipPath, destDir, { timeout: 300000 });
+  } else {
+    execFileSync("unzip", ["-o", zipPath, "-d", destDir], {
+      encoding: "utf-8",
+      timeout: 300000,
+    });
+  }
 
   onProgress?.({
     stage: "extracting",
@@ -129,7 +131,7 @@ export async function resolveRuntimeBundle(
   existingBundleHash?: string,
 ): Promise<ResolveBundleResult> {
   const runtimePath = getRuntimePath();
-  const agentPath = join(getHermesBasePath(), "agent", "hermes-agent");
+  const agentPath = getDesktopAgentDir();
   const { runtimeBundle, security } = config;
 
   if (existingBundleHash && runtimeBundle.bundleSha256 && existingBundleHash === runtimeBundle.bundleSha256) {

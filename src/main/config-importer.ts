@@ -247,6 +247,11 @@ export function importConfig(
           stopped_at: null,
           last_health_check_at: null,
           last_error: null,
+          restart_count: 0,
+          last_exit_code: null,
+          last_crash_at: null,
+          auto_restart: profileDef.autoStart !== false,
+          health_fail_count: 0,
         });
 
         const entryDef = profileDef.entry;

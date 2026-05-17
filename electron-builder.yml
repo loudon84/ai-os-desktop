@@ -1,7 +1,8 @@
 appId: com.smc.smc-ai-copilot
-productName: CopilotSMC
+productName: SMC Copilot
 directories:
   buildResources: build
+  output: dist
 files:
   - "!**/.vscode/*"
   - "!src/*"
@@ -11,15 +12,28 @@ files:
   - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
 asarUnpack:
   - resources/**
+  - node_modules/better-sqlite3/**
 win:
   executableName: smc-ai-copilot
+  target:
+    - target: nsis
+      arch:
+        - x64
 nsis:
-  artifactName: ${productName}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  guid: "7D7C5222-4F0C-4BD0-B877-6D62ED5B941A"
+  artifactName: smc-copilot-${version}-setup.${ext}
+  shortcutName: SMC Copilot
+  uninstallDisplayName: SMC Copilot
   createDesktopShortcut: always
-  oneClick: true
+  createStartMenuShortcut: true
+  oneClick: false
+  allowToChangeInstallationDirectory: true
   perMachine: false
+  selectPerMachineByDefault: false
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 mac:
   icon: build/icon.icns
   entitlements: build/entitlements.mac.plist
@@ -52,6 +66,5 @@ rpm:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: github
-  owner: smart-core
-  repo: hermes-desktop
+  provider: generic
+  url: https://your-internal-update-server/smc-copilot/

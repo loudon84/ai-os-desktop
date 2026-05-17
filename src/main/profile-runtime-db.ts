@@ -317,7 +317,7 @@ export function listRuntimeInstances(): RuntimeInstanceRecord[] {
 }
 
 export interface RuntimeStatusUpdateExtra {
-  pid?: number;
+  pid?: number | null;
   lastError?: string;
   startedAt?: string;
   stoppedAt?: string;

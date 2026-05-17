@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { PendingSensitiveAction } from "../../../../../../shared/browser/browser-contract";
+import type { PendingSensitiveAction } from "../../../../../shared/browser/browser-contract";
 
 export function usePendingActions() {
   const [pendingActions, setPendingActions] = useState<PendingSensitiveAction[]>([]);

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { BrowserViewBounds } from "../../../../../shared/browser/browser-contract";
+import type { BrowserViewBounds } from "../../../../shared/browser/browser-contract";
 import { BrowserToolbar } from "./BrowserToolbar";
 import { BrowserViewportHost } from "./BrowserViewportHost";
 import { HermesTaskPanel } from "./HermesTaskPanel";

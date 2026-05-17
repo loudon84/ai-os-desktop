@@ -67,6 +67,7 @@ function RuntimeSetupScreen(): React.JSX.Element {
   });
 
   const [expandedChecks, setExpandedChecks] = useState<Set<string>>(new Set());
+  const [migrationWarnings, setMigrationWarnings] = useState<string[]>([]);
 
   const loadState = useCallback(async () => {
     try {
@@ -82,6 +83,11 @@ function RuntimeSetupScreen(): React.JSX.Element {
 
   useEffect(() => {
     loadState();
+    window.hermesAPI.enterpriseGetMigrationStatus().then((status) => {
+      if (status.migrationWarnings.length > 0) {
+        setMigrationWarnings(status.migrationWarnings);
+      }
+    }).catch(() => { /* non-fatal */ });
   }, [loadState]);
 
   async function runDoctor(): Promise<void> {
@@ -98,6 +104,18 @@ function RuntimeSetupScreen(): React.JSX.Element {
       setState((prev) => ({ ...prev, doctorLoading: false }));
     }
   }
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("smc-v13-run-doctor") === "1") {
+        sessionStorage.removeItem("smc-v13-run-doctor");
+        void runDoctor();
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot post-install doctor
+  }, []);
 
   async function runRepair(errorCode?: string): Promise<void> {
     try {
@@ -129,23 +147,36 @@ function RuntimeSetupScreen(): React.JSX.Element {
     <div className="settings-container overflow-y-auto">
       <h1 className="settings-header">{t("gateway.runtimeSetup") || "Runtime Setup"}</h1>
 
+      {migrationWarnings.length > 0 && (
+        <div className="settings-section">
+          <div className="settings-hermes-result error" role="alert">
+            <div className="font-medium mb-1">Migration warnings</div>
+            <ul className="list-disc pl-5 text-sm space-y-1">
+              {migrationWarnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       <div className="settings-section">
         <div className="settings-section-title">{t("gateway.environment") || "Environment"}</div>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded">
-            <span className="text-gray-500">Platform</span>
+            <span className="text-gray-500">Platform: </span>
             <span className="font-mono">{state.platform}</span>
           </div>
           <div className="flex justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded">
-            <span className="text-gray-500">Install Mode</span>
+            <span className="text-gray-500">Install Mode: </span>
             <span className="font-mono">{state.installMode}</span>
           </div>
           <div className="flex justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded">
-            <span className="text-gray-500">Hermes Agent</span>
+            <span className="text-gray-500">SMC Copilot: </span>
             <span className="font-mono">{state.hermesVersion || "not installed"}</span>
           </div>
           <div className="flex justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded">
-            <span className="text-gray-500">Gateway</span>
+            <span className="text-gray-500">Gateway: </span>
             <span className={`font-mono ${state.gatewayStatus === "running" ? "text-green-600" : "text-red-500"}`}>
               {state.gatewayStatus}
             </span>

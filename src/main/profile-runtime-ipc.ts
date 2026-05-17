@@ -23,6 +23,7 @@ import {
   getRuntimeInstance,
 } from "./profile-runtime-db";
 import { getHistory } from "./gateway-log-collector";
+import type { GatewayLogQueryOptions } from "../shared/profile-runtime/profile-runtime-contract";
 
 export function setupProfileRuntimeIPC(): void {
   ipcMain.handle("profile-runtime:importConfig", async (_event, filePath: string) => {
@@ -182,7 +183,7 @@ export function setupProfileRuntimeIPC(): void {
     return layout;
   });
 
-  ipcMain.handle("profile-runtime:getGatewayLogs", async (_event, profileId: string, options?: { limit?: number; level?: string; since?: string }) => {
+  ipcMain.handle("profile-runtime:getGatewayLogs", async (_event, profileId: string, options?: GatewayLogQueryOptions) => {
     return getHistory(profileId, options);
   });
 

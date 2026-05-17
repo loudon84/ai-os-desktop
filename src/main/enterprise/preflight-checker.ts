@@ -254,7 +254,7 @@ export async function runPreflight(config: DeploymentConfig): Promise<PreflightR
   const p0Checks: PreflightCheckResult[] = [
     checkWindowsVersion(),
     checkDiskSpace(),
-    checkDirWritable(installBasePath, "P0-INSTALL-DIR-WRITABLE", "%LOCALAPPDATA%\\AIOS-Hermes"),
+    checkDirWritable(installBasePath, "P0-INSTALL-DIR-WRITABLE", installBasePath),
     checkDirWritable(hermesHome, "P0-HERMES-HOME-WRITABLE", "~/.hermes"),
     checkPython(),
     checkDeploySchema(config),
