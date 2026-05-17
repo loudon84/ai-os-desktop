@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { RuntimeGuard } from "../../components/runtime/RuntimeGuard";
 import { RuntimeStatusBar } from "../../components/runtime/RuntimeStatusBar";
+import { AiOsWebAppHost } from "../../components/aios/AiOsWebAppHost";
 import { Spinner } from "../../assets/icons";
-import { useI18n } from "../../components/useI18n";
 import type { View } from "../../types/desktop-shell";
 import type { RuntimeServiceRecord } from "../../../../shared/aios/aios-contract";
 
@@ -10,29 +11,21 @@ export interface AIOSHomeScreenProps {
   onNavigate: (view: View) => void;
 }
 
-type GatewayPhase = "loading" | "guard" | "ready";
-
 export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.Element {
-  const { t } = useI18n();
-  const [phase, setPhase] = useState<GatewayPhase>("loading");
+  const { t } = useTranslation("aiosHome");
+  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
 
   const refreshStatus = useCallback(async () => {
     try {
-      const gatewayRunning = await window.hermesAPI.gatewayStatus();
-
-      let svcList: RuntimeServiceRecord[] = [];
-      try {
-        const status = await window.aiosRuntime.getRuntimeStatus();
-        svcList = status.services;
-      } catch {
-        /* aios runtime not available yet */
-      }
-      setServices(svcList);
-
-      setPhase(gatewayRunning ? "ready" : "guard");
+      const snapshot = await window.hermesAPI.getAiOsRuntimeSnapshot();
+      setServices(snapshot.services);
+      setReady(snapshot.ready);
     } catch {
-      setPhase("guard");
+      setReady(false);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -45,7 +38,7 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
   useEffect(() => {
     try {
       const unsub = window.aiosRuntime.onAiOsRuntimeChanged(() => {
-        refreshStatus();
+        void refreshStatus();
       });
       return unsub;
     } catch {
@@ -53,34 +46,29 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
     }
   }, [refreshStatus]);
 
-  if (phase === "loading") {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner size={24} className="animate-spin text-zinc-500" />
-      </div>
-    );
-  }
-
-  if (phase === "guard") {
-    return (
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <RuntimeStatusBar services={services} />
-        <RuntimeGuard gatewayStatus="stopped" onNavigate={onNavigate} />
-      </div>
-    );
-  }
+  const gatewayRecord = services.find((s) => s.service_id === "hermes-gateway");
+  const gatewayStatus =
+    gatewayRecord?.status === "running"
+      ? "running"
+      : gatewayRecord?.status === "error"
+        ? "error"
+        : "stopped";
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <RuntimeStatusBar services={services} />
-      <div className="flex flex-1 items-center justify-center bg-zinc-950">
-        <div className="text-center space-y-3">
-          <div className="text-sm text-zinc-400">
-            {t("aiosHome.webAppPlaceholder")}
-          </div>
-          <p className="text-xs text-zinc-600">
-            {t("aiosHome.webAppHint")}
-          </p>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <RuntimeStatusBar services={services} loading={loading} />
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
+        <div className="flex h-[90%] w-full max-h-full min-h-0 flex-col overflow-hidden">
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <Spinner size={24} className="animate-spin text-zinc-500" />
+              <span className="sr-only">{t("loadingRuntime")}</span>
+            </div>
+          ) : ready ? (
+            <AiOsWebAppHost className="h-full w-full" />
+          ) : (
+            <RuntimeGuard gatewayStatus={gatewayStatus} onNavigate={onNavigate} />
+          )}
         </div>
       </div>
     </div>

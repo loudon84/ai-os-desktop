@@ -72,6 +72,13 @@ export interface AiOsRuntimeStatus {
   overall: RuntimeServiceStatus;
 }
 
+/** Live health snapshot for AI-OS Home — always includes three core services. */
+export interface AiOsRuntimeSnapshot {
+  services: RuntimeServiceRecord[];
+  ready: boolean;
+  webAppUrl?: string;
+}
+
 export interface AiOsInstallOptions {
   sourceType: "git" | "local-zip";
   gitUrl?: string;

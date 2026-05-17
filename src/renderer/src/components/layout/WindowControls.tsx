@@ -1,18 +1,31 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+function isMacPlatform(): boolean {
+  return (
+    window.electron?.process?.platform === "darwin" ||
+    navigator.platform.toLowerCase().includes("mac")
+  );
+}
 
 export function WindowControls(): React.JSX.Element | null {
   const [isMaximized, setIsMaximized] = useState(false);
+  const isMac = isMacPlatform();
 
-  const isMac = navigator.platform.toLowerCase().includes("mac");
-
-  useEffect(() => {
+  const syncMaximized = useCallback(() => {
     if (isMac) return;
-
-    window.hermesAPI.windowControls
+    void window.hermesAPI.windowControls
       .isMaximized()
       .then(setIsMaximized)
       .catch(() => setIsMaximized(false));
   }, [isMac]);
+
+  useEffect(() => {
+    syncMaximized();
+    if (isMac) return;
+
+    window.addEventListener("resize", syncMaximized);
+    return () => window.removeEventListener("resize", syncMaximized);
+  }, [isMac, syncMaximized]);
 
   if (isMac) {
     return null;
@@ -35,8 +48,7 @@ export function WindowControls(): React.JSX.Element | null {
         aria-label={isMaximized ? "Restore" : "Maximize"}
         onClick={async () => {
           await window.hermesAPI.windowControls.maximizeOrRestore();
-          const next = await window.hermesAPI.windowControls.isMaximized();
-          setIsMaximized(next);
+          syncMaximized();
         }}
       >
         {isMaximized ? "❐" : "□"}

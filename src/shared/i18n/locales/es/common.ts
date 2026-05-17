@@ -54,9 +54,4 @@ export default {
     viewLogs: "Ver Registros",
     runDiagnostics: "Ejecutar Diagnósticos",
   },
-  aiosHome: {
-    noServices: "No hay servicios de runtime registrados",
-    webAppPlaceholder: "La aplicación web AI-OS se cargará aquí cuando el runtime esté listo.",
-    webAppHint: "El frontend de AI-OS se sirve mediante un WebContentsView local una vez que todos los servicios estén ejecutándose.",
-  },
 } as const;

@@ -177,7 +177,9 @@ function App(): React.JSX.Element {
               <div className="layout-titlebar__left no-drag">
                 Hermes Desktop
               </div>
-              <WindowControls />
+              <div className="no-drag">
+                <WindowControls />
+              </div>
             </div>
           ) : null}
           <div className="app-content">{renderScreen()}</div>

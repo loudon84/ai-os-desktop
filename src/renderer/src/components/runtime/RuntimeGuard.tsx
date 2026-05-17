@@ -25,7 +25,7 @@ export function RuntimeGuard({ gatewayStatus, onNavigate }: RuntimeGuardProps): 
   }, []);
 
   return (
-    <div className="flex flex-1 items-center justify-center p-8">
+    <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-8">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="flex justify-center">
           <div className="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center">

@@ -11,7 +11,13 @@ import {
   listRuntimeServices,
   insertRuntimeServiceEvent,
 } from "../profile-runtime-db";
-import type { AiOsServiceId, RuntimeServiceStatus, AiOsRuntimeStatus } from "../../shared/aios/aios-contract";
+import type {
+  AiOsRuntimeSnapshot,
+  AiOsServiceId,
+  AiOsRuntimeStatus,
+  RuntimeServiceRecord,
+  RuntimeServiceStatus,
+} from "../../shared/aios/aios-contract";
 
 const SUPERVISION_INTERVAL_MS = 15_000;
 let supervisionTimer: NodeJS.Timeout | null = null;
@@ -90,6 +96,85 @@ export function getAiOsRuntimeStatus(): AiOsRuntimeStatus {
   return {
     services,
     overall: computeOverallStatus(services),
+  };
+}
+
+const SNAPSHOT_SERVICE_DEFS: Array<{
+  id: AiOsServiceId;
+  displayName: string;
+  port: number;
+  baseUrl: string;
+  healthUrl: string;
+}> = [
+  {
+    id: "hermes-gateway",
+    displayName: "Hermes Gateway",
+    port: 8642,
+    baseUrl: "http://127.0.0.1:8642",
+    healthUrl: "http://127.0.0.1:8642/health",
+  },
+  {
+    id: "aios-backend",
+    displayName: "AI-OS Backend",
+    port: 8000,
+    baseUrl: "http://127.0.0.1:8000",
+    healthUrl: "http://127.0.0.1:8000/health",
+  },
+  {
+    id: "aios-frontend",
+    displayName: "AI-OS Frontend",
+    port: 3000,
+    baseUrl: "http://127.0.0.1:3000",
+    healthUrl: "http://127.0.0.1:3000/zh",
+  },
+];
+
+const WEB_APP_URL = "http://127.0.0.1:3000/zh";
+
+function resolveSnapshotServiceStatus(
+  healthy: boolean,
+  dbRecord: ReturnType<typeof getRuntimeService>,
+): RuntimeServiceStatus {
+  if (healthy) return "running";
+  if (dbRecord?.status === "error") return "error";
+  return "stopped";
+}
+
+/** Live health probe — never returns an empty services list. */
+export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
+  const now = new Date().toISOString();
+
+  const services: RuntimeServiceRecord[] = await Promise.all(
+    SNAPSHOT_SERVICE_DEFS.map(async (def) => {
+      const dbRecord = getRuntimeService(def.id);
+      const healthy = await checkServiceHealth(def.healthUrl);
+      const status = resolveSnapshotServiceStatus(healthy, dbRecord);
+
+      return {
+        service_id: def.id,
+        service_type: def.id,
+        display_name: def.displayName,
+        status,
+        pid: dbRecord?.pid ?? null,
+        port: def.port,
+        url: def.baseUrl,
+        install_path: dbRecord?.install_path ?? null,
+        started_at: dbRecord?.started_at ?? null,
+        stopped_at: healthy ? null : (dbRecord?.stopped_at ?? null),
+        last_health_at: healthy ? now : (dbRecord?.last_health_at ?? null),
+        last_error: healthy ? null : (dbRecord?.last_error ?? null),
+        restart_count: dbRecord?.restart_count ?? 0,
+        updated_at: now,
+      };
+    }),
+  );
+
+  const ready = services.every((s) => s.status === "running");
+
+  return {
+    services,
+    ready,
+    ...(ready ? { webAppUrl: WEB_APP_URL } : {}),
   };
 }
 

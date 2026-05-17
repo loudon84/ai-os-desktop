@@ -3,7 +3,7 @@ import type { AppLocale } from "../shared/i18n/types";
 import type { AiosBrowserAPI } from "./browser-api";
 import type { ProfileRuntimeAPI, ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
 import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
-import type { AiOsAPI } from "../shared/aios/aios-contract";
+import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -133,6 +133,7 @@ interface HermesAPI {
   startGateway: () => Promise<boolean>;
   stopGateway: () => Promise<boolean>;
   gatewayStatus: () => Promise<boolean>;
+  getAiOsRuntimeSnapshot: () => Promise<AiOsRuntimeSnapshot>;
 
   // Platform toggles
   getPlatformEnabled: (profile?: string) => Promise<Record<string, boolean>>;

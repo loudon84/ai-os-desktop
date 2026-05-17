@@ -1,9 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Circle } from "../../assets/icons";
-import { useI18n } from "../useI18n";
 import type { RuntimeServiceRecord, RuntimeServiceStatus } from "../../../../shared/aios/aios-contract";
 
 export interface RuntimeStatusBarProps {
   services: RuntimeServiceRecord[];
+  loading?: boolean;
 }
 
 const STATUS_COLORS: Record<RuntimeServiceStatus, string> = {
@@ -19,13 +20,13 @@ const STATUS_COLORS: Record<RuntimeServiceStatus, string> = {
   configuring: "text-amber-400",
 };
 
-export function RuntimeStatusBar({ services }: RuntimeStatusBarProps): React.JSX.Element {
-  const { t } = useI18n();
+export function RuntimeStatusBar({ services, loading = false }: RuntimeStatusBarProps): React.JSX.Element {
+  const { t } = useTranslation("aiosHome");
 
   if (services.length === 0) {
     return (
       <div className="flex items-center gap-4 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 text-xs text-zinc-500">
-        {t("aiosHome.noServices")}
+        {loading ? t("loadingRuntime") : t("noServices")}
       </div>
     );
   }

@@ -1010,7 +1010,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
+  min-height: 36px;
+  padding: 0 0 0 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-primary);
 }
@@ -1054,8 +1055,9 @@ body {
 
 .page-header__actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .status-bar {
@@ -1096,6 +1098,8 @@ body {
   align-items: stretch;
   justify-content: flex-end;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .window-control-button {

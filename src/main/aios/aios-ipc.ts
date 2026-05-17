@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow } from "electron";
 import {
   initAiOsServices,
   getAiOsRuntimeStatus,
+  getAiOsRuntimeSnapshot,
   startAiOs,
   stopAiOs,
   restartAiOs,
@@ -23,6 +24,10 @@ export function registerAiosIpc(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("aios:get-runtime-status", () => {
     return getAiOsRuntimeStatus();
+  });
+
+  ipcMain.handle("aios:get-runtime-snapshot", () => {
+    return getAiOsRuntimeSnapshot();
   });
 
   ipcMain.handle("aios:start", async () => {

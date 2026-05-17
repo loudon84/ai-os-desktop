@@ -26,6 +26,7 @@ import soulEn from "./locales/en/soul";
 import memoryEn from "./locales/en/memory";
 import installEn from "./locales/en/install";
 import constantsEn from "./locales/en/constants";
+import aiosHomeEn from "./locales/en/aiosHome";
 import commonEs from "./locales/es/common";
 import navigationEs from "./locales/es/navigation";
 import welcomeEs from "./locales/es/welcome";
@@ -46,6 +47,7 @@ import soulEs from "./locales/es/soul";
 import memoryEs from "./locales/es/memory";
 import installEs from "./locales/es/install";
 import constantsEs from "./locales/es/constants";
+import aiosHomeEs from "./locales/es/aiosHome";
 import commonZh from "./locales/zh-CN/common";
 import navigationZh from "./locales/zh-CN/navigation";
 import welcomeZh from "./locales/zh-CN/welcome";
@@ -66,6 +68,7 @@ import soulZh from "./locales/zh-CN/soul";
 import memoryZh from "./locales/zh-CN/memory";
 import installZh from "./locales/zh-CN/install";
 import constantsZh from "./locales/zh-CN/constants";
+import aiosHomeZh from "./locales/zh-CN/aiosHome";
 import commonPt from "./locales/pt-BR/common";
 import navigationPt from "./locales/pt-BR/navigation";
 import welcomePt from "./locales/pt-BR/welcome";
@@ -86,9 +89,11 @@ import soulPt from "./locales/pt-BR/soul";
 import memoryPt from "./locales/pt-BR/memory";
 import installPt from "./locales/pt-BR/install";
 import constantsPt from "./locales/pt-BR/constants";
+import aiosHomePt from "./locales/pt-BR/aiosHome";
 
 export const resources = {
   en: {
+    aiosHome: aiosHomeEn,
     translation: {
       common: commonEn,
       navigation: navigationEn,
@@ -113,6 +118,7 @@ export const resources = {
     },
   },
   es: {
+    aiosHome: aiosHomeEs,
     translation: {
       common: commonEs,
       navigation: navigationEs,
@@ -137,6 +143,7 @@ export const resources = {
     },
   },
   "zh-CN": {
+    aiosHome: aiosHomeZh,
     translation: {
       common: commonZh,
       navigation: navigationZh,
@@ -161,6 +168,7 @@ export const resources = {
     },
   },
   "pt-BR": {
+    aiosHome: aiosHomePt,
     translation: {
       common: commonPt,
       navigation: navigationPt,
@@ -204,7 +212,7 @@ void sharedI18n.init({
   fallbackLng: FALLBACK_LOCALE,
   supportedLngs: APP_LOCALES,
   defaultNS: "translation",
-  ns: ["translation"],
+  ns: ["translation", "aiosHome"],
   interpolation: {
     escapeValue: false,
   },

@@ -4,6 +4,7 @@ import { join } from "path";
 
 const ROOT = join(__dirname, "..");
 const indexSrc = readFileSync(join(ROOT, "src/main/index.ts"), "utf-8");
+const windowIpcSrc = readFileSync(join(ROOT, "src/main/window/window-ipc.ts"), "utf-8");
 const preloadSrc = readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8");
 
 /**
@@ -32,7 +33,10 @@ function extractPreloadInvokeChannels(src: string): string[] {
   return [...new Set(channels)];
 }
 
-const mainChannels = extractIpcHandleChannels(indexSrc);
+const mainChannels = [
+  ...extractIpcHandleChannels(indexSrc),
+  ...extractIpcHandleChannels(windowIpcSrc),
+];
 const preloadChannels = extractPreloadInvokeChannels(preloadSrc);
 
 describe("IPC Handler ↔ Preload Consistency", () => {
@@ -56,6 +60,30 @@ describe("IPC Handler ↔ Preload Consistency", () => {
 });
 
 // ─── New feature handlers registered ────────────────────
+
+describe("Window IPC handlers (window-ipc.ts)", () => {
+  const windowChannels = [
+    "window:minimize",
+    "window:maximize-or-restore",
+    "window:close",
+    "window:is-maximized",
+  ];
+
+  for (const ch of windowChannels) {
+    it(`window-ipc registers: ${ch}`, () => {
+      expect(extractIpcHandleChannels(windowIpcSrc)).toContain(ch);
+    });
+
+    it(`preload invokes: ${ch}`, () => {
+      expect(preloadChannels).toContain(ch);
+    });
+  }
+
+  it("main index registers window IPC module", () => {
+    expect(indexSrc).toContain("registerWindowIpc");
+    expect(indexSrc).toContain("bindMainBrowserWindow");
+  });
+});
 
 describe("New IPC handlers from v0.8/v0.9 features", () => {
   const newChannels = [

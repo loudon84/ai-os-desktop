@@ -249,6 +249,15 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
+  try {
+    const { bindMainBrowserWindow } = require("./window/window-ipc");
+    bindMainBrowserWindow(mainWindow);
+    mainWindow.on("closed", () => {
+      bindMainBrowserWindow(null);
+    });
+  } catch (err) {
+    console.error("[WINDOW] Failed to bind main window:", err);
+  }
 }
 
 

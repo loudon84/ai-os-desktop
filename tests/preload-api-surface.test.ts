@@ -52,13 +52,36 @@ describe("Preload API Surface", () => {
   });
 
   it("every preload method has a type declaration", () => {
-    const missing = preloadMethods.filter((m) => !typeMethods.includes(m));
+    const nestedApis = ["windowControls"];
+    const missing = preloadMethods.filter(
+      (m) => !typeMethods.includes(m) && !nestedApis.includes(m),
+    );
     expect(missing).toEqual([]);
   });
 
   it("every type declaration has a preload implementation", () => {
-    const missing = typeMethods.filter((m) => !preloadMethods.includes(m));
+    const nestedApis = ["windowControls"];
+    const missing = typeMethods.filter(
+      (m) => !preloadMethods.includes(m) && !nestedApis.includes(m),
+    );
     expect(missing).toEqual([]);
+  });
+});
+
+describe("Window controls API (frameless Windows/Linux)", () => {
+  it("preload exposes windowControls with IPC channels", () => {
+    expect(preloadSrc).toContain("windowControls:");
+    expect(preloadSrc).toContain('"window:minimize"');
+    expect(preloadSrc).toContain('"window:maximize-or-restore"');
+    expect(preloadSrc).toContain('"window:close"');
+    expect(preloadSrc).toContain('"window:is-maximized"');
+  });
+
+  it("type declarations include WindowControlsAPI", () => {
+    expect(preloadTypes).toContain("windowControls: WindowControlsAPI");
+    expect(preloadTypes).toContain("interface WindowControlsAPI");
+    expect(preloadTypes).toContain("minimize(): Promise<void>");
+    expect(preloadTypes).toContain("maximizeOrRestore(): Promise<void>");
   });
 });
 
