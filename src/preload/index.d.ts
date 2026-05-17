@@ -3,6 +3,7 @@ import type { AppLocale } from "../shared/i18n/types";
 import type { AiosBrowserAPI } from "./browser-api";
 import type { ProfileRuntimeAPI, ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
 import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
+import type { RuntimeState } from "../shared/enterprise/runtime-state-contract";
 import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
 
 interface InstallStatus {
@@ -28,7 +29,9 @@ interface HermesAPI {
   startInstall: () => Promise<{ success: boolean; error?: string }>;
   startInstallWithSource: (
     sourceConfig: unknown,
+    options?: { force?: boolean },
   ) => Promise<{ success: boolean; error?: string }>;
+  getRuntimeState: () => Promise<RuntimeState>;
   showOpenDialog: (
     opts: Electron.OpenDialogOptions,
   ) => Promise<Electron.OpenDialogReturnValue>;

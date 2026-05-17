@@ -311,16 +311,24 @@ function setupIPC(): void {
     }
   });
 
-  ipcMain.handle("start-install-with-source", async (event, sourceConfig: unknown) => {
-    try {
-      await runInstallWithSource(sourceConfig, (progress: InstallProgress) => {
-        event.sender.send("install-progress", progress);
-      }, mainWindow);
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: (err as Error).message };
-    }
-  });
+  ipcMain.handle(
+    "start-install-with-source",
+    async (event, sourceConfig: unknown, options?: { force?: boolean }) => {
+      try {
+        await runInstallWithSource(
+          sourceConfig,
+          (progress: InstallProgress) => {
+            event.sender.send("install-progress", progress);
+          },
+          mainWindow,
+          options,
+        );
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+  );
 
   ipcMain.handle("show-open-dialog", async (_event, opts: Electron.OpenDialogOptions) => {
     const { dialog } = await import("electron");

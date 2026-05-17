@@ -1,20 +1,21 @@
 import { ipcMain, BrowserWindow, dialog } from "electron";
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { resolveInstallLocation } from "./windows/install-location-resolver";
+import { resolveRuntimeState } from "./runtime-state-resolver";
+import { ensureShims, updateHermesShim } from "./shim-manager";
+import {
+  writeRuntimeConfig,
+  mergeRuntimeConfig,
+  createDefaultRuntimeConfig,
+  type AgentSourceConfig,
+} from "./desktop-runtime-config";
 import {
   installHermesAgentFromUserSource,
   type UserSourceConfig,
   type AgentInstallResult,
   type AgentInstallProgress,
 } from "./hermes-agent-source-installer";
-import {
-  writeRuntimeConfig,
-  createDefaultRuntimeConfig,
-  type AgentSourceConfig,
-} from "./desktop-runtime-config";
-import { updateHermesShim } from "./shim-manager";
 
 export type WizardStage =
   | "detect"
@@ -51,15 +52,8 @@ let currentState: WizardState = {
 let installCancelled = false;
 let wizardWindow: BrowserWindow | null = null;
 
-function hasProjectFiles(dir: string): boolean {
-  return (
-    existsSync(join(dir, "pyproject.toml")) || existsSync(join(dir, "setup.py"))
-  );
-}
-
 export function detectAgentInstallation(): boolean {
-  const loc = resolveInstallLocation();
-  return existsSync(loc.agentDir) && hasProjectFiles(loc.agentDir);
+  return resolveRuntimeState().agentSourceExists;
 }
 
 function broadcastState(win: BrowserWindow | null): void {
@@ -99,7 +93,21 @@ export function registerFirstRunWizardIPC(): void {
 
   ipcMain.handle(
     CHANNELS.START_INSTALL,
-    async (_event, sourceConfig: UserSourceConfig) => {
+    async (_event, sourceConfig: UserSourceConfig, options?: { force?: boolean }) => {
+      const runtimeState = resolveRuntimeState();
+      if (!options?.force && runtimeState.runtimeReady) {
+        ensureShims();
+        mergeRuntimeConfig(createDefaultRuntimeConfig());
+        const loc = resolveInstallLocation();
+        currentState = {
+          stage: "completed",
+          agentInstalled: true,
+          agentPath: loc.agentDir,
+        };
+        broadcastState(wizardWindow);
+        return { success: true, skipped: true, agentPath: loc.agentDir };
+      }
+
       installCancelled = false;
       currentState = { ...currentState, stage: "installing", error: undefined };
       broadcastState(wizardWindow);

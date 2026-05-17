@@ -95,3 +95,23 @@ export function createDefaultRuntimeConfig(
     pipMirror,
   };
 }
+
+/** Merge partial config into existing desktop-runtime.json without clobbering user fields. */
+export function mergeRuntimeConfig(
+  partial: Partial<DesktopRuntimeConfig>,
+): DesktopRuntimeConfig {
+  const existing = readRuntimeConfig();
+  const defaults = createDefaultRuntimeConfig();
+
+  const merged: DesktopRuntimeConfig = {
+    ...defaults,
+    ...existing,
+    ...partial,
+    agentSource: partial.agentSource ?? existing?.agentSource ?? defaults.agentSource,
+    pipMirror: partial.pipMirror ?? existing?.pipMirror ?? defaults.pipMirror,
+    hermesHome: partial.hermesHome ?? existing?.hermesHome ?? defaults.hermesHome,
+  };
+
+  writeRuntimeConfig(merged);
+  return merged;
+}

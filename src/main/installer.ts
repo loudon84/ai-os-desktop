@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 
 import { join } from "path";
 import { homedir } from "os";
 import type { BrowserWindow } from "electron";
-import { getModelConfig, getConnectionConfig } from "./config";
+import { getConnectionConfig } from "./config";
 import { stripAnsi } from "./utils";
 import { setupAskpass, AskpassHandle } from "./askpass";
 import {
@@ -13,13 +13,21 @@ import {
 } from "./enterprise/windows/path-resolver";
 import { installHermesAgentFromUserSource, type UserSourceConfig } from "./enterprise/hermes-agent-source-installer";
 import { ensureShims } from "./enterprise/shim-manager";
-import {
-  writeRuntimeConfig,
-  createDefaultRuntimeConfig,
-} from "./enterprise/desktop-runtime-config";
+import { writeRuntimeConfig } from "./enterprise/desktop-runtime-config";
 import { installHermesAgentDependencies } from "./enterprise/agent-deps-installer";
 import type { PipMirrorPresetId } from "../shared/enterprise/pip-mirror-presets";
 import { resolvePipMirrorConfig } from "./enterprise/pip-mirror-config";
+import {
+  hasHermesAuthCredential,
+  isModelConfigured,
+} from "./enterprise/model-config-status";
+
+export { hasHermesAuthCredential };
+import { resolveRuntimeState } from "./enterprise/runtime-state-resolver";
+import {
+  mergeRuntimeConfig,
+  createDefaultRuntimeConfig,
+} from "./enterprise/desktop-runtime-config";
 
 const _resolved = resolveRuntimePaths();
 
@@ -81,23 +89,6 @@ function resolveNvmBin(home: string): string[] {
   return [];
 }
 
-export function hasHermesAuthCredential(provider: string): boolean {
-  if (!provider || !existsSync(HERMES_AUTH_FILE)) return false;
-  try {
-    const auth = JSON.parse(readFileSync(HERMES_AUTH_FILE, "utf-8")) as {
-      active_provider?: string;
-      credential_pool?: Record<string, unknown[]>;
-      providers?: Record<string, unknown>;
-    };
-    const pool = auth.credential_pool?.[provider];
-    if (Array.isArray(pool) && pool.length > 0) return true;
-    if (auth.active_provider === provider) return true;
-    return Boolean(auth.providers?.[provider]);
-  } catch {
-    return false;
-  }
-}
-
 export function checkInstallStatus(): InstallStatus {
   // Remote mode: skip local checks entirely
   const conn = getConnectionConfig();
@@ -114,48 +105,11 @@ export function checkInstallStatus(): InstallStatus {
   // `python --version` check used to run here adds 1–10s of cold-start
   // latency, so it now lives in `verifyInstall()` and is invoked lazily
   // by the renderer after the main UI is mounted.
-  const installed = existsSync(HERMES_PYTHON) && existsSync(HERMES_SCRIPT);
+  const state = resolveRuntimeState();
+  const installed = state.runtimeReady;
   const configured = existsSync(HERMES_ENV_FILE);
-  let hasApiKey = false;
+  const hasApiKey = isModelConfigured();
   const verified = installed;
-
-  // Local/custom providers don't need an API key. OAuth-backed providers
-  // can be configured through Hermes auth.json instead of .env.
-  try {
-    const mc = getModelConfig();
-    const localProviders = ["custom", "lmstudio", "ollama", "vllm", "llamacpp"];
-    if (
-      localProviders.includes(mc.provider) ||
-      hasHermesAuthCredential(mc.provider)
-    ) {
-      hasApiKey = true;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  if (!hasApiKey && configured) {
-    try {
-      const content = readFileSync(HERMES_ENV_FILE, "utf-8");
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("#")) continue;
-        const match = trimmed.match(
-          /^(OPENROUTER_API_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY)=(.+)$/,
-        );
-        if (
-          match &&
-          match[2].trim() &&
-          !['""', "''", ""].includes(match[2].trim())
-        ) {
-          hasApiKey = true;
-          break;
-        }
-      }
-    } catch {
-      /* ignore read errors */
-    }
-  }
 
   return { installed, configured, hasApiKey, verified };
 }
@@ -567,6 +521,7 @@ export async function runInstallWithSource(
   sourceConfig: unknown,
   onProgress: (progress: InstallProgress) => void,
   _parentWindow?: BrowserWindow | null,
+  options?: { force?: boolean },
 ): Promise<void> {
   const totalSteps = 4;
   let log = "";
@@ -574,6 +529,14 @@ export async function runInstallWithSource(
   function emit(step: number, title: string, detail: string): void {
     log += detail + "\n";
     onProgress({ step, totalSteps, title, detail, log });
+  }
+
+  const state = resolveRuntimeState();
+  if (!options?.force && state.runtimeReady) {
+    ensureShims();
+    mergeRuntimeConfig(createDefaultRuntimeConfig());
+    emit(4, "运行时已就绪", "跳过 hermes-agent 重装，已刷新 shim 与运行时配置");
+    return;
   }
 
   const cfg = sourceConfig as UserSourceConfig;

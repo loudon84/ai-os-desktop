@@ -52,6 +52,9 @@ Var PreviousAppVersion
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$ExistingInstallDir"
   SetRegView 32
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$ExistingInstallDir"
+
+  ; Default install directory page to existing location on upgrade
+  StrCpy $INSTDIR "$ExistingInstallDir"
 !macroend
 
 !macro customInit
@@ -105,19 +108,21 @@ Var PreviousAppVersion
   FileWrite $1 '"%SMC_COPILOT_HOME%\runtime\hermes-agent\venv\Scripts\hermes.exe" %*$\r$\n'
   FileClose $1
 
-  ; desktop-runtime.json (hybrid identity)
-  FileOpen $2 "$INSTDIR\runtime\desktop-runtime.json" w
-  FileWrite $2 '{$\r$\n'
-  FileWrite $2 '  "productName": "SMC Copilot",$\r$\n'
-  FileWrite $2 '  "appId": "com.smc.smc-ai-copilot",$\r$\n'
-  FileWrite $2 '  "executableName": "smc-ai-copilot",$\r$\n'
-  FileWrite $2 '  "installDir": "$INSTDIR",$\r$\n'
-  FileWrite $2 '  "runtimeRoot": "$INSTDIR\\runtime",$\r$\n'
-  FileWrite $2 '  "binDir": "$INSTDIR\\bin",$\r$\n'
-  FileWrite $2 '  "agentDir": "$INSTDIR\\runtime\\hermes-agent",$\r$\n'
-  FileWrite $2 '  "legacyAppIds": ["com.nousresearch.hermes"]$\r$\n'
-  FileWrite $2 '}$\r$\n'
-  FileClose $2
+  ; desktop-runtime.json (hybrid identity) — preserve on upgrade
+  IfFileExists "$INSTDIR\runtime\desktop-runtime.json" skip_desktop_runtime_json 0
+    FileOpen $2 "$INSTDIR\runtime\desktop-runtime.json" w
+    FileWrite $2 '{$\r$\n'
+    FileWrite $2 '  "productName": "SMC Copilot",$\r$\n'
+    FileWrite $2 '  "appId": "com.smc.smc-ai-copilot",$\r$\n'
+    FileWrite $2 '  "executableName": "smc-ai-copilot",$\r$\n'
+    FileWrite $2 '  "installDir": "$INSTDIR",$\r$\n'
+    FileWrite $2 '  "runtimeRoot": "$INSTDIR\\runtime",$\r$\n'
+    FileWrite $2 '  "binDir": "$INSTDIR\\bin",$\r$\n'
+    FileWrite $2 '  "agentDir": "$INSTDIR\\runtime\\hermes-agent",$\r$\n'
+    FileWrite $2 '  "legacyAppIds": ["com.nousresearch.hermes"]$\r$\n'
+    FileWrite $2 '}$\r$\n'
+    FileClose $2
+  skip_desktop_runtime_json:
 
   WriteRegExpandStr HKCU "Software\SMC\Copilot" "InstallLocation" "$INSTDIR"
   WriteRegExpandStr HKCU "Software\SMC\Copilot" "RuntimeRoot" "$INSTDIR\runtime"

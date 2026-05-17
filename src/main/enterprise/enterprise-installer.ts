@@ -39,6 +39,11 @@ import { writeInstallMarker, readInstallMarker, existsInstallMarker } from "./in
 import { createInstallLogger, readLatestInstallLog } from "./install-log";
 import { runAllChecks, exportDoctorReport } from "./doctor/runtime-doctor";
 import { ensureShims } from "./shim-manager";
+import {
+  mergeRuntimeConfig,
+  createDefaultRuntimeConfig,
+} from "./desktop-runtime-config";
+import { resolveRuntimeState } from "./runtime-state-resolver";
 import { resolveInstallLocation } from "./windows/install-location-resolver";
 import { getMigrationStatus } from "../migrations/migration-runner";
 import {
@@ -71,9 +76,14 @@ export async function executeEnterpriseInstallPipeline(
   resetEnterpriseInstallCancel();
 
   try {
-    if (!input?.force && existsInstallMarker()) {
+    const runtimeState = resolveRuntimeState();
+    if (!input?.force && runtimeState.runtimeReady) {
+      ensureShims();
+      mergeRuntimeConfig(createDefaultRuntimeConfig());
       const marker = readInstallMarker();
-      onProgress(makeProgress("check-enterprise-install", "completed", 100, "已安装"));
+      onProgress(
+        makeProgress("check-enterprise-install", "completed", 100, "运行时已就绪，跳过安装"),
+      );
       return { ok: true, marker: marker || undefined };
     }
 
@@ -366,6 +376,10 @@ export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("enterprise:get-migration-status", async () => {
     return getMigrationStatus();
+  });
+
+  ipcMain.handle("enterprise:get-runtime-state", async () => {
+    return resolveRuntimeState();
   });
 
   ipcMain.handle(

@@ -30,7 +30,7 @@
 ### installer.ts — 安装管理
 
 - **职责**: Python 环境安装、健康检测、Doctor/Update、OpenClaw 迁移、备份/导入/导出
-- **IPC Handler**: check-install, verify-install, start-install, get-hermes-version, run-hermes-doctor, run-hermes-update, check-openclaw, run-claw-migrate, run-hermes-backup, run-hermes-import, run-hermes-dump, list-mcp-servers, discover-memory-providers, read-logs
+- **IPC Handler**: check-install, verify-install, start-install, start-install-with-source, get-hermes-version, run-hermes-doctor, run-hermes-update, check-openclaw, run-claw-migrate, run-hermes-backup, run-hermes-import, run-hermes-dump, list-mcp-servers, discover-memory-providers, read-logs
 
 ### config.ts — 配置管理
 
@@ -39,7 +39,16 @@
   - `~/.hermes/desktop.json` — 连接模式 (local/remote)
   - `~/.hermes/.env` — 环境变量 (API Keys)
   - `~/.hermes/config.yaml` — Hermes Agent 配置
-- **IPC Handler**: get-env, set-env, get-config, set-config, get-hermes-home, get-model-config, set-model-config, is-remote-mode, get-connection-config, set-connection-config, test-remote-connection, get-platform-enabled, set-platform-enabled, get-credential-pool, set-credential-pool
+- **IPC Handler**: get-env, set-env, get-config, set-config, get-hermes-home, get-model-config, set-model-config, is-remote-mode, is-remote-only-mode, get-connection-config, set-connection-config, test-remote-connection, set-ssh-config, test-ssh-connection, is-ssh-tunnel-active, start-ssh-tunnel, stop-ssh-tunnel, get-platform-enabled, set-platform-enabled, get-credential-pool, set-credential-pool
+
+### ssh-remote.ts — SSH 远程连接
+
+- **职责**: SSH 远程主机连接管理
+- **IPC Handler**: test-ssh-connection, is-ssh-tunnel-active, start-ssh-tunnel, stop-ssh-tunnel
+
+### ssh-tunnel.ts — SSH 隧道
+
+- **职责**: SSH 隧道创建/销毁，端口转发
 
 ### sessions.ts — 会话管理
 
@@ -184,9 +193,9 @@
 
 ### profile-runtime-ipc.ts — Profile Runtime IPC 注册
 
-- **职责**: 注册 17+2 个 profile-runtime:* + 5 个 profile-entry:* IPC handler
+- **职责**: 注册 19+2 个 profile-runtime:* + 5 个 profile-entry:* IPC handler
 - **V1.2 新增**: profile-runtime:getGatewayLogs, profile-runtime:setAutoRestart
-- **IPC Channels**: profile-runtime:importConfig, listProfiles, getProfile, startProfile, stopProfile, restartProfile, startAll, stopAll, status, delegate, listProfileSkills, copySkill, listProfileSessions, shareSessionContext, listSharedContexts, deleteSharedContext, listAuditEvents, getGatewayLogs, setAutoRestart; profile-entry:list, get, open, get-layout, update-layout
+- **IPC Channels**: profile-runtime:importConfig, importConfigContent, listProfiles, getProfile, startProfile, stopProfile, restartProfile, startAll, stopAll, status, delegate, listProfileSkills, copySkill, listProfileSessions, shareSessionContext, listSharedContexts, deleteSharedContext, listAuditEvents, getGatewayLogs, setAutoRestart; profile-entry:list, get, open, get-layout, update-layout
 
 ### delegation-capability.ts — 委托调用能力
 
@@ -210,6 +219,84 @@
 - **职责**: Web Operator 操作注入 profileId 溯源，权限校验，审计写入，敏感操作确认
 - **核心方法**: checkProfileAllowed(), injectSourceProfile(), executeAction(), confirmAction()
 - **敏感操作**: browser.type, browser.click
+
+---
+
+## AI-OS Runtime 模块 (src/main/aios/)
+
+### aios-config.ts — AI-OS 配置
+
+- **职责**: AI-OS 运行时配置管理（安装路径、端口、API 端点等）
+
+### aios-doctor.ts — AI-OS Doctor
+
+- **职责**: AI-OS 运行时健康诊断
+
+### aios-health.ts — AI-OS 健康检查
+
+- **职责**: AI-OS 服务健康状态检查
+
+### aios-ipc.ts — AI-OS IPC 注册
+
+- **职责**: 注册 AI-OS 相关 IPC handler（14 个通道）
+- **IPC Channels**: aios:get-runtime-status, aios:install, aios:start, aios:stop, aios:restart, aios:view:load-home, aios:view:reload, aios:view:set-bounds, aios:get-logs, aios:doctor, aios:reconcile, aios:check-ports, aios:get-runtime-snapshot, aios:view:destroy, aios:view:hide
+
+### aios-paths.ts — AI-OS 路径
+
+- **职责**: AI-OS 安装与数据路径解析
+
+### aios-port-check.ts — AI-OS 端口检查
+
+- **职责**: AI-OS 端口可用性检测与冲突解决
+
+### aios-process.ts — AI-OS 进程管理
+
+- **职责**: AI-OS 子进程 spawn/kill 管理
+
+### aios-reconciler.ts — AI-OS 协调器
+
+- **职责**: App 重启后 AI-OS 运行时状态恢复
+
+### aios-runtime-supervisor.ts — AI-OS 运行时监管
+
+- **职责**: AI-OS 运行时健康监管与自动重启
+
+### aios-webcontents-controller.ts — AI-OS WebContents 控制
+
+- **职责**: AI-OS BrowserView/WebContentsView 生命周期管理
+
+---
+
+## DB 迁移模块 (src/main/migrations/)
+
+### migration-runner.ts — 迁移运行器
+
+- **职责**: 数据库迁移版本管理与有序执行
+
+### legacy-hermes-migration.ts — 旧版迁移
+
+- **职责**: 从旧版 Hermes 安装迁移数据
+
+### 001-install-location.ts — 迁移001
+
+- **职责**: 安装位置路径迁移
+
+### 002-runtime-layout.ts — 迁移002
+
+- **职责**: 运行时目录结构迁移
+
+### 003-web-operator-config.ts — 迁移003
+
+- **职责**: Web Operator 配置格式迁移
+
+---
+
+## 更新模块 (src/main/update/)
+
+### update-lifecycle.ts — 更新生命周期
+
+- **职责**: 应用自动更新流程管理（检查/下载/安装/重启）
+- **IPC Handler**: check-for-updates, download-update, install-update, get-app-version
 
 ---
 
@@ -249,16 +336,24 @@
 - **核心方法**: installHermesAgentSource(config, runtimePath, onProgress)
 - **错误码**: E_GIT_CLONE_FAILED, E_GIT_AUTH_FAILED, E_GIT_CHECKOUT_FAILED, E_AGENT_VERSION_MISMATCH, E_AGENT_SOURCE_NOT_FOUND
 
-### python-venv-installer.ts — Python Venv 管理
+### agent-deps-installer.ts — V1.4.1 依赖安装
 
-- **职责**: venv 创建/复用 + 依赖安装（优先 uv，fallback pip；优先 wheelhouse，fallback pipIndexUrl）
-- **核心方法**: createOrReuseSharedVenv(config), installPythonDependencies(config, venvPath, agentPath, onProgress)
-- **错误码**: E_VENV_CREATE_FAILED, E_VENV_REUSED_BROKEN, E_PIP_INSTALL_FAILED, E_PIP_INDEX_UNREACHABLE
+- **职责**: uv/pip 依赖安装、PyPI 镜像解析、wheelhouse 离线安装
+- **核心方法**: installHermesAgentDependencies()
+- **策略**: uv --no-config 优先 requirements.txt；有 wheels 则离线；失败回退 pip
 
-### runtime-bootstrapper.ts — Python 运行时检测
+### pip-mirror-config.ts — V1.4.1 PyPI 镜像配置
 
-- **职责**: 检测系统 Python 版本，判断使用 bundled 或系统 Python
-- **核心方法**: detectAndBootstrapRuntime(config)
+- **职责**: 解析 PyPI 镜像配置优先级（UI → desktop-runtime.json → deployment.json → 环境变量 → 清华默认）
+- **核心方法**: resolvePipMirrorConfig()
+
+### desktop-runtime-config.ts — 桌面运行时配置
+
+- **职责**: 读写 desktop-runtime.json（安装目录、agent 源、pipMirror 等）
+
+### command-security-guard.ts — 命令安全守卫
+
+- **职责**: 安装命令安全检查与过滤
 
 ### enterprise-config-provisioner.ts — ~/.hermes 初始化
 
@@ -276,6 +371,41 @@
 - **职责**: Bundle Skills 复制到 Profile 目录 + Policy 只读标记
 - **核心方法**: installBundledSkills(config, profileName, profileHome, runtimePath), applyPolicyReadOnly(profileId)
 
+### python-venv-installer.ts — Python Venv 管理
+
+- **职责**: venv 创建/复用 + 依赖安装（优先 uv，fallback pip；优先 wheelhouse，fallback pipIndexUrl）
+- **核心方法**: createOrReuseSharedVenv(config), installPythonDependencies(config, venvPath, agentPath, onProgress)
+- **错误码**: E_VENV_CREATE_FAILED, E_VENV_REUSED_BROKEN, E_PIP_INSTALL_FAILED, E_PIP_INDEX_UNREACHABLE
+
+### runtime-bootstrapper.ts — Python 运行时检测
+
+- **职责**: 检测系统 Python 版本，判断使用 bundled 或系统 Python
+- **核心方法**: detectAndBootstrapRuntime(config)
+
+### runtime-manifest.ts — 运行时清单
+
+- **职责**: 运行时组件清单管理
+
+### runtime-state-resolver.ts — 运行时状态解析
+
+- **职责**: 解析当前运行时安装与运行状态
+
+### runtime-jobs.ts — 运行时任务
+
+- **职责**: 长时间运行时任务管理
+
+### shim-manager.ts — Shim 管理
+
+- **职责**: 命令行 Shim 脚本创建与管理
+
+### model-config-status.ts — 模型配置状态
+
+- **职责**: 模型配置就绪状态检查
+
+### install-cancel.ts — 安装取消
+
+- **职责**: 安装流程取消信号管理
+
 ### install-lock.ts — 安装锁
 
 - **职责**: 独占文件锁（fs.open wx），stale lock 5 分钟自动清理
@@ -292,11 +422,16 @@
 - **职责**: JSON Lines 格式日志 + 敏感信息自动脱敏（token/password/secret/key/auth → ***）
 - **核心方法**: createInstallLogger(logDir?): InstallLogger
 
+### first-run-wizard.ts — 首次运行向导
+
+- **职责**: 首次运行 Agent 源选择与安装流程
+- **IPC Channels**: first-run-wizard:detect-agent, select-source, start-install, cancel-install, select-zip-file, get-state
+
 ### enterprise-installer.ts — 企业安装流水线
 
 - **职责**: 20 步有序安装流水线编排 + IPC handler 注册 + 进度推送
 - **流水线**: checkEnterpriseInstall → loadDeploymentConfig → acquireInstallLock → runPreflight → resolveRuntimeBundle → installHermesAgentSource → createOrReuseSharedVenv → installPythonDependencies → provisionDefaultHermesHome → bootstrapProfiles → installBundledSkills → applyPolicy → writeInstallMarker → openAIOSWorkspace
-- **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor, **V1.4**: get-installer-precheck
+- **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor-report, get-migration-status, get-installer-precheck, get-runtime-state
 - **核心方法**: executeEnterpriseInstallPipeline(mainWindow, input?), setupEnterpriseInstallIPC(mainWindow)
 
 ### installer-precheck-reader.ts — V1.4 NSIS 预检结果读取
@@ -309,7 +444,7 @@
 
 - **职责**: 从 enterprise-installer 重导出 setupEnterpriseInstallIPC
 
-### doctor/ — Runtime Doctor 模块
+### doctor/ — Runtime Doctor 模块 (7 个文件)
 
 #### runtime-doctor.ts — 诊断编排
 
@@ -339,6 +474,28 @@
 #### check-misc.ts — 辅助检查
 
 - **核心方法**: checkPolicy(profileId), checkPortBinding(host, port), checkDirPermission(dirPath), checkConfigValidity(configPath)
+
+#### check-windows.ts — Windows 特定检查
+
+- **核心方法**: Windows 平台特定环境与路径检查
+
+### windows/ — Windows 平台模块 (4 个文件)
+
+#### install-location-resolver.ts — 安装位置解析
+
+- **职责**: Windows 安装目录解析（注册表/默认路径）
+
+#### path-resolver.ts — 路径解析
+
+- **职责**: Windows 特定路径解析
+
+#### powershell-runner.ts — PowerShell 运行
+
+- **职责**: PowerShell 命令执行封装
+
+#### process-tree.ts — 进程树
+
+- **职责**: Windows 进程树查询与清理
 
 ---
 
@@ -395,9 +552,9 @@
 
 ### index.ts — 预加载脚本
 
-- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**
+- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**
 - **关键**: 将所有 IPC invoke/on 封装为 Promise/回调 API
-- **暴露对象**: hermesAPI (30+ 方法，**含 getInstallerPrecheck**、**V1.4.1 windowControls**), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (20 方法)**, **profileEntry (5 方法)**
+- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**
 
 ### browser-api.ts — Web Operator Preload API
 
@@ -405,9 +562,15 @@
 - **核心方法**: `open()`, `back()`, `forward()`, `reload()`, `getState()`, `screenshot()`, `click()`, `type()`, `extractTable()`, `getAuditLog()`, `confirmAction()`, `rejectAction()`, `updateBounds()`
 - **事件订阅**: `onPendingAction()`, `onAuditUpdate()`
 
+### aios-api.ts — AI-OS Runtime Preload API
+
+- **职责**: 封装 aios:* IPC 为 `window.aiosRuntime` API
+- **方法**: getRuntimeStatus, installAiOs, startAiOs, stopAiOs, restartAiOs, openAiOsHome, reloadAiOsHome, setAiOsViewBounds, getAiOsLogs, runDoctor, reconcile, checkPorts
+- **事件订阅**: onAiOsRuntimeChanged
+
 ### index.d.ts — 类型声明
 
-- **职责**: HermesAPI（含 **WindowControlsAPI**）+ AiosBrowserAPI + **ProfileRuntimeAPI + ProfileEntryAPI** 接口完整 TypeScript 类型定义，声明全局 Window 扩展
+- **职责**: HermesAPI（含 **WindowControlsAPI**）+ AiosBrowserAPI + **ProfileRuntimeAPI + ProfileEntryAPI + AiOsRuntimeAPI** 接口完整 TypeScript 类型定义，声明全局 Window 扩展
 
 ### profile-runtime-api.ts — V1.1+V1.2 Profile Runtime Preload API
 
@@ -442,7 +605,7 @@
 |---|---|---|
 | SplashScreen | screens/SplashScreen/SplashScreen.tsx | 启动品牌动画 |
 | Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
-| Install | screens/Install/Install.tsx | 安装流程+进度 |
+| Install | screens/Install/Install.tsx | 安装流程+进度（含 AgentSourceSelect） |
 | Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
 | Layout | screens/Layout/Layout.tsx | **V1.4** 编排层：组合 DesktopShell + hooks，不再内联全部 JSX |
 | **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
@@ -462,6 +625,7 @@
 | Settings | screens/Settings/Settings.tsx | 主题/语言/连接/更新/备份/诊断 |
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
+| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（运行状态/快速入口）** |
 | **AIOSWorkspace** | **screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx** | **V1.1 AI-OS 主控工作台（主控对话/多 Profile 状态/委派入口/Web Operator）** |
 | **ProfileWorkspace** | **screens/ProfileWorkspace/ProfileWorkspaceScreen.tsx** | **V1.1 specialist 独立工作台（独立 chat/skills/context/audit）** |
 
@@ -476,6 +640,11 @@
 | RemoteNotice | components/RemoteNotice.tsx | 远程模式提示横幅 |
 | Versions | components/Versions.tsx | 版本信息展示 |
 | HermesLogo | components/common/HermesLogo.tsx | Logo 组件 |
+| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | AI-OS Web 应用宿主 |
+| PipMirrorFields | components/install/PipMirrorFields.tsx | V1.4.1 PyPI 镜像选择字段 |
+| InstallWizard | components/install-wizard/install-wizard.tsx | 安装向导组件 |
+| RuntimeGuard | components/runtime/RuntimeGuard.tsx | 运行时守卫 |
+| RuntimeStatusBar | components/runtime/RuntimeStatusBar.tsx | 运行时状态栏 |
 
 ### components/layout/ — V1.4 Desktop Shell
 
@@ -512,9 +681,11 @@
 | 文件 | 职责 |
 |---|---|
 | installer.nsh | NSIS 自定义宏：preInit / **customInit (VC++)** / customInstall / customUnInstall |
+| afterPack.js | 打包后处理脚本 |
 | nsis/Include/AddToPathSafe.nsh | 用户 PATH 安全增删 |
 | nsis/Include/VCRuntimeCheck.nsh | **V1.4** VC++ 2015–2022 x64 检测与可选安装 |
 | nsis/Include/RuntimePrecheck.nsh | **V1.4** Git/Python/uv/8642 检测，写出 installer-precheck.json |
+| winget/ | WinGet 清单模板（Installer/Locale/Version） |
 
 安装产物路径示例：`$INSTDIR/runtime/installer-precheck.json`、`$INSTDIR/runtime/logs/nsis-install.log`
 
@@ -529,13 +700,30 @@
 | profile-runtime-contract.ts | 全部 TypeScript 类型定义（V1.2: 115+ 接口/类型/枚举），含 ProfileRuntimeAPI + ProfileEntryAPI 接口 + V1.2 新增 RuntimeReconcileResult/GatewayLogEntry/GatewayLogQueryOptions/GatewayLogLevel/RuntimeStatusChangeEvent |
 | profile-runtime-errors.ts | 19 个错误码（V1.2 新增 PROFILE_STARTUP_TIMEOUT） + ProfileRuntimeError 类 + createProfileError() 工厂函数 |
 
-### enterprise/ — V1.2.1+V1.4 Enterprise 契约
+### enterprise/ — V1.2.1+V1.4+V1.4.1 Enterprise 契约
 
 | 文件 | 职责 |
 |---|---|
 | enterprise-contract.ts | API 契约；**V1.4 新增** `InstallerPrecheck` 及预检状态类型 |
 | enterprise-schema.ts | 数据结构类型 |
 | enterprise-constants.ts | 枚举/错误码/常量 |
+| pip-mirror-presets.ts | **V1.4.1** PyPI 镜像预设（清华/阿里/腾讯/官方/自定义） |
+| migration-contract.ts | 迁移契约类型 |
+| runtime-state-contract.ts | 运行时状态契约类型 |
+
+### aios/ — AI-OS 契约
+
+| 文件 | 职责 |
+|---|---|
+| aios-contract.ts | AI-OS 运行时 API 契约与类型定义 |
+
+### browser/ — Web Operator 契约
+
+| 文件 | 职责 |
+|---|---|
+| browser-contract.ts | Web Operator API 契约与类型定义 |
+| browser-errors.ts | Web Operator 错误码 |
+| browser-tool-schema.ts | Web Operator 工具 Schema 定义 |
 
 ### i18n/ — 国际化
 
@@ -544,12 +732,12 @@
 | index.ts | i18next 实例初始化，4 语言资源加载，t() 翻译函数 |
 | config.ts | SOURCE_LOCALE=en, FALLBACK_LOCALE=en, APP_LOCALES=[en, es, pt-BR, zh-CN] |
 | types.ts | AppLocale 类型, TranslationTree |
-| locales/en/ | 英文翻译（20 模块） |
+| locales/en/ | 英文翻译（21 模块） |
 | locales/es/ | 西班牙文翻译 |
 | locales/pt-BR/ | 葡萄牙文(巴西)翻译 |
 | locales/zh-CN/ | 简体中文翻译 |
 
-每种语言的翻译模块: common, navigation, welcome, setup, chat, settings, tools, sessions, models, providers, office, errors, schedules, skills, gateway, agents, soul, memory, install, constants
+每种语言的翻译模块: common, navigation, welcome, setup, chat, settings, tools, sessions, models, providers, office, errors, schedules, skills, gateway, agents, soul, memory, install, constants, **aiosHome**
 
 ---
 
@@ -565,3 +753,11 @@
 | session-cache-sync.test.ts | 会话缓存同步 |
 | sse-parser.test.ts | SSE 解析器 |
 | winget-generator.test.ts | WinGet 清单生成 |
+| enterprise-install-cancel.test.ts | 企业安装取消 |
+| install-location-resolver.test.ts | 安装位置解析 |
+| install-paths.test.ts | 安装路径 |
+| migration-runner.test.ts | 迁移运行器 |
+| runtime-state-resolver.test.ts | 运行时状态解析 |
+| runtime-v1.2-phase1.test.ts | V1.2 Phase1 |
+| ssh-remote.test.ts | SSH 远程连接 |
+| update-lifecycle.test.ts | 更新生命周期 |

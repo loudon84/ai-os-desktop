@@ -237,6 +237,7 @@
 | `enterprise:reinstall-runtime` | — | `EnterpriseInstallResult` | 强制重装（`force: true`） |
 | `enterprise:get-migration-status` | — | `MigrationStatus` | 启动迁移结果与 warning |
 | `enterprise:get-installer-precheck` | — | `InstallerPrecheck \| null` | 读取 NSIS 安装器预检 JSON |
+| `enterprise:get-runtime-state` | — | `RuntimeState` | 解析本地运行时状态（agent/venv/cli/model/updateMode） |
 
 ### Window 控制（`window.desktopWindow`）
 

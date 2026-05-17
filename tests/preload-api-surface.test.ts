@@ -119,6 +119,7 @@ describe("New APIs from v0.8/v0.9 features", () => {
 describe("Desktop Install V1.3 APIs", () => {
   const v13Methods = [
     "checkInstallStatus",
+    "getRuntimeState",
     "startInstallWithSource",
     "runDoctor",
     "runRepair",
@@ -161,6 +162,7 @@ describe("Desktop Install V1.3 APIs", () => {
     );
     expect(channels).toContain("enterprise:run-doctor");
     expect(channels).toContain("enterprise:get-migration-status");
+    expect(channels).toContain("enterprise:get-runtime-state");
     expect(channels).toContain("enterprise:reinstall-runtime");
   });
 });

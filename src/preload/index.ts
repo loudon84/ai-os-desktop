@@ -47,8 +47,13 @@ const hermesAPI = {
   startInstall: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("start-install"),
 
-  startInstallWithSource: (sourceConfig: unknown): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("start-install-with-source", sourceConfig),
+  startInstallWithSource: (
+    sourceConfig: unknown,
+    options?: { force?: boolean },
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("start-install-with-source", sourceConfig, options),
+
+  getRuntimeState: () => ipcRenderer.invoke("enterprise:get-runtime-state"),
 
   showOpenDialog: (opts: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> =>
     ipcRenderer.invoke("show-open-dialog", opts),

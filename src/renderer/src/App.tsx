@@ -55,13 +55,13 @@ function App(): React.JSX.Element {
           next = "welcome";
         }
       } else {
-        const status = await window.hermesAPI.checkInstall();
-        if (!status.installed) {
-          next = "welcome";
-        } else if (!status.hasApiKey) {
+        const runtime = await window.hermesAPI.getRuntimeState();
+        if (runtime.runtimeReady && runtime.modelConfigured) {
+          next = "main";
+        } else if (runtime.runtimeReady && !runtime.modelConfigured) {
           next = "setup";
         } else {
-          next = "main";
+          next = "welcome";
         }
       }
     } catch {
@@ -86,11 +86,14 @@ function App(): React.JSX.Element {
     // this guard the user is bounced back to Welcome with an "installBroken"
     // error immediately after a successful remote connect. (#47, #41, #30)
     if ((next === "main" || next === "setup") && !isRemote) {
-      window.hermesAPI.verifyInstall().then((ok) => {
-        if (!ok) {
-          setInstallError(t("errors.installBroken"));
-          setScreen("welcome");
-        }
+      window.hermesAPI.getRuntimeState().then((runtime) => {
+        if (!runtime.runtimeReady) return;
+        window.hermesAPI.verifyInstall().then((ok) => {
+          if (!ok && !runtime.updateMode) {
+            setInstallError(t("errors.installBroken"));
+            setScreen("welcome");
+          }
+        });
       });
     }
   }, [t]);

@@ -4,7 +4,7 @@
 
 hermes-desktop 是基于 **Electron + React + TypeScript + TailwindCSS** 的 AI 助手桌面应用，用于安装、配置和与 Hermes Agent 聊天交互。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
 
-- **版本**: 0.3.5 → **V1.4 Desktop Shell + Windows Installer Hardening**
+- **版本**: 0.1.6（V1.4.1 Desktop Shell + 安装加固）
 - **appId**: com.smc.smc-ai-copilot
 - **productName**: SMC Copilot
 - **仓库**: https://github.com/fathah/hermes-desktop
@@ -31,17 +31,20 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 
 | 目录 | 职责 | 是否允许修改 |
 |---|---|---|
-| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**V1.4: window/window-ipc.ts 窗口控制** | 需按任务范围 |
-| `src/main/window/` | **V1.4** 窗口控制 IPC — minimize/maximize/close/is-maximized | 按需扩展 |
-| `src/main/enterprise/` | 企业安装、Doctor、**installer-precheck-reader**、**agent-deps-installer**、**pip-mirror-config** | 按需扩展 |
-| `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer | 按需扩展 |
-| `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（含 windowControls）+ aiosBrowser + profileRuntime + profileEntry** | 谨慎修改，影响全进程通信 |
-| `src/renderer/` | 渲染进程 — **components/layout/**、**components/install/PipMirrorFields**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
-| `src/shared/` | 共享模块 — i18n + browser/profile-runtime/enterprise 契约；**V1.4.1: `enterprise/pip-mirror-presets.ts`** | 谨慎修改 |
+| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**AI-OS Runtime**、**Migrations**、**SSH** | 需按任务范围 |
+| `src/main/window/` | **V1.4.1** 窗口控制 IPC — minimize/maximize/close/is-maximized | 按需扩展 |
+| `src/main/enterprise/` | 企业安装、Doctor、installer-precheck-reader、agent-deps-installer、pip-mirror-config（31 个文件含 doctor/ 和 windows/ 子目录） | 按需扩展 |
+| `src/main/aios/` | **AI-OS Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
+| `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
+| `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
+| `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer（8 个文件） | 按需扩展 |
+| `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime**（6 个文件） | 谨慎修改，影响全进程通信 |
+| `src/renderer/` | 渲染进程 — **components/layout/**、**components/install/PipMirrorFields**、**components/aios/**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
+| `src/shared/` | 共享模块 — i18n（4 语言 × 21 模块）+ browser/profile-runtime/enterprise/aios 契约；**V1.4.1: `enterprise/pip-mirror-presets.ts`** | 谨慎修改 |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
-| `tests/` | 测试文件 | 按需扩展 |
-| `build/` | 构建资源（**installer.nsh**、**nsis/Include/RuntimePrecheck.nsh**、**VCRuntimeCheck.nsh**） | NSIS 脚本按需更新 |
+| `tests/` | 测试文件（16 个） | 按需扩展 |
+| `build/` | 构建资源（**installer.nsh**、**nsis/Include/RuntimePrecheck.nsh**、**VCRuntimeCheck.nsh**、**winget/**） | NSIS 脚本按需更新 |
 | `docs/` | 项目文档 | 按需更新 |
 
 ## 开发前必须阅读
@@ -50,7 +53,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 2. docs/MODULES.md — 各模块职责与边界
 3. docs/API_CONTRACTS.md — IPC 通信契约
 4. docs/READING_GUIDE.md — 代码阅读顺序
-5. wiki_core.md — 核心架构分析（含代码引用）
+5. AGENTS.md — Agent 编码速查指南
 
 ## 技术栈
 
@@ -60,7 +63,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | UI | React 19 + TailwindCSS 4 + Lucide Icons |
 | 语言 | TypeScript 5.9 |
 | 数据库 | better-sqlite3（会话历史 + **profile-runtime.db 运行时控制面**） |
-| 国际化 | i18next + react-i18next（4 语言） |
+| 国际化 | i18next + react-i18next（4 语言 × 21 模块） |
 | Markdown | react-markdown + remark-gfm + react-syntax-highlighter |
 | 构建 | electron-vite + electron-builder |
 | 测试 | Vitest + Testing Library |
