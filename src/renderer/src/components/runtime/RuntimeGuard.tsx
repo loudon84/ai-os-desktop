@@ -7,22 +7,28 @@ import type { View } from "../../types/desktop-shell";
 export interface RuntimeGuardProps {
   gatewayStatus: string;
   onNavigate: (view: View) => void;
+  onStarted?: () => void | Promise<void>;
 }
 
-export function RuntimeGuard({ gatewayStatus, onNavigate }: RuntimeGuardProps): React.JSX.Element {
+export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGuardProps): React.JSX.Element {
   const { t } = useI18n();
   const [starting, setStarting] = useState(false);
 
-  const handleStartGateway = useCallback(async () => {
+  const handleStartRuntime = useCallback(async () => {
     setStarting(true);
     try {
+      // Start Hermes Gateway first
       await window.hermesAPI.startGateway();
-    } catch {
-      // status will update via polling
+      // Then start full AI-OS Runtime (backend + frontend)
+      await window.aiosRuntime?.startAiOs?.();
+      // Notify parent that runtime is started
+      await onStarted?.();
+    } catch (err) {
+      console.error("[RuntimeGuard] Failed to start AI-OS runtime:", err);
     } finally {
       setStarting(false);
     }
-  }, []);
+  }, [onStarted]);
 
   return (
     <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-8">
@@ -52,7 +58,7 @@ export function RuntimeGuard({ gatewayStatus, onNavigate }: RuntimeGuardProps): 
           <button
             type="button"
             disabled={starting}
-            onClick={handleStartGateway}
+            onClick={handleStartRuntime}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-white transition-colors"
           >
             {starting ? <Spinner size={14} className="animate-spin" /> : <Play size={14} />}

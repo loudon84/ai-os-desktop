@@ -51,17 +51,19 @@ export function WorkspaceOutlet({
 }: WorkspaceOutletProps): React.JSX.Element {
   return (
     <>
-      <div
-        style={{
-          display: view === "aios-home" ? "flex" : "none",
-          flex: 1,
-          flexDirection: "column",
-          overflow: "hidden",
-          minHeight: 0,
-        }}
-      >
-        <AIOSHomeScreen onNavigate={onNavigate} />
-      </div>
+      {view === "aios-home" && (
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            flexDirection: "column",
+            overflow: "hidden",
+            minHeight: 0,
+          }}
+        >
+          <AIOSHomeScreen onNavigate={onNavigate} />
+        </div>
+      )}
       <div
         style={{
           display: view === "chat" ? "flex" : "none",

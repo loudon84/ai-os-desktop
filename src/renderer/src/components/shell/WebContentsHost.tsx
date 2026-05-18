@@ -11,7 +11,7 @@ export function WebContentsHost({
   className,
 }: WebContentsHostProps): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
-  const activatedRef = useRef(false);
+  const hiddenRef = useRef(true);
   const [error, setError] = useState(false);
   const { t } = useTranslation("shellView");
 
@@ -29,14 +29,21 @@ export function WebContentsHost({
 
   const syncBounds = useCallback(async () => {
     const bounds = readBounds();
-    if (!bounds || bounds.width < 1 || bounds.height < 1) return;
+
+    // If no bounds or invalid bounds, hide the view
+    if (!bounds || bounds.width < 1 || bounds.height < 1) {
+      if (!hiddenRef.current) {
+        await window.shellView.hide(layerId).catch(() => {});
+        hiddenRef.current = true;
+      }
+      return;
+    }
 
     try {
-      if (!activatedRef.current) {
-        await window.shellView.activate(layerId);
-        activatedRef.current = true;
-      }
+      // Use setBounds directly to activate and position the view
+      // This avoids the fullscreen overlay issue from activate()
       await window.shellView.setBounds(layerId, bounds);
+      hiddenRef.current = false;
       setError(false);
     } catch (err) {
       console.error("[WebContentsHost] shellView API error:", err);
@@ -71,14 +78,14 @@ export function WebContentsHost({
         observer.disconnect();
         window.removeEventListener("resize", debouncedSync);
         if (debounceTimer) clearTimeout(debounceTimer);
-        activatedRef.current = false;
+        hiddenRef.current = true;
         void window.shellView.hide(layerId).catch(() => {});
       };
     }
 
     return () => {
       disposed = true;
-      activatedRef.current = false;
+      hiddenRef.current = true;
       void window.shellView.hide(layerId).catch(() => {});
     };
   }, [syncBounds, layerId]);
@@ -93,7 +100,6 @@ export function WebContentsHost({
             className="text-xs text-blue-500 hover:underline"
             onClick={() => {
               setError(false);
-              activatedRef.current = false;
               void syncBounds();
             }}
           >

@@ -99,37 +99,41 @@ export function getAiOsRuntimeStatus(): AiOsRuntimeStatus {
   };
 }
 
-const SNAPSHOT_SERVICE_DEFS: Array<{
+// Dynamic service configuration based on AI-OS env config
+// This allows ports to be customized via configuration
+function getSnapshotServiceDefs(): Array<{
   id: AiOsServiceId;
   displayName: string;
   port: number;
   baseUrl: string;
   healthUrl: string;
-}> = [
-  {
-    id: "hermes-gateway",
-    displayName: "Hermes Gateway",
-    port: 8642,
-    baseUrl: "http://127.0.0.1:8642",
-    healthUrl: "http://127.0.0.1:8642/health",
-  },
-  {
-    id: "aios-backend",
-    displayName: "AI-OS Backend",
-    port: 8000,
-    baseUrl: "http://127.0.0.1:8000",
-    healthUrl: "http://127.0.0.1:8000/health",
-  },
-  {
-    id: "aios-frontend",
-    displayName: "AI-OS Frontend",
-    port: 3000,
-    baseUrl: "http://127.0.0.1:3000",
-    healthUrl: "http://127.0.0.1:3000/zh",
-  },
-];
+}> {
+  const config = getAiOsEnvConfig();
 
-const WEB_APP_URL = "http://127.0.0.1:3000/zh";
+  return [
+    {
+      id: "hermes-gateway",
+      displayName: "Hermes Gateway",
+      port: 8642,
+      baseUrl: config.hermesGatewayUrl ?? "http://127.0.0.1:8642",
+      healthUrl: `${config.hermesGatewayUrl ?? "http://127.0.0.1:8642"}/health`,
+    },
+    {
+      id: "aios-backend",
+      displayName: "AI-OS Backend",
+      port: config.backendPort,
+      baseUrl: `http://127.0.0.1:${config.backendPort}`,
+      healthUrl: `http://127.0.0.1:${config.backendPort}/health`,
+    },
+    {
+      id: "aios-frontend",
+      displayName: "AI-OS Frontend",
+      port: config.frontendPort,
+      baseUrl: `http://127.0.0.1:${config.frontendPort}`,
+      healthUrl: `http://127.0.0.1:${config.frontendPort}/zh`,
+    },
+  ];
+}
 
 function resolveSnapshotServiceStatus(
   healthy: boolean,
@@ -143,9 +147,10 @@ function resolveSnapshotServiceStatus(
 /** Live health probe — never returns an empty services list. */
 export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   const now = new Date().toISOString();
+  const serviceDefs = getSnapshotServiceDefs();
 
   const services: RuntimeServiceRecord[] = await Promise.all(
-    SNAPSHOT_SERVICE_DEFS.map(async (def) => {
+    serviceDefs.map(async (def) => {
       const dbRecord = getRuntimeService(def.id);
       const healthy = await checkServiceHealth(def.healthUrl);
       const status = resolveSnapshotServiceStatus(healthy, dbRecord);
@@ -170,11 +175,12 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   );
 
   const ready = services.every((s) => s.status === "running");
+  const webAppUrl = `http://127.0.0.1:${serviceDefs.find(s => s.id === "aios-frontend")?.port ?? 3000}/zh`;
 
   return {
     services,
     ready,
-    ...(ready ? { webAppUrl: WEB_APP_URL } : {}),
+    ...(ready ? { webAppUrl } : {}),
   };
 }
 

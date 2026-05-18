@@ -67,7 +67,7 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
           ) : ready ? (
             <WebContentsHost layerId="aios-home" className="h-full w-full" />
           ) : (
-            <RuntimeGuard gatewayStatus={gatewayStatus} onNavigate={onNavigate} />
+            <RuntimeGuard gatewayStatus={gatewayStatus} onNavigate={onNavigate} onStarted={refreshStatus} />
           )}
         </div>
       </div>

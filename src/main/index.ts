@@ -213,6 +213,9 @@ const launchArgs = {
   hidden: process.argv.includes("--hidden") || process.argv.includes("--tray"),
 };
 
+// Debug flag to show native menu bar (for testing menu template)
+const showNativeMenuBar = true ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -220,16 +223,20 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: !showNativeMenuBar,
     ...(process.platform === "darwin"
       ? {
           titleBarStyle: "hiddenInset" as const,
           trafficLightPosition: { x: 16, y: 16 },
         }
-      : {
-          frame: false,
-          titleBarStyle: "hidden" as const,
-        }),
+      : showNativeMenuBar
+        ? {
+            frame: true,
+          }
+        : {
+            frame: false,
+            titleBarStyle: "hidden" as const,
+          }),
     ...(process.platform === "linux" ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -1338,23 +1345,8 @@ app.whenReady().then(async () => {
       console.warn("[SHELL-IPC] ShellViewManager not available, ShellView IPC not registered");
     }
 
-    // Initialize AI-OS View via ShellViewManager (V1.9: AiOsWebContentsController deprecated)
-    if (shellViewManager) {
-      try {
-        const envConfig = getAiOsEnvConfig();
-        if (envConfig && envConfig.frontendPort > 0) {
-          const aiosHomeUrl = `http://127.0.0.1:${envConfig.frontendPort}/zh`;
-          await shellViewManager.createView("aios-home", "aios-home", aiosHomeUrl, {
-            layer: "content",
-          });
-          console.log(`[SHELL] aios-home view created with URL: ${aiosHomeUrl}`);
-        } else {
-          console.warn("[SHELL] AI-OS env config invalid, aios-home view not created");
-        }
-      } catch (err) {
-        console.error("[SHELL] Failed to create aios-home view:", err);
-      }
-    }
+    // Note: aios-home view is now lazy-loaded when Renderer requests it via shell:view:set-bounds
+    // This avoids startup errors when AI-OS frontend is not yet running
   }
 
   // Initialize ModalManager and DropdownManager (Phase 3)
