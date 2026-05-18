@@ -1,1 +1,1 @@
-export { setupEnterpriseInstallIPC } from "./enterprise-installer";
+export { setupEnterpriseInstallIPC, setupEnterpriseInstallIpcEarly } from "./enterprise-installer";

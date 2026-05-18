@@ -1,6 +1,7 @@
 import type { BrowserWindow } from "electron";
 import { ipcMain, shell } from "electron";
 import { join } from "node:path";
+import { readInstallerPrecheck } from "./installer-precheck-reader";
 
 import type {
   LoadConfigResult,
@@ -227,7 +228,7 @@ export async function executeEnterpriseInstallPipeline(
   }
 }
 
-export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
+export function setupEnterpriseInstallIpcEarly(): void {
   ipcMain.handle("enterprise:get-deployment-config", async (): Promise<LoadConfigResult> => {
     return loadDeploymentConfig();
   });
@@ -249,17 +250,9 @@ export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
     return runPreflight(configResult.config);
   });
 
-  ipcMain.handle("enterprise:install", async (_event, input?: EnterpriseInstallInput): Promise<EnterpriseInstallResult> => {
-    return executeEnterpriseInstallPipeline(mainWindow, input);
-  });
-
   ipcMain.handle("enterprise:install-cancel", async (): Promise<{ ok: boolean }> => {
     requestEnterpriseInstallCancel();
     return { ok: true };
-  });
-
-  ipcMain.handle("enterprise:reinstall-runtime", async (): Promise<EnterpriseInstallResult> => {
-    return executeEnterpriseInstallPipeline(mainWindow, { force: true, skipPreflight: true });
   });
 
   ipcMain.handle("enterprise:update", async (_event, _input?: EnterpriseUpdateInput): Promise<EnterpriseUpdateResult> => {
@@ -385,8 +378,17 @@ export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
   ipcMain.handle(
     "enterprise:get-installer-precheck",
     async (): Promise<InstallerPrecheck | null> => {
-      const { readInstallerPrecheck } = require("./installer-precheck-reader");
       return readInstallerPrecheck();
     },
   );
+}
+
+export function setupEnterpriseInstallIPC(mainWindow: BrowserWindow): void {
+  ipcMain.handle("enterprise:install", async (_event, input?: EnterpriseInstallInput): Promise<EnterpriseInstallResult> => {
+    return executeEnterpriseInstallPipeline(mainWindow, input);
+  });
+
+  ipcMain.handle("enterprise:reinstall-runtime", async (): Promise<EnterpriseInstallResult> => {
+    return executeEnterpriseInstallPipeline(mainWindow, { force: true, skipPreflight: true });
+  });
 }

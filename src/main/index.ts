@@ -172,6 +172,24 @@ import {
   sshRunDump,
   sshDiscoverMemoryProviders,
 } from "./ssh-remote";
+import { bindMainBrowserWindow, registerWindowIpc } from "./window/window-ipc";
+import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
+import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
+import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
+import { registerAiosIpc } from "./aios/aios-ipc";
+import { getAiOsEnvConfig } from "./aios/aios-config";
+import { ShellViewManager } from "./shell/views/shell-view-manager";
+import { registerShellViewIpc, destroyShellViews } from "./shell/shell-view-ipc";
+import { buildAppMenu } from "./shell/shell-menu";
+import { ModalManager } from "./shell/overlays/modal-manager";
+import { DropdownManager } from "./shell/overlays/dropdown-manager";
+import { createTrayManager, destroyTrayManager } from "./shell/tray-manager";
+import { createShortcutManager, destroyShortcutManager, getShortcutManager } from "./shell/shortcut-manager";
+import { runDesktopMigrations } from "./migrations/migration-runner";
+import { ensureShims } from "./enterprise/shim-manager";
+import { registerBrowserToolServerStop } from "./update/update-lifecycle";
+import { initializeProfileRuntime, onBeforeQuit as profileRuntimeBeforeQuit } from "./profile-runtime-manager";
+import { onBeforeQuit as aiosBeforeQuit } from "./aios/aios-runtime-supervisor";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -280,7 +298,6 @@ function createWindow(): void {
   }
 
   try {
-    const { bindMainBrowserWindow } = require("./window/window-ipc");
     bindMainBrowserWindow(mainWindow);
     mainWindow.on("closed", () => {
       bindMainBrowserWindow(null);
@@ -365,17 +382,14 @@ function setupIPC(): void {
   }
   
   try {
-    console.log("[SETUP] Loading window-ipc module...");
-    const windowIpc = require("./window/window-ipc");
-    if (typeof windowIpc.registerWindowIpc === "function") {
-      windowIpc.registerWindowIpc();
-    }
+    registerWindowIpc();
   } catch (err) {
-    console.error("[WINDOW] Failed to load window-ipc module:", err);
+    console.error("[WINDOW] Failed to register window IPC:", err);
   }
 
   // Internal View IPC (for Modal system)
   try {
+    const { setupInternalViewIpc } = require("./shell/overlays/internal-view-ipc");
     setupInternalViewIpc();
   } catch (err) {
     console.error("[MODAL] Failed to setup internal view IPC:", err);
@@ -383,18 +397,23 @@ function setupIPC(): void {
 
   // Profile Runtime IPC
   try {
-    const { setupProfileRuntimeIPC } = require("./profile-runtime-ipc");
     setupProfileRuntimeIPC();
   } catch { /* profile-runtime not available in early setup */ }
 
   // First Run Wizard IPC
   try {
-    const { registerFirstRunWizardIPC } = require("./enterprise/first-run-wizard");
     registerFirstRunWizardIPC();
   } catch { /* first-run wizard not available in early setup */ }
 
-  // NOTE: Enterprise IPC, AIOS IPC, and ShellView IPC are registered
-  // after createWindow() in the app.ready callback, because they require mainWindow.
+  // Enterprise Install IPC (early — handlers that don't need mainWindow)
+  try {
+    setupEnterpriseInstallIpcEarly();
+  } catch (err) {
+    console.error("[ENTERPRISE-EARLY] Failed to register early enterprise IPC:", err);
+  }
+
+  // NOTE: Enterprise IPC handlers that need mainWindow (install/reinstall),
+  // AIOS IPC, and ShellView IPC are registered after createWindow().
 
   // Installation
   ipcMain.handle("check-install", () => {
@@ -1128,24 +1147,19 @@ function setupIPC(): void {
 
   // Shortcut Manager IPC (Phase 5)
   ipcMain.handle("shortcut:get-all", () => {
-    const { getShortcutManager } = require("./shell/shortcut-manager");
     return getShortcutManager()?.getAllShortcuts() ?? [];
   });
-  ipcMain.handle("shortcut:update", (_event, id: string, updates: unknown) => {
-    const { getShortcutManager } = require("./shell/shortcut-manager");
+  ipcMain.handle("shortcut:update", (_event, id: string, updates: Partial<import("./shell/shortcut-manager").ShortcutConfig>) => {
     return getShortcutManager()?.updateShortcut(id, updates) ?? false;
   });
   ipcMain.handle("shortcut:reset", () => {
-    const { getShortcutManager } = require("./shell/shortcut-manager");
     getShortcutManager()?.resetToDefaults();
     return true;
   });
   ipcMain.handle("shortcut:validate", (_event, accelerator: string) => {
-    const { getShortcutManager } = require("./shell/shortcut-manager");
     return getShortcutManager()?.validateAccelerator(accelerator) ?? false;
   });
   ipcMain.handle("shortcut:check-conflicts", (_event, accelerator: string, excludeId?: string) => {
-    const { getShortcutManager } = require("./shell/shortcut-manager");
     return getShortcutManager()?.checkConflicts(accelerator, excludeId) ?? [];
   });
 }
@@ -1254,22 +1268,27 @@ app.whenReady().then(async () => {
   });
 
   try {
-    const { runDesktopMigrations } = require("./migrations/migration-runner");
     runDesktopMigrations();
   } catch (err) {
     console.error("[MIGRATION] Failed:", err);
   }
 
   try {
-    const { ensureShims } = require("./enterprise/shim-manager");
     ensureShims();
   } catch (err) {
     console.error("[SHIM] Failed to ensure shims:", err);
   }
 
+  // Initialize Profile Runtime DB (creates tables if needed)
+  try {
+    initializeProfileRuntime();
+    console.log("[DB] Profile runtime database initialized");
+  } catch (err) {
+    console.error("[DB] Failed to initialize profile runtime database:", err);
+  }
+
   // Build app menu via shell-menu.ts
   try {
-    const { buildAppMenu } = require("./shell/shell-menu");
     buildAppMenu(() => mainWindow);
   } catch (err) {
     console.error("[MENU] Failed to build app menu, falling back to minimal menu:", err);
@@ -1286,25 +1305,22 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     // AI-OS Runtime IPC
     try {
-      const { registerAiosIpc } = require("./aios/aios-ipc");
       registerAiosIpc(mainWindow);
       console.log("[AIOS] AIOS IPC handlers registered successfully");
     } catch (err) {
       console.error("[AIOS] Failed to register AIOS IPC:", err);
     }
 
-    // Enterprise Install IPC
+    // Enterprise Install IPC (late — handlers that need mainWindow)
     try {
-      const { setupEnterpriseInstallIPC } = require("./enterprise/enterprise-ipc");
       setupEnterpriseInstallIPC(mainWindow);
     } catch (err) {
       console.error("[ENTERPRISE] Failed to register enterprise IPC:", err);
     }
 
     // Initialize ShellViewManager
-    let shellViewManager: import("./shell/views/shell-view-manager").ShellViewManager | null = null;
+    let shellViewManager: ShellViewManager | null = null;
     try {
-      const { ShellViewManager } = require("./shell/views/shell-view-manager");
       shellViewManager = new ShellViewManager(mainWindow);
       console.log("[SHELL] ShellViewManager initialized");
     } catch (err) {
@@ -1314,7 +1330,6 @@ app.whenReady().then(async () => {
     // ShellView IPC
     if (shellViewManager) {
       try {
-        const { registerShellViewIpc } = require("./shell/shell-view-ipc");
         registerShellViewIpc(shellViewManager);
       } catch (err) {
         console.error("[SHELL-IPC] Failed to register ShellView IPC:", err);
@@ -1326,7 +1341,6 @@ app.whenReady().then(async () => {
     // Initialize AI-OS View via ShellViewManager (V1.9: AiOsWebContentsController deprecated)
     if (shellViewManager) {
       try {
-        const { getAiOsEnvConfig } = require("./aios/aios-config");
         const envConfig = getAiOsEnvConfig();
         if (envConfig && envConfig.frontendPort > 0) {
           const aiosHomeUrl = `http://127.0.0.1:${envConfig.frontendPort}/zh`;
@@ -1346,8 +1360,6 @@ app.whenReady().then(async () => {
   // Initialize ModalManager and DropdownManager (Phase 3)
   if (mainWindow) {
     try {
-      const { ModalManager } = require("./shell/overlays/modal-manager");
-      const { DropdownManager } = require("./shell/overlays/dropdown-manager");
       const preloadPath = join(__dirname, "../preload/index.js");
       modalManager = new ModalManager(mainWindow, preloadPath);
       dropdownManager = new DropdownManager(mainWindow);
@@ -1360,7 +1372,6 @@ app.whenReady().then(async () => {
   // Initialize Tray (Phase 5)
   if (mainWindow) {
     try {
-      const { createTrayManager } = require("./shell/tray-manager");
       trayManager = createTrayManager(mainWindow);
       trayManager?.create();
       console.log("[TRAY] Tray initialized");
@@ -1381,7 +1392,6 @@ app.whenReady().then(async () => {
   // Initialize Shortcut Manager (Phase 5)
   if (mainWindow) {
     try {
-      const { createShortcutManager, destroyShortcutManager } = require("./shell/shortcut-manager");
       const shortcutManager = createShortcutManager();
       shortcutManager.setMainWindow(mainWindow);
       shortcutManager.registerAll();
@@ -1419,7 +1429,6 @@ app.whenReady().then(async () => {
         console.error("[BROWSER] Tool server failed to start:", err);
       });
 
-      const { registerBrowserToolServerStop } = require("./update/update-lifecycle");
       registerBrowserToolServerStop(() => {
         if (browserToolServer) browserToolServer.stop();
       });
@@ -1476,16 +1485,13 @@ app.on("before-quit", () => {
     currentChatAbort = null;
   }
   try {
-    const { onBeforeQuit } = require("./profile-runtime-manager");
-    onBeforeQuit();
+    profileRuntimeBeforeQuit();
   } catch { /* best effort */ }
   try {
-    const { onBeforeQuit: aiosQuit } = require("./aios/aios-runtime-supervisor");
-    aiosQuit();
+    aiosBeforeQuit();
   } catch { /* best effort */ }
   // Cleanup ShellViewManager views
   try {
-    const { destroyShellViews } = require("./shell/shell-view-ipc");
     destroyShellViews();
   } catch { /* best effort */ }
   // Cleanup Overlay Managers (Phase 3)
@@ -1495,14 +1501,12 @@ app.on("before-quit", () => {
   } catch { /* best effort */ }
   // Cleanup Tray Manager (Phase 5)
   try {
-    const { destroyTrayManager } = require("./shell/tray-manager");
     destroyTrayManager();
     console.log("[TRAY] Tray destroyed");
   } catch { /* best effort */ }
 
   // Cleanup Shortcut Manager (Phase 5)
   try {
-    const { destroyShortcutManager } = require("./shell/shortcut-manager");
     destroyShortcutManager();
     console.log("[SHORTCUT] Shortcut manager destroyed");
   } catch { /* best effort */ }
