@@ -41,7 +41,12 @@ function ensureEnVarPlugin(): void {
       { encoding: "utf-8", timeout: 30000 },
     );
 
-    const dllInSubdir = join(ENVAR_DLL_DIR, "Plugins", "x86-unicode", "EnVar.dll");
+    const dllInSubdir = join(
+      ENVAR_DLL_DIR,
+      "Plugins",
+      "x86-unicode",
+      "EnVar.dll",
+    );
     if (existsSync(dllInSubdir) && !existsSync(ENVAR_DLL_PATH)) {
       const { copyFileSync } = require("fs") as typeof import("fs");
       copyFileSync(dllInSubdir, ENVAR_DLL_PATH);
@@ -60,7 +65,9 @@ function ensureEnVarPlugin(): void {
     try {
       const { unlinkSync } = require("fs") as typeof import("fs");
       if (existsSync(tmpZip)) unlinkSync(tmpZip);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 

@@ -18,6 +18,33 @@
 | `check-openclaw` | — | `{ exists: boolean }` | 检测 OpenClaw |
 | `run-claw-migrate` | — | `string` | 迁移 OpenClaw |
 
+### Startup Gate（启动路由决策）
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `startup:resolve-decision` | — | `StartupDecision` | 解析启动决策，决定进入 main/welcome/setup/installing |
+
+**StartupDecision 结构：**
+```typescript
+{
+  runtime: RuntimeState | null;
+  connectionMode: "local" | "remote" | "ssh";
+  nextScreen: "main" | "welcome" | "setup" | "installing";
+  skipAgentInstall: boolean;
+  skipModelSetup: boolean;
+  shouldVerifyInBackground: boolean;
+  reason: StartupDecisionReason;
+  error?: string;
+}
+```
+
+**决策规则：**
+- `runtimeReady && modelConfigured` → `main`（跳过安装和配置）
+- `runtimeReady && !modelConfigured` → `setup`（跳过安装，只做配置）
+- `!runtimeReady` → `welcome`（需要安装）
+- `remote mode && connection ok` → `main`
+- `ssh mode && tunnel healthy` → `main`
+
 ### 配置
 
 | IPC Channel | 参数 | 返回值 | 说明 |
