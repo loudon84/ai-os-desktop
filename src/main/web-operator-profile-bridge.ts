@@ -9,10 +9,7 @@ interface ProfileAwareAction {
   args: Record<string, unknown>;
 }
 
-const SENSITIVE_ACTIONS = new Set([
-  "browser.type",
-  "browser.click",
-]);
+const SENSITIVE_ACTIONS = new Set(["browser.type", "browser.click"]);
 
 class WebOperatorProfileBridge {
   private allowedProfiles: Set<string>;
@@ -27,7 +24,10 @@ class WebOperatorProfileBridge {
 
   checkProfileAllowed(profileId: string): void {
     if (this.allowedProfiles.size > 0 && !this.allowedProfiles.has(profileId)) {
-      throw new ProfileRuntimeError("WEB_OPERATOR_PROFILE_NOT_ALLOWED", profileId);
+      throw new ProfileRuntimeError(
+        "WEB_OPERATOR_PROFILE_NOT_ALLOWED",
+        profileId,
+      );
     }
   }
 
@@ -102,7 +102,9 @@ class WebOperatorProfileBridge {
 
 let bridgeInstance: WebOperatorProfileBridge | null = null;
 
-export function getWebOperatorProfileBridge(allowedProfiles?: string[]): WebOperatorProfileBridge {
+export function getWebOperatorProfileBridge(
+  allowedProfiles?: string[],
+): WebOperatorProfileBridge {
   if (!bridgeInstance) {
     bridgeInstance = new WebOperatorProfileBridge(allowedProfiles);
   }
