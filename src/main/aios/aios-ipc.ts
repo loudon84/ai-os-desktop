@@ -15,7 +15,11 @@ import { listRuntimeServiceEvents } from "../profile-runtime-db";
 import type { AiOsServiceId, AiOsLogQueryOptions } from "../../shared/aios/aios-contract";
 
 export function registerAiosIpc(mainWindow: BrowserWindow): void {
-  initAiOsServices();
+  try {
+    initAiOsServices();
+  } catch (err) {
+    console.error("[AIOS] Failed to init services:", err);
+  }
 
   // Reconcile state from previous run
   reconcileAiOsRuntime().catch((err) => {

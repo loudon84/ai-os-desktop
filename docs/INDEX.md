@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.1.6（V1.4.1 Desktop Shell + 安装加固） |
+| **版本** | 0.3.5（V1.9 Desktop Shell 加固） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -35,6 +35,15 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **依赖安装**：`agent-deps-installer.ts` — `uv pip install --no-config`、优先 `requirements.txt`、wheelhouse 离线、`pip` 回退
 - **NSIS**：`installer-precheck.json` 的 `windowsVersion` 从注册表读取（修复 `${__NSD_VERSION}` 打包错误）
 
+**V1.9（Desktop Shell 加固）**：
+- **启动顺序修复**：`buildAppMenu() → setupIPC() → createWindow() → 延迟注册 AIOS/Enterprise/ShellView IPC`，解决 mainWindow 为 null 导致 IPC handler 未注册的阻断
+- **菜单接管**：删除 index.ts 内联 `buildMenu()`，统一使用 `shell-menu.ts` 的 `buildAppMenu`，含异常回退最小菜单
+- **ShellViewManager 集成**：以 SVM 统一管理 aios-home View，URL 由 `getAiOsEnvConfig()` 动态决定，`AiOsWebContentsController` 标记 @deprecated
+- **ShellView IPC**：新增 `shell:view:activate`、`shell:view:set-bounds`、`shell:view:hide` 三个 IPC 通道 + 参数校验
+- **Preload API**：新增 `window.shellView`（activate/setBounds/hide），`window.smcShell` 标记 @deprecated
+- **WebContentsHost**：通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级UI），替换 `AiOsWebAppHost`
+- **i18n**：新增 shellView 模块（en/zh-CN/es/pt-BR）
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -46,9 +55,9 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
 | `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer（8 个文件） | 按需扩展 |
-| `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime**（6 个文件） | 谨慎修改，影响全进程通信 |
+| `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView**（7 个文件） | 谨慎修改，影响全进程通信 |
 | `src/renderer/` | 渲染进程 — **components/layout/**、**components/install/PipMirrorFields**、**components/aios/**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
-| `src/shared/` | 共享模块 — i18n（4 语言 × 21 模块）+ browser/profile-runtime/enterprise/aios 契约；**V1.4.1: `enterprise/pip-mirror-presets.ts`** | 谨慎修改 |
+| `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell 契约；**V1.9: `shell/shell-view-contract.ts`** | 谨慎修改 |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |
@@ -71,7 +80,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | UI | React 19 + TailwindCSS 4 + Lucide Icons |
 | 语言 | TypeScript 5.9 |
 | 数据库 | better-sqlite3（会话历史 + **profile-runtime.db 运行时控制面**） |
-| 国际化 | i18next + react-i18next（4 语言 × 21 模块） |
+| 国际化 | i18next + react-i18next（4 语言 × 22 模块） |
 | Markdown | react-markdown + remark-gfm + react-syntax-highlighter |
 | 构建 | electron-vite + electron-builder |
 | 测试 | Vitest + Testing Library |

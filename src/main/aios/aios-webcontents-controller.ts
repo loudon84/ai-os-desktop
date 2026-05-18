@@ -2,6 +2,10 @@ import { BrowserWindow, WebContentsView, ipcMain } from "electron";
 
 const AIOS_PARTITION = "persist:aios-desktop";
 
+/**
+ * @deprecated V1.9 停用。由 ShellViewManager 统一管理 View。
+ * 保留文件仅为兼容性参考，不应在新代码中使用。
+ */
 export class AiOsWebContentsController {
   private view: WebContentsView | null = null;
   private mainWindow: BrowserWindow;

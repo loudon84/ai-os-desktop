@@ -418,6 +418,37 @@ Dropdown 系统 IPC。
 
 ---
 
+## ShellView IPC (V1.9)
+
+### View 管理
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `shell:view:activate` | `layerId: string` | `void` | 激活指定 Layer 的 View |
+| `shell:view:set-bounds` | `layerId: string, bounds: { x: number, y: number, width: number, height: number }` | `void` | 设置指定 View 的位置与尺寸（width/height 必须 ≥ 1） |
+| `shell:view:hide` | `layerId: string` | `void` | 隐藏指定 Layer 的 View |
+
+**Preload API**: `window.shellView`
+
+```typescript
+interface ShellViewAPI {
+  activate: (layerId: string) => Promise<void>;
+  setBounds: (layerId: string, bounds: ShellViewBoundsIPC) => Promise<void>;
+  hide: (layerId: string) => Promise<void>;
+}
+
+interface ShellViewBoundsIPC {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+```
+
+**错误响应**: 无效 `layerId` 抛出 `"Layer not found: xxx"`；无效 `bounds` 抛出 `"Invalid bounds: ..."`。
+
+---
+
 ## 事件推送 (Main → Renderer)
 
 ### 快捷键事件

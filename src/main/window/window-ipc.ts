@@ -28,10 +28,26 @@ export function bindMainBrowserWindow(win: BrowserWindow | null): void {
 }
 
 export function registerWindowIpc(): void {
-  if (registered) return;
+  console.log("[WINDOW-IPC] registerWindowIpc called, registered =", registered);
+  if (registered) {
+    console.log("[WINDOW-IPC] Already registered, skipping");
+    return;
+  }
   registered = true;
+  console.log("[WINDOW-IPC] Registering window IPC handlers...");
 
-  ipcMain.handle("window:minimize", () => {
+  // Helper to safely register handler (ignore if already registered)
+  const safeHandle = (channel: string, handler: () => void | boolean | Promise<void | boolean>) => {
+    try {
+      ipcMain.handle(channel, handler);
+      console.log(`[WINDOW-IPC] Registered handler for ${channel}`);
+    } catch (err) {
+      // Handler might already be registered
+      console.log(`[WINDOW-IPC] Handler for ${channel} already exists or error:`, err);
+    }
+  };
+
+  safeHandle("window:minimize", () => {
     const win = resolveTargetWindow();
     if (!win) {
       console.warn("[WINDOW-IPC] minimize: no target window found");
@@ -40,7 +56,7 @@ export function registerWindowIpc(): void {
     win.minimize();
   });
 
-  ipcMain.handle("window:maximize-or-restore", () => {
+  safeHandle("window:maximize-or-restore", () => {
     const win = resolveTargetWindow();
     if (!win) {
       console.warn("[WINDOW-IPC] maximize-or-restore: no target window found");
@@ -55,7 +71,7 @@ export function registerWindowIpc(): void {
     win.maximize();
   });
 
-  ipcMain.handle("window:close", () => {
+  safeHandle("window:close", () => {
     const win = resolveTargetWindow();
     if (!win) {
       console.warn("[WINDOW-IPC] close: no target window found");
@@ -64,7 +80,7 @@ export function registerWindowIpc(): void {
     win.close();
   });
 
-  ipcMain.handle("window:is-maximized", () => {
+  safeHandle("window:is-maximized", () => {
     const win = resolveTargetWindow();
     if (!win) {
       console.warn("[WINDOW-IPC] is-maximized: no target window found");
@@ -72,4 +88,6 @@ export function registerWindowIpc(): void {
     }
     return win.isMaximized();
   });
+
+  console.log("[WINDOW-IPC] All window IPC handlers registered successfully");
 }

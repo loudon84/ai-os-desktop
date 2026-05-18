@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { RuntimeGuard } from "../../components/runtime/RuntimeGuard";
 import { RuntimeStatusBar } from "../../components/runtime/RuntimeStatusBar";
-import { AiOsWebAppHost } from "../../components/aios/AiOsWebAppHost";
+import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import { Spinner } from "../../assets/icons";
 import type { View } from "../../types/desktop-shell";
 import type { RuntimeServiceRecord } from "../../../../shared/aios/aios-contract";
@@ -65,7 +65,7 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
               <span className="sr-only">{t("loadingRuntime")}</span>
             </div>
           ) : ready ? (
-            <AiOsWebAppHost className="h-full w-full" />
+            <WebContentsHost layerId="aios-home" className="h-full w-full" />
           ) : (
             <RuntimeGuard gatewayStatus={gatewayStatus} onNavigate={onNavigate} />
           )}

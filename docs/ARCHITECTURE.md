@@ -1,6 +1,6 @@
 # SMC Copilot Shell 架构文档
 
-> 版本: 0.1.8 | 最后更新: Phase 5 完成
+> 版本: 0.3.5 | 最后更新: V1.9 Desktop Shell 加固
 
 ## 架构概述
 
@@ -286,6 +286,13 @@ src/
 │   │   ├── shortcut-manager.ts    # 快捷键管理
 │   │   ├── plugin-loader.ts       # 插件加载器
 │   │   ├── shell-state-manager.ts # 状态管理
+│   │   ├── shell-menu.ts          # V1.9 菜单构建（唯一入口）
+│   │   ├── views/
+│   │   │   ├── shell-view-manager.ts  # View 管理器
+│   │   │   ├── managed-webcontents-view.ts  # 单 View 生命周期
+│   │   │   ├── view-registry.ts   # View 注册表
+│   │   │   └── view-events.ts     # View 事件总线
+│   │   ├── shell-view-ipc.ts      # V1.9 ShellView IPC
 │   │   └── overlays/
 │   │       ├── modal-manager.ts   # Modal 管理
 │   │       └── dropdown-manager.ts # Dropdown 管理
@@ -299,6 +306,8 @@ src/
 │   │   └── custom-dialog/         # 自定义对话框 (B2)
 │   └── src/
 │       └── components/
+│           ├── shell/
+│           │   └── WebContentsHost.tsx  # V1.9 通用 View 承载组件
 │           └── dropdowns/         # Dropdown React 组件
 │               ├── GatewayStatusDropdown.tsx
 │               ├── ProfileSwitcherDropdown.tsx (B3)
@@ -306,6 +315,8 @@ src/
 │               └── QuickActionsDropdown.tsx (B3)
 └── shared/
     ├── shell/
+    │   ├── view-contract.ts       # View 核心类型
+    │   ├── shell-view-contract.ts # V1.9 ShellView IPC 契约
     │   └── overlay-contract.ts    # Overlay 契约
     └── plugin/
         └── plugin-contract.ts     # 插件契约
@@ -329,6 +340,14 @@ src/
 - **全局快捷键**: 可自定义快捷键、冲突检测
 - **多窗口**: WindowManager、独立 Chat 窗口支持
 - **插件系统**: PluginLoader、PluginAPI 契约
+
+### 0.3.5 (V1.9 Desktop Shell 加固)
+- **启动顺序修复**: `buildAppMenu() → setupIPC() → createWindow() → 延迟注册 AIOS/Enterprise/ShellView IPC`，解决 mainWindow 为 null 导致 IPC 未注册
+- **菜单接管**: 统一 `shell-menu.ts` 的 `buildAppMenu`，删除 index.ts 内联 `buildMenu`
+- **ShellViewManager 集成**: aios-home View 由 SVM 统一管理，URL 动态化
+- **ShellView IPC**: `shell:view:activate/set-bounds/hide` 三通道 + `window.shellView` Preload API
+- **WebContentsHost**: 通用 View 承载组件，替换 `AiOsWebAppHost`
+- **AiOsWebContentsController**: @deprecated，由 ShellViewManager 接管
 
 ### 0.1.7 (Phase 1-4)
 - Startup Gate + MainWindowController

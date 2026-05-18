@@ -582,6 +582,19 @@ interface SmcShellAPI {
   openExternal: (url: string) => Promise<void>;
 }
 
+interface ShellViewBoundsIPC {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface ShellViewAPI {
+  activate: (layerId: string) => Promise<void>;
+  setBounds: (layerId: string, bounds: ShellViewBoundsIPC) => Promise<void>;
+  hide: (layerId: string) => Promise<void>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -590,7 +603,9 @@ declare global {
     profileRuntime: ProfileRuntimeAPI;
     profileEntry: ProfileEntryAPI;
     aiosRuntime: AiOsAPI;
+    /** @deprecated V1.9 使用 window.shellView 代替 */
     smcShell: SmcShellAPI;
+    shellView: ShellViewAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

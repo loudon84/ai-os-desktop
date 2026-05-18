@@ -4,6 +4,10 @@ export interface AiOsWebAppHostProps {
   className?: string;
 }
 
+/**
+ * @deprecated V1.9 停用。由 WebContentsHost 替换。
+ * WebContentsHost 通过 window.shellView API 与 ShellViewManager 通信。
+ */
 export function AiOsWebAppHost({ className }: AiOsWebAppHostProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 

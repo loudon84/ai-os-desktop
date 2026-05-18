@@ -330,11 +330,48 @@ function setupInternalViewIpc(): void {
 }
 
 function setupIPC(): void {
+  console.log("[SETUP] Setting up IPC handlers...");
+  
+  // Register window controls IPC handlers directly (fallback)
   try {
-    const { registerWindowIpc } = require("./window/window-ipc");
-    registerWindowIpc();
+    console.log("[SETUP] Registering window control handlers directly...");
+    
+    ipcMain.handle("window:minimize", () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) win.minimize();
+    });
+    
+    ipcMain.handle("window:maximize-or-restore", () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) {
+        if (win.isMaximized()) win.unmaximize();
+        else win.maximize();
+      }
+    });
+    
+    ipcMain.handle("window:close", () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) win.close();
+    });
+    
+    ipcMain.handle("window:is-maximized", () => {
+      const win = BrowserWindow.getFocusedWindow();
+      return win ? win.isMaximized() : false;
+    });
+    
+    console.log("[SETUP] Window control handlers registered directly");
   } catch (err) {
-    console.error("[WINDOW] Failed to register window IPC:", err);
+    console.error("[SETUP] Failed to register window handlers directly:", err);
+  }
+  
+  try {
+    console.log("[SETUP] Loading window-ipc module...");
+    const windowIpc = require("./window/window-ipc");
+    if (typeof windowIpc.registerWindowIpc === "function") {
+      windowIpc.registerWindowIpc();
+    }
+  } catch (err) {
+    console.error("[WINDOW] Failed to load window-ipc module:", err);
   }
 
   // Internal View IPC (for Modal system)
@@ -350,23 +387,14 @@ function setupIPC(): void {
     setupProfileRuntimeIPC();
   } catch { /* profile-runtime not available in early setup */ }
 
-  // Enterprise Install IPC
-  try {
-    const { setupEnterpriseInstallIPC } = require("./enterprise/enterprise-ipc");
-    if (mainWindow) setupEnterpriseInstallIPC(mainWindow);
-  } catch { /* enterprise install not available in early setup */ }
-
   // First Run Wizard IPC
   try {
     const { registerFirstRunWizardIPC } = require("./enterprise/first-run-wizard");
     registerFirstRunWizardIPC();
   } catch { /* first-run wizard not available in early setup */ }
 
-  // AI-OS Runtime IPC
-  try {
-    const { registerAiosIpc } = require("./aios/aios-ipc");
-    if (mainWindow) registerAiosIpc(mainWindow);
-  } catch { /* aios runtime not available in early setup */ }
+  // NOTE: Enterprise IPC, AIOS IPC, and ShellView IPC are registered
+  // after createWindow() in the app.ready callback, because they require mainWindow.
 
   // Installation
   ipcMain.handle("check-install", () => {
@@ -1122,112 +1150,6 @@ function setupIPC(): void {
   });
 }
 
-function buildMenu(): void {
-  const isMac = process.platform === "darwin";
-
-  const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: "about" as const },
-              { type: "separator" as const },
-              { role: "services" as const },
-              { type: "separator" as const },
-              { role: "hide" as const },
-              { role: "hideOthers" as const },
-              { role: "unhide" as const },
-              { type: "separator" as const },
-              { role: "quit" as const },
-            ],
-          },
-        ]
-      : []),
-    {
-      label: "Chat",
-      submenu: [
-        {
-          label: "New Chat",
-          accelerator: "CmdOrCtrl+N",
-          click: (): void => {
-            mainWindow?.webContents.send("menu-new-chat");
-          },
-        },
-        { type: "separator" },
-        {
-          label: "Search Sessions",
-          accelerator: "CmdOrCtrl+K",
-          click: (): void => {
-            mainWindow?.webContents.send("menu-search-sessions");
-          },
-        },
-      ],
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { type: "separator" },
-        { role: "togglefullscreen" },
-        ...(is.dev
-          ? [
-              { type: "separator" as const },
-              { role: "reload" as const },
-              { role: "toggleDevTools" as const },
-            ]
-          : []),
-      ],
-    },
-    {
-      label: "Window",
-      submenu: [
-        { role: "minimize" },
-        { role: "zoom" },
-        ...(isMac
-          ? [{ type: "separator" as const }, { role: "front" as const }]
-          : [{ role: "close" as const }]),
-      ],
-    },
-    {
-      label: "Help",
-      submenu: [
-        {
-          label: "Hermes Agent on GitHub",
-          click: (): void => {
-            shell.openExternal("https://github.com/NousResearch/hermes-agent/");
-          },
-        },
-        {
-          label: "Report an Issue",
-          click: (): void => {
-            shell.openExternal(
-              "https://github.com/fathah/hermes-desktop/issues",
-            );
-          },
-        },
-      ],
-    },
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
-
 function setupUpdater(): void {
   // IPC handlers must always be registered to avoid invoke errors
   ipcMain.handle("get-app-version", () => app.getVersion());
@@ -1323,7 +1245,7 @@ function setupUpdater(): void {
   }, 5000);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.name = "SMC Copilot";
   electronApp.setAppUserModelId("com.smc.smc-ai-copilot");
 
@@ -1345,9 +1267,81 @@ app.whenReady().then(() => {
     console.error("[SHIM] Failed to ensure shims:", err);
   }
 
-  buildMenu();
+  // Build app menu via shell-menu.ts
+  try {
+    const { buildAppMenu } = require("./shell/shell-menu");
+    buildAppMenu(() => mainWindow);
+  } catch (err) {
+    console.error("[MENU] Failed to build app menu, falling back to minimal menu:", err);
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([{ label: "File", submenu: [{ role: "quit" as const }] }])
+    );
+  }
+
   setupIPC();
+
   createWindow();
+
+  // Register IPC handlers that require mainWindow (must be after createWindow)
+  if (mainWindow) {
+    // AI-OS Runtime IPC
+    try {
+      const { registerAiosIpc } = require("./aios/aios-ipc");
+      registerAiosIpc(mainWindow);
+      console.log("[AIOS] AIOS IPC handlers registered successfully");
+    } catch (err) {
+      console.error("[AIOS] Failed to register AIOS IPC:", err);
+    }
+
+    // Enterprise Install IPC
+    try {
+      const { setupEnterpriseInstallIPC } = require("./enterprise/enterprise-ipc");
+      setupEnterpriseInstallIPC(mainWindow);
+    } catch (err) {
+      console.error("[ENTERPRISE] Failed to register enterprise IPC:", err);
+    }
+
+    // Initialize ShellViewManager
+    let shellViewManager: import("./shell/views/shell-view-manager").ShellViewManager | null = null;
+    try {
+      const { ShellViewManager } = require("./shell/views/shell-view-manager");
+      shellViewManager = new ShellViewManager(mainWindow);
+      console.log("[SHELL] ShellViewManager initialized");
+    } catch (err) {
+      console.error("[SHELL] Failed to initialize ShellViewManager:", err);
+    }
+
+    // ShellView IPC
+    if (shellViewManager) {
+      try {
+        const { registerShellViewIpc } = require("./shell/shell-view-ipc");
+        registerShellViewIpc(shellViewManager);
+      } catch (err) {
+        console.error("[SHELL-IPC] Failed to register ShellView IPC:", err);
+      }
+    } else {
+      console.warn("[SHELL-IPC] ShellViewManager not available, ShellView IPC not registered");
+    }
+
+    // Initialize AI-OS View via ShellViewManager (V1.9: AiOsWebContentsController deprecated)
+    if (shellViewManager) {
+      try {
+        const { getAiOsEnvConfig } = require("./aios/aios-config");
+        const envConfig = getAiOsEnvConfig();
+        if (envConfig && envConfig.frontendPort > 0) {
+          const aiosHomeUrl = `http://127.0.0.1:${envConfig.frontendPort}/zh`;
+          await shellViewManager.createView("aios-home", "aios-home", aiosHomeUrl, {
+            layer: "content",
+          });
+          console.log(`[SHELL] aios-home view created with URL: ${aiosHomeUrl}`);
+        } else {
+          console.warn("[SHELL] AI-OS env config invalid, aios-home view not created");
+        }
+      } catch (err) {
+        console.error("[SHELL] Failed to create aios-home view:", err);
+      }
+    }
+  }
 
   // Initialize ModalManager and DropdownManager (Phase 3)
   if (mainWindow) {
@@ -1438,14 +1432,6 @@ app.whenReady().then(() => {
     } catch (err) {
       console.error("[BROWSER] Failed to initialize Web Operator:", err);
     }
-
-    // Initialize AI-OS WebContentsView controller
-    try {
-      const { AiOsWebContentsController } = require("./aios/aios-webcontents-controller");
-      new AiOsWebContentsController(mainWindow);
-    } catch (err) {
-      console.error("[AIOS] Failed to initialize WebContentsController:", err);
-    }
   }
 
   setupUpdater();
@@ -1496,6 +1482,11 @@ app.on("before-quit", () => {
   try {
     const { onBeforeQuit: aiosQuit } = require("./aios/aios-runtime-supervisor");
     aiosQuit();
+  } catch { /* best effort */ }
+  // Cleanup ShellViewManager views
+  try {
+    const { destroyShellViews } = require("./shell/shell-view-ipc");
+    destroyShellViews();
   } catch { /* best effort */ }
   // Cleanup Overlay Managers (Phase 3)
   try {

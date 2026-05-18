@@ -5,7 +5,7 @@
 ### index.ts — 主进程入口
 
 - **职责**: 创建 BrowserWindow、注册全部 IPC handler、构建应用菜单、设置自动更新、生命周期管理
-- **关键行为**: before-quit 时清理 gateway 和 claw3d 进程；**V1.4.1**: Win/Linux `frame: false` + `titleBarStyle: "hidden"`，macOS 保留 `hiddenInset`；`setupIPC()` 中调用 `registerWindowIpc()`（只注册一次）
+- **关键行为**: **V1.9**: 启动顺序 `buildAppMenu() → setupIPC() → createWindow() → 延迟注册 AIOS/Enterprise/ShellView IPC`；菜单由 `shell-menu.ts` 的 `buildAppMenu` 统一构建；`AiOsWebContentsController` 停用，由 `ShellViewManager` 接管；before-quit 时清理 gateway、claw3d 进程和 ShellView
 - **导出**: 无（入口文件）
 
 ### window/window-ipc.ts — V1.4.1 窗口控制 IPC
@@ -264,6 +264,13 @@
 ### aios-webcontents-controller.ts — AI-OS WebContents 控制
 
 - **职责**: AI-OS BrowserView/WebContentsView 生命周期管理
+- **V1.9 状态**: **@deprecated** — 由 `ShellViewManager` 统一接管 View 管理，此控制器停用
+
+### shell/shell-view-ipc.ts — V1.9 ShellView IPC 注册
+
+- **职责**: 注册 ShellView IPC handler（activate/set-bounds/hide），桥接 Renderer 与 ShellViewManager
+- **IPC Channels**: `shell:view:activate`, `shell:view:set-bounds`, `shell:view:hide`
+- **核心方法**: `registerShellViewIpc(svm)` — 在 createWindow 后调用；`destroyShellViews()` — before-quit 清理
 
 ---
 
@@ -552,9 +559,9 @@
 
 ### index.ts — 预加载脚本
 
-- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**
+- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**、**`window.shellView`**
 - **关键**: 将所有 IPC invoke/on 封装为 Promise/回调 API
-- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**
+- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**, **shellView (3 方法: activate/setBounds/hide)**
 
 ### browser-api.ts — Web Operator Preload API
 
@@ -581,6 +588,11 @@
 
 - **职责**: 封装 profile-entry:* IPC 为 `window.profileEntry` API
 - **方法**: listProfileEntries, getProfileEntry, openProfileEntry, getProfilePageLayout, updateProfilePageLayout
+
+### shell-view-api.ts — V1.9 ShellView Preload API
+
+- **职责**: 封装 shell:view:* IPC 为 `window.shellView` API
+- **核心方法**: `activate(layerId)` — 激活 View；`setBounds(layerId, bounds)` — 设置 View 位置/尺寸；`hide(layerId)` — 隐藏 View
 
 ---
 
@@ -640,7 +652,8 @@
 | RemoteNotice | components/RemoteNotice.tsx | 远程模式提示横幅 |
 | Versions | components/Versions.tsx | 版本信息展示 |
 | HermesLogo | components/common/HermesLogo.tsx | Logo 组件 |
-| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | AI-OS Web 应用宿主 |
+| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | **@deprecated V1.9** AI-OS Web 应用宿主，由 WebContentsHost 替换 |
+| WebContentsHost | components/shell/WebContentsHost.tsx | **V1.9** 通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级） |
 | PipMirrorFields | components/install/PipMirrorFields.tsx | V1.4.1 PyPI 镜像选择字段 |
 | InstallWizard | components/install-wizard/install-wizard.tsx | 安装向导组件 |
 | RuntimeGuard | components/runtime/RuntimeGuard.tsx | 运行时守卫 |
@@ -724,6 +737,14 @@
 | browser-contract.ts | Web Operator API 契约与类型定义 |
 | browser-errors.ts | Web Operator 错误码 |
 | browser-tool-schema.ts | Web Operator 工具 Schema 定义 |
+
+### shell/ — Shell View 契约
+
+| 文件 | 职责 |
+|---|---|
+| view-contract.ts | ShellView 核心类型（Kind/Layer/State/Bounds/Layout/Options/RegistryEntry） |
+| **shell-view-contract.ts** | **V1.9** ShellView IPC 契约（ShellViewChannels 常量 + 请求/响应类型） |
+| overlay-contract.ts | Overlay 契约（Modal/Dropdown/InternalView） |
 
 ### i18n/ — 国际化
 
