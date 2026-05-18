@@ -178,7 +178,7 @@ function App(): React.JSX.Element {
           {showAppTitlebar ? (
             <div className="layout-titlebar app-drag-region">
               <div className="layout-titlebar__left no-drag">
-                Hermes Desktop
+                SMC Copilot
               </div>
               <div className="no-drag">
                 <WindowControls />

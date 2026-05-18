@@ -1,5 +1,9 @@
 export default {
-  aiosHome: "AI-OS Home",
+  aiosHome: "Copilot",
+  webOperator: "Web Operator",
+  aiosWorkspace: "AI-OS Workspace",
+  profileRuntime: "Profile Runtime",
+  profileWorkspace: "Profile Workspace",
   chat: "Chat",
   sessions: "Sessions",
   agents: "Profiles",
@@ -12,10 +16,6 @@ export default {
   tools: "Tools",
   schedules: "Schedules",
   gateway: "Gateway",
-  runtimeSetup: "Runtime Setup",
-  webOperator: "Web Operator",
-  aiosWorkspace: "AI-OS Workspace",
-  profileRuntime: "Profile Runtime",
-  profileWorkspace: "Profile Workspace",
+  runtimeSetup: "Runtime Setup",  
   settings: "Settings",
 } as const;
