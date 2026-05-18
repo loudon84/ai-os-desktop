@@ -10,6 +10,7 @@ export type ShellModalKey =
   | "confirm-exit"
   | "error-report"
   | "permission-request"
+  | "custom-dialog"
   | "custom";
 
 /** Dropdown Key - 预定义的 Dropdown 类型（用于 IPC 桥接） */

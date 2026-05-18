@@ -652,6 +652,14 @@ export async function sendMessage(
 // Lazy init — called on first sendMessage or gateway start
 let _initialized = false;
 let _healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+let _healthStatusCallback: ((running: boolean) => void) | null = null;
+
+/**
+ * Set a callback to be called when health status changes
+ */
+export function setHealthStatusCallback(callback: ((running: boolean) => void) | null): void {
+  _healthStatusCallback = callback;
+}
 
 function ensureInitialized(): void {
   if (_initialized) return;
@@ -665,7 +673,14 @@ function ensureInitialized(): void {
 function startHealthPolling(): void {
   if (_healthCheckInterval) return;
   _healthCheckInterval = setInterval(async () => {
+    const wasAvailable = apiServerAvailable;
     apiServerAvailable = await isApiServerReady();
+    
+    // Notify callback on status change
+    if (wasAvailable !== apiServerAvailable && _healthStatusCallback) {
+      _healthStatusCallback(apiServerAvailable);
+    }
+    
     // Stop polling once API is confirmed available — only re-check on demand
     if (apiServerAvailable && _healthCheckInterval) {
       clearInterval(_healthCheckInterval);

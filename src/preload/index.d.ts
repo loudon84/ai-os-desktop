@@ -534,6 +534,20 @@ interface HermesAPI {
   getInstallerPrecheck: () => Promise<InstallerPrecheck | null>;
 
   windowControls: WindowControlsAPI;
+
+  // Dropdown IPC（桥接到 React 层）
+  onDropdownShow: (
+    callback: (event: {
+      key: string;
+      anchorBounds: { x: number; y: number; width: number; height: number };
+      preferredDirection: string;
+      data?: unknown;
+    }) => void,
+  ) => () => void;
+  onDropdownClose: (
+    callback: (event: { key: string }) => void,
+  ) => () => void;
+  onDropdownCloseAll: (callback: () => void) => () => void;
 }
 
 interface WindowControlsAPI {
@@ -541,6 +555,31 @@ interface WindowControlsAPI {
   maximizeOrRestore(): Promise<void>;
   close(): Promise<void>;
   isMaximized(): Promise<boolean>;
+}
+
+/**
+ * Shell API - 桌面壳层基础能力
+ */
+interface SmcShellAPI {
+  /**
+   * 解析启动决策
+   */
+  resolveStartupDecision: () => Promise<import("../shared/startup/startup-contract").StartupDecision>;
+
+  /**
+   * 获取应用版本
+   */
+  getAppVersion: () => Promise<string>;
+
+  /**
+   * 窗口控制
+   */
+  windowControls: WindowControlsAPI;
+
+  /**
+   * 打开外部链接
+   */
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {
@@ -551,5 +590,14 @@ declare global {
     profileRuntime: ProfileRuntimeAPI;
     profileEntry: ProfileEntryAPI;
     aiosRuntime: AiOsAPI;
+    smcShell: SmcShellAPI;
+    internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
+  }
+
+  // Phase 5: Tray - add isQuitting flag to App
+  namespace Electron {
+    interface App {
+      isQuitting?: boolean;
+    }
   }
 }

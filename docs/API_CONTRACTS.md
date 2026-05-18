@@ -99,321 +99,146 @@
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `read-memory` | — | `{ memory: string, userProfile: string }` | 读取记忆 |
-| `add-memory-entry` | `{ entry: string }` | `boolean` | 添加记忆条目 |
-| `update-memory-entry` | `{ index, entry }` | `boolean` | 更新记忆条目 |
-| `remove-memory-entry` | `{ index }` | `boolean` | 删除记忆条目 |
-| `write-user-profile` | `{ content: string }` | `boolean` | 写入用户画像 |
-| `read-soul` | — | `string` | 读取 SOUL.md |
-| `write-soul` | `{ content: string }` | `boolean` | 写入 SOUL.md |
-| `reset-soul` | — | `boolean` | 重置人格 |
+| `read-memory` | `{ limit?, offset?, profile? }` | `MemoryEntry[]` | 读取记忆 |
+| `add-memory-entry` | `{ content, metadata?, profile? }` | `boolean` | 添加记忆 |
+| `update-memory-entry` | `{ entryId, content, metadata?, profile? }` | `boolean` | 更新记忆 |
+| `remove-memory-entry` | `{ entryId, profile? }` | `boolean` | 删除记忆 |
+| `read-soul` | `{ profile? }` | `string` | 读取 SOUL |
+| `write-soul` | `{ content, profile? }` | `boolean` | 写入 SOUL |
 
-### 工具集与技能
+### 技能
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `get-toolsets` | — | `Toolset[]` | 列出工具集 |
-| `set-toolset-enabled` | `{ name, enabled }` | `boolean` | 启用/禁用工具集 |
-| `list-installed-skills` | — | `Skill[]` | 已安装技能 |
-| `list-bundled-skills` | — | `Skill[]` | 内置技能 |
-| `get-skill-content` | `{ name }` | `string` | 技能内容 |
-| `install-skill` | `{ name }` | `boolean` | 安装技能 |
-| `uninstall-skill` | `{ name }` | `boolean` | 卸载技能 |
+| `list-skills` | `{ profile? }` | `Skill[]` | 列出已安装技能 |
+| `list-bundled-skills` | — | `Skill[]` | 列出预置技能 |
+| `get-skill-detail` | `{ skillId, profile? }` | `SkillDetail` | 技能详情 |
+| `install-skill` | `{ skillId, profile? }` | `boolean` | 安装技能 |
+| `uninstall-skill` | `{ skillId, profile? }` | `boolean` | 卸载技能 |
+
+### 工具
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `get-toolsets` | `{ profile? }` | `Toolset[]` | 获取工具集 |
+| `set-toolset-enabled` | `{ toolsetId, enabled, profile? }` | `boolean` | 启用/禁用工具集 |
+| `list-mcp-servers` | `{ profile? }` | `McpServer[]` | 列出 MCP 服务器 |
 
 ### 定时任务
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `list-cron-jobs` | — | `CronJob[]` | 列出任务 |
-| `create-cron-job` | `CronJobConfig` | `boolean` | 创建任务 |
-| `remove-cron-job` | `{ id }` | `boolean` | 删除任务 |
-| `pause-cron-job` | `{ id }` | `boolean` | 暂停任务 |
-| `resume-cron-job` | `{ id }` | `boolean` | 恢复任务 |
-| `trigger-cron-job` | `{ id }` | `boolean` | 手动触发 |
+| `list-cron-jobs` | `{ includeDisabled?, profile? }` | `CronJob[]` | 列出定时任务 |
+| `create-cron-job` | `{ schedule, prompt?, name?, deliver?, profile? }` | `boolean` | 创建任务 |
+| `remove-cron-job` | `{ jobId, profile? }` | `boolean` | 删除任务 |
+| `pause-cron-job` | `{ jobId, profile? }` | `boolean` | 暂停任务 |
+| `resume-cron-job` | `{ jobId, profile? }` | `boolean` | 恢复任务 |
 
-### 模型
-
-| IPC Channel | 参数 | 返回值 | 说明 |
-|---|---|---|---|
-| `list-models` | — | `Model[]` | 列出模型 |
-| `add-model` | `ModelConfig` | `boolean` | 添加模型 |
-| `remove-model` | `{ id }` | `boolean` | 删除模型 |
-| `update-model` | `{ id, ...updates }` | `boolean` | 更新模型 |
-
-### Claw3D
+### 外部链接
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `claw3d-status` | — | `Claw3DStatus` | 状态查询 |
-| `claw3d-setup` | — | void | 安装（进度通过事件推送） |
-| `claw3d-start-all` | — | void | 启动全部 |
-| `claw3d-stop-all` | — | void | 停止全部 |
-| `claw3d-get-port` / `claw3d-set-port` | — / `{ port }` | `number` / `void` | 端口配置 |
-| `claw3d-get-ws-url` / `claw3d-set-ws-url` | — / `{ url }` | `string` / `void` | WebSocket URL |
+| `open-external` | `{ url: string }` | `void` | 用系统浏览器打开链接 |
 
-### 更新
+### 备份与导入
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `check-for-updates` | — | void | 检查更新（结果通过事件推送） |
-| `download-update` | — | void | 下载更新 |
-| `install-update` | — | void | 安装更新 |
-| `get-app-version` | — | `string` | 获取应用版本 |
+| `run-hermes-backup` | `{ profile? }` | `string` | 运行备份 |
+| `run-hermes-import` | `{ archivePath, profile? }` | `string` | 导入备份 |
+| `run-hermes-dump` | — | `string` | 调试导出 |
+
+### 日志
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `read-logs` | `{ logFile?, lines?, profile? }` | `string` | 读取日志 |
 
 ---
 
-## 主进程推送事件 (Main → Renderer)
+## Web Operator Browser IPC
 
-| 事件 Channel | 数据类型 | 说明 |
-|---|---|---|
-| `install-progress` | `{ step, message, percent? }` | 安装进度 |
-| `chat-chunk` | `{ content: string }` | 流式文本块 |
-| `chat-done` | `{ sessionId?: string }` | 聊天完成 |
-| `chat-error` | `{ error: string }` | 聊天错误 |
-| `chat-tool-progress` | `{ label: string }` | 工具调用进度 |
-| `chat-usage` | `{ promptTokens, completionTokens, totalTokens, cost?, rateLimitRemaining? }` | Token 用量 |
-| `claw3d-setup-progress` | `{ step, message }` | Claw3D 安装进度 |
-| `update-available` | `{ version }` | 有可用更新 |
-| `update-download-progress` | `{ percent }` | 下载进度 |
-| `update-downloaded` | — | 下载完成 |
-| `update-error` | `{ error }` | 更新错误 |
-| `menu-new-chat` | — | 菜单快捷键：新聊天 |
-| `menu-search-sessions` | — | 菜单快捷键：搜索会话 |
+Browser IPC 处理受控浏览器相关的功能。
 
----
-
-## V1.1 Profile Runtime IPC 契约
-
-### profile-runtime:* — 多 Profile 运行时管理
+### BrowserView 管理
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `profile-runtime:importConfig` | `filePath: string` | `ImportRuntimeConfigResult` | 从 YAML 文件导入配置 |
-| `profile-runtime:listProfiles` | — | `ProfileSummary[]` | 列出所有 Profile |
-| `profile-runtime:getProfile` | `profileId: string` | `ProfileSummary \| null` | 获取单个 Profile |
-| `profile-runtime:startProfile` | `profileId: string` | `ProfileGatewayState` | 启动 Profile Gateway |
-| `profile-runtime:stopProfile` | `profileId: string` | `ProfileGatewayState` | 停止 Profile Gateway |
-| `profile-runtime:restartProfile` | `profileId: string` | `ProfileGatewayState` | 重启 Profile Gateway |
-| `profile-runtime:startAll` | — | `ProfileGatewayState[]` | 启动所有 autoStart Profile |
-| `profile-runtime:stopAll` | — | `ProfileGatewayState[]` | 停止所有运行中 Profile |
-| `profile-runtime:status` | — | `ProfileGatewayState[]` | 获取所有运行时状态 |
-| `profile-runtime:delegate` | `DelegateToProfileRequest` | `DelegateToProfileResult` | default 向 specialist 发起委托 |
-| `profile-runtime:listProfileSkills` | `profileId: string` | `ProfileSkillSummary[]` | 列出 Profile 技能 |
-| `profile-runtime:copySkill` | `CopySkillRequest` | `CopySkillResult[]` | 跨 Profile 复制技能 |
-| `profile-runtime:listProfileSessions` | `profileId: string` | `ProfileSessionSummary[]` | 列出 Profile 会话 |
-| `profile-runtime:shareSessionContext` | `ShareSessionContextRequest` | `ShareSessionContextResult[]` | 共享会话上下文 |
-| `profile-runtime:listSharedContexts` | `profileId?: string` | `SharedContextRef[]` | 列出共享上下文 |
-| `profile-runtime:deleteSharedContext` | `contextId: string` | `{ ok: boolean }` | 删除共享上下文 |
-| `profile-runtime:listAuditEvents` | `AuditEventFilter?` | `AuditEventRecord[]` | 查询审计事件 |
+| `browser.create_view` | `{ url: string }` | `string` | 创建 BrowserView，返回 viewId |
+| `browser.destroy_view` | `{ viewId: string }` | `boolean` | 销毁 BrowserView |
+| `browser.attach_to_main` | `{ viewId: string }` | `boolean` | 附加到主窗口 |
+| `browser.detach_from_main` | `{ viewId: string }` | `boolean` | 从主窗口分离 |
+| `browser.get_all_views` | — | `BrowserViewInfo[]` | 获取所有 BrowserView |
 
-### profile-entry:* — Profile 页面入口
+### 页面控制
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `profile-entry:list` | — | `ProfileEntrySummary[]` | 列出所有 Profile 入口 |
-| `profile-entry:get` | `profileId: string` | `ProfileEntrySummary \| null` | 获取单个入口 |
-| `profile-entry:open` | `profileId: string` | `OpenProfileEntryResult` | 打开 Profile 页面 |
-| `profile-entry:get-layout` | `profileId: string` | `ProfilePageLayout` | 获取页面布局 |
-| `profile-entry:update-layout` | `profileId, layout` | `ProfilePageLayout` | 更新页面布局 |
+| `browser.load_url` | `{ viewId: string, url: string }` | `boolean` | 加载 URL |
+| `browser.go_back` | `{ viewId: string }` | `boolean` | 后退 |
+| `browser.go_forward` | `{ viewId: string }` | `boolean` | 前进 |
+| `browser.reload` | `{ viewId: string }` | `boolean` | 刷新 |
+| `browser.stop` | `{ viewId: string }` | `boolean` | 停止加载 |
+| `browser.get_url` | `{ viewId: string }` | `string` | 获取当前 URL |
+| `browser.get_title` | `{ viewId: string }` | `string` | 获取页面标题 |
 
-### Profile Runtime 错误码
-
-| 错误码 | 说明 |
-|---|---|
-| PROFILE_NOT_FOUND | Profile 不存在 |
-| PROFILE_ALREADY_EXISTS | Profile 已存在 |
-| PROFILE_INVALID_NAME | 名称不合法（需 kebab-case） |
-| PROFILE_CONFIG_INVALID | 配置格式错误 |
-| PROFILE_PORT_CONFLICT | 端口冲突 |
-| PROFILE_RUNTIME_NOT_DEPLOYED | 运行时未部署 |
-| PROFILE_RUNTIME_START_FAILED | 启动失败 |
-| PROFILE_RUNTIME_STOP_FAILED | 停止失败 |
-| PROFILE_GATEWAY_HEALTH_TIMEOUT | 健康检查超时 |
-| PROFILE_ADAPTER_NOT_FOUND | 适配器未找到 |
-| PROFILE_CAPABILITY_NOT_ENABLED | 能力未启用 |
-| PROFILE_DELEGATION_FAILED | 委托失败 |
-| PROFILE_SKILL_NOT_FOUND | 技能未找到 |
-| PROFILE_SKILL_COPY_FAILED | 技能复制失败 |
-| PROFILE_CONTEXT_SOURCE_SESSION_NOT_FOUND | 源会话未找到 |
-| PROFILE_CONTEXT_SHARE_FAILED | 上下文共享失败 |
-| PROFILE_ENTRY_NOT_FOUND | 入口未找到 |
-| PROFILE_ENTRY_ROUTE_CONFLICT | 路由冲突 |
-| WEB_OPERATOR_PROFILE_NOT_ALLOWED | Web Operator 不允许该 Profile |
-
----
-
-## V1.2.1 Enterprise Install IPC 契约
-
-### enterprise:* — 企业级一键部署
+### 元素交互
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `enterprise:get-deployment-config` | — | `LoadConfigResult` | 获取 deployment.json 配置 |
-| `enterprise:validate-deployment-config` | — | `ValidationResult` | 校验 deployment.json schema |
-| `enterprise:preflight` | — | `PreflightReport` | 运行 20 项环境预检 |
-| `enterprise:install` | `EnterpriseInstallInput?` | `EnterpriseInstallResult` | 执行 20 步安装流水线 |
-| `enterprise:install-cancel` | — | `{ ok: boolean }` | 取消当前安装 |
-| `enterprise:update` | `EnterpriseUpdateInput?` | `EnterpriseUpdateResult` | 更新 Desktop/Agent |
-| `enterprise:repair` | `EnterpriseRepairInput?` | `EnterpriseRepairResult` | L1-L5 递进修复 |
-| `enterprise:rollback` | `EnterpriseRollbackInput` | `EnterpriseRollbackResult` | 回滚到指定快照 |
-| `enterprise:get-install-marker` | — | `InstallMarker \| null` | 获取安装标记 |
-| `enterprise:get-install-log` | `{ type: InstallPhase }` | `string` | 获取安装日志 |
-| `enterprise:open-log-dir` | — | `{ ok: boolean }` | 打开日志目录 |
-| `enterprise:run-doctor` | `RuntimeDoctorInput?` | `DoctorReport` | 运行诊断检查（`runAllChecks`） |
-| `enterprise:export-doctor-report` | — | `{ ok: boolean, path: string }` | 导出诊断报告 JSON |
-| `enterprise:reinstall-runtime` | — | `EnterpriseInstallResult` | 强制重装（`force: true`） |
-| `enterprise:get-migration-status` | — | `MigrationStatus` | 启动迁移结果与 warning |
-| `enterprise:get-installer-precheck` | — | `InstallerPrecheck \| null` | 读取 NSIS 安装器预检 JSON |
-| `enterprise:get-runtime-state` | — | `RuntimeState` | 解析本地运行时状态（agent/venv/cli/model/updateMode） |
+| `browser.click` | `{ viewId: string, selector: string, options?: { double?, right?, strict? } }` | `{ success: boolean, error?: string }` | 点击元素 |
+| `browser.type` | `{ viewId: string, selector: string, text: string, options?: { clear?, delay?, strict? } }` | `{ success: boolean, error?: string }` | 输入文本 |
+| `browser.fill` | `{ viewId: string, selector: string, text: string, options?: { strict? } }` | `{ success: boolean, error?: string }` | 填充表单 |
+| `browser.clear` | `{ viewId: string, selector: string, options?: { strict? } }` | `{ success: boolean, error?: string }` | 清空输入 |
+| `browser.select` | `{ viewId: string, selector: string, values: string[], options?: { strict? } }` | `{ success: boolean, error?: string }` | 选择选项 |
+| `browser.check` | `{ viewId: string, selector: string, options?: { strict? } }` | `{ success: boolean, error?: string }` | 勾选复选框 |
+| `browser.uncheck` | `{ viewId: string, selector: string, options?: { strict? } }` | `{ success: boolean, error?: string }` | 取消勾选 |
+| `browser.press` | `{ viewId: string, key: string }` | `{ success: boolean, error?: string }` | 按键 |
 
-### Window 控制（`window.desktopWindow`）
-
-| Channel | 参数 | 返回 | 说明 |
-|---|---|---|---|
-| `window:minimize` | — | `void` | 最小化主窗口 |
-| `window:maximize-or-restore` | — | `void` | 最大化或还原 |
-| `window:close` | — | `void` | 关闭主窗口 |
-| `window:is-maximized` | — | `boolean` | 是否最大化 |
-| `window:maximized-change` (event) | `boolean` | — | 最大化状态变化 |
-
-### Renderer 便捷封装（`window.hermesAPI`）
-
-| Preload 方法 | IPC | 说明 |
-|---|---|---|
-| `checkInstallStatus` | `check-install` | RuntimeSetup 安装状态 |
-| `runDoctor` | `enterprise:run-doctor` | 运行诊断 |
-| `runRepair` | `enterprise:repair` | 按 `RepairLevel` 修复（可选 errorCode → level 2） |
-| `reinstallRuntime` | `enterprise:reinstall-runtime` | 强制企业流水线重装 |
-| `enterpriseInstall` | `enterprise:install` | 企业安装（支持 `force`） |
-| `onEnterpriseInstallProgress` | `enterprise-install:progress` | 安装/修复进度 |
-| `onUpdateError` | `update-error` | 自动更新失败 |
-| `getInstallerPrecheck` | `enterprise:get-installer-precheck` | NSIS 安装器预检结果 |
-
-### `window.desktopWindow` Preload
-
-| Preload 方法 | IPC | 说明 |
-|---|---|---|
-| `minimize` | `window:minimize` | 最小化 |
-| `maximizeOrRestore` | `window:maximize-or-restore` | 最大化/还原 |
-| `close` | `window:close` | 关闭 |
-| `isMaximized` | `window:is-maximized` | 查询最大化 |
-| `onMaximizedChange` | `window:maximized-change` | 最大化状态事件 |
-
-### Enterprise Install 推送事件 (Main → Renderer)
-
-| 事件 Channel | 数据类型 | 说明 |
-|---|---|---|
-| `enterprise-install:progress` | `InstallProgressEvent` | 安装进度实时推送（stage/status/progress/message/errorCode） |
-| `update-available` | `{ version, releaseNotes }` | 检测到新版本 |
-| `update-download-progress` | `{ percent }` | 下载进度 |
-| `update-downloaded` | — | 下载完成，可安装 |
-| `update-error` | `string` | 自动更新错误 |
-
-### V1.3 手动验收矩阵（PRD §14）
-
-1. **首次安装**：自定义目录（如 `D:\SMC\Copilot`），User PATH 仅一条 `bin`，`runtime/hermes-agent` 可首启后安装。
-2. **覆盖升级**：1.0.0 → 1.0.1 目录不变、`runtime` 与 `~/.hermes` 保留、PATH 不重复、注册表 `PreviousVersion` 写入。
-3. **自动更新**：`prepareForAppUpdate` 后 `quitAndInstall` 无文件锁；重启后 shim 正确、Gateway 可启。
-4. **旧 Hermes 迁移**：不装第二套；`~/.hermes` 保留；旧快捷方式清理。
-5. **修复链路**：Doctor 失败项 → Repair → re-Doctor 通过。
-6. **卸载**：PATH 精确移除、注册表清理、`runtime` 与 `~/.hermes` 保留。
-
-### Enterprise Install 错误码
-
-| 错误码 | 说明 |
-|---|---|
-| E_DEPLOY_SCHEMA_INVALID | deployment.json schema 校验失败 |
-| E_DEPLOY_FILE_NOT_FOUND | deployment.json 文件不存在 |
-| E_DEPLOY_FILE_READ_FAILED | deployment.json 读取失败 |
-| E_BUNDLE_DOWNLOAD_FAILED | Runtime Bundle 下载失败 |
-| E_BUNDLE_SHA256_MISMATCH | Runtime Bundle SHA-256 校验不匹配 |
-| E_BUNDLE_SIGNATURE_INVALID | Runtime Bundle 签名校验失败 |
-| E_BUNDLE_DISK_FULL | 磁盘空间不足 |
-| E_BUNDLE_EXTRACT_FAILED | Runtime Bundle 解压失败 |
-| E_GIT_CLONE_FAILED | Git clone 失败 |
-| E_GIT_AUTH_FAILED | Git 认证失败 |
-| E_GIT_CHECKOUT_FAILED | Git checkout 失败 |
-| E_AGENT_VERSION_MISMATCH | Hermes Agent 版本不匹配 |
-| E_AGENT_SOURCE_NOT_FOUND | Hermes Agent 源码不存在 |
-| E_VENV_CREATE_FAILED | Python venv 创建失败 |
-| E_VENV_REUSED_BROKEN | 复用的 Python venv 已损坏 |
-| E_PIP_INSTALL_FAILED | pip 依赖安装失败 |
-| E_PIP_INDEX_UNREACHABLE | PyPI 索引不可达 |
-| E_PORT_EXHAUSTED | 可用端口耗尽 |
-| E_PORT_CONFLICT | 端口冲突 |
-| E_GATEWAY_STARTUP_TIMEOUT | Gateway 启动超时 |
-| E_GATEWAY_HEALTH_FAILED | Gateway 健康检查失败 |
-| E_INSTALL_LOCK_TIMEOUT | 安装锁获取超时 |
-| E_INSTALL_CANCELLED | 安装已取消 |
-| E_PROFILE_DB_CREATE_FAILED | Profile Runtime DB 创建失败 |
-| E_PROFILE_BOOTSTRAP_FAILED | Profile 引导失败 |
-| E_PROFILE_HOME_NOT_WRITABLE | Profile 目录不可写 |
-| E_POLICY_APPLY_FAILED | Policy 应用失败 |
-| E_DOCTOR_CHECK_FAILED | Doctor 检查失败 |
-| E_ROLLBACK_CHECKSUM_MISMATCH | 回滚快照校验不匹配 |
-| E_ROLLBACK_SNAPSHOT_NOT_FOUND | 回滚快照不存在 |
-| E_REPAIR_FAILED | 修复失败 |
-| E_DIR_PERMISSION_FAILED | 目录权限不足 |
-
-### Enterprise Install 状态机
-
-```
-splash → check-install → load-deployment-config → preflight → runtime-bundle
-  → install-agent → bootstrap-profiles → start-gateway → doctor → setup → main
-```
-
----
-
-## Hermes Python Backend API
-
-| 接口 | 方法 | 请求体 | 响应 | 说明 |
-|---|---|---|---|---|
-| `/health` | GET | — | `200 OK` | 健康检测 |
-| `/v1/chat/completions` | POST | `{ model, messages, stream: true }` | SSE 流 | OpenAI 兼容流式聊天 |
-| `/v1/chat/completions` | POST | `{ model, messages, stream: false }` | JSON | 非流式（错误诊断用） |
-
-响应头: `X-Hermes-Session-Id` — 会话 ID，用于续接
-
----
-
-## Web Operator IPC 契约
-
-### Browser 操作 IPC
+### 页面信息
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `browser.open` | `{ url: string, profile?: string, source: "user"\|"hermes"\|"system" }` | `{ ok, url?, errorCode?, message? }` | 打开外部 URL |
-| `browser.back` | `source` | `{ ok, errorCode?, message? }` | 后退 |
-| `browser.forward` | `source` | `{ ok, errorCode?, message? }` | 前进 |
-| `browser.reload` | `source` | `{ ok, errorCode?, message? }` | 刷新 |
-| `browser.get_state` | `source` | `{ ok, state?, errorCode?, message? }` | 获取页面状态（title/url/inputs/buttons/links） |
-| `browser.screenshot` | `source` | `{ ok, mimeType?, base64?, errorCode?, message? }` | 截图 |
-| `browser.click` | `{ selector: string, source, requireConfirm?: boolean }` | `{ ok, errorCode?, message? }` | 点击元素 |
-| `browser.type` | `{ selector: string, text: string, source }` | `{ ok, errorCode?, message? }` | 输入文本 |
-| `browser.extract_table` | `{ selector: string, source }` | `{ ok, message?, errorCode? }` | 提取表格 |
-| `browser.get_audit_log` | `limit?: number` | `BrowserAuditRecord[]` | 获取审计日志 |
-| `browser.confirm_action` | `pendingActionId: string` | `{ ok, message? }` | 确认敏感动作 |
-| `browser.reject_action` | `pendingActionId: string` | `{ ok, message? }` | 拒绝敏感动作 |
-| `browser.update_bounds` | `{ x, y, width, height }` | `void` | 同步视口尺寸 |
+| `browser.get_text` | `{ viewId: string, selector?: string }` | `string` | 获取文本内容 |
+| `browser.get_html` | `{ viewId: string, selector?: string }` | `string` | 获取 HTML |
+| `browser.get_attribute` | `{ viewId: string, selector: string, name: string }` | `string \| null` | 获取属性 |
+| `browser.get_property` | `{ viewId: string, selector: string, name: string }` | `unknown` | 获取属性值 |
+| `browser.get_count` | `{ viewId: string, selector: string }` | `number` | 获取匹配元素数量 |
+| `browser.is_visible` | `{ viewId: string, selector: string }` | `boolean` | 元素是否可见 |
+| `browser.is_enabled` | `{ viewId: string, selector: string }` | `boolean` | 元素是否可用 |
+| `browser.is_checked` | `{ viewId: string, selector: string }` | `boolean` | 是否已勾选 |
+| `browser.evaluate` | `{ viewId: string, script: string }` | `unknown` | 执行 JS |
+| `browser.screenshot` | `{ viewId: string, options?: { selector?, fullPage?, type?, quality? } }` | `string` | 截图 (base64) |
 
-### Browser 错误码
+### 会话与 Cookie
 
-| 错误码 | HTTP Status | 说明 |
-|---|---|---|
-| EXTERNAL_WEB_VIEW_NOT_READY | 503 | WebContentsView 未创建或已销毁 |
-| DOMAIN_NOT_ALLOWED | 403 | 域名不在白名单 |
-| SELECTOR_NOT_FOUND | 404 | 选择器未匹配到元素 |
-| PASSWORD_FIELD_BLOCKED | 403 | 禁止在密码字段输入 |
-| UNSAFE_ACTION_REQUIRES_CONFIRMATION | 202 | 敏感动作需用户确认 |
-| JAVASCRIPT_EXECUTION_FAILED | 500 | JS 注入执行失败 |
-| SCREENSHOT_FAILED | 500 | 截图失败 |
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `browser.get_cookies` | `{ viewId: string, url?: string }` | `Cookie[]` | 获取 Cookies |
+| `browser.set_cookie` | `{ viewId: string, cookie: Cookie }` | `boolean` | 设置 Cookie |
+| `browser.delete_cookie` | `{ viewId: string, name: string, url?: string }` | `boolean` | 删除 Cookie |
+| `browser.clear_cookies` | `{ viewId: string }` | `boolean` | 清空 Cookies |
+| `browser.get_storage` | `{ viewId: string, type: "local" \| "session" }` | `Record<string, string>` | 获取存储 |
+| `browser.set_storage` | `{ viewId: string, type: "local" \| "session", key: string, value: string }` | `boolean` | 设置存储 |
+| `browser.clear_storage` | `{ viewId: string, type: "local" \| "session" }` | `boolean` | 清空存储 |
 
-### Browser 推送事件 (Main → Renderer)
+### 安全与白名单
 
-| 事件 Channel | 数据类型 | 说明 |
-|---|---|---|
-| `browser.on_pending_action` | `PendingSensitiveAction` | 敏感动作待确认推送 |
-| `browser.on_audit_update` | `BrowserAuditRecord` | 审计记录实时追加 |
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `browser.check_domain_allowed` | `{ url: string }` | `{ allowed: boolean, domain: string }` | 检查域名是否在白名单 |
+| `browser.add_domain_whitelist` | `{ domain: string }` | `boolean` | 添加白名单域名 |
+| `browser.remove_domain_whitelist` | `{ domain: string }` | `boolean` | 移除白名单域名 |
+| `browser.get_domain_whitelist` | — | `string[]` | 获取白名单列表 |
+| `browser.confirm_sensitive_action` | `{ actionId: string, confirmed: boolean }` | `void` | 确认/拒绝敏感操作 |
+
+### 审计日志
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `browser.get_audit_logs` | `{ viewId?: string, startTime?, endTime?, limit? }` | `BrowserAuditRecord[]` | 查询审计日志 |
+| `browser.clear_audit_logs` | — | `boolean` | 清空审计日志 |
+| `browser.export_audit_logs` | `{ path: string }` | `boolean` | 导出审计日志 |
 
 ---
 
@@ -434,4 +259,191 @@ Tool Server 仅绑定 `127.0.0.1`，默认端口 `8765`（冲突时递增至 877
 | `/tools/browser.reload` | POST | `{}` | `{ ok, ... }` | 刷新 |
 | `/tools/browser.extract_table` | POST | `{ selector: string }` | `{ ok, message?, ... }` | 提取表格 |
 
-所有 Tool Bridge 请求自动设置 `source: "hermes"`。
+所有 Tool Bridge 请求自动设置 `source: "hermes"` 。
+
+---
+
+## Phase 5: Shell Platform APIs
+
+### Tray IPC (B1)
+
+Tray 功能自动集成，无需显式 IPC。Gateway 状态自动同步到托盘图标。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `tray:update-status` | `{ running: boolean }` | `boolean` | 更新托盘 Gateway 状态显示 |
+| `tray:update-profile` | `{ profile: string }` | `boolean` | 更新托盘当前 Profile 显示 |
+
+### Shortcut IPC (B4)
+
+快捷键配置存储在 `~/.hermes/desktop/shortcuts.json`。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `shortcut:get-all` | — | `ShortcutConfig[]` | 获取所有快捷键配置 |
+| `shortcut:update` | `{ id: string, updates: Partial<ShortcutConfig> }` | `boolean` | 更新快捷键 |
+| `shortcut:reset` | — | `boolean` | 重置为默认快捷键 |
+| `shortcut:validate` | `{ accelerator: string }` | `boolean` | 验证快捷键格式是否有效 |
+| `shortcut:check-conflicts` | `{ accelerator: string, excludeId?: string }` | `string[]` | 检查快捷键冲突 |
+
+**ShortcutConfig 结构:**
+```typescript
+interface ShortcutConfig {
+  id: string;
+  name: string;
+  description: string;
+  accelerator: string;  // Electron Accelerator 格式
+  enabled: boolean;
+  global: boolean;      // true = 全局快捷键
+  action: string;       // 动作标识符
+}
+```
+
+**默认快捷键:**
+| ID | 快捷键 | 动作 |
+|---|---|---|
+| `toggle-window` | `Cmd/Ctrl+Shift+H` | 切换窗口显示/隐藏 |
+| `new-chat` | `Cmd/Ctrl+N` | 新建聊天 |
+| `quick-action` | `Cmd/Ctrl+Shift+P` | 快捷操作菜单 |
+| `command-palette` | `Cmd/Ctrl+Shift+K` | 命令面板 |
+| `focus-input` | `Cmd/Ctrl+L` | 聚焦输入框 |
+| `toggle-theme` | `Cmd/Ctrl+Shift+L` | 切换主题 |
+| `settings` | `Cmd/Ctrl+,` | 打开设置 |
+
+### Window IPC (C4)
+
+多窗口管理 IPC。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `window:create` | `{ type: WindowType, config?: WindowConfig }` | `string \| null` | 创建窗口，返回窗口 ID |
+| `window:close` | `{ id: string }` | `boolean` | 关闭指定窗口 |
+| `window:hide` | `{ id: string }` | `boolean` | 隐藏窗口 |
+| `window:show` | `{ id: string }` | `boolean` | 显示并聚焦窗口 |
+| `window:focus` | `{ id: string }` | `boolean` | 聚焦窗口 |
+| `window:get-all` | — | `WindowInfo[]` | 获取所有窗口信息 |
+| `window:get` | `{ id: string }` | `WindowInfo \| null` | 获取单个窗口信息 |
+| `window:broadcast` | `{ channel: string, args?: unknown[] }` | `void` | 广播消息到所有窗口 |
+
+**WindowType:** `"main" \| "chat" \| "settings" \| "devtools" \| "custom"`
+
+**WindowConfig 结构:**
+```typescript
+interface WindowConfig {
+  type: WindowType;
+  id?: string;              // 可选，自动生成
+  parentId?: string;        // 父窗口 ID
+  title?: string;
+  url?: string;             // 加载的 URL
+  bounds?: { x?, y?, width, height };
+  rememberBounds?: boolean; // 记住位置大小
+  minimizeToTray?: boolean; // 关闭时最小化到托盘
+  modal?: boolean;          // 模态窗口
+  alwaysOnTop?: boolean;
+}
+```
+
+### Plugin IPC (C1)
+
+插件管理 IPC。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `plugin:get-all` | — | `PluginInfo[]` | 获取所有插件 |
+| `plugin:get` | `{ id: string }` | `PluginInfo \| null` | 获取单个插件 |
+| `plugin:activate` | `{ id: string }` | `boolean` | 激活插件 |
+| `plugin:deactivate` | `{ id: string }` | `boolean` | 停用插件 |
+| `plugin:reload` | `{ id: string }` | `boolean` | 重新加载插件 |
+| `plugin:uninstall` | `{ id: string }` | `boolean` | 卸载插件 |
+
+**PluginInfo 结构:**
+```typescript
+interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  author?: string;
+  activated: boolean;
+  path: string;
+  activationTime?: number;
+}
+```
+
+### Modal IPC (Phase 3 + B2)
+
+Modal 系统 IPC。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `modal:show` | `{ key: ShellModalKey, data?: unknown, options?: ModalOptions }` | `Promise<unknown>` | 显示 Modal |
+| `modal:close` | `{ result?: unknown }` | `void` | 关闭当前 Modal |
+| `modal:dismiss` | `{ reason?: string }` | `void` | 取消当前 Modal |
+
+**ShellModalKey:** `"update-ready" \| "confirm-exit" \| "error-report" \| "permission-request" \| "custom-dialog" \| "custom"`
+
+**ModalOptions 结构:**
+```typescript
+interface ModalOptions {
+  priority?: number;        // 优先级，高可打断低
+  uncloseable?: boolean;    // 不可通过 ESC/点击外部关闭
+  showBackdrop?: boolean;   // 显示遮罩
+  backdropOpacity?: number; // 遮罩透明度
+}
+```
+
+### Dropdown IPC (Phase 3 + B3)
+
+Dropdown 系统 IPC。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `dropdown:show` | `{ key: ShellDropdownKey, anchor: DOMRect, data?: unknown }` | `Promise<unknown>` | 显示 Dropdown |
+| `dropdown:close` | — | `void` | 关闭 Dropdown |
+| `dropdown:update-data` | `{ data: unknown }` | `void` | 更新 Dropdown 数据 |
+
+**ShellDropdownKey:** `"gateway-status" \| "profile-switcher" \| "model-selector" \| "quick-actions"`
+
+### Internal View IPC (Modal/Dropdown 内部使用)
+
+供 Modal 和 Dropdown 内部渲染进程使用。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `internal-view:get-data` | — | `unknown` | 获取传入的数据 |
+| `internal-view:close` | `{ result?: unknown }` | `void` | 关闭并返回结果 |
+| `internal-view:confirm` | `{ result?: unknown }` | `void` | 确认关闭 |
+| `internal-view:cancel` | `{ reason?: string }` | `void` | 取消关闭 |
+| `internal-view:ready` | — | `void` | 通知 Modal 已准备好 |
+
+---
+
+## 事件推送 (Main → Renderer)
+
+### 快捷键事件
+
+| 事件 Channel | 数据 | 说明 |
+|---|---|---|
+| `shortcut:new-chat` | — | 新建聊天快捷键触发 |
+| `shortcut:focus-input` | — | 聚焦输入快捷键触发 |
+| `shortcut:open-palette` | — | 命令面板快捷键触发 |
+| `shortcut:toggle-theme` | — | 切换主题快捷键触发 |
+| `shortcut:open-settings` | — | 打开设置快捷键触发 |
+
+### 窗口事件
+
+| 事件 Channel | 数据 | 说明 |
+|---|---|---|
+| `window:created` | `{ id, type }` | 窗口创建 |
+| `window:focus` | `{ id }` | 窗口获得焦点 |
+| `window:blur` | `{ id }` | 窗口失去焦点 |
+| `window:closed` | `{ id }` | 窗口关闭 |
+
+### 插件事件
+
+| 事件 Channel | 数据 | 说明 |
+|---|---|---|
+| `plugin:loaded` | `PluginInfo` | 插件加载 |
+| `plugin:activated` | `PluginInfo` | 插件激活 |
+| `plugin:deactivated` | `PluginInfo` | 插件停用 |
+| `plugin:error` | `{ id, error }` | 插件错误 |

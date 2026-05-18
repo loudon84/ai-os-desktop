@@ -7,7 +7,7 @@ import {
   Notification,
 } from "electron";
 import { join } from "path";
-import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { electronApp, optimizer, is } from "./utils/electron-toolkit-wrapper";
 import type { AppUpdater } from "electron-updater";
 import icon from "../../resources/icon.png?asset";
 import {
@@ -36,11 +36,12 @@ import {
   startGateway,
   stopGateway,
   isGatewayRunning,
-  testRemoteConnection,
-  stopHealthPolling,
   restartGateway,
+  setHealthStatusCallback,
   ensureSshTunnelIfNeeded,
   setSshRemoteApiKey,
+  stopHealthPolling,
+  testRemoteConnection,
 } from "./hermes";
 import {
   startSshTunnel,
@@ -184,6 +185,15 @@ let mainWindow: BrowserWindow | null = null;
 let currentChatAbort: (() => void) | null = null;
 let browserIPC: BrowserIPC | null = null;
 let browserToolServer: BrowserToolServer | null = null;
+let modalManager: import("./shell/overlays/modal-manager").ModalManager | null = null;
+let dropdownManager: import("./shell/overlays/dropdown-manager").DropdownManager | null = null;
+let trayManager: import("./shell/tray-manager").TrayManager | null = null;
+let isQuitting = false;
+
+// 启动参数
+const launchArgs = {
+  hidden: process.argv.includes("--hidden") || process.argv.includes("--tray"),
+};
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -211,7 +221,27 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow!.show();
+    // Phase 5: Support --hidden/--tray flag for launching minimized to tray
+    if (launchArgs.hidden) {
+      // Don't show window on startup when --hidden is set
+      if (process.platform === "darwin") {
+        app.dock?.hide(); // Hide dock icon on macOS
+      }
+      console.log("[TRAY] Started hidden (--hidden flag detected)");
+    } else {
+      mainWindow!.show();
+    }
+  });
+
+  // Phase 5: Close to tray instead of quitting
+  mainWindow.on("close", (event) => {
+    // Check if app is actually quitting (via tray menu or app.quit())
+    // If not, just hide the window to tray
+    if (trayManager?.isCreated() && !isQuitting) {
+      event.preventDefault();
+      mainWindow!.hide();
+      console.log("[TRAY] Window hidden to tray");
+    }
   });
 
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
@@ -261,12 +291,57 @@ function createWindow(): void {
 }
 
 
+/**
+ * Internal View IPC handlers
+ *
+ * 处理 Modal 内部渲染进程的 IPC 消息
+ */
+function setupInternalViewIpc(): void {
+  // 获取数据
+  ipcMain.handle("internal-view:get-data", async (_event) => {
+    if (!modalManager) return null;
+    const current = (modalManager as unknown as { currentModal: { entry: { data: unknown } } | null }).currentModal;
+    return current?.entry?.data ?? null;
+  });
+
+  // 关闭 Modal
+  ipcMain.on("internal-view:close", (_event, result?: unknown) => {
+    modalManager?.closeModal(result);
+  });
+
+  // 确认 Modal
+  ipcMain.on("internal-view:confirm", (_event, result?: unknown) => {
+    modalManager?.closeModal(result);
+  });
+
+  // 取消 Modal
+  ipcMain.on("internal-view:cancel", (_event, reason?: string) => {
+    modalManager?.dismissModal(reason);
+  });
+
+  // Modal 就绪
+  ipcMain.on("internal-view:ready", (event) => {
+    const webContents = event.sender;
+    const current = (modalManager as unknown as { currentModal: { view: { markReady: () => void; getNativeView: () => { webContents: Electron.WebContents } | null } } | null }).currentModal;
+    if (current?.view?.getNativeView()?.webContents === webContents) {
+      current.view.markReady();
+    }
+  });
+}
+
 function setupIPC(): void {
   try {
     const { registerWindowIpc } = require("./window/window-ipc");
     registerWindowIpc();
   } catch (err) {
     console.error("[WINDOW] Failed to register window IPC:", err);
+  }
+
+  // Internal View IPC (for Modal system)
+  try {
+    setupInternalViewIpc();
+  } catch (err) {
+    console.error("[MODAL] Failed to setup internal view IPC:", err);
   }
 
   // Profile Runtime IPC
@@ -1022,6 +1097,29 @@ function setupIPC(): void {
     if (conn.mode === "ssh" && conn.ssh) return sshReadLogs(conn.ssh, logFile, lines);
     return readLogs(logFile, lines);
   });
+
+  // Shortcut Manager IPC (Phase 5)
+  ipcMain.handle("shortcut:get-all", () => {
+    const { getShortcutManager } = require("./shell/shortcut-manager");
+    return getShortcutManager()?.getAllShortcuts() ?? [];
+  });
+  ipcMain.handle("shortcut:update", (_event, id: string, updates: unknown) => {
+    const { getShortcutManager } = require("./shell/shortcut-manager");
+    return getShortcutManager()?.updateShortcut(id, updates) ?? false;
+  });
+  ipcMain.handle("shortcut:reset", () => {
+    const { getShortcutManager } = require("./shell/shortcut-manager");
+    getShortcutManager()?.resetToDefaults();
+    return true;
+  });
+  ipcMain.handle("shortcut:validate", (_event, accelerator: string) => {
+    const { getShortcutManager } = require("./shell/shortcut-manager");
+    return getShortcutManager()?.validateAccelerator(accelerator) ?? false;
+  });
+  ipcMain.handle("shortcut:check-conflicts", (_event, accelerator: string, excludeId?: string) => {
+    const { getShortcutManager } = require("./shell/shortcut-manager");
+    return getShortcutManager()?.checkConflicts(accelerator, excludeId) ?? [];
+  });
 }
 
 function buildMenu(): void {
@@ -1151,7 +1249,35 @@ function setupUpdater(): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on("update-available", (info) => {
+  autoUpdater.on("update-available", async (info) => {
+    // Try to show modal using new ModalManager (Phase 3)
+    if (modalManager && mainWindow) {
+      try {
+        const result = await modalManager.showModal<"install" | "later">(
+          "update-ready",
+          {
+            version: info.version,
+            currentVersion: app.getVersion(),
+            releaseNotes: typeof info.releaseNotes === "string" ? info.releaseNotes : "",
+          },
+          {
+            priority: 5,
+            showBackdrop: true,
+          }
+        );
+
+        if (result === "install") {
+          autoUpdater.downloadUpdate();
+        }
+        // "later" - do nothing
+        return;
+      } catch (err) {
+        console.error("[UPDATE] Failed to show update modal:", err);
+        // Fallback to legacy IPC
+      }
+    }
+
+    // Legacy: send IPC to Renderer
     mainWindow?.webContents.send("update-available", {
       version: info.version,
       releaseNotes: info.releaseNotes,
@@ -1222,6 +1348,60 @@ app.whenReady().then(() => {
   buildMenu();
   setupIPC();
   createWindow();
+
+  // Initialize ModalManager and DropdownManager (Phase 3)
+  if (mainWindow) {
+    try {
+      const { ModalManager } = require("./shell/overlays/modal-manager");
+      const { DropdownManager } = require("./shell/overlays/dropdown-manager");
+      const preloadPath = join(__dirname, "../preload/index.js");
+      modalManager = new ModalManager(mainWindow, preloadPath);
+      dropdownManager = new DropdownManager(mainWindow);
+      console.log("[MODAL] ModalManager and DropdownManager initialized");
+    } catch (err) {
+      console.error("[MODAL] Failed to initialize managers:", err);
+    }
+  }
+
+  // Initialize Tray (Phase 5)
+  if (mainWindow) {
+    try {
+      const { createTrayManager } = require("./shell/tray-manager");
+      trayManager = createTrayManager(mainWindow);
+      trayManager?.create();
+      console.log("[TRAY] Tray initialized");
+      
+      // Connect gateway health status to tray
+      setHealthStatusCallback((running) => {
+        trayManager?.setGatewayRunning(running);
+        console.log(`[TRAY] Gateway status changed: ${running ? 'running' : 'stopped'}`);
+      });
+      
+      // Set initial gateway status
+      trayManager?.setGatewayRunning(isGatewayRunning());
+    } catch (err) {
+      console.error("[TRAY] Failed to initialize tray:", err);
+    }
+  }
+
+  // Initialize Shortcut Manager (Phase 5)
+  if (mainWindow) {
+    try {
+      const { createShortcutManager, destroyShortcutManager } = require("./shell/shortcut-manager");
+      const shortcutManager = createShortcutManager();
+      shortcutManager.setMainWindow(mainWindow);
+      shortcutManager.registerAll();
+      console.log("[SHORTCUT] Shortcut manager initialized");
+      
+      // Listen for shortcut actions
+      shortcutManager.on("action", (action: string, data: unknown) => {
+        console.log("[SHORTCUT] Action triggered:", action, data);
+        // 可以在这里处理自定义动作
+      });
+    } catch (err) {
+      console.error("[SHORTCUT] Failed to initialize shortcut manager:", err);
+    }
+  }
 
   // Initialize Web Operator browser module
   if (mainWindow) {
@@ -1301,6 +1481,9 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  // Phase 5: Set quitting flag so window close handler knows to actually quit
+  isQuitting = true;
+
   stopHealthPolling();
   if (currentChatAbort) {
     currentChatAbort();
@@ -1313,6 +1496,24 @@ app.on("before-quit", () => {
   try {
     const { onBeforeQuit: aiosQuit } = require("./aios/aios-runtime-supervisor");
     aiosQuit();
+  } catch { /* best effort */ }
+  // Cleanup Overlay Managers (Phase 3)
+  try {
+    modalManager?.destroyAll();
+    dropdownManager?.destroyAll();
+  } catch { /* best effort */ }
+  // Cleanup Tray Manager (Phase 5)
+  try {
+    const { destroyTrayManager } = require("./shell/tray-manager");
+    destroyTrayManager();
+    console.log("[TRAY] Tray destroyed");
+  } catch { /* best effort */ }
+
+  // Cleanup Shortcut Manager (Phase 5)
+  try {
+    const { destroyShortcutManager } = require("./shell/shortcut-manager");
+    destroyShortcutManager();
+    console.log("[SHORTCUT] Shortcut manager destroyed");
   } catch { /* best effort */ }
   stopGateway();
   stopSshTunnel();

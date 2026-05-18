@@ -12,7 +12,7 @@ function getElectronModule(): ElectronModule {
   const mod = require('electron');
   
   if (typeof mod === 'object' && mod.app) {
-    _electron = mod;
+    _electron = mod as ElectronModule;
     return _electron;
   }
   
@@ -22,7 +22,7 @@ function getElectronModule(): ElectronModule {
     // Use process.binding to get the real electron module
     try {
       // @ts-ignore - process.binding is internal
-      const binding = process.binding('electron');
+      const binding = process.binding('electron') as ElectronModule;
       if (binding && typeof binding === 'object') {
         _electron = binding;
         return _electron;
@@ -32,7 +32,7 @@ function getElectronModule(): ElectronModule {
     // Alternative: try to access electron through global
     try {
       // @ts-ignore
-      const globalElectron = globalThis.__electron__;
+      const globalElectron = globalThis.__electron__ as ElectronModule;
       if (globalElectron && typeof globalElectron === 'object' && globalElectron.app) {
         _electron = globalElectron;
         return _electron;
@@ -46,7 +46,7 @@ function getElectronModule(): ElectronModule {
     );
   }
   
-  _electron = mod;
+  _electron = mod as ElectronModule;
   return _electron;
 }
 
@@ -103,7 +103,7 @@ export const dialog = new Proxy({} as typeof import('electron').dialog, {
 }) as typeof import('electron').dialog;
 
 export const Tray = new Proxy({} as typeof import('electron').Tray, {
-  construct(_, args) {
+  construct(_, args: ConstructorParameters<typeof import('electron').Tray>) {
     return new (getElectronModule().Tray)(...args);
   },
 }) as typeof import('electron').Tray;

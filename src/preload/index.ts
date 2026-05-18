@@ -26,6 +26,7 @@ import { aiosBrowser } from "./browser-api";
 import { profileRuntimeApi } from "./profile-runtime-api";
 import { profileEntryApi } from "./profile-entry-api";
 import { aiosApi } from "./aios-api";
+import { registerInternalViewApi } from "./internal-view-api";
 
 const hermesAPI = {
   // Installation
@@ -838,6 +839,9 @@ const hermesAPI = {
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke("window:is-maximized"),
   },
 };
+
+// 注册 Internal View API（仅在 Modal 渲染进程中暴露）
+registerInternalViewApi();
 
 if (process.contextIsolated) {
   try {

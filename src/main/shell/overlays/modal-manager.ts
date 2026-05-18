@@ -344,6 +344,7 @@ export class ModalManager extends EventEmitter {
       "confirm-exit": "confirm-exit",
       "error-report": "error-report",
       "permission-request": "permission-request",
+      "custom-dialog": "custom-dialog",
       custom: "custom",
     };
 

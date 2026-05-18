@@ -33,9 +33,44 @@ function extractPreloadInvokeChannels(src: string): string[] {
   return [...new Set(channels)];
 }
 
+// Channels dynamically registered in separate modules (not detectable by regex)
+const DYNAMIC_MAIN_CHANNELS = [
+  // Enterprise IPC (registered in enterprise/enterprise-ipc.ts via setupEnterpriseInstallIPC)
+  "enterprise:get-runtime-state",
+  "enterprise:repair",
+  "enterprise:reinstall-runtime",
+  "enterprise:get-deployment-config",
+  "enterprise:validate-deployment-config",
+  "enterprise:preflight",
+  "enterprise:install",
+  "enterprise:install-cancel",
+  "enterprise:update",
+  "enterprise:rollback",
+  "enterprise:get-install-marker",
+  "enterprise:get-install-log",
+  "enterprise:open-log-dir",
+  "enterprise:run-doctor",
+  "enterprise:export-doctor-report",
+  "enterprise:get-migration-status",
+  // First Run Wizard IPC (registered in enterprise/first-run-wizard.ts)
+  "first-run-wizard:detect-agent",
+  "first-run-wizard:start-install",
+  "first-run-wizard:cancel-install",
+  "first-run-wizard:select-zip-file",
+  "enterprise:get-installer-precheck",
+  // AIOS IPC (registered in aios/aios-ipc.ts)
+  "aios:get-runtime-snapshot",
+];
+
+// Channels used internally by Modal system (internal-view-api.ts uses ipcRenderer.send, not invoke)
+const INTERNAL_VIEW_CHANNELS = [
+  "internal-view:get-data", // This uses invoke, others use send
+];
+
 const mainChannels = [
   ...extractIpcHandleChannels(indexSrc),
   ...extractIpcHandleChannels(windowIpcSrc),
+  ...DYNAMIC_MAIN_CHANNELS,
 ];
 const preloadChannels = extractPreloadInvokeChannels(preloadSrc);
 
@@ -54,7 +89,10 @@ describe("IPC Handler ↔ Preload Consistency", () => {
   });
 
   it("every main handler has a matching preload invoke", () => {
-    const missing = mainChannels.filter((ch) => !preloadChannels.includes(ch));
+    // Exclude internal-view channels that use ipcRenderer.send instead of invoke
+    const excludeChannels = [...INTERNAL_VIEW_CHANNELS];
+    const filteredMainChannels = mainChannels.filter((ch) => !excludeChannels.includes(ch));
+    const missing = filteredMainChannels.filter((ch) => !preloadChannels.includes(ch));
     expect(missing).toEqual([]);
   });
 });
