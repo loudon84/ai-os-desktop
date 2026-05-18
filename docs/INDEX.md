@@ -1,13 +1,21 @@
-# Project Index
+# SMC Copilot — Project Index
 
 ## 项目定位
 
-hermes-desktop 是基于 **Electron + React + TypeScript + TailwindCSS** 的 AI 助手桌面应用，用于安装、配置和与 Hermes Agent 聊天交互。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
+**SMC Copilot**（包名 / 可执行文件：`smc-ai-copilot`）是基于 **Electron + React + TypeScript + TailwindCSS** 的 **AI-OS Desktop** 桌面壳：部署与运维 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)，并提供多 Profile 运行时、跨 Profile 编排与 WebContentsView（Web Operator）内嵌能力。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
 
-- **版本**: 0.1.6（V1.4.1 Desktop Shell + 安装加固）
-- **appId**: com.smc.smc-ai-copilot
-- **productName**: SMC Copilot
-- **仓库**: https://github.com/fathah/hermes-desktop
+本仓库代码由 **hermes-desktop**（单运行时安装/配置/聊天）演进而来；Hermes Agent 仍为执行引擎，SMC Copilot 负责桌面壳、进程生命周期、SQLite 控制面与统一 UI。
+
+| 项 | 值 |
+|---|---|
+| **产品名称** | SMC Copilot |
+| **包名 / 可执行文件** | `smc-ai-copilot` |
+| **版本** | 0.1.6（V1.4.1 Desktop Shell + 安装加固） |
+| **appId** | `com.smc.smc-ai-copilot` |
+| **仓库** | https://github.com/loudon84/ai-os-desktop |
+| **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
+
+**V1.0（hermes-desktop）**：单 Gateway 桌面 — 引导安装、提供商配置、流式聊天、会话/技能/记忆、消息 Gateway、Claw3D Office。
 
 V1.1 在 V1.0 基础上新增 **Multi Profile Gateway Runtime**，将单 Gateway 桌面应用升级为 AI-OS Desktop 多智能体运行时控制台。
 

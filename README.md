@@ -1,271 +1,236 @@
-<img width="100%" alt="HERMES DESKTOP" src="https://github.com/user-attachments/assets/80585955-3bae-4aee-af90-a1e61757ccb8" />
+# SMC Copilot (`smc-ai-copilot`)
 
-<br/>
-<p align="center">
-  <a href="https://hermes-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-hermes--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
-  <a href="https://discord.gg/NousResearch"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
-  <a href="https://github.com/fathah/hermes-desktop/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
-  <a href="https://github.com/fathah/hermes-desktop/releases/"><img src="https://img.shields.io/badge/Download-Releases-FF6600?style=for-the-badge" alt="Releases"></a>
-<a href="https://github.com/fathah/hermes-desktop/stargazers">
-  <img src="https://img.shields.io/github/stars/fathah/hermes-desktop?style=for-the-badge&color=FFD700&label=Stars" alt="Stars">
-</a>
-  <a href="https://github.com/fathah/hermes-desktop/releases/">
-  <img src="https://img.shields.io/github/downloads/fathah/hermes-desktop/total?style=for-the-badge&color=00B496&label=Total%20Downloads" alt="Downloads">
-</a>
-</p>
+**SMC Copilot** is an Electron-based **AI-OS Desktop** shell for [Hermes Agent](https://github.com/loudon84/ai-os-hermes). The repository codebase evolved from **hermes-desktop** (install/configure/chat for a single Hermes runtime) into a multi-profile copilot console with cross-profile orchestration and embedded web automation.
 
-> **This project is in active development.** Features may change, and some things might break. If you run into a problem or have an idea, [open an issue](https://github.com/fathah/hermes-desktop/issues). Contributions are welcome!
+| | |
+|---|---|
+| **Product name** | SMC Copilot |
+| **Package / executable** | `smc-ai-copilot` |
+| **appId** | `com.smc.smc-ai-copilot` |
+| **Stack** | Electron 39 · React 19 · TypeScript · Tailwind CSS 4 |
+| **Agent docs** | [AGENTS.md](./AGENTS.md) · [docs/INDEX.md](./docs/INDEX.md) |
+
+> **Active development.** APIs, screens, and install flows may change. For architecture and IPC contracts, see [AGENTS.md](./AGENTS.md) and [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md).
 
 ## Languages
 
-- English: `README.md`
-- 简体中文: `README.zh-CN.md`
+- English: `README.md` (this file)
+- 简体中文: [README.zh-CN.md](./README.zh-CN.md)
 
-Hermes Desktop is a native desktop app for installing, configuring, and chatting with [Hermes Agent](https://github.com/NousResearch/hermes-agent) — a self-improving AI assistant with tool use, multi-platform messaging, and a closed learning loop.
+---
 
-Instead of managing the CLI by hand, the app walks through install, provider setup, and day-to-day usage in one place. It uses the official Hermes install script, stores Hermes in `~/.hermes`, and gives you a GUI for chat, sessions, profiles, memory, skills, tools, scheduling, messaging gateways, and more.
+## What this project is today
 
-## Install
+SMC Copilot is **not only** a Hermes Agent installer GUI. It is a desktop **control plane + workspace** that:
 
-Download the latest build from the [Releases](https://github.com/fathah/hermes-desktop/releases/) page.
+1. **Deploys and operates** Hermes Agent (local install, enterprise pipeline, PyPI mirror, runtime bundle).
+2. **Runs multiple Profile Gateways** in parallel (default + specialist roles on ports 8642–8648).
+3. **Exposes dedicated entry points** per profile (AI-OS Workspace, Profile Workspaces, Runtime panel).
+4. **Coordinates work across profiles** (delegation, skill sync, session context sharing).
+5. **Embeds external web apps** via Electron **WebContentsView** (Web Operator) so users and agents share the same browser surface inside AI-OS.
 
-| Platform       | File                    |
-| -------------- | ----------------------- |
-| macOS          | `.dmg`                  |
-| Linux (any)    | `.AppImage`             |
-| Linux (Debian) | `.deb`                  |
-| Linux (Fedora) | `.rpm`                  |
-| Windows        | `.exe` (NSIS installer) |
+Hermes Agent remains the execution engine (tools, memory, gateways, learning loop). SMC Copilot owns the **desktop shell**, **process lifecycle**, **SQLite control plane**, and **unified UI**.
 
-### Windows (winget)
+---
 
-Once the manifest has been accepted into [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs), you can install with:
+## Evolution at a glance
 
-```powershell
-winget install NousResearch.HermesDesktop
+| Phase | Focus | What changed |
+|---|---|---|
+| **V1.0 — hermes-desktop** | Single-runtime desktop | Guided install, provider setup, streaming chat, sessions, skills, memory, 16 messaging gateways, Claw3D Office |
+| **V1.1 — Multi Profile Runtime** | AI-OS Desktop | 7 profiles × independent Gateway; `profile-runtime.db` control plane; AI-OS Workspace + specialist Profile Workspaces; profile entries & layouts |
+| **V1.2 — Runtime stability** | Operations | Crash detection, auto-restart, port conflict checks, startup timeout, gateway logs, app restart reconciliation |
+| **V1.2.1 — Enterprise Install** | One-click deploy | Deployment config + schema, runtime bundle (online/offline), 20-step preflight/install pipeline, Runtime Doctor, install lock/marker/log |
+| **V1.4 / V1.4.1 — Desktop shell** | Product hardening | Custom title bar / window IPC, NSIS precheck, local zip / Git agent source, PyPI mirror presets, `agent-deps-installer`, rebranded as **SMC Copilot** |
+
+---
+
+## Core capabilities
+
+### Foundation (from hermes-desktop)
+
+- Guided first-run install and **local / remote** backend modes
+- Streaming chat (SSE), tool progress, markdown, token/cost display
+- Sessions (SQLite FTS), models, providers, memory, SOUL persona, skills, toolsets, cron schedules
+- 16 messaging gateway platforms (Telegram, Discord, Slack, …)
+- Hermes Office (Claw3D), backup/import, log viewer, auto-updater
+- i18n: English, Spanish, Portuguese (Brazil), Chinese (Simplified)
+
+### Multi Profile Runtime (V1.1+)
+
+- **7 profiles**: `default`, `writer`, `coding`, `research`, `recruiters`, `finance`, `agenter`
+- **Dedicated Gateway per profile** on `127.0.0.1:8642`–`8648`
+- **Profile Runtime screen**: start/stop/restart, status, config import, gateway logs (V1.2)
+- **SQLite control plane**: `~/.hermes/desktop/profile-runtime.db`
+
+### Cross-profile orchestration
+
+| Capability | Purpose |
+|---|---|
+| **Delegation** | Default profile invokes a specialist profile (`POST /v1/chat/completions`) with audit trail |
+| **Skill sync** | Copy skills between profiles (skip / overwrite + backup, SHA-256 verify) |
+| **Session context share** | Export session context as `context.md` (snapshot / summary / full) — does not merge `state.db` |
+
+Preload APIs: `window.profileRuntime`, `window.profileEntry`.
+
+### AI-OS workspaces & Web Operator
+
+| Surface | Route | Role |
+|---|---|---|
+| **AI-OS Workspace** | `/aios-workspace` | Default-profile command center: chat, multi-profile status, delegation entry, Web Operator launch |
+| **Profile Workspace** | `/profile-workspace/:profileId` | Specialist workspace (isolated chat, skills, context, audit) |
+| **Profile Runtime** | `/profile-runtime` | Runtime ops & gateway logs |
+| **Web Operator** | `/web-operator` | Three-pane UI: Hermes task panel · **WebContentsView** viewport · status/audit panel |
+
+Web Operator (Main: `src/main/browser/`):
+
+- **WebContentsView** with isolated partition `persist:aios-external-web`
+- Domain allowlist, sensitive-action confirmation (`browser.click`, `browser.type`)
+- JSONL audit log under `~/.hermes/desktop/web-operator/`
+- Local tool server on `127.0.0.1` (8765–8775) for Hermes tool bridge
+
+Preload API: `window.aiosBrowser`.
+
+### Enterprise install & desktop shell (V1.2.1+)
+
+- 20-step enterprise pipeline: preflight → bundle → agent → venv → profiles → marker
+- Runtime Doctor (9 checks), install lock / marker / redacted logs
+- Security: Gateway **127.0.0.1 only**, no HKLM / system PATH, secrets not written to marker or logs
+- **V1.4.1**: local zip or Git agent source, PyPI mirror UI (Tsinghua / Aliyun / Tencent / official / custom), `desktop-runtime.json`, custom window controls
+
+---
+
+## Architecture (summary)
+
+Strict **Main / Preload / Renderer** separation:
+
+```
+Renderer (React)
+  → window.hermesAPI | profileRuntime | profileEntry | aiosBrowser
+Preload (contextBridge)  →  src/preload/
+Main (Node.js)           →  src/main/  (IPC, FS, SQLite, Gateway spawn)
+Hermes Python Gateway    →  http://127.0.0.1:<port>/v1/chat/completions
 ```
 
-Until then, download the `.exe` from the Releases page.
+New backend features must follow: **Main module → `ipcMain.handle` → Preload wrapper → `index.d.ts` → Renderer**. See [.cursor/rules/](./.cursor/rules/) and [AGENTS.md](./AGENTS.md).
 
-> **Windows users:** The installer is not code-signed. Windows SmartScreen will warn on first launch — click "More info" → "Run anyway".
+---
 
-### Fedora (RPM)
+## Application flow
 
-```bash
-sudo dnf install ./hermes-desktop-<version>.rpm
+**Lifecycle screens** (`App.tsx`):
+
+```
+splash → welcome → installing → setup → main (Layout)
 ```
 
-> **Fedora users:** The `.rpm` is not GPG-signed. If your system enforces signature checking, append `--nogpgcheck` to the install command. Auto-update is not supported for `.rpm` builds (limitation of `electron-updater`); reinstall the new `.rpm` to update.
+**Main navigation** (high level):
 
-### macOS
+| Area | Screens |
+|---|---|
+| **Copilot** | Chat, Sessions, Agents, Models, Providers, Skills, Soul, Memory, Tools, Schedules, Gateway, Settings |
+| **AI-OS** | AI-OS Workspace, Profile Workspaces, Profile Runtime, Web Operator |
+| **Visual** | Office (Claw3D) |
 
-> **macOS users:** The app is not code-signed or notarized. macOS will block it on first launch. To fix this, run the following after installing:
->
-> ```bash
-> xattr -cr "/Applications/Hermes Agent.app"
-> ```
->
-> Or right-click the app → **Open** → click **Open** in the confirmation dialog.
+Chat path: Renderer → `hermesAPI.sendMessage` → Main `hermes.ts` → local SSE or CLI fallback (or remote HTTPS).
 
-## Features
+---
 
-- **Guided first-run install** for Hermes Agent with progress tracking and dependency resolution
-- **Local or remote backend** — run Hermes locally on `127.0.0.1:8642`, or connect the desktop app to a remote Hermes API server with URL + API key
-- **Multi-provider support** — OpenRouter, Anthropic, OpenAI, Google (Gemini), xAI (Grok), Nous Portal, Qwen, MiniMax, Hugging Face, Groq, and local OpenAI-compatible endpoints (LM Studio, Ollama, vLLM, llama.cpp)
-- **Streaming chat UI** with SSE streaming, tool progress indicators, markdown rendering, and syntax highlighting
-- **Token usage tracking** — live prompt/completion token counts and cost display in the chat footer, plus a `/usage` slash command
-- **22 slash commands** — `/new`, `/clear`, `/fast`, `/web`, `/image`, `/browse`, `/code`, `/shell`, `/usage`, `/help`, `/tools`, `/skills`, `/model`, `/memory`, `/persona`, `/version`, `/compact`, `/compress`, `/undo`, `/retry`, `/debug`, `/status`, and more
-- **Session management** — full-text search (SQLite FTS5), date-grouped history, resume and search across conversations
-- **Profile switching** — create, delete, and switch between separate Hermes environments with isolated config
-- **14 toolsets** — web, browser, terminal, file, code execution, vision, image gen, TTS, skills, memory, session search, clarify, delegation, MoA, and task planning
-- **Memory system** — view/edit memory entries, user profile memory, capacity tracking, and discoverable memory providers (Honcho, Hindsight, Mem0, RetainDB, Supermemory, ByteRover)
-- **Persona editor** — edit and reset your agent's SOUL.md personality
-- **Saved models** — CRUD management for model configurations across providers
-- **Scheduled tasks** — cron job builder (minutes, hourly, daily, weekly, custom cron) with 15 delivery targets
-- **16 messaging gateways** — Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email (IMAP/SMTP), SMS (Twilio/Vonage), iMessage (BlueBubbles), DingTalk, Feishu/Lark, WeCom, WeChat (iLink Bot), Webhooks, Home Assistant
-- **Hermes Office (Claw3d)** — visual 3D interface with dev server and adapter management
-- **Backup, import & debug dump** — full data backup/restore and system diagnostics from Settings
-- **Log viewer** — view gateway and agent logs directly from the Settings screen
-- **Auto-updater** — check for and install updates via electron-updater
-- **i18n ready** — internationalization framework with English locale covering all screens, ready for community translations
-- **Test suite** — SSE parser, IPC handlers, preload API surface, installer utilities, and constants validation with Vitest
+## Install (end users)
 
-## Preview
+Download the latest build from your release channel (Windows NSIS: `smc-copilot-<version>-setup.exe`).
 
-<table>
-<tr>
-<td width="50%" align="center"><b>Office</b><br/><img width="100%" alt="Office" src="https://github.com/user-attachments/assets/214bfa60-48ec-4449-be40-370628205147" /></td>
-<td width="50%" align="center"><b>Chat</b><br/><img width="100%" alt="Chat" src="https://github.com/user-attachments/assets/ca84a56c-4d14-4775-96bb-c725069988be" /></td>
-</tr>
-<tr>
-<td width="50%" align="center"><b>Profiles</b><br/><img width="100%" alt="Profiles" src="https://github.com/user-attachments/assets/bd812e4a-bbdc-4141-b3a8-1ab5b0e561d4" /></td>
-<td width="50%" align="center"><b>Tools</b><br/><img width="100%" alt="Tools" src="https://github.com/user-attachments/assets/ad051fbe-055d-40d2-b6dd-959c522412d2" /></td>
-</tr>
-<tr>
-<td width="50%" align="center"><b>Settings</b><br/><img width="100%" alt="Settings" src="https://github.com/user-attachments/assets/b3f7e0d8-b087-4935-b57c-f8db30491f2e" /></td>
-<td width="50%" align="center"><b>Skills</b><br/><img width="100%" alt="Skills" src="https://github.com/user-attachments/assets/508c3501-52eb-419d-8cfd-06268875ff62" /></td>
-</tr>
-</table>
+| Platform | Artifact |
+|---|---|
+| Windows | `.exe` (NSIS) |
+| macOS | `.dmg` |
+| Linux | `.AppImage`, `.deb`, `.rpm`, `.snap` |
 
-## How It Works
+> **Windows:** Installer may be unsigned; SmartScreen may prompt on first run.
 
-On first launch, the app:
+### Typical directories
 
-1. Asks whether you want to run Hermes **locally** or connect to a **remote** Hermes API server.
-2. **Local mode:** checks whether Hermes is already installed in `~/.hermes`; if not, runs the official Hermes installer with dependency resolution (Git, uv, Python 3.11+).
-3. **Remote mode:** prompts for the remote API URL and API key, validates the connection, and skips local install.
-4. Prompts for an API provider or local model endpoint.
-5. Saves provider config and API keys through Hermes config files.
-6. Launches the main workspace once setup is complete.
+| Path | Contents |
+|---|---|
+| `%USERPROFILE%\.hermes\` | Agent config, `state.db`, profiles, desktop control plane |
+| `%LOCALAPPDATA%\Programs\SMC Copilot\` (or `$INSTDIR`) | App binary, `runtime/`, `hermes-agent/`, `venv/`, logs |
+| `~/.hermes/desktop/profile-runtime.db` | Multi-profile runtime state |
+| `~/.hermes/desktop/web-operator/` | Web Operator config & audit logs |
 
-In local mode, chat requests go through `http://127.0.0.1:8642` with SSE streaming. In remote mode, the app talks to your configured remote URL with the same streaming protocol. The desktop app parses the stream in real time, rendering tool progress, markdown content, and token usage as it arrives.
-
-## Screens
-
-| Screen        | Description                                                                           |
-| ------------- | ------------------------------------------------------------------------------------- |
-| **Chat**      | Streaming conversation UI with slash commands, tool progress, and token tracking      |
-| **Sessions**  | Browse, search, and resume past conversations                                         |
-| **Agents**    | Create, delete, and switch between Hermes profiles                                    |
-| **Skills**    | Browse, install, and manage bundled and installed skills                              |
-| **Models**    | Manage saved model configurations per provider                                        |
-| **Memory**    | View/edit memory entries, user profile, and configure memory providers                |
-| **Soul**      | Edit the active profile's persona (SOUL.md)                                           |
-| **Tools**     | Enable or disable individual toolsets                                                 |
-| **Schedules** | Create and manage cron jobs with delivery targets                                     |
-| **Gateway**   | Configure and control messaging platform integrations                                 |
-| **Office**    | Claw3d visual interface setup and management                                          |
-| **Settings**  | Provider config, credential pools, backup/import, log viewer, network settings, theme |
-
-## Supported Providers
-
-### LLM Providers
-
-| Provider            | Notes                                    |
-| ------------------- | ---------------------------------------- |
-| **OpenRouter**      | 200+ models via single API (recommended) |
-| **Anthropic**       | Direct Claude access                     |
-| **OpenAI**          | Direct GPT access                        |
-| **Google (Gemini)** | Google AI Studio                         |
-| **xAI (Grok)**      | Grok models                              |
-| **Nous Portal**     | Free tier available                      |
-| **Qwen**            | QwenAI models                            |
-| **MiniMax**         | Global and China endpoints               |
-| **Hugging Face**    | 20+ open models via HF Inference         |
-| **Groq**            | Fast inference (voice/STT)               |
-| **Local/Custom**    | Any OpenAI-compatible endpoint           |
-
-Local presets are included for LM Studio, Ollama, vLLM, and llama.cpp.
-
-### Messaging Platforms
-
-Telegram, Discord, Slack, WhatsApp, Signal, Matrix/Element, Mattermost, Email (IMAP/SMTP), SMS (Twilio & Vonage), iMessage (BlueBubbles), DingTalk, Feishu/Lark, WeCom, WeChat (iLink Bot), Webhooks, and Home Assistant.
-
-### Tool Integrations
-
-Exa Search, Parallel API, Tavily, Firecrawl, FAL.ai (image generation), Honcho, Browserbase, Weights & Biases, and Tinker.
+---
 
 ## Development
 
 ### Prerequisites
 
-- Node.js and npm
-- A Unix-like shell environment for the Hermes installer
-- Network access for downloading Hermes during first-run install
+- Node.js 18+ and npm
+- Network access for Hermes / dependency install during first run (unless using offline bundle)
 
-### Install dependencies
+### Commands
 
 ```bash
 npm install
-```
-
-### Start the app in development
-
-```bash
-npm run dev
-```
-
-### Run checks
-
-```bash
-npm run lint
+npm run dev          # electron-vite dev
+npm run build        # typecheck + production build
 npm run typecheck
-```
-
-### Run tests
-
-```bash
 npm run test
-npm run test:watch
+npm run lint
 ```
 
-### Build the desktop app
+Platform packages:
 
 ```bash
-npm run build
-```
-
-Platform packaging:
-
-```bash
-npm run build:mac
 npm run build:win
+npm run build:mac
 npm run build:linux
-npm run build:rpm    # Fedora/RHEL .rpm only
 ```
 
-## First-Time Setup
+### Project layout
 
-When the app opens for the first time, it will either detect an existing Hermes installation or offer to install it for you.
+| Directory | Role |
+|---|---|
+| `src/main/` | Main process — IPC, Gateway, enterprise install, browser/Web Operator |
+| `src/preload/` | contextBridge APIs |
+| `src/renderer/src/` | React UI (`screens/`, `components/`) |
+| `src/shared/` | i18n, profile-runtime & enterprise contracts |
+| `resources/profiles/` | Profile templates |
+| `docs/` | Architecture, modules, API contracts |
+| `tests/` | Vitest |
 
-Supported setup paths in the UI:
+### Documentation map
 
-- `OpenRouter`
-- `Anthropic`
-- `OpenAI`
-- `Local LLM` via an OpenAI-compatible base URL
+| Doc | Use when |
+|---|---|
+| [AGENTS.md](./AGENTS.md) | Coding with Cursor / agents — quick reference |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Process model, Gateway, V1.x diagrams |
+| [docs/MODULES.md](./docs/MODULES.md) | File-level module responsibilities |
+| [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md) | IPC channel list |
+| [docs/READING_GUIDE.md](./docs/READING_GUIDE.md) | Suggested code reading order |
 
-Local presets are included for:
+---
 
-- LM Studio
-- Ollama
-- vLLM
-- llama.cpp
+## Tech stack
 
-Hermes files are managed in:
+- **Electron** 39 + **electron-vite** 5
+- **React** 19 + **Tailwind CSS** 4 + **lucide-react**
+- **TypeScript** 5.9
+- **better-sqlite3** — sessions + profile-runtime control plane
+- **i18next** — 4 locales
+- **Vitest** + Testing Library
+- **electron-updater** — release updates
 
-- `~/.hermes`
-- `~/.hermes/.env`
-- `~/.hermes/config.yaml`
-- `~/.hermes/hermes-agent`
-- `~/.hermes/profiles/` — named profile directories
-- `~/.hermes/state.db` — session history database
-- `~/.hermes/cron/jobs.json` — scheduled tasks
+---
 
-## Tech Stack
+## Relationship to Hermes Agent
 
-- **Electron** 39 — cross-platform desktop shell
-- **React** 19 — UI framework
-- **TypeScript** 5.9 — type safety across main and renderer processes
-- **Tailwind CSS** 4 — utility-first styling
-- **Vite** 7 + electron-vite — fast dev server and build tooling
-- **better-sqlite3** — local session storage with FTS5 full-text search
-- **i18next** — internationalization framework
-- **Vitest** — test runner
+SMC Copilot is the **desktop host**. [Hermes Agent](https://github.com/NousResearch/hermes-agent) provides agent behavior, tools, memory, and gateway integrations. The desktop app installs and configures Hermes, spawns Gateway processes per profile, and surfaces operations through a unified AI-OS UI.
 
-## Notes
-
-- The desktop app depends on the upstream Hermes Agent project for agent behavior and tool execution.
-- The built-in installer runs the official Hermes install script with `--skip-setup`, then completes provider configuration in the GUI.
-- Local model providers do not require an API key, but the compatible server must already be running.
-- Alternative npm registry routes are supported for environments with restricted network access.
+---
 
 ## Contributing
 
-Contributions are welcome! Check out the [Contributing Guide](CONTRIBUTING.md) to get started. If you're not sure where to begin, take a look at the [open issues](https://github.com/NousResearch/hermes-desktop/issues). Found a bug or have a feature request? [File an issue](https://github.com/NousResearch/hermes-desktop/issues/new).
+See [CONTRIBUTING.md](./CONTRIBUTING.md). For large UI or IPC changes, align with `.cursor/rules/` and update `docs/API_CONTRACTS.md` when contracts change.
 
-## Related Project
+## License
 
-For the core agent, docs, and CLI workflows, see the main Hermes Agent repository:
-
-- https://github.com/NousResearch/hermes-agent
+MIT — see [LICENSE](./LICENSE).

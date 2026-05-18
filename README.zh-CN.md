@@ -1,147 +1,236 @@
-# Hermes Desktop
+# SMC Copilot（`smc-ai-copilot`）
 
-<img width="100%" alt="HERMES DESKTOP" src="https://github.com/user-attachments/assets/80585955-3bae-4aee-af90-a1e61757ccb8" />
+**SMC Copilot** 是基于 Electron 的 **AI-OS Desktop** 桌面壳，用于承载 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)。本仓库代码由 **hermes-desktop**（单运行时下的安装/配置/聊天）演进为多 Profile 协作文控台，支持跨 Profile 编排与内嵌 Web 自动化。
+
+| | |
+|---|---|
+| **产品名称** | SMC Copilot |
+| **包名 / 可执行文件** | `smc-ai-copilot` |
+| **appId** | `com.smc.smc-ai-copilot` |
+| **技术栈** | Electron 39 · React 19 · TypeScript · Tailwind CSS 4 |
+| **开发文档** | [AGENTS.md](./AGENTS.md) · [docs/INDEX.md](./docs/INDEX.md) |
+
+> **持续开发中。** API、界面与安装流程可能变更。架构与 IPC 契约请参阅 [AGENTS.md](./AGENTS.md) 与 [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md)。
 
 ## 语言
 
-- 英文：`README.md`
-- 简体中文：`README.zh-CN.md`
+- 英文：[README.md](./README.md)
+- 简体中文：`README.zh-CN.md`（本文件）
 
-> **本项目仍在积极开发中。** 功能可能会变化，部分内容也可能出现问题。如果你遇到 bug 或有新的想法，欢迎在 GitHub 上提交 issue。
+---
 
-Hermes Desktop 是一个桌面应用，用于通过原生桌面界面安装、配置并与 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 进行交互。
+## 项目定位
 
-它把安装、提供商配置和日常使用整合到同一个图形界面中，而不是要求你手动维护 CLI。应用会调用官方 Hermes 安装脚本，将 Hermes 存储在 `~/.hermes` 中，并提供聊天、会话、档案、记忆、技能、工具和设置等 GUI 功能。
+SMC Copilot **不再只是** Hermes Agent 的安装向导，而是桌面端的 **控制面 + 工作台**，负责：
 
-## 安装
+1. **部署与运维** Hermes Agent（本地安装、企业流水线、PyPI 镜像、Runtime Bundle）。
+2. **并行运行多个 Profile Gateway**（default + 专家角色，端口 8642–8648）。
+3. **为每个 Profile 提供独立入口**（AI-OS 工作台、Profile 工作台、运行时面板）。
+4. **跨 Profile 协同**（委托调用、技能同步、会话上下文共享）。
+5. **通过 Electron WebContentsView 嵌入外部 Web**（Web Operator），让人与 Agent 在 AI-OS 内共用同一浏览器视口。
 
-请从 [Releases](https://github.com/fathah/hermes-desktop/releases/) 页面下载最新构建版本。
+Hermes Agent 仍是执行引擎（工具、记忆、消息 Gateway、学习闭环）。SMC Copilot 负责 **桌面壳**、**进程生命周期**、**SQLite 控制面** 与 **统一 UI**。
 
-| 平台  | 文件                  |
-| ----- | --------------------- |
-| macOS | `.dmg`                |
-| Linux | `.AppImage` 或 `.deb` |
+---
 
-> **macOS 用户：** 应用目前没有进行代码签名或 notarize，首次启动时 macOS 可能会阻止运行。安装后请执行：
->
-> ```bash
-> xattr -cr "/Applications/Hermes Agent.app"
-> ```
->
-> 或者右键应用，选择 **Open**，然后在弹窗中再次点击 **Open**。
+## 功能演进一览
 
-## 功能包含
+| 阶段 | 重点 | 主要变化 |
+|---|---|---|
+| **V1.0 — hermes-desktop** | 单运行时桌面 | 引导安装、提供商配置、流式聊天、会话、技能、记忆、16 个消息 Gateway、Claw3D Office |
+| **V1.1 — Multi Profile Runtime** | AI-OS Desktop | 7 个 Profile × 独立 Gateway；`profile-runtime.db` 控制面；AI-OS 工作台 + 专家 Profile 工作台；入口与布局 |
+| **V1.2 — 运行时稳定性** | 运维能力 | 崩溃检测、自动重启、端口冲突检测、启动超时、Gateway 日志、应用重启后状态恢复 |
+| **V1.2.1 — Enterprise Install** | 一键部署 | Deployment 配置与 Schema、Runtime Bundle（在线/离线）、20 步预检/安装流水线、Runtime Doctor、安装锁/标记/日志 |
+| **V1.4 / V1.4.1 — 桌面壳加固** | 产品化 | 自定义标题栏/窗口 IPC、NSIS 预检、本地 zip/Git 源、PyPI 镜像预设、`agent-deps-installer`、品牌更名为 **SMC Copilot** |
 
-- Hermes Agent 的首次引导式安装
-- OpenRouter、Anthropic、OpenAI 以及本地 OpenAI 兼容端点的提供商配置
-- 基于 Hermes CLI 的流式聊天界面
-- 带恢复和搜索能力的会话历史
-- 用于隔离 Hermes 环境的档案切换
-- 对人格、记忆、工具和已安装技能的图形界面访问
-- Hermes 消息集成的网关控制
-- 使用 Electron Builder 进行桌面打包
+---
 
-## 工作方式
+## 核心能力
 
-首次启动时，应用会：
+### 基础能力（继承自 hermes-desktop）
 
-1. 检查 `~/.hermes` 中是否已经安装 Hermes。
-2. 如果尚未安装，则运行官方 Hermes 安装程序。
-3. 提示你选择 API 提供商或本地模型端点。
-4. 通过 Hermes 配置文件保存提供商配置和 API Key。
-5. 在设置完成后进入主工作区。
+- 首次引导安装，支持 **本地 / 远程** 后端模式
+- 流式聊天（SSE）、工具进度、Markdown、Token/费用展示
+- 会话（SQLite FTS）、模型、提供商、记忆、SOUL 人格、技能、工具集、定时任务
+- 16 个消息 Gateway 平台（Telegram、Discord、Slack 等）
+- Hermes Office（Claw3D）、备份/导入、日志查看、自动更新
+- 国际化：英语、西班牙语、葡萄牙语（巴西）、简体中文
 
-聊天请求会通过本地 Hermes CLI 发出，桌面应用再把响应流式回传到 UI 中。
+### 多 Profile 运行时（V1.1+）
+
+- **7 个 Profile**：`default`、`writer`、`coding`、`research`、`recruiters`、`finance`、`agenter`
+- 每个 Profile **独立 Gateway**，监听 `127.0.0.1:8642`–`8648`
+- **Profile Runtime 界面**：启停/重启、状态、配置导入、Gateway 日志（V1.2）
+- **SQLite 控制面**：`~/.hermes/desktop/profile-runtime.db`
+
+### 跨 Profile 编排
+
+| 能力 | 说明 |
+|---|---|
+| **委托调用（Delegation）** | default Profile 调用专家 Profile（`POST /v1/chat/completions`），并写入审计 |
+| **技能同步（Skill sync）** | Profile 间复制技能（跳过 / 覆盖并备份，SHA-256 校验） |
+| **会话上下文共享** | 将会话导出为 `context.md`（快照 / 摘要 / 全文）— **不合并** `state.db` |
+
+Preload API：`window.profileRuntime`、`window.profileEntry`。
+
+### AI-OS 工作台与 Web Operator
+
+| 界面 | 路由 | 作用 |
+|---|---|---|
+| **AI-OS Workspace** | `/aios-workspace` | default Profile 主控台：对话、多 Profile 状态、委托入口、启动 Web Operator |
+| **Profile Workspace** | `/profile-workspace/:profileId` | 专家工作台（独立聊天、技能、上下文、审计） |
+| **Profile Runtime** | `/profile-runtime` | 运行时运维与 Gateway 日志 |
+| **Web Operator** | `/web-operator` | 三栏布局：Hermes 任务面板 · **WebContentsView** 视口 · 状态/审计面板 |
+
+Web Operator（主进程：`src/main/browser/`）：
+
+- 使用独立分区 `persist:aios-external-web` 的 **WebContentsView**
+- 域名白名单、敏感操作确认（`browser.click`、`browser.type`）
+- 审计日志（JSONL）：`~/.hermes/desktop/web-operator/`
+- 本地 Tool Server：`127.0.0.1`（8765–8775），供 Hermes 工具桥接
+
+Preload API：`window.aiosBrowser`。
+
+### 企业安装与桌面壳（V1.2.1+）
+
+- 20 步企业流水线：预检 → Bundle → Agent → venv → Profile → 安装标记
+- Runtime Doctor（9 项检查）、安装锁 / 标记 / 脱敏日志
+- 安全约束：Gateway **仅 127.0.0.1**、不写 HKLM/系统 PATH、密钥不写入标记或日志
+- **V1.4.1**：本地 zip 或 Git 源、PyPI 镜像 UI（清华 / 阿里 / 腾讯 / 官方 / 自定义）、`desktop-runtime.json`、自定义窗口控制
+
+---
+
+## 架构（摘要）
+
+严格遵循 **Main / Preload / Renderer** 三层隔离：
+
+```
+Renderer (React)
+  → window.hermesAPI | profileRuntime | profileEntry | aiosBrowser
+Preload (contextBridge)  →  src/preload/
+Main (Node.js)           →  src/main/  （IPC、文件系统、SQLite、Gateway 进程）
+Hermes Python Gateway    →  http://127.0.0.1:<port>/v1/chat/completions
+```
+
+新增后端能力须按：**Main 模块 → `ipcMain.handle` → Preload 封装 → `index.d.ts` → Renderer**。详见 [.cursor/rules/](./.cursor/rules/) 与 [AGENTS.md](./AGENTS.md)。
+
+---
+
+## 应用流程
+
+**生命周期界面**（`App.tsx`）：
+
+```
+splash → welcome → installing → setup → main (Layout)
+```
+
+**主导航**（概览）：
+
+| 分区 | 界面 |
+|---|---|
+| **Copilot** | 聊天、会话、Agents、模型、提供商、技能、Soul、记忆、工具、定时任务、Gateway、设置 |
+| **AI-OS** | AI-OS 工作台、Profile 工作台、Profile Runtime、Web Operator |
+| **可视化** | Office（Claw3D） |
+
+聊天链路：Renderer → `hermesAPI.sendMessage` → Main `hermes.ts` → 本地 SSE 或 CLI 回退（或远程 HTTPS）。
+
+---
+
+## 安装（终端用户）
+
+从发布渠道下载最新构建（Windows NSIS：`smc-copilot-<version>-setup.exe`）。
+
+| 平台 | 安装包 |
+|---|---|
+| Windows | `.exe`（NSIS） |
+| macOS | `.dmg` |
+| Linux | `.AppImage`、`.deb`、`.rpm`、`.snap` |
+
+> **Windows：** 安装包可能未签名，首次运行 SmartScreen 可能提示。
+
+### 常用目录
+
+| 路径 | 内容 |
+|---|---|
+| `%USERPROFILE%\.hermes\` | Agent 配置、`state.db`、Profile、桌面控制面 |
+| `%LOCALAPPDATA%\Programs\SMC Copilot\`（或 `$INSTDIR`） | 程序本体、`runtime/`、`hermes-agent/`、`venv/`、日志 |
+| `~/.hermes/desktop/profile-runtime.db` | 多 Profile 运行时状态 |
+| `~/.hermes/desktop/web-operator/` | Web Operator 配置与审计日志 |
+
+---
 
 ## 开发
 
-### 前置要求
+### 环境要求
 
-- Node.js 和 npm
-- 可运行 Hermes 安装器的类 Unix shell 环境
-- 首次安装时用于下载 Hermes 的网络访问能力
+- Node.js 18+ 与 npm
+- 首次运行需可访问网络以安装 Hermes/依赖（使用离线 Bundle 时可例外）
 
-### 安装依赖
+### 常用命令
 
 ```bash
 npm install
-```
-
-### 启动开发模式
-
-```bash
-npm run dev
-```
-
-### 运行检查
-
-```bash
-npm run lint
+npm run dev          # electron-vite 开发模式
+npm run build        # 类型检查 + 生产构建
 npm run typecheck
+npm run test
+npm run lint
 ```
 
-### 构建桌面应用
+平台打包：
 
 ```bash
-npm run build
-```
-
-平台构建：
-
-```bash
-npm run build:mac
 npm run build:win
+npm run build:mac
 npm run build:linux
 ```
 
-## 首次设置
+### 目录结构
 
-应用首次打开时，会自动检测是否存在现有 Hermes 安装；如果没有，会引导你完成安装。
+| 目录 | 职责 |
+|---|---|
+| `src/main/` | 主进程 — IPC、Gateway、企业安装、browser/Web Operator |
+| `src/preload/` | contextBridge API |
+| `src/renderer/src/` | React UI（`screens/`、`components/`） |
+| `src/shared/` | i18n、profile-runtime 与企业契约类型 |
+| `resources/profiles/` | Profile 模板 |
+| `docs/` | 架构、模块、API 契约 |
+| `tests/` | Vitest |
 
-当前 UI 支持的设置路径包括：
+### 文档索引
 
-- `OpenRouter`
-- `Anthropic`
-- `OpenAI`
-- 通过 OpenAI 兼容 Base URL 使用 `Local LLM`
+| 文档 | 适用场景 |
+|---|---|
+| [AGENTS.md](./AGENTS.md) | Cursor / Agent 编码速查 |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 进程模型、Gateway、V1.x 架构图 |
+| [docs/MODULES.md](./docs/MODULES.md) | 各文件模块职责 |
+| [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md) | IPC 通道列表 |
+| [docs/READING_GUIDE.md](./docs/READING_GUIDE.md) | 建议阅读顺序 |
 
-内置的本地预设包括：
+---
 
-- LM Studio
-- Ollama
-- vLLM
-- llama.cpp
+## 技术栈
 
-Hermes 相关文件位于：
+- **Electron** 39 + **electron-vite** 5
+- **React** 19 + **Tailwind CSS** 4 + **lucide-react**
+- **TypeScript** 5.9
+- **better-sqlite3** — 会话与 profile-runtime 控制面
+- **i18next** — 4 种语言
+- **Vitest** + Testing Library
+- **electron-updater** — 发布更新
 
-- `~/.hermes`
-- `~/.hermes/.env`
-- `~/.hermes/config.yaml`
-- `~/.hermes/hermes-agent`
+---
 
-## 主界面
+## 与 Hermes Agent 的关系
 
-- `Chat`：与 Hermes 进行流式对话
-- `Sessions`：浏览并重新打开历史会话
-- `Agents`：管理和切换活动档案
-- `Skills`：查看内置和已安装技能
-- `Persona`：编辑当前档案的人格
-- `Memory`：查看档案记忆文件
-- `Tools`：启用或禁用工具集
-- `Settings`：提供商和网关相关配置
+SMC Copilot 是 **桌面宿主**。[Hermes Agent](https://github.com/NousResearch/hermes-agent) 提供 Agent 行为、工具、记忆与 Gateway 集成。桌面应用负责安装配置 Hermes、按 Profile 拉起 Gateway 进程，并通过统一的 AI-OS UI 呈现运维与协作能力。
 
-## 说明
+---
 
-- 桌面应用依赖上游 Hermes Agent 项目来完成代理行为和工具执行。
-- 内置安装器会以 `--skip-setup` 运行官方 Hermes 安装脚本，再在 GUI 中完成提供商配置。
-- 本地模型提供商不需要 API Key，但兼容服务必须已经启动。
+## 参与贡献
 
-## 贡献
+请参阅 [CONTRIBUTING.md](./CONTRIBUTING.md)。较大规模的 UI 或 IPC 变更请遵循 `.cursor/rules/`，并在契约变更时同步更新 `docs/API_CONTRACTS.md`。
 
-欢迎贡献！请查看 [贡献指南](CONTRIBUTING.zh-CN.md) 开始参与。如果你不知道从哪里入手，可以先看看 [open issues](https://github.com/NousResearch/hermes-desktop/issues)。如果你发现 bug 或希望提出功能请求，也欢迎 [提交 issue](https://github.com/NousResearch/hermes-desktop/issues/new)。
+## 许可证
 
-## 相关项目
-
-如需了解核心代理、文档和 CLI 工作流，请查看 Hermes Agent 主仓库：
-
-- https://github.com/NousResearch/hermes-agent
+MIT — 见 [LICENSE](./LICENSE)。
