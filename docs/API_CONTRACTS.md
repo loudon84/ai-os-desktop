@@ -418,34 +418,52 @@ Dropdown 系统 IPC。
 
 ---
 
-## ShellView IPC (V1.9)
+## ShellView IPC (V1.9 + V2.1)
 
 ### View 管理
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
+| `shell:view:create` | `ShellViewCreateRequest` | `void` | 创建指定 layerId 的 WebContentsView |
 | `shell:view:activate` | `layerId: string` | `void` | 激活指定 Layer 的 View |
-| `shell:view:set-bounds` | `layerId: string, bounds: { x: number, y: number, width: number, height: number }` | `void` | 设置指定 View 的位置与尺寸（width/height 必须 ≥ 1） |
+| `shell:view:set-bounds` | `layerId: string, bounds: { x, y, width, height }` | `void` | 设置指定 View 的位置与尺寸（width/height 必须 ≥ 1） |
+| `shell:view:load-url` | `{ layerId, url }` | `void` | 对已存在 View 加载 URL |
+| `shell:view:focus` | `layerId: string` | `void` | 聚焦指定 View |
 | `shell:view:hide` | `layerId: string` | `void` | 隐藏指定 Layer 的 View |
+| `shell:view:destroy` | `layerId: string` | `void` | 销毁指定 View |
+| `shell:view:get-state` | `layerId: string` | `ShellViewSnapshot \| null` | 获取 View 快照 |
+| `shell:view:get-all` | 无 | `ShellViewSnapshot[]` | 获取全部 View 快照 |
 
 **Preload API**: `window.shellView`
 
 ```typescript
 interface ShellViewAPI {
+  create: (layerId, kind, url, options?) => Promise<void>;
   activate: (layerId: string) => Promise<void>;
   setBounds: (layerId: string, bounds: ShellViewBoundsIPC) => Promise<void>;
+  loadUrl: (layerId: string, url: string) => Promise<void>;
+  focus: (layerId: string) => Promise<void>;
   hide: (layerId: string) => Promise<void>;
-}
-
-interface ShellViewBoundsIPC {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  destroy: (layerId: string) => Promise<void>;
+  getState: (layerId: string) => Promise<ShellViewSnapshot | null>;
+  getAll: () => Promise<ShellViewSnapshot[]>;
 }
 ```
 
-**错误响应**: 无效 `layerId` 抛出 `"Layer not found: xxx"`；无效 `bounds` 抛出 `"Invalid bounds: ..."`。
+**Lazy create**: `aios-home` 与 `web-operator` 在 `set-bounds` / `activate` / `load-url` / `focus` 时若不存在会自动创建（`web-operator` 默认 `about:blank`）。
+
+**Renderer 用法（Web Operator，V2.1）**：
+
+| 步骤 | API | 说明 |
+|------|-----|------|
+| 进入页 | `shellView.create(WEB_OPERATOR_LAYER_ID, "web-operator", "about:blank", { layer: "content", sandbox: true })` | `WebOperatorScreen` mount；已存在可 catch |
+| 布局 | `WebContentsHost` + `shellView.setBounds` | ResizeObserver 驱动 bounds |
+| 用户 Open | `aiosBrowser.open` → `shellView.loadUrl(layerId, url)` | `useBrowserActions({ shellLayerId: "web-operator" })`；无新 IPC |
+| Agent 自动化 | `aiosBrowser.*` | 仍走 BrowserViewManager，与 UI 视口可能分离至 Phase 3 |
+
+Layer 常量：`src/renderer/src/screens/WebOperator/web-operator-constants.ts` → `WEB_OPERATOR_LAYER_ID = "web-operator"`。
+
+**错误响应**: 无效 `layerId` 抛出 `"Layer not found: xxx"` 或参数校验错误；无效 `bounds` 抛出 `"Invalid bounds: ..."`。
 
 ### aios-home View URL 检测增强 (V1.9.2)
 

@@ -129,6 +129,15 @@
     "SF Mono", "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
+/* ----- Root layout ----- */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 /* ----- Body ----- */
 body {
   font-family: var(--font-sans);
@@ -141,10 +150,13 @@ body {
 
 /* ----- App Shell ----- */
 .app {
-  height: 97vh;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
+  overflow: hidden;
 }
 
 .drag-region {
@@ -803,14 +815,12 @@ body {
 }
 
 .sidebar {
-  width: 230px;
+  width: 232px;
   background: var(--bg-secondary);
   border-right: none;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-
-  border-radius: 16px;
 }
 
 .sidebar-brand {
@@ -1093,7 +1103,7 @@ body {
 }
 
 .window-controls {
-  height: 36px;
+  height: 40px;
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
@@ -1104,7 +1114,7 @@ body {
 
 .window-control-button {
   width: 46px;
-  height: 36px;
+  height: 40px;
   border: 0;
   background: transparent;
   color: var(--text-primary, #e5e7eb);

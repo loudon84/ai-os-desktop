@@ -589,10 +589,31 @@ interface ShellViewBoundsIPC {
   height: number;
 }
 
+interface ShellViewSnapshot {
+  id: string;
+  kind: string;
+  layer: string;
+  state: string;
+  bounds: ShellViewBoundsIPC;
+  url: string;
+  active: boolean;
+}
+
 interface ShellViewAPI {
+  create: (
+    layerId: string,
+    kind: string,
+    url: string,
+    options?: Record<string, unknown>,
+  ) => Promise<void>;
   activate: (layerId: string) => Promise<void>;
   setBounds: (layerId: string, bounds: ShellViewBoundsIPC) => Promise<void>;
+  loadUrl: (layerId: string, url: string) => Promise<void>;
+  focus: (layerId: string) => Promise<void>;
   hide: (layerId: string) => Promise<void>;
+  destroy: (layerId: string) => Promise<void>;
+  getState: (layerId: string) => Promise<ShellViewSnapshot | null>;
+  getAll: () => Promise<ShellViewSnapshot[]>;
 }
 
 declare global {

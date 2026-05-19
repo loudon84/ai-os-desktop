@@ -6,7 +6,6 @@ import Install from "./screens/Install/Install";
 import Setup from "./screens/Setup/Setup";
 import Layout from "./screens/Layout/Layout";
 import SplashScreen from "./screens/SplashScreen/SplashScreen";
-import { WindowControls } from "./components/layout/WindowControls";
 import { useI18n } from "./components/useI18n";
 
 type Screen = "splash" | "welcome" | "installing" | "setup" | "main";
@@ -175,7 +174,7 @@ function App(): React.JSX.Element {
     <ThemeProvider>
       <ErrorBoundary>
         <div className="app">
-          {isMac && <div className="drag-region" />}          
+          {isMac && screen !== "main" && <div className="drag-region" />}
           <div className="app-content">{renderScreen()}</div>
         </div>
       </ErrorBoundary>

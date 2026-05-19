@@ -6,18 +6,30 @@ import type {
   BrowserScreenshotResult
 } from "../../../../../shared/browser/browser-contract";
 
-export function useBrowserActions() {
+export interface UseBrowserActionsOptions {
+  /** When set, successful `open` also loads this ShellView layer (WebContentsHost viewport). */
+  shellLayerId?: string;
+}
+
+export function useBrowserActions(options?: UseBrowserActionsOptions) {
+  const shellLayerId = options?.shellLayerId;
   const [isLoading, setIsLoading] = useState(false);
 
   const open = useCallback(async (url: string) => {
     setIsLoading(true);
     try {
       const result: BrowserOpenResult = await window.aiosBrowser.open({ url, source: "user" });
+      if (result.ok && shellLayerId) {
+        const targetUrl = result.url ?? url;
+        await window.shellView.loadUrl(shellLayerId, targetUrl).catch((err: unknown) => {
+          console.warn("[useBrowserActions] shellView.loadUrl failed:", err);
+        });
+      }
       return result;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [shellLayerId]);
 
   const back = useCallback(async () => {
     return await window.aiosBrowser.back();

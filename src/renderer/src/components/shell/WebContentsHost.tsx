@@ -14,7 +14,6 @@ export function WebContentsHost({
   const hiddenRef = useRef(true);
   const [error, setError] = useState(false);
   const { t } = useTranslation("shellView");
-
   const readBounds = useCallback(() => {
     const el = ref.current;
     if (!el) return null;
@@ -103,7 +102,6 @@ export function WebContentsHost({
               void syncBounds();
             }}
           >
-            {t("retry")}
           </button>
         </div>
       </div>

@@ -8,6 +8,7 @@ import type {
   ShellViewOptions,
   ViewActivationConfig,
 } from "../../../shared/shell/view-contract";
+import type { ShellViewSnapshot } from "../../../shared/shell/shell-view-contract";
 import { ManagedWebContentsView } from "./managed-webcontents-view";
 import { viewRegistry } from "./view-registry";
 import { viewEventBus } from "./view-events";
@@ -314,6 +315,46 @@ export class ShellViewManager extends EventEmitter {
    */
   getAllViews(): ManagedWebContentsView[] {
     return Array.from(this.views.values());
+  }
+
+  async loadUrl(id: string, url: string): Promise<void> {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    await view.load(url);
+  }
+
+  focusView(id: string): void {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    view.focus();
+  }
+
+  getViewSnapshot(id: string): ShellViewSnapshot | null {
+    const view = this.views.get(id);
+    if (!view) {
+      return null;
+    }
+
+    const webContents = view.getWebContents();
+    return {
+      id: view.getId(),
+      kind: view.getKind(),
+      layer: view.getLayer(),
+      state: view.getState(),
+      bounds: view.getBounds(),
+      url: webContents?.getURL() ?? "",
+      active: view.isActive(),
+    };
+  }
+
+  getAllViewSnapshots(): ShellViewSnapshot[] {
+    return Array.from(this.views.keys())
+      .map((id) => this.getViewSnapshot(id))
+      .filter((item): item is ShellViewSnapshot => item !== null);
   }
 
   /**

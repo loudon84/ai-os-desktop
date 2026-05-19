@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 import type { ShellViewManager } from "./views/shell-view-manager";
-import type { ShellViewBoundsIPC } from "../../shared/shell/shell-view-contract";
+import type {
+  ShellViewBoundsIPC,
+  ShellViewCreateRequest,
+  ShellViewLoadUrlRequest,
+} from "../../shared/shell/shell-view-contract";
 import { ShellViewChannels } from "../../shared/shell/shell-view-contract";
 import { getAiOsEnvConfig } from "../aios/aios-config";
 
@@ -54,9 +58,27 @@ async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
   }
 }
 
+async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {
+  const url = "about:blank";
+  const existing = svm.getView("web-operator");
+
+  if (!existing) {
+    await svm.createView("web-operator", "web-operator", url, {
+      layer: "content",
+      sandbox: true,
+    });
+    console.log("[SHELL-IPC] Lazy created web-operator view");
+  }
+}
+
 async function ensureKnownView(svm: ShellViewManager, layerId: string): Promise<void> {
   if (layerId === "aios-home") {
     await ensureAiosHomeView(svm);
+    return;
+  }
+
+  if (layerId === "web-operator") {
+    await ensureWebOperatorView(svm);
     return;
   }
 
@@ -66,6 +88,28 @@ async function ensureKnownView(svm: ShellViewManager, layerId: string): Promise<
 }
 
 export function registerShellViewIpc(svm: ShellViewManager): void {
+  ipcMain.handle(
+    ShellViewChannels.CREATE,
+    async (_event, request: ShellViewCreateRequest): Promise<void> => {
+      if (!request?.layerId || typeof request.layerId !== "string") {
+        throw new Error(`Invalid layerId: ${request?.layerId}`);
+      }
+      if (!request?.kind || typeof request.kind !== "string") {
+        throw new Error(`Invalid kind: ${request?.kind}`);
+      }
+      if (!request?.url || typeof request.url !== "string") {
+        throw new Error(`Invalid url: ${request?.url}`);
+      }
+
+      await svm.createView(
+        request.layerId,
+        request.kind,
+        request.url,
+        request.options,
+      );
+    },
+  );
+
   ipcMain.handle(
     ShellViewChannels.ACTIVATE,
     async (_event, layerId: string): Promise<void> => {
@@ -108,6 +152,33 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
   );
 
   ipcMain.handle(
+    ShellViewChannels.LOAD_URL,
+    async (_event, request: ShellViewLoadUrlRequest): Promise<void> => {
+      if (!request?.layerId || typeof request.layerId !== "string") {
+        throw new Error(`Invalid layerId: ${request?.layerId}`);
+      }
+      if (!request?.url || typeof request.url !== "string") {
+        throw new Error(`Invalid url: ${request?.url}`);
+      }
+
+      await ensureKnownView(svm, request.layerId);
+      await svm.loadUrl(request.layerId, request.url);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.FOCUS,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+
+      await ensureKnownView(svm, layerId);
+      svm.focusView(layerId);
+    },
+  );
+
+  ipcMain.handle(
     ShellViewChannels.HIDE,
     async (_event, layerId: string): Promise<void> => {
       if (!layerId || typeof layerId !== "string") {
@@ -117,6 +188,32 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
       svm.deactivateView(layerId);
     },
   );
+
+  ipcMain.handle(
+    ShellViewChannels.DESTROY,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+
+      svm.destroyView(layerId);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.GET_STATE,
+    async (_event, layerId: string) => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+
+      return svm.getViewSnapshot(layerId);
+    },
+  );
+
+  ipcMain.handle(ShellViewChannels.GET_ALL, async () => {
+    return svm.getAllViewSnapshots();
+  });
 
   console.log("[SHELL-IPC] ShellView IPC handlers registered");
 }

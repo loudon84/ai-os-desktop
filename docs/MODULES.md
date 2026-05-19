@@ -14,6 +14,11 @@
 - **IPC Channels**: `window:minimize`, `window:maximize-or-restore`, `window:close`, `window:is-maximized`
 - **核心方法**: `registerWindowIpc()` — 在 `setupIPC()` 中调用一次，带 `registered` 防重复注册
 
+### shell/main-window-controller.ts — V2.0 主窗口生命周期
+
+- **职责**: 创建主 `BrowserWindow`、加载 Renderer、绑定 `window-ipc`、持久化窗口位置/尺寸（`window-state-store`）
+- **V2.0 尺寸**: 默认 **1280×800**、最小 **900×600**（`shared/shell/main-page-constants.ts`）；若已有 `window-state` 则优先用户历史宽高
+
 ### hermes.ts — Hermes 引擎通信
 
 - **职责**: Gateway 进程管理 + SSE 消息通信
@@ -266,10 +271,11 @@
 - **职责**: AI-OS BrowserView/WebContentsView 生命周期管理
 - **V1.9 状态**: **@deprecated** — 由 `ShellViewManager` 统一接管 View 管理，此控制器停用
 
-### shell/shell-view-ipc.ts — V1.9 ShellView IPC 注册
+### shell/shell-view-ipc.ts — V1.9 + V2.1 ShellView IPC 注册
 
-- **职责**: 注册 ShellView IPC handler（activate/set-bounds/hide），桥接 Renderer 与 ShellViewManager
-- **IPC Channels**: `shell:view:activate`, `shell:view:set-bounds`, `shell:view:hide`
+- **职责**: 注册 ShellView IPC handler，桥接 Renderer 与 ShellViewManager
+- **IPC Channels**: `shell:view:create|activate|set-bounds|load-url|focus|hide|destroy|get-state|get-all`
+- **Lazy create**: `aios-home`、`web-operator` 在 activate/set-bounds 时自动 ensure
 - **核心方法**: `registerShellViewIpc(svm)` — 在 createWindow 后调用；`destroyShellViews()` — before-quit 清理
 
 ---
@@ -561,7 +567,7 @@
 
 - **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**、**`window.shellView`**
 - **关键**: 将所有 IPC invoke/on 封装为 Promise/回调 API
-- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**, **shellView (3 方法: activate/setBounds/hide)**
+- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**, **shellView (9 方法: create/activate/setBounds/loadUrl/focus/hide/destroy/getState/getAll)**
 
 ### browser-api.ts — Web Operator Preload API
 
@@ -589,10 +595,10 @@
 - **职责**: 封装 profile-entry:* IPC 为 `window.profileEntry` API
 - **方法**: listProfileEntries, getProfileEntry, openProfileEntry, getProfilePageLayout, updateProfilePageLayout
 
-### shell-view-api.ts — V1.9 ShellView Preload API
+### shell-view-api.ts — V1.9 + V2.1 ShellView Preload API
 
 - **职责**: 封装 shell:view:* IPC 为 `window.shellView` API
-- **核心方法**: `activate(layerId)` — 激活 View；`setBounds(layerId, bounds)` — 设置 View 位置/尺寸；`hide(layerId)` — 隐藏 View
+- **核心方法**: `create`, `activate`, `setBounds`, `loadUrl`, `focus`, `hide`, `destroy`, `getState`, `getAll`
 
 ---
 
@@ -602,7 +608,8 @@
 
 - **职责**: 屏幕路由 (splash → welcome → installing → setup → main)
 - **状态管理**: 安装状态检查、远程模式检测
-- **V1.4.1**: Win/Linux 在非 `main` 屏显示 `layout-titlebar` + `WindowControls`；macOS 保留顶部 `drag-region`
+- **V1.4.1**: Win/Linux 在非 `main` 屏显示 `layout-titlebar` + `WindowControls`
+- **V2.0**: `screen === "main"` 时由 `MainTopBar` 承担拖拽；macOS 仅在非 `main` 屏渲染全局 `drag-region`；根 `.app` 使用 `100dvh`
 
 ### constants.ts — 常量定义
 
@@ -619,7 +626,13 @@
 | Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
 | Install | screens/Install/Install.tsx | 安装流程+进度（含 AgentSourceSelect） |
 | Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
-| Layout | screens/Layout/Layout.tsx | **V1.4** 编排层：组合 DesktopShell + hooks，不再内联全部 JSX |
+| Layout | screens/Layout/Layout.tsx | **V2.0** 编排层：聚合 hooks，渲染 `MainPage`（不再使用 `DesktopShell` / 全局 `PageHeader`） |
+| **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + Sidebar 槽 + Outlet + StatusBar + Modal/Drawer |
+| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.0** 顶栏 40px：菜单占位、Profile、Runtime、工作区 Tabs、快捷入口、`WindowControls` |
+| **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1** `buildMainWorkspaceTabs` / `isWorkspaceTabView` |
+| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V2.1** 静态 + `profileEntries` 动态 specialist tabs（无 DnD） |
+| **MainProfileSwitch** | **screens/MainPage/MainProfileSwitch.tsx** | **V2.0** 当前 Profile + `ProfileSwitcherDropdown` |
+| **MainRuntimeIndicator** | **screens/MainPage/MainRuntimeIndicator.tsx** | **V2.0** 当前 Profile Gateway 状态（轮询 `profileRuntime.getRuntimeStatus()`） |
 | **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
 | Chat | screens/Chat/Chat.tsx | 消息输入/流式输出/工具进度/Usage |
 | Sessions | screens/Sessions/Sessions.tsx | 会话历史浏览/搜索 |
@@ -633,11 +646,15 @@
 | Tools | screens/Tools/Tools.tsx | 工具集开关 |
 | Schedules | screens/Schedules/Schedules.tsx | Cron Job 管理 |
 | Gateway | screens/Gateway/Gateway.tsx | 16 个消息平台配置 |
-| WebOperator | screens/WebOperator/WebOperatorScreen.tsx | Web Operator 三栏布局(Hermes任务面板/浏览器视口/状态面板) |
+| WebOperator | screens/WebOperator/WebOperatorScreen.tsx | **V2.1** 三栏布局；`WebContentsHost` + `shellView.create`；mount 时 ensure layer |
+| **web-operator-constants.ts** | **screens/WebOperator/web-operator-constants.ts** | **V2.1** `WEB_OPERATOR_LAYER_ID` |
+| **BrowserToolbar** | **screens/WebOperator/BrowserToolbar.tsx** | **V2.1** 单行地址栏；`useBrowserActions({ shellLayerId })` |
+| **use-browser-actions.ts** | **screens/WebOperator/hooks/use-browser-actions.ts** | **V2.1** `open` 成功后可选 `shellView.loadUrl`；back/forward/reload 仍仅 `aiosBrowser` |
+| **web-operator.css** | **screens/WebOperator/web-operator.css** | **V2.1** 布局 + `browser-toolbar*` 单行 chrome |
 | Settings | screens/Settings/Settings.tsx | 主题/语言/连接/更新/备份/诊断 |
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
-| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（运行状态/快速入口）** |
+| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
 | **AIOSWorkspace** | **screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx** | **V1.1 AI-OS 主控工作台（主控对话/多 Profile 状态/委派入口/Web Operator）** |
 | **ProfileWorkspace** | **screens/ProfileWorkspace/ProfileWorkspaceScreen.tsx** | **V1.1 specialist 独立工作台（独立 chat/skills/context/audit）** |
 
@@ -659,20 +676,26 @@
 | RuntimeGuard | components/runtime/RuntimeGuard.tsx | 运行时守卫 |
 | RuntimeStatusBar | components/runtime/RuntimeStatusBar.tsx | 运行时状态栏 |
 
-### components/layout/ — V1.4 Desktop Shell
+### components/layout/ — V2.0 Desktop Shell（二级导航与 Outlet）
 
 | 组件 | 文件 | 职责 |
 |---|---|---|
-| DesktopShell | components/layout/DesktopShell.tsx | 壳布局：sidebar + header + outlet + statusBar + modal/drawer 挂载位 |
-| DesktopSidebar | components/layout/DesktopSidebar.tsx | 侧边栏导航、Profile 分组、更新按钮 |
-| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | 主工作区视图路由（保留 Chat/Office/Settings 挂载策略） |
-| PageHeader | components/layout/PageHeader.tsx | 页头：`app-drag-region`、标题、active profile、右侧 `WindowControls` |
-| WindowControls | components/layout/WindowControls.tsx | Win/Linux 自定义窗口按钮；调用 `hermesAPI.windowControls`；macOS 返回 null |
-| StatusBar | components/layout/StatusBar.tsx | 底栏：profile、连接模式、更新状态 |
+| DesktopSidebar | components/layout/DesktopSidebar.tsx | **V2.1** 二级导航；`mode: expanded \| rail \| hidden`（rail 仅 icon） |
+| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | 主工作区视图路由（Chat/Office/Settings/AIOSHome 等） |
+| WindowControls | components/layout/WindowControls.tsx | Win/Linux 窗口按钮；**V2.0** 主界面挂于 `MainTopBar`；调用 `hermesAPI.windowControls`；macOS 返回 null |
+| StatusBar | components/layout/StatusBar.tsx | 底栏 24px：profile、连接模式、更新状态 |
 | ModalLayer | components/layout/ModalLayer.tsx | 全局 Modal 挂载点（占位） |
 | DrawerLayer | components/layout/DrawerLayer.tsx | 全局 Drawer 挂载点（占位） |
+| DesktopShell | components/layout/DesktopShell.tsx | **@legacy V1.4** 旧壳：sidebar + header + outlet；主链路已由 `MainPage` 替代，文件保留 |
+| PageHeader | components/layout/PageHeader.tsx | **@legacy V1.4** 全局页头（标题 + profile）；已从 `Layout` 移除，可供单页局部复用 |
 
-### hooks/ — V1.4 从 Layout 抽离
+**V2.0 主界面组合关系**（PRD `prd/v2.0_mainpage.md`）：
+
+```
+Layout → MainPage → MainTopBar + DesktopSidebar + WorkspaceOutlet + StatusBar
+```
+
+### hooks/ — V1.4 从 Layout 抽离（V2.0 仍由 Layout 调用）
 
 | Hook | 文件 | 职责 |
 |---|---|---|
@@ -738,10 +761,11 @@
 | browser-errors.ts | Web Operator 错误码 |
 | browser-tool-schema.ts | Web Operator 工具 Schema 定义 |
 
-### shell/ — Shell View 契约
+### shell/ — Shell View 与主界面布局契约
 
 | 文件 | 职责 |
 |---|---|
+| **main-page-constants.ts** | **V2.0** 主界面布局常量（顶栏 40、底栏 24、侧栏 232、默认窗口 1280×800、最小 900×600） |
 | view-contract.ts | ShellView 核心类型（Kind/Layer/State/Bounds/Layout/Options/RegistryEntry） |
 | **shell-view-contract.ts** | **V1.9** ShellView IPC 契约（ShellViewChannels 常量 + 请求/响应类型） |
 | overlay-contract.ts | Overlay 契约（Modal/Dropdown/InternalView） |

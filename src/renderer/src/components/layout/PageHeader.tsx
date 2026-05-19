@@ -1,5 +1,4 @@
 import { useI18n } from "../../components/useI18n";
-import { WindowControls } from "./WindowControls";
 import { resolveViewTitleKey, type View } from "../../types/desktop-shell";
 
 export interface PageHeaderProps {

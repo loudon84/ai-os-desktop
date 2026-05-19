@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.5（V1.4.1 Desktop Shell + 安装加固） |
+| 版本 | 0.3.5（V1.9 + **V2.0 MainPage 主界面壳层**） |
 | appId | `com.smc.smc-ai-copilot`（productName: SMC Copilot） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -40,9 +40,11 @@ Hermes Python Backend (Gateway)
 | `src/main/browser/` | Web Operator（BrowserView、安全、审计、Tool Server） | 浏览器自动化 |
 | `src/main/enterprise/` | 企业安装、本地 zip/git 源、**agent-deps-installer**、**pip-mirror-config** | 安装/预检/Doctor/依赖 |
 | `src/main/window/` | V1.4.1 窗口 IPC（`registerWindowIpc`） | 标题栏按钮 |
-| `src/preload/` | contextBridge：`hermesAPI`、`aiosBrowser`、`profileRuntime`、`profileEntry` | API 桥接（影响面大） |
+| `src/main/shell/` | **main-window-controller.ts**（默认 1280×800）、ShellView、菜单 | 主窗口尺寸、壳层 IPC |
+| `src/preload/` | contextBridge：`hermesAPI`、`aiosBrowser`、`profileRuntime`、`profileEntry`、`shellView` | API 桥接（影响面大） |
+| `src/renderer/src/screens/MainPage/` | **V2.0** 主界面壳：`MainPage`、`MainTopBar`、`MainViewTabs` 等 | 顶栏 / 工作区 Tabs |
 | `src/renderer/src/` | React UI：`screens/`、`components/` | **主要 UI 开发区** |
-| `src/shared/` | 共享类型：i18n、profile-runtime、enterprise、browser 契约 | 类型/错误码/常量 |
+| `src/shared/shell/` | **`main-page-constants.ts`**、shell-view-contract、view-contract | 布局尺寸、ShellView 契约 |
 | `resources/profiles/` | Profile 模板 + SOUL.md | Profile 种子配置 |
 | `resources/skills/` | 内置技能包 | 新技能 |
 | `tests/` | Vitest | 单测/集成测 |
@@ -67,11 +69,27 @@ Hermes Python Backend (Gateway)
 splash → welcome → installing → setup → main (Layout)
 ```
 
-**主界面**（`Layout.tsx`）侧边栏视图：
+**主界面壳层（V2.0）** — `Layout.tsx` 编排 hooks，渲染 `MainPage`：
+
+```
+MainPage
+  ├─ MainTopBar        ← Profile、Gateway 状态、工作区 Tabs、WindowControls
+  ├─ DesktopSidebar    ← 二级功能导航（232px）
+  ├─ WorkspaceOutlet   ← 下方各 Screen
+  ├─ StatusBar
+  └─ ModalLayer / DrawerLayer
+```
+
+PRD：`prd/v2.0_mainpage.md` / `prd/v2.1_mainpage.md`。Legacy：`DesktopShell`、`PageHeader`（非主链路）。
+
+**V2.1**：顶栏左侧按钮切换 Sidebar `expanded → rail → hidden`；`MainViewTabs` 含 `profile-workspace:*`；`window.shellView.create/loadUrl/...`；Web Operator 视口 `WebContentsHost` layer `web-operator`；工具栏 **Open** 为 `aiosBrowser.open` + `shellView.loadUrl`（`useBrowserActions.shellLayerId`）；back/forward/reload 与侧栏状态仍走 BVM（Phase 3 `ShellBrowserViewAdapter`）。
+
+**主界面**（`WorkspaceOutlet` 路由）视图：
 
 | 视图 | 路径 | 屏幕文件 |
 |---|---|---|
-| Chat | `/` | `screens/Chat/Chat.tsx` |
+| **AI-OS Home** | 顶栏 Tab `aios-home` | `screens/AIOSHome/AIOSHomeScreen.tsx`（含 `WebContentsHost` layer `aios-home`） |
+| Chat | 侧栏 | `screens/Chat/Chat.tsx` |
 | Sessions | `/sessions` | `screens/Sessions/Sessions.tsx` |
 | Agents | `/agents` | `screens/Agents/Agents.tsx` |
 | Models / Providers / Skills / Soul / Memory / Tools / Schedules / Gateway / Settings | 各对应 `screens/*/` | |
@@ -126,6 +144,21 @@ profile-runtime-ipc.ts
 
 能力插件：`delegation-capability`、`skill-sync-capability`、`session-share-capability`。
 
+### Web Operator（V2.1 双轨 + Open 同步）
+
+```
+WebOperatorScreen
+  → shellView.create("web-operator", ...) + WebContentsHost.setBounds
+BrowserToolbar Open
+  → useBrowserActions({ shellLayerId: "web-operator" })
+      → aiosBrowser.open (BVM + 审计)
+      → shellView.loadUrl("web-operator", url)   // UI 视口
+BrowserToolbar back/forward/reload、BrowserStatePanel
+  → aiosBrowser.* (仅 BVM，Phase 3 统一)
+Hermes agent tool
+  → aiosBrowser → browser-controller.ts → BrowserViewManager
+```
+
 ### Enterprise Install（V1.2.1）
 
 ```
@@ -159,11 +192,12 @@ AgentSourceSelect / install-wizard
 
 **离线 wheel**：`$INSTDIR/runtime/wheels/` 或 `hermes-agent/wheels/`（`--offline` / `--find-links`）。
 
-### 窗口控制（V1.4.1）
+### 窗口控制（V1.4.1 + V2.0）
 
 - Preload：`window.hermesAPI.windowControls` → IPC `window:minimize|maximize-or-restore|close|is-maximized`
 - Main：`src/main/window/window-ipc.ts` → `registerWindowIpc()`（`setupIPC()` 内一次）
-- Renderer：`WindowControls` 挂于 `PageHeader`；splash/welcome/install/setup 用 `App.tsx` 的 `layout-titlebar`
+- Main 窗口尺寸：`src/main/shell/main-window-controller.ts` ← `shared/shell/main-page-constants.ts`（默认 **1280×800**，最小 **900×600**；有 `window-state` 持久化时优先历史值）
+- Renderer：**主界面** `WindowControls` 挂于 `MainTopBar`（`screens/MainPage/MainTopBar.tsx`）；splash/welcome/install/setup 仍用各屏自有标题栏；macOS 主界面由 `MainTopBar` 拖拽（`App.tsx` 在 `screen === "main"` 时不渲染全局 `drag-region`）
 
 ## 配置文件位置
 
@@ -261,9 +295,12 @@ npm run lint         # ESLint
 | 改聊天 | `screens/Chat/Chat.tsx` → `hermes.ts` → `sse-parser.ts` |
 | 改安装 | `screens/Install/AgentSourceSelect` → `installer.ts` → `agent-deps-installer.ts` |
 | 改 PyPI 镜像 | `PipMirrorFields.tsx` → `pip-mirror-presets.ts` → `pip-mirror-config.ts` |
-| 改窗口按钮 | `WindowControls.tsx` → `window-ipc.ts` → preload `windowControls` |
+| 改主界面壳层 / 顶栏 | `screens/MainPage/*` → `Layout.tsx`；常量 `shared/shell/main-page-constants.ts` |
+| 改窗口按钮 | `MainTopBar.tsx` / `WindowControls.tsx` → `window-ipc.ts` → preload `windowControls` |
 | 改多 Profile | `ProfileRuntimeScreen.tsx` → `profile-runtime-manager.ts` |
-| 改 Web Operator | `WebOperatorScreen.tsx` → `browser/browser-controller.ts` |
+| 改 Web Operator UI 视口 / bounds | `WebOperatorScreen.tsx` + `WebContentsHost` + `web-operator-constants.ts` → `shell-view-ipc.ts` |
+| 改 Web Operator 地址栏 Open | `BrowserToolbar.tsx` → `use-browser-actions.ts`（`shellLayerId` + `loadUrl`）+ `aiosBrowser` |
+| 改 Web Operator 工具/自动化 | `aiosBrowser` → `browser-controller.ts`（BVM，与 UI 视口可能分离） |
 | 改 i18n | `src/shared/i18n/locales/<locale>/` |
 
 ## 版本特性索引
@@ -275,6 +312,9 @@ npm run lint         # ESLint
 | V1.2.1 | Enterprise 一键部署、Preflight、Bundle、Doctor | `src/main/enterprise/`, `src/shared/enterprise/` |
 | V1.4 | Desktop Shell、NSIS 预检、WindowControls、RuntimeSetup 预检卡片 | `components/layout/`, `build/nsis/`, `installer-precheck-reader` |
 | V1.4.1 | 窗口 IPC 加固、PyPI 镜像 UI、`agent-deps-installer`、`--no-config` uv | `pip-mirror-*`, `agent-deps-installer`, `window-ipc` |
+| V1.9 | ShellView IPC、`WebContentsHost`、启动顺序与菜单接管 | `shell-view-*`, `WebContentsHost`, `shell-menu` |
+| **V2.0** | **MainPage 主界面壳层**、顶栏 Tabs/Profile/Runtime、默认窗口 1280×800 | `screens/MainPage/`, `main-page-constants.ts`, `Layout.tsx` |
+| **V2.1** | Sidebar 三态、动态 Profile Tabs、ShellView 全 IPC、WebOperator→`WebContentsHost`、工具栏 Open 同步 `loadUrl` | `main-page-tabs.ts`, `shell-view-contract.ts`, `WebOperatorScreen.tsx`, `use-browser-actions.ts`, `web-operator-constants.ts` |
 
 ---
 

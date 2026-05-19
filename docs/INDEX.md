@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.5（V1.9 Desktop Shell 加固） |
+| **版本** | 0.3.5（V1.9 + **V2.0/V2.1 MainPage**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -25,7 +25,7 @@ V1.2.1 在 V1.2 基础上新增 **Enterprise Install 企业级一键部署**：D
 
 V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSIS 安装器加固**：
 - **NSIS**：`customInit` VC++ Runtime 阻断检查；`customInstall` 写入 `runtime/installer-precheck.json` + `nsis-install.log`；Git/Python/uv/8642 端口仅提示不阻断
-- **Desktop Shell**：`Layout.tsx` 编排层 + `DesktopShell` / `DesktopSidebar` / `WorkspaceOutlet` / `PageHeader` / `StatusBar` / `ModalLayer` / `DrawerLayer`
+- **Desktop Shell（V1.4，主链路已由 V2.0 替代）**：`Layout.tsx` 编排层 + `DesktopShell` / `PageHeader`；现主界面见 **V2.0**
 - **WindowControls**：`window.hermesAPI.windowControls` → IPC `window:*`（minimize/maximize/close/is-maximized）；Win/Linux 自定义标题栏按钮
 - **RuntimeSetup**：读取 NSIS 预检结果卡片（`enterprise:get-installer-precheck`）
 
@@ -44,6 +44,28 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **WebContentsHost**：通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级UI），替换 `AiOsWebAppHost`
 - **i18n**：新增 shellView 模块（en/zh-CN/es/pt-BR）
 
+**V2.0（MainPage 主界面壳层，PRD `prd/v2.0_mainpage.md`）**：
+- **一级容器**：`MainPage` 替代 `DesktopShell` 成为主界面根布局；`Layout.tsx` 仍负责 hooks 编排（`useDesktopNavigation` / `useProfileEntries` / `useUpdateState`）
+- **顶栏**：`MainTopBar`（40px）统一承载 Profile 切换、工作区 Tabs、Gateway 运行态、`WindowControls`（Win/Linux）；全局 `PageHeader` 从主链路移除
+- **二级导航**：`DesktopSidebar`（232px）降为功能导航；`WorkspaceOutlet` / `StatusBar` / `ModalLayer` / `DrawerLayer` 保留
+- **工作区 Tabs**：`MainViewTabs` — AI-OS Home / AI-OS Workspace / Web Operator（可点击切换，首版无 DnD）
+- **布局常量**：`src/shared/shell/main-page-constants.ts`（顶栏 40、底栏 24、侧栏 232、默认窗口 1280×800、最小 900×600）
+- **主窗口尺寸**：`main-window-controller.ts` 引用上述常量（已有 `window-state` 持久化时仍优先用户历史尺寸）
+- **根布局 CSS**：`.app` 使用 `100dvh`；macOS 在 `screen === "main"` 时由 `MainTopBar` 承担拖拽，不再叠加全局 `drag-region`
+- **保留未删**：`DesktopShell.tsx`、`PageHeader.tsx`（legacy，便于回滚或页内复用）
+- **Phase 2 未做（见 V2.1 后）**：Tabs DnD、BrowserController 迁移（Phase 3）
+
+**V2.1（MainPage 第二阶段，PRD `prd/v2.1_mainpage.md`）**：
+- **Sidebar 三态**：`expanded`（232px）/ `rail`（56px，仅 icon）/ `hidden`；顶栏按钮循环切换
+- **动态工作区 Tabs**：`main-page-tabs.ts` — 静态 Tab + `profileEntries` 中 `specialist-workspace` 条目
+- **ShellView IPC 扩展**：`create` / `loadUrl` / `focus` / `destroy` / `getState` / `getAll`；`window.shellView` 全量暴露
+- **Web Operator 视口**：`WebOperatorScreen` + `WebContentsHost` layer `web-operator`（常量 `web-operator-constants.ts`）
+- **工具栏导航同步**：`useBrowserActions({ shellLayerId })` 在 `aiosBrowser.open` 成功后调用 `shellView.loadUrl`，使地址栏 Open 与 UI 视口一致
+- **工具栏 UI**：`BrowserToolbar` 单行布局（`web-operator.css` 中 `browser-toolbar*`）
+- **Lazy create**：`shell-view-ipc` 对 `web-operator` 与 `aios-home` 在 set-bounds 前自动创建
+- **双轨残留**：后退/前进/刷新与 `BrowserStatePanel` 仍走 `aiosBrowser` → BVM；Phase 3 `ShellBrowserViewAdapter` 统一
+- **未做**：Tabs DnD、`ShellBrowserViewAdapter`（Phase 3）
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -56,8 +78,8 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
 | `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer（8 个文件） | 按需扩展 |
 | `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView**（7 个文件） | 谨慎修改，影响全进程通信 |
-| `src/renderer/` | 渲染进程 — **components/layout/**、**components/install/PipMirrorFields**、**components/aios/**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
-| `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell 契约；**V1.9: `shell/shell-view-contract.ts`** | 谨慎修改 |
+| `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
+| `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell 契约；**`shell/main-page-constants.ts`**、**`shell/shell-view-contract.ts`** | 谨慎修改 |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |

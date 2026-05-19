@@ -3,6 +3,12 @@ import { join } from "path";
 import { is } from "../utils/electron-toolkit-wrapper";
 import icon from "../../resources/icon.png?asset";
 import { bindMainBrowserWindow } from "../window/window-ipc";
+import {
+  DEFAULT_WINDOW_HEIGHT,
+  DEFAULT_WINDOW_WIDTH,
+  MINIMUM_WINDOW_HEIGHT,
+  MINIMUM_WINDOW_WIDTH,
+} from "../../shared/shell/main-page-constants";
 import { readWindowState, saveWindowState } from "./window-state-store";
 
 /**
@@ -41,19 +47,13 @@ export class MainWindowController {
     // 读取保存的窗口状态
     const savedState = readWindowState();
 
-    // 窗口默认尺寸
-    const DEFAULT_WIDTH = 1100;
-    const DEFAULT_HEIGHT = 750;
-    const MIN_WIDTH = 800;
-    const MIN_HEIGHT = 600;
-
     this.win = new BrowserWindow({
-      width: savedState.width || DEFAULT_WIDTH,
-      height: savedState.height || DEFAULT_HEIGHT,
+      width: savedState.width || DEFAULT_WINDOW_WIDTH,
+      height: savedState.height || DEFAULT_WINDOW_HEIGHT,
       x: savedState.x,
       y: savedState.y,
-      minWidth: MIN_WIDTH,
-      minHeight: MIN_HEIGHT,
+      minWidth: MINIMUM_WINDOW_WIDTH,
+      minHeight: MINIMUM_WINDOW_HEIGHT,
       show: false,
       autoHideMenuBar: true,
       ...(process.platform === "darwin"

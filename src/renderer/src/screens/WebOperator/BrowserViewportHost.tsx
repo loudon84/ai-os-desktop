@@ -1,3 +1,4 @@
+/** @deprecated V2.1 — Web Operator viewport uses WebContentsHost + shellView */
 import { useRef, useEffect, useCallback } from "react";
 import type { BrowserViewBounds } from "../../../../shared/browser/browser-contract";
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ChatBubble,
   Clock,
@@ -17,11 +18,11 @@ import {
   LayoutDashboard,
   Grid,
 } from "../../assets/icons";
-import { DesktopShell } from "../../components/layout/DesktopShell";
 import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
 import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
-import { PageHeader } from "../../components/layout/PageHeader";
 import { StatusBar } from "../../components/layout/StatusBar";
+import { MainPage } from "../MainPage/MainPage";
+import type { SidebarMode } from "../MainPage/main-page-types";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
 import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
@@ -61,11 +62,20 @@ function Layout(): React.JSX.Element {
   } = useUpdateState();
   const remoteMode = useRemoteMode(navigation.view);
   const profileEntries = useProfileEntries();
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
 
   return (
-    <DesktopShell
+    <MainPage
+      activeProfile={navigation.activeProfile}
+      activeView={navigation.view}
+      profileEntries={profileEntries}
+      sidebarMode={sidebarMode}
+      onSidebarModeChange={setSidebarMode}
+      onNavigate={navigation.navigateToView}
+      onSelectProfile={navigation.handleSelectProfile}
       sidebar={
         <DesktopSidebar
+          mode={sidebarMode}
           view={navigation.view}
           navItems={NAV_ITEMS}
           profileEntries={profileEntries}
@@ -77,9 +87,6 @@ function Layout(): React.JSX.Element {
           onNavigate={navigation.navigateToView}
           onUpdate={handleUpdate}
         />
-      }
-      header={
-        <PageHeader view={navigation.view} activeProfile={navigation.activeProfile} />
       }
       outlet={
         <WorkspaceOutlet
