@@ -12,14 +12,14 @@ import type {
   BrowserAuditRecord
 } from "../../shared/browser/browser-contract";
 import { BrowserController } from "./browser-controller";
-import { BrowserViewManager } from "./browser-view-manager";
+import type { BrowserViewPort } from "./browser-viewport";
 
 export class BrowserIPC {
   private controller: BrowserController;
-  private viewManager: BrowserViewManager;
+  private viewManager: BrowserViewPort;
   private registered: boolean = false;
 
-  constructor(controller: BrowserController, viewManager: BrowserViewManager) {
+  constructor(controller: BrowserController, viewManager: BrowserViewPort) {
     this.controller = controller;
     this.viewManager = viewManager;
   }

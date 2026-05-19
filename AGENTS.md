@@ -82,7 +82,9 @@ MainPage
 
 PRD：`prd/v2.0_mainpage.md` / `prd/v2.1_mainpage.md`。Legacy：`DesktopShell`、`PageHeader`（非主链路）。
 
-**V2.1**：顶栏左侧按钮切换 Sidebar `expanded → rail → hidden`；`MainViewTabs` 含 `profile-workspace:*`；`window.shellView.create/loadUrl/...`；Web Operator 视口 `WebContentsHost` layer `web-operator`；工具栏 **Open** 为 `aiosBrowser.open` + `shellView.loadUrl`（`useBrowserActions.shellLayerId`）；back/forward/reload 与侧栏状态仍走 BVM（Phase 3 `ShellBrowserViewAdapter`）。
+**V2.1**：Sidebar 三态、动态 Profile Tabs、ShellView 全 IPC、`WebContentsHost` web-operator layer。
+
+**V2.2**：`ShellBrowserViewAdapter` 单轨（`browser.open` → SVM）；`browser.opened` 自动切 Web Operator tab；MainTopBar「+」创建 `external-browser:*` tab；Tab DnD（`@dnd-kit`）；顶栏 Reload/Close。
 
 **主界面**（`WorkspaceOutlet` 路由）视图：
 
@@ -144,19 +146,22 @@ profile-runtime-ipc.ts
 
 能力插件：`delegation-capability`、`skill-sync-capability`、`session-share-capability`。
 
-### Web Operator（V2.1 双轨 + Open 同步）
+### Web Operator（V2.2 单轨 ShellView）
 
 ```
-WebOperatorScreen
-  → shellView.create("web-operator", ...) + WebContentsHost.setBounds
-BrowserToolbar Open
-  → useBrowserActions({ shellLayerId: "web-operator" })
-      → aiosBrowser.open (BVM + 审计)
-      → shellView.loadUrl("web-operator", url)   // UI 视口
-BrowserToolbar back/forward/reload、BrowserStatePanel
-  → aiosBrowser.* (仅 BVM，Phase 3 统一)
-Hermes agent tool
-  → aiosBrowser → browser-controller.ts → BrowserViewManager
+BrowserToolbar / Hermes tool
+  → aiosBrowser.open → BrowserController → ShellBrowserViewAdapter
+      → ShellViewManager layer "web-operator"
+      → mainWindow.send("browser.opened") → Layout → web-operator tab
+  → WebContentsHost.setBounds("web-operator")
+
+MainTopBar (+) external tab
+  → useExternalBrowserTabs.openExternalTab
+      → shellView.create("external-browser:uuid", ...)
+      → WebContentsHost(layerId) + navigate tab
+
+browser.* back/forward/reload/getState/...
+  → 同一 ShellBrowserViewAdapter WebContents（web-operator）
 ```
 
 ### Enterprise Install（V1.2.1）
@@ -298,9 +303,10 @@ npm run lint         # ESLint
 | 改主界面壳层 / 顶栏 | `screens/MainPage/*` → `Layout.tsx`；常量 `shared/shell/main-page-constants.ts` |
 | 改窗口按钮 | `MainTopBar.tsx` / `WindowControls.tsx` → `window-ipc.ts` → preload `windowControls` |
 | 改多 Profile | `ProfileRuntimeScreen.tsx` → `profile-runtime-manager.ts` |
-| 改 Web Operator UI 视口 / bounds | `WebOperatorScreen.tsx` + `WebContentsHost` + `web-operator-constants.ts` → `shell-view-ipc.ts` |
-| 改 Web Operator 地址栏 Open | `BrowserToolbar.tsx` → `use-browser-actions.ts`（`shellLayerId` + `loadUrl`）+ `aiosBrowser` |
-| 改 Web Operator 工具/自动化 | `aiosBrowser` → `browser-controller.ts`（BVM，与 UI 视口可能分离） |
+| 改 Web Operator 视口 / adapter | `shell-browser-view-adapter.ts` + `shell-view-manager.ts` + `WebContentsHost` |
+| 改 Web Operator 地址栏 / tool | `BrowserToolbar` → `browser-controller.ts` → `ShellBrowserViewAdapter` |
+| 改 external-browser 多 tab | `useExternalBrowserTabs.ts` + `MainViewTabs` + `WorkspaceOutlet` + `shellView.create` |
+| 改 Tab DnD / 顶栏操作 | `MainViewTabs.tsx` + `tab-order.ts` + `Layout.tsx` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/` |
 
 ## 版本特性索引
@@ -314,7 +320,8 @@ npm run lint         # ESLint
 | V1.4.1 | 窗口 IPC 加固、PyPI 镜像 UI、`agent-deps-installer`、`--no-config` uv | `pip-mirror-*`, `agent-deps-installer`, `window-ipc` |
 | V1.9 | ShellView IPC、`WebContentsHost`、启动顺序与菜单接管 | `shell-view-*`, `WebContentsHost`, `shell-menu` |
 | **V2.0** | **MainPage 主界面壳层**、顶栏 Tabs/Profile/Runtime、默认窗口 1280×800 | `screens/MainPage/`, `main-page-constants.ts`, `Layout.tsx` |
-| **V2.1** | Sidebar 三态、动态 Profile Tabs、ShellView 全 IPC、WebOperator→`WebContentsHost`、工具栏 Open 同步 `loadUrl` | `main-page-tabs.ts`, `shell-view-contract.ts`, `WebOperatorScreen.tsx`, `use-browser-actions.ts`, `web-operator-constants.ts` |
+| **V2.1** | Sidebar 三态、动态 Profile Tabs、ShellView 全 IPC、WebOperator→`WebContentsHost` | `main-page-tabs.ts`, `shell-view-contract.ts`, `WebOperatorScreen.tsx` |
+| **V2.2** | ShellBrowserViewAdapter、browser.opened、external-browser tabs、Tab DnD | `shell-browser-view-adapter.ts`, `useExternalBrowserTabs.ts`, `MainViewTabs.tsx`, `browser-contract.ts` |
 
 ---
 

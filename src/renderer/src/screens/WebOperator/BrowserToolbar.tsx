@@ -1,7 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { ArrowLeft, ArrowRight, RotateCw, Globe, ShieldCheck, ShieldX } from "lucide-react";
 import { useBrowserActions } from "./hooks/use-browser-actions";
-import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
 
 interface BrowserToolbarProps {
   onNavigate?: (url: string) => void;
@@ -11,7 +10,7 @@ interface BrowserToolbarProps {
 
 export function BrowserToolbar({ onNavigate, currentUrl = "", isDomainAllowed }: BrowserToolbarProps) {
   const [url, setUrl] = useState(currentUrl);
-  const actions = useBrowserActions({ shellLayerId: WEB_OPERATOR_LAYER_ID });
+  const actions = useBrowserActions();
 
   const handleNavigate = async () => {
     if (!url.trim()) return;

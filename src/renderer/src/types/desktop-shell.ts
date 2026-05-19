@@ -19,7 +19,8 @@ export type View =
   | "aios-workspace"
   | "profile-runtime"
   | "runtime-setup"
-  | `profile-workspace:${string}`;
+  | `profile-workspace:${string}`
+  | `external-browser:${string}`;
 
 export interface NavItem {
   view: View;

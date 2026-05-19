@@ -55,7 +55,7 @@ export class MainWindowController {
       minWidth: MINIMUM_WINDOW_WIDTH,
       minHeight: MINIMUM_WINDOW_HEIGHT,
       show: false,
-      autoHideMenuBar: true,
+      autoHideMenuBar: false,
       ...(process.platform === "darwin"
         ? {
             titleBarStyle: "hiddenInset" as const,

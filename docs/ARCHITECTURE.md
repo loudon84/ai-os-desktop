@@ -1,6 +1,6 @@
 # SMC Copilot Shell 架构文档
 
-> 版本: 0.3.5 | 最后更新: V2.1 MainPage 第二阶段
+> 版本: 0.3.5 | 最后更新: V2.2 MainPage 第三阶段
 
 ## 架构概述
 
@@ -115,8 +115,26 @@ App (main)
 | 动态 Tabs | `buildMainWorkspaceTabs(profileEntries)` |
 | ShellView 全 API | 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) ShellView 表 |
 | Web Operator UI 视口 | `WebOperatorScreen` → `WebContentsHost("web-operator")`；`WEB_OPERATOR_LAYER_ID` 见 `web-operator-constants.ts` |
-| Web Operator 导航 | 工具栏 `open`：`aiosBrowser.open` + `shellView.loadUrl`（`useBrowserActions.shellLayerId`）；back/forward/reload 仍仅 BVM |
-| Web Operator 工具栏 | `BrowserToolbar` 单行 chrome（`web-operator.css`）；侧栏状态仍 `aiosBrowser.getState` |
+| Web Operator 工具栏 | `BrowserToolbar` 单行 chrome（`web-operator.css`） |
+
+### V2.2 增量（单轨 ShellView）
+
+| 能力 | 说明 |
+|------|------|
+| BrowserViewPort | `browser-viewport.ts` 抽象；`ShellBrowserViewAdapter` 绑定 SVM `web-operator` |
+| browser.opened | Main 推送 `browser.opened` → `Layout` 切 web-operator tab |
+| external-browser | 动态 tab `external-browser:{uuid}` + ShellView layer；MainTopBar「+」创建 |
+| Tab DnD | `@dnd-kit` 排序 profile / external tabs |
+
+```text
+browser.open / Toolbar
+  → BrowserController → ShellBrowserViewAdapter → ShellViewManager(web-operator)
+  → emit browser.opened → Renderer navigate web-operator
+  → WebContentsHost.setBounds
+
+external tab (+)
+  → shellView.create(external-browser:uuid) → WebContentsHost(layerId)
+```
 
 ## 核心模块
 
@@ -402,6 +420,12 @@ src/
 - **全局快捷键**: 可自定义快捷键、冲突检测
 - **多窗口**: WindowManager、独立 Chat 窗口支持
 - **插件系统**: PluginLoader、PluginAPI 契约
+
+### 0.3.5 (V2.2 MainPage 第三阶段)
+- **ShellBrowserViewAdapter** 替代运行时 BrowserViewManager
+- **browser.opened** 事件 + 自动切换 Web Operator tab
+- **external-browser** 多 tab + 顶栏「+」
+- **Tab** close/reload + **@dnd-kit** 排序
 
 ### 0.3.5 (V2.1 MainPage 第二阶段)
 - **Sidebar 三态** + **动态 Profile 工作区 Tabs**

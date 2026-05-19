@@ -1,7 +1,7 @@
 import "./main-page.css";
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
-import type { SidebarMode } from "./main-page-types";
+import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
 import { MainTopBar } from "./MainTopBar";
 
 export interface MainPageProps {
@@ -13,10 +13,18 @@ export interface MainPageProps {
   activeProfile: string;
   activeView: View;
   profileEntries: ProfileEntrySummary[];
+  externalTabs: ExternalBrowserTab[];
+  tabOrder: string[];
   sidebarMode: SidebarMode;
+  canCloseActiveTab: boolean;
   onSidebarModeChange: (mode: SidebarMode) => void;
   onNavigate: (view: View) => void;
   onSelectProfile: (name: string) => void;
+  onTabOrderChange: (order: string[]) => void;
+  onCloseTab: (id: View) => void;
+  onOpenExternalTab: (url: string) => Promise<View>;
+  onReloadActiveTab: () => void;
+  onCloseActiveTab: () => void;
 }
 
 export function MainPage({
@@ -28,10 +36,18 @@ export function MainPage({
   activeProfile,
   activeView,
   profileEntries,
+  externalTabs,
+  tabOrder,
   sidebarMode,
+  canCloseActiveTab,
   onSidebarModeChange,
   onNavigate,
   onSelectProfile,
+  onTabOrderChange,
+  onCloseTab,
+  onOpenExternalTab,
+  onReloadActiveTab,
+  onCloseActiveTab,
 }: MainPageProps): React.JSX.Element {
   return (
     <div className={`MainPage layout MainPage--sidebar-${sidebarMode}`}>
@@ -39,10 +55,18 @@ export function MainPage({
         activeProfile={activeProfile}
         activeView={activeView}
         profileEntries={profileEntries}
+        externalTabs={externalTabs}
+        tabOrder={tabOrder}
         sidebarMode={sidebarMode}
+        canCloseActiveTab={canCloseActiveTab}
         onSidebarModeChange={onSidebarModeChange}
         onNavigate={onNavigate}
         onSelectProfile={onSelectProfile}
+        onTabOrderChange={onTabOrderChange}
+        onCloseTab={onCloseTab}
+        onOpenExternalTab={onOpenExternalTab}
+        onReloadActiveTab={onReloadActiveTab}
+        onCloseActiveTab={onCloseActiveTab}
       />
 
       <div className="MainPage__body">

@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.5（V1.9 + **V2.0/V2.1 MainPage**） |
+| **版本** | 0.3.5（V1.9 + **V2.0/V2.1/V2.2 MainPage**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -53,18 +53,23 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **主窗口尺寸**：`main-window-controller.ts` 引用上述常量（已有 `window-state` 持久化时仍优先用户历史尺寸）
 - **根布局 CSS**：`.app` 使用 `100dvh`；macOS 在 `screen === "main"` 时由 `MainTopBar` 承担拖拽，不再叠加全局 `drag-region`
 - **保留未删**：`DesktopShell.tsx`、`PageHeader.tsx`（legacy，便于回滚或页内复用）
-- **Phase 2 未做（见 V2.1 后）**：Tabs DnD、BrowserController 迁移（Phase 3）
+- **Phase 2 已完成**：Tabs DnD、ShellBrowserViewAdapter（见 V2.2）
 
 **V2.1（MainPage 第二阶段，PRD `prd/v2.1_mainpage.md`）**：
 - **Sidebar 三态**：`expanded`（232px）/ `rail`（56px，仅 icon）/ `hidden`；顶栏按钮循环切换
 - **动态工作区 Tabs**：`main-page-tabs.ts` — 静态 Tab + `profileEntries` 中 `specialist-workspace` 条目
 - **ShellView IPC 扩展**：`create` / `loadUrl` / `focus` / `destroy` / `getState` / `getAll`；`window.shellView` 全量暴露
 - **Web Operator 视口**：`WebOperatorScreen` + `WebContentsHost` layer `web-operator`（常量 `web-operator-constants.ts`）
-- **工具栏导航同步**：`useBrowserActions({ shellLayerId })` 在 `aiosBrowser.open` 成功后调用 `shellView.loadUrl`，使地址栏 Open 与 UI 视口一致
 - **工具栏 UI**：`BrowserToolbar` 单行布局（`web-operator.css` 中 `browser-toolbar*`）
 - **Lazy create**：`shell-view-ipc` 对 `web-operator` 与 `aios-home` 在 set-bounds 前自动创建
-- **双轨残留**：后退/前进/刷新与 `BrowserStatePanel` 仍走 `aiosBrowser` → BVM；Phase 3 `ShellBrowserViewAdapter` 统一
-- **未做**：Tabs DnD、`ShellBrowserViewAdapter`（Phase 3）
+
+**V2.2（MainPage 第三阶段，PRD `prd/v2.2_mainpage.md`）**：
+- **ShellBrowserViewAdapter**：`BrowserController` 经 `BrowserViewPort` 操作 ShellView `web-operator` layer；运行时不再 `new BrowserViewManager`
+- **browser.opened**：`aiosBrowser.onOpened` → Layout 自动切 `web-operator` tab
+- **external-browser 多标签**：`useExternalBrowserTabs` + MainTopBar「+」URL 弹层；`WorkspaceOutlet` → `WebContentsHost(external-browser:uuid)`
+- **Tab 操作**：顶栏 Reload/Close（web-operator / external tab）
+- **Tab DnD**：`@dnd-kit`；`profile-workspace:*` 与 `external-browser:*` 可排序；系统三 Tab 固定左侧
+- **Legacy**：`browser-view-manager.ts` 保留未删，供回滚
 
 ## 核心目录
 
@@ -76,7 +81,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/aios/` | **AI-OS Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
-| `src/main/browser/` | Web Operator 模块 — BrowserViewManager/Controller/SecurityGuard/AuditLogger/ToolBridge/ToolServer（8 个文件） | 按需扩展 |
+| `src/main/browser/` | Web Operator — **ShellBrowserViewAdapter** + BrowserController/SecurityGuard/AuditLogger/ToolBridge（`browser-view-manager.ts` legacy） | 按需扩展 |
 | `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView**（7 个文件） | 谨慎修改，影响全进程通信 |
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell 契约；**`shell/main-page-constants.ts`**、**`shell/shell-view-contract.ts`** | 谨慎修改 |

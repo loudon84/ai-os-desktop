@@ -10,10 +10,13 @@ import type {
   BrowserAuditRecord,
   BrowserActionSource,
   BrowserActionName,
-  PendingSensitiveAction
+  PendingSensitiveAction,
+  BrowserOpenedEvent,
 } from "../../shared/browser/browser-contract";
+import { BrowserEvents } from "../../shared/browser/browser-contract";
 import { createBrowserError } from "../../shared/browser/browser-errors";
-import { BrowserViewManager } from "./browser-view-manager";
+import type { BrowserViewPort } from "./browser-viewport";
+import { WEB_OPERATOR_LAYER_ID } from "./shell-browser-view-adapter";
 import { BrowserSecurityGuard } from "./browser-security";
 import { BrowserAuditLogger } from "./browser-audit";
 import { PendingSensitiveAction as InternalPendingAction, PENDING_ACTION_TIMEOUT_MS } from "./browser-types";
@@ -74,7 +77,7 @@ const EXTRACT_TABLE_SCRIPT = (selector: string) => `
 `;
 
 export class BrowserController {
-  private viewManager: BrowserViewManager;
+  private viewManager: BrowserViewPort;
   private securityGuard: BrowserSecurityGuard;
   private auditLogger: BrowserAuditLogger;
   private pendingActions: Map<string, InternalPendingAction> = new Map();
@@ -82,7 +85,7 @@ export class BrowserController {
   private mainWindow: Electron.BrowserWindow | null = null;
 
   constructor(
-    viewManager: BrowserViewManager,
+    viewManager: BrowserViewPort,
     securityGuard: BrowserSecurityGuard,
     auditLogger: BrowserAuditLogger
   ) {
@@ -93,6 +96,18 @@ export class BrowserController {
 
   setMainWindow(win: Electron.BrowserWindow): void {
     this.mainWindow = win;
+  }
+
+  private emitBrowserOpened(url: string, source: BrowserActionSource): void {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+
+    const event: BrowserOpenedEvent = {
+      url,
+      layerId: WEB_OPERATOR_LAYER_ID,
+      source,
+    };
+
+    this.mainWindow.webContents.send(BrowserEvents.OPENED, event);
   }
 
   private ensureReady(): BrowserActionResult | null {
@@ -122,6 +137,9 @@ export class BrowserController {
       this.auditLogger.log({
         source: request.source, action: "browser.open", url: request.url, status: "success"
       });
+      if (request.activateTab !== false) {
+        this.emitBrowserOpened(request.url, request.source);
+      }
       return { ok: true, url: request.url };
     } catch (err) {
       const msg = (err as Error).message;

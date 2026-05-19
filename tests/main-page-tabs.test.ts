@@ -61,6 +61,7 @@ describe("isWorkspaceTabView", () => {
   it("recognizes workspace views", () => {
     expect(isWorkspaceTabView("aios-home")).toBe(true);
     expect(isWorkspaceTabView("profile-workspace:writer")).toBe(true);
+    expect(isWorkspaceTabView("external-browser:abc")).toBe(true);
     expect(isWorkspaceTabView("chat")).toBe(false);
   });
 });

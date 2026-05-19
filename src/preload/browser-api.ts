@@ -10,8 +10,10 @@ import type {
   BrowserStateResult,
   BrowserScreenshotResult,
   BrowserAuditRecord,
-  PendingSensitiveAction
+  PendingSensitiveAction,
+  BrowserOpenedEvent,
 } from "../shared/browser/browser-contract";
+import { BrowserEvents } from "../shared/browser/browser-contract";
 
 export interface AiosBrowserAPI {
   open(request: BrowserOpenRequest): Promise<BrowserOpenResult>;
@@ -29,6 +31,7 @@ export interface AiosBrowserAPI {
   updateBounds(bounds: BrowserViewBounds): Promise<void>;
   onPendingAction(callback: (action: PendingSensitiveAction) => void): () => void;
   onAuditUpdate(callback: (record: BrowserAuditRecord) => void): () => void;
+  onOpened(callback: (event: BrowserOpenedEvent) => void): () => void;
 }
 
 export const aiosBrowser: AiosBrowserAPI = {
@@ -54,5 +57,12 @@ export const aiosBrowser: AiosBrowserAPI = {
     const handler = (_event: Electron.IpcRendererEvent, record: BrowserAuditRecord): void => callback(record);
     ipcRenderer.on("browser.on_audit_update", handler);
     return () => ipcRenderer.removeListener("browser.on_audit_update", handler);
-  }
+  },
+  onOpened: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: BrowserOpenedEvent): void => {
+      callback(payload);
+    };
+    ipcRenderer.on(BrowserEvents.OPENED, handler);
+    return () => ipcRenderer.removeListener(BrowserEvents.OPENED, handler);
+  },
 };

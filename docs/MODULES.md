@@ -514,7 +514,7 @@
 
 ### browser/ — Web Operator 模块
 
-基于 `hermes-desktop` 二开，扩展为 **AI-OS Desktop Web Operator**，让 Electron 桌面端打开外部 Web 页面，用户可手工操作，Hermes 通过受控 Browser Tool Bridge 操作同一页面。
+基于 `hermes-desktop` 二开，扩展为 **AI-OS Desktop Web Operator**。V2.2 起浏览器视口统一经 **ShellViewManager**（`ShellBrowserViewAdapter`），`BrowserViewManager` 文件保留为 legacy。
 
 #### browser-types.ts — 内部类型定义
 
@@ -532,14 +532,23 @@
 - **核心方法**: `log()`, `query()`, `onLog()`, `close()`
 - **日志路径**: `~/.hermes/desktop/web-operator/logs/browser-audit-YYYY-MM-DD.jsonl`
 
-#### browser-view-manager.ts — BrowserViewManager
+#### browser-viewport.ts — BrowserViewPort（V2.2）
 
-- **职责**: WebContentsView 单例创建/销毁/Bounds 同步，独立 Partition（persist:aios-external-web）
+- **职责**: 浏览器视口抽象接口；`BrowserController` / `BrowserIPC` 依赖注入
+
+#### shell-browser-view-adapter.ts — ShellBrowserViewAdapter（V2.2）
+
+- **职责**: `BrowserViewPort` → ShellViewManager layer `web-operator`；partition `persist:aios-external-web`
+- **常量**: `WEB_OPERATOR_LAYER_ID`
+
+#### browser-view-manager.ts — BrowserViewManager（legacy）
+
+- **职责**: 旧版独立 WebContentsView 单例（**V2.2 运行时不再使用**）；实现 `BrowserViewPort` 供回滚
 - **核心方法**: `createView()`, `navigate()`, `destroyView()`, `updateBounds()`, `getExternalWebContents()`, `isReady()`
 
 #### browser-controller.ts — BrowserController
 
-- **职责**: 所有浏览器操作统一入口，JS 注入脚本执行，敏感动作挂起/裁决，审计记录
+- **职责**: 所有浏览器操作统一入口；V2.2 注入 `BrowserViewPort`；`openExternalUrl` 成功后 `emit browser.opened`
 - **核心方法**: `openExternalUrl()`, `goBack/Forward/Reload()`, `getPageState()`, `captureScreenshot()`, `clickSelector()`, `typeIntoSelector()`, `extractTable()`, `confirmAction()`, `rejectAction()`, `getAuditLog()`
 - **注入脚本**: `__get_page_state__`, `__click_selector__`, `__type_selector__`, `__extract_table__`
 
@@ -573,7 +582,7 @@
 
 - **职责**: 封装 browser.* IPC 为 `window.aiosBrowser` API
 - **核心方法**: `open()`, `back()`, `forward()`, `reload()`, `getState()`, `screenshot()`, `click()`, `type()`, `extractTable()`, `getAuditLog()`, `confirmAction()`, `rejectAction()`, `updateBounds()`
-- **事件订阅**: `onPendingAction()`, `onAuditUpdate()`
+- **事件订阅**: `onPendingAction()`, `onAuditUpdate()`, **`onOpened()`（V2.2）**
 
 ### aios-api.ts — AI-OS Runtime Preload API
 
@@ -626,11 +635,13 @@
 | Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
 | Install | screens/Install/Install.tsx | 安装流程+进度（含 AgentSourceSelect） |
 | Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
-| Layout | screens/Layout/Layout.tsx | **V2.0** 编排层：聚合 hooks，渲染 `MainPage`（不再使用 `DesktopShell` / 全局 `PageHeader`） |
+| Layout | screens/Layout/Layout.tsx | **V2.2** 编排：`useExternalBrowserTabs`、`tabOrder`、`aiosBrowser.onOpened`、Tab reload/close |
 | **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + Sidebar 槽 + Outlet + StatusBar + Modal/Drawer |
-| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.0** 顶栏 40px：菜单占位、Profile、Runtime、工作区 Tabs、快捷入口、`WindowControls` |
-| **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1** `buildMainWorkspaceTabs` / `isWorkspaceTabView` |
-| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V2.1** 静态 + `profileEntries` 动态 specialist tabs（无 DnD） |
+| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.2** 顶栏：Sidebar、Tabs、**「+」新 external tab**、Reload/Close、`WindowControls` |
+| **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1+** `buildMainWorkspaceTabs` / `isWorkspaceTabView`（含 external） |
+| **tab-order.ts** | **screens/MainPage/tab-order.ts** | **V2.2** `sortTabsByOrder` / `isDraggableTabId` / `FIXED_TAB_IDS` |
+| **useExternalBrowserTabs.ts** | **screens/MainPage/useExternalBrowserTabs.ts** | **V2.2** external tab CRUD + `shellView.create/destroy/loadUrl` |
+| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V2.2** 固定系统 Tab + 可拖 profile/external tabs（`@dnd-kit`） |
 | **MainProfileSwitch** | **screens/MainPage/MainProfileSwitch.tsx** | **V2.0** 当前 Profile + `ProfileSwitcherDropdown` |
 | **MainRuntimeIndicator** | **screens/MainPage/MainRuntimeIndicator.tsx** | **V2.0** 当前 Profile Gateway 状态（轮询 `profileRuntime.getRuntimeStatus()`） |
 | **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
@@ -648,8 +659,8 @@
 | Gateway | screens/Gateway/Gateway.tsx | 16 个消息平台配置 |
 | WebOperator | screens/WebOperator/WebOperatorScreen.tsx | **V2.1** 三栏布局；`WebContentsHost` + `shellView.create`；mount 时 ensure layer |
 | **web-operator-constants.ts** | **screens/WebOperator/web-operator-constants.ts** | **V2.1** `WEB_OPERATOR_LAYER_ID` |
-| **BrowserToolbar** | **screens/WebOperator/BrowserToolbar.tsx** | **V2.1** 单行地址栏；`useBrowserActions({ shellLayerId })` |
-| **use-browser-actions.ts** | **screens/WebOperator/hooks/use-browser-actions.ts** | **V2.1** `open` 成功后可选 `shellView.loadUrl`；back/forward/reload 仍仅 `aiosBrowser` |
+| **BrowserToolbar** | **screens/WebOperator/BrowserToolbar.tsx** | **V2.1+** 单行地址栏；`aiosBrowser.open`（V2.2 经 adapter 单轨） |
+| **use-browser-actions.ts** | **screens/WebOperator/hooks/use-browser-actions.ts** | **V2.2** 薄封装 `window.aiosBrowser.*` |
 | **web-operator.css** | **screens/WebOperator/web-operator.css** | **V2.1** 布局 + `browser-toolbar*` 单行 chrome |
 | Settings | screens/Settings/Settings.tsx | 主题/语言/连接/更新/备份/诊断 |
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |

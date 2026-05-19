@@ -46,6 +46,7 @@ export function isWorkspaceTabView(view: View): boolean {
     view === "aios-home" ||
     view === "aios-workspace" ||
     view === "web-operator" ||
-    (typeof view === "string" && view.startsWith("profile-workspace:"))
+    (typeof view === "string" && view.startsWith("profile-workspace:")) ||
+    (typeof view === "string" && view.startsWith("external-browser:"))
   );
 }

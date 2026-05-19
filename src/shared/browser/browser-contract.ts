@@ -28,10 +28,22 @@ export type BrowserErrorCode =
   | "JAVASCRIPT_EXECUTION_FAILED"
   | "SCREENSHOT_FAILED";
 
+export const BrowserEvents = {
+  OPENED: "browser.opened",
+} as const;
+
+export interface BrowserOpenedEvent {
+  url: string;
+  layerId: "web-operator";
+  source: BrowserActionSource;
+}
+
 export interface BrowserOpenRequest {
   url: string;
   profile?: string;
   source: BrowserActionSource;
+  /** When false, do not notify renderer to switch workspace tab. Default: activate. */
+  activateTab?: boolean;
 }
 
 export interface BrowserClickRequest {

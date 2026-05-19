@@ -18,6 +18,7 @@ import { AIOSWorkspaceScreen } from "../../screens/AIOSWorkspace/AIOSWorkspaceSc
 import { ProfileWorkspaceScreen } from "../../screens/ProfileWorkspace/ProfileWorkspaceScreen";
 import { RuntimeSetupScreen } from "../../screens/RuntimeSetup/RuntimeSetupScreen";
 import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
+import { WebContentsHost } from "../shell/WebContentsHost";
 import type { View } from "../../types/desktop-shell";
 
 export interface WorkspaceOutletProps {
@@ -164,6 +165,9 @@ export function WorkspaceOutlet({
       {view === "aios-workspace" && <AIOSWorkspaceScreen profile="default" />}
       {typeof view === "string" && view.startsWith("profile-workspace:") && (
         <ProfileWorkspaceScreen profileId={view.split(":")[1]} />
+      )}
+      {typeof view === "string" && view.startsWith("external-browser:") && (
+        <WebContentsHost layerId={view} className="h-full w-full min-h-0" />
       )}
       <div
         style={{

@@ -21,7 +21,6 @@ function App(): React.JSX.Element {
   const isMac =
     window.electron?.process?.platform === "darwin" ||
     navigator.platform.toLowerCase().includes("mac");
-  const showAppTitlebar = !isMac && screen !== "main";
 
   const runInstallCheck = useCallback(async () => {
     const startedAt = Date.now();

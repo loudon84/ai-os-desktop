@@ -158,9 +158,51 @@
 
 ## Web Operator Browser IPC
 
-Browser IPC 处理受控浏览器相关的功能。
+Browser IPC 处理受控浏览器相关的功能。V2.2 起 **运行时** 由 `ShellBrowserViewAdapter` 将 `browser.*` 操作转发到 ShellViewManager layer `web-operator`（不再创建独立 `BrowserViewManager` 子 View）。
 
-### BrowserView 管理
+### Renderer Preload 实际通道（`window.aiosBrowser`）
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `browser.open` | `BrowserOpenRequest` | `BrowserOpenResult` | 打开 URL（底层 SVM `web-operator`） |
+| `browser.back` / `forward` / `reload` | `source` | `BrowserActionResult` | 导航 |
+| `browser.get_state` | `source` | `BrowserStateResult` | 页面状态 |
+| `browser.screenshot` | `source` | `BrowserScreenshotResult` | 截图 |
+| `browser.click` / `type` / `extract_table` | 请求体 | `BrowserActionResult` | DOM 操作 |
+| `browser.update_bounds` | `BrowserViewBounds` | `void` | 兼容通道，转发 SVM bounds |
+| `browser.get_audit_log` / `confirm_action` / `reject_action` | — | — | 审计与敏感操作 |
+
+### Main → Renderer 事件（V2.2）
+
+| 事件名 | Payload | 说明 |
+|---|---|---|
+| `browser.opened` | `BrowserOpenedEvent` | `browser.open` 成功后推送；Preload `aiosBrowser.onOpened()` |
+
+```typescript
+// src/shared/browser/browser-contract.ts
+export const BrowserEvents = { OPENED: "browser.opened" } as const;
+
+export interface BrowserOpenedEvent {
+  url: string;
+  layerId: "web-operator";
+  source: BrowserActionSource;
+}
+```
+
+`BrowserOpenRequest.activateTab?: boolean` — 为 `false` 时不发送 `browser.opened`（不自动切 tab）。
+
+### external-browser ShellView（V2.2，非 browser tool 默认目标）
+
+| 操作 | API | layerId |
+|---|---|---|
+| 新建 tab | `shellView.create(id, "external-browser", url, opts)` | `external-browser:{uuid}` |
+| 关闭 tab | `shellView.destroy(id)` | 同上 |
+| 刷新 | `shellView.loadUrl(id, url)` | 同上 |
+| 视口 | `WebContentsHost` + `setBounds` | 同上 |
+
+Hermes `browser.open` **仅** 操作 `web-operator` layer，不自动打开 external-browser tab。
+
+### BrowserView 管理（规划/遗留文档，非当前 Preload 通道）
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
@@ -452,16 +494,16 @@ interface ShellViewAPI {
 
 **Lazy create**: `aios-home` 与 `web-operator` 在 `set-bounds` / `activate` / `load-url` / `focus` 时若不存在会自动创建（`web-operator` 默认 `about:blank`）。
 
-**Renderer 用法（Web Operator，V2.1）**：
+**Renderer 用法（Web Operator，V2.2）**：
 
 | 步骤 | API | 说明 |
 |------|-----|------|
-| 进入页 | `shellView.create(WEB_OPERATOR_LAYER_ID, "web-operator", "about:blank", { layer: "content", sandbox: true })` | `WebOperatorScreen` mount；已存在可 catch |
+| 进入页 | `shellView.create("web-operator", ...)` 或由 adapter 在 `browser.open` 时创建 | `WebOperatorScreen` mount 可 catch 已存在 |
 | 布局 | `WebContentsHost` + `shellView.setBounds` | ResizeObserver 驱动 bounds |
-| 用户 Open | `aiosBrowser.open` → `shellView.loadUrl(layerId, url)` | `useBrowserActions({ shellLayerId: "web-operator" })`；无新 IPC |
-| Agent 自动化 | `aiosBrowser.*` | 仍走 BrowserViewManager，与 UI 视口可能分离至 Phase 3 |
+| 用户/Hermes Open | `aiosBrowser.open` | Main `ShellBrowserViewAdapter` 加载同一 WebContents；`browser.opened` 切 tab |
+| external tab | MainTopBar「+」→ `shellView.create(external-browser:uuid)` | 与 web-operator layer 隔离 |
 
-Layer 常量：`src/renderer/src/screens/WebOperator/web-operator-constants.ts` → `WEB_OPERATOR_LAYER_ID = "web-operator"`。
+Layer 常量：renderer `web-operator-constants.ts`；main `shell-browser-view-adapter.ts` → `WEB_OPERATOR_LAYER_ID`。
 
 **错误响应**: 无效 `layerId` 抛出 `"Layer not found: xxx"` 或参数校验错误；无效 `bounds` 抛出 `"Invalid bounds: ..."`。
 

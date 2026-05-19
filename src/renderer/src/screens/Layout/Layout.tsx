@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ChatBubble,
   Clock,
@@ -23,6 +23,8 @@ import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
 import { StatusBar } from "../../components/layout/StatusBar";
 import { MainPage } from "../MainPage/MainPage";
 import type { SidebarMode } from "../MainPage/main-page-types";
+import { useExternalBrowserTabs } from "../MainPage/useExternalBrowserTabs";
+import type { View } from "../../types/desktop-shell";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
 import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
@@ -63,16 +65,92 @@ function Layout(): React.JSX.Element {
   const remoteMode = useRemoteMode(navigation.view);
   const profileEntries = useProfileEntries();
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
+  const [tabOrder, setTabOrder] = useState<string[]>([]);
+  const { externalTabs, openExternalTab, closeExternalTab, reloadExternalTab } =
+    useExternalBrowserTabs();
+
+  const draggableTabIds = useMemo(() => {
+    const profileIds = profileEntries
+      .filter((e) => e.enabled && e.entryType === "specialist-workspace")
+      .map((e) => `profile-workspace:${e.profileId}`);
+    const externalIds = externalTabs.map((t) => t.id);
+    return [...profileIds, ...externalIds];
+  }, [profileEntries, externalTabs]);
+
+  useEffect(() => {
+    setTabOrder((prev) => {
+      const kept = prev.filter((id) => draggableTabIds.includes(id));
+      const appended = draggableTabIds.filter((id) => !kept.includes(id));
+      return [...kept, ...appended];
+    });
+  }, [draggableTabIds]);
+
+  const canCloseActiveTab =
+    typeof navigation.view === "string" &&
+    navigation.view.startsWith("external-browser:");
+
+  const handleCloseTab = useCallback(
+    (id: View) => {
+      if (typeof id === "string" && id.startsWith("external-browser:")) {
+        void closeExternalTab(id as `external-browser:${string}`).then(() => {
+          if (navigation.view === id) {
+            navigation.navigateToView("aios-home");
+          }
+        });
+      }
+    },
+    [closeExternalTab, navigation],
+  );
+
+  const handleReloadActiveTab = useCallback(() => {
+    const active = navigation.view;
+
+    if (active === "web-operator") {
+      void window.aiosBrowser.reload();
+      return;
+    }
+
+    if (typeof active === "string" && active.startsWith("external-browser:")) {
+      const tab = externalTabs.find((item) => item.id === active);
+      if (tab) void reloadExternalTab(tab);
+    }
+  }, [navigation.view, externalTabs, reloadExternalTab]);
+
+  const handleCloseActiveTab = useCallback(() => {
+    const active = navigation.view;
+    if (typeof active === "string" && active.startsWith("external-browser:")) {
+      void closeExternalTab(active as `external-browser:${string}`);
+      navigation.navigateToView("aios-home");
+    }
+  }, [navigation.view, closeExternalTab, navigation.navigateToView]);
+
+  useEffect(() => {
+    try {
+      return window.aiosBrowser.onOpened(() => {
+        navigation.navigateToView("web-operator");
+      });
+    } catch {
+      return undefined;
+    }
+  }, [navigation.navigateToView]);
 
   return (
     <MainPage
       activeProfile={navigation.activeProfile}
       activeView={navigation.view}
       profileEntries={profileEntries}
+      externalTabs={externalTabs}
+      tabOrder={tabOrder}
       sidebarMode={sidebarMode}
+      canCloseActiveTab={canCloseActiveTab}
       onSidebarModeChange={setSidebarMode}
       onNavigate={navigation.navigateToView}
       onSelectProfile={navigation.handleSelectProfile}
+      onTabOrderChange={setTabOrder}
+      onCloseTab={handleCloseTab}
+      onOpenExternalTab={openExternalTab}
+      onReloadActiveTab={handleReloadActiveTab}
+      onCloseActiveTab={handleCloseActiveTab}
       sidebar={
         <DesktopSidebar
           mode={sidebarMode}

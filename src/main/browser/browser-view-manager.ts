@@ -1,8 +1,10 @@
 import { BrowserWindow, WebContentsView } from "electron";
 import type { BrowserViewBounds } from "../../shared/browser/browser-contract";
 import { BROWSER_PARTITION } from "./browser-types";
+import type { BrowserViewPort } from "./browser-viewport";
 
-export class BrowserViewManager {
+/** @deprecated V2.2+ use ShellBrowserViewAdapter. Kept for rollback/tests. */
+export class BrowserViewManager implements BrowserViewPort {
   private view: WebContentsView | null = null;
   private mainWindow: BrowserWindow;
   private boundsCallback: ((bounds: BrowserViewBounds) => void) | null = null;

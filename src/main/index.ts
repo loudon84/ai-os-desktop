@@ -120,7 +120,7 @@ import {
 } from "./cronjobs";
 import { getAppLocale, setAppLocale } from "./locale";
 import type { AppLocale } from "../shared/i18n/types";
-import { BrowserViewManager } from "./browser/browser-view-manager";
+import { ShellBrowserViewAdapter } from "./browser/shell-browser-view-adapter";
 import { BrowserSecurityGuard } from "./browser/browser-security";
 import { BrowserAuditLogger } from "./browser/browser-audit";
 import { BrowserController } from "./browser/browser-controller";
@@ -214,7 +214,7 @@ const launchArgs = {
 };
 
 // Debug flag to show native menu bar (for testing menu template)
-const showNativeMenuBar = true ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
+const showNativeMenuBar = false ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -1308,6 +1308,8 @@ app.whenReady().then(async () => {
 
   createWindow();
 
+  let shellViewManager: ShellViewManager | null = null;
+
   // Register IPC handlers that require mainWindow (must be after createWindow)
   if (mainWindow) {
     // AI-OS Runtime IPC
@@ -1326,7 +1328,6 @@ app.whenReady().then(async () => {
     }
 
     // Initialize ShellViewManager
-    let shellViewManager: ShellViewManager | null = null;
     try {
       shellViewManager = new ShellViewManager(mainWindow);
       console.log("[SHELL] ShellViewManager initialized");
@@ -1406,7 +1407,11 @@ app.whenReady().then(async () => {
       const configPath = join(webOperatorDir, "web-operator.config.json");
       const logDir = join(webOperatorDir, "logs");
 
-      const viewManager = new BrowserViewManager(mainWindow);
+      if (!shellViewManager) {
+        throw new Error("ShellViewManager is required by Web Operator");
+      }
+
+      const viewManager = new ShellBrowserViewAdapter(shellViewManager);
       const securityGuard = new BrowserSecurityGuard(configPath);
       const auditLogger = new BrowserAuditLogger(logDir);
       const controller = new BrowserController(viewManager, securityGuard, auditLogger);
