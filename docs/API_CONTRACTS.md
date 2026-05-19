@@ -447,6 +447,45 @@ interface ShellViewBoundsIPC {
 
 **错误响应**: 无效 `layerId` 抛出 `"Layer not found: xxx"`；无效 `bounds` 抛出 `"Invalid bounds: ..."`。
 
+### aios-home View URL 检测增强 (V1.9.2)
+
+`ensureAiosHomeView()` 在 `shell:view:set-bounds` / `shell:view:activate` 触发时自动检测 aios-home 视图 URL：
+
+- 新增 `normalizeUrl()` 归一化函数，去除尾部斜杠后对比当前 URL 与目标 URL
+- 当前 URL 与目标 URL 不一致时触发 `load(url)` reload
+- reload 失败时降级为 `destroyView` + `createView` recreate
+- 目标 URL 来自 `getAiOsEnvConfig().frontendPort`，默认 `http://127.0.0.1:3000/zh`
+
+---
+
+## AI-OS Runtime IPC (V1.9.2)
+
+### Runtime Snapshot
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `aios:get-runtime-snapshot` | 无 | `AiOsRuntimeSnapshot` | 获取 AI-OS 运行时快照，包含 services、ready、webAppUrl |
+
+**Preload API**: `window.aiosRuntime.getRuntimeSnapshot()`
+
+```typescript
+interface AiOsRuntimeSnapshot {
+  services: RuntimeServiceRecord[];
+  ready: boolean;
+  webAppUrl?: string;
+}
+```
+
+### 弃用 IPC 路径
+
+以下 IPC 路径已弃用，新代码应使用 `shell:view:set-bounds` → `ensureAiosHomeView()` → `ShellViewManager.activateView()` 路径：
+
+| IPC Channel | 状态 | 替代路径 |
+|---|---|---|
+| `aios:view:load-home` | **@deprecated** | `shell:view:set-bounds` + `ensureAiosHomeView()` |
+| `aios:view:reload` | **@deprecated** | `shell:view:set-bounds` + `ensureAiosHomeView()` |
+| `aios:view:set-bounds` | **@deprecated** | `shell:view:set-bounds` |
+
 ---
 
 ## 事件推送 (Main → Renderer)

@@ -15,6 +15,7 @@ import {
   Globe,
   Activity,
   LayoutDashboard,
+  Grid,
 } from "../../assets/icons";
 import { DesktopShell } from "../../components/layout/DesktopShell";
 import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
@@ -31,6 +32,7 @@ import type { NavItem } from "../../types/desktop-shell";
 
 const NAV_ITEMS: NavItem[] = [
   { view: "aios-home", icon: LayoutDashboard, labelKey: "navigation.aiosHome" },
+  { view: "aios-workspace", icon: Grid, labelKey: "navigation.aiosWorkspace" },
   { view: "chat", icon: ChatBubble, labelKey: "navigation.chat" },
   { view: "sessions", icon: Clock, labelKey: "navigation.sessions" },
   { view: "agents", icon: Users, labelKey: "navigation.agents" },

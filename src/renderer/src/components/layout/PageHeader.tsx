@@ -34,18 +34,13 @@ export function PageHeader({
   actions,
 }: PageHeaderProps): React.JSX.Element {
   const { t } = useI18n();
-  const resolvedTitle = title ?? resolveHeaderTitle(view, t);
-
+  const resolvedTitle = title ?? resolveHeaderTitle(view, t);  
   return (
     <header className="page-header app-drag-region">
       <div className="page-header__leading no-drag">
         <h1 className="page-header__title">{resolvedTitle}</h1>
         {subtitle ? <p className="page-header__subtitle">{subtitle}</p> : null}
         <span className="page-header__profile">{activeProfile}</span>
-      </div>
-      <div className="page-header__actions no-drag">
-        {actions}
-        <WindowControls />
       </div>
     </header>
   );

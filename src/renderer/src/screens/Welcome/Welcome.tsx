@@ -107,7 +107,7 @@ function Welcome({
           <input
             type="url"
             className="welcome-remote-input"
-            placeholder="http://192.168.1.100:8642"
+            placeholder="http://localhost:8642"
             value={remoteUrl}
             onChange={(e) => setRemoteUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleConnectRemote(); }}
@@ -173,7 +173,7 @@ function Welcome({
               <input
                 type="text"
                 className="welcome-remote-input"
-                placeholder="192.168.1.100 or myserver.local"
+                placeholder="localhost or myserver.local"
                 value={sshHost}
                 onChange={(e) => setSshHost(e.target.value)}
                 autoFocus

@@ -134,6 +134,7 @@ function App(): React.JSX.Element {
   }
 
   function renderScreen(): React.JSX.Element {
+    console.log(screen)
     switch (screen) {
       case "splash":
         return <SplashScreen onFinished={handleSplashFinished} />;
@@ -174,17 +175,7 @@ function App(): React.JSX.Element {
     <ThemeProvider>
       <ErrorBoundary>
         <div className="app">
-          {isMac && <div className="drag-region" />}
-          {showAppTitlebar ? (
-            <div className="layout-titlebar app-drag-region">
-              <div className="layout-titlebar__left no-drag">
-                SMC Copilot
-              </div>
-              <div className="no-drag">
-                <WindowControls />
-              </div>
-            </div>
-          ) : null}
+          {isMac && <div className="drag-region" />}          
           <div className="app-content">{renderScreen()}</div>
         </div>
       </ErrorBoundary>

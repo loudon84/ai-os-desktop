@@ -32,11 +32,7 @@ export function DesktopSidebar({
   const { t } = useI18n();
 
   return (
-    <>
-      <div className="sidebar-brand">
-        <img src={hermeslogo} height={30} alt="" />
-      </div>
-
+    <>      
       <nav className="sidebar-nav">
         {navItems.map(({ view: v, icon: Icon, labelKey }) => (
           <button
@@ -107,9 +103,11 @@ export function DesktopSidebar({
             {updateState === "ready" && <span>{t("common.restartToUpdate")}</span>}
           </button>
         )}
+        {/*
         <div className="sidebar-footer-text">
           {activeProfile === "default" ? t("common.appName") : activeProfile}
         </div>
+        */}
       </div>
     </>
   );

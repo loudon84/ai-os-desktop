@@ -97,7 +97,7 @@ export function buildAppMenu(
       label: "Help",
       submenu: [
         {
-          label: "Hermes Agent on GitHub",
+          label: "Document Wiki",
           click: (): void => {
             shell.openExternal("https://github.com/NousResearch/hermes-agent/");
           },

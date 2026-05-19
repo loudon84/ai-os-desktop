@@ -1,8 +1,11 @@
 import { ipcRenderer } from "electron";
-import type { AiOsAPI, RuntimeStatusChangeEvent } from "../shared/aios/aios-contract";
+import type { AiOsAPI, AiOsRuntimeSnapshot, RuntimeStatusChangeEvent } from "../shared/aios/aios-contract";
 
 export const aiosApi: AiOsAPI = {
   getRuntimeStatus: () => ipcRenderer.invoke("aios:get-runtime-status"),
+
+  getRuntimeSnapshot: (): Promise<AiOsRuntimeSnapshot> =>
+    ipcRenderer.invoke("aios:get-runtime-snapshot"),
 
   installAiOs: (options) => ipcRenderer.invoke("aios:install", options),
 
@@ -12,10 +15,13 @@ export const aiosApi: AiOsAPI = {
 
   restartAiOs: () => ipcRenderer.invoke("aios:restart"),
 
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   openAiOsHome: () => ipcRenderer.invoke("aios:view:load-home"),
 
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   reloadAiOsHome: () => ipcRenderer.invoke("aios:view:reload"),
 
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   setAiOsViewBounds: (bounds) => ipcRenderer.invoke("aios:view:set-bounds", bounds),
 
   getAiOsLogs: (service, options?) => ipcRenderer.invoke("aios:get-logs", service, options),

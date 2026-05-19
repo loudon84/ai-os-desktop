@@ -14,10 +14,6 @@ export function WebOperatorScreen() {
 
   return (
     <div className="flex h-full bg-neutral-900 text-neutral-200">
-      <div className="w-80 border-r border-neutral-700 flex flex-col overflow-hidden">
-        <HermesTaskPanel className="flex-1" />
-      </div>
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <BrowserToolbar />
         <BrowserViewportHost

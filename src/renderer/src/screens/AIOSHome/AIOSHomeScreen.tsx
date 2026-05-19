@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { RuntimeGuard } from "../../components/runtime/RuntimeGuard";
 import { RuntimeStatusBar } from "../../components/runtime/RuntimeStatusBar";
 import { WebContentsHost } from "../../components/shell/WebContentsHost";
-import { Spinner } from "../../assets/icons";
 import type { View } from "../../types/desktop-shell";
 import type { RuntimeServiceRecord } from "../../../../shared/aios/aios-contract";
 
@@ -14,24 +13,27 @@ export interface AIOSHomeScreenProps {
 export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.Element {
   const { t } = useTranslation("aiosHome");
   const [loading, setLoading] = useState(true);
-  const [ready, setReady] = useState(false);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
-      const snapshot = await window.hermesAPI.getAiOsRuntimeSnapshot();
+      const snapshot = await window.aiosRuntime.getRuntimeSnapshot();
       setServices(snapshot.services);
-      setReady(snapshot.ready);
-    } catch {
-      setReady(false);
+      setStatusError(null);
+    } catch (err) {
+      console.warn("[AIOSHome] Failed to refresh AI-OS runtime snapshot:", err);
+      setStatusError((err as Error).message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refreshStatus();
-    const interval = setInterval(refreshStatus, 10_000);
+    void refreshStatus();
+    const interval = setInterval(() => {
+      void refreshStatus();
+    }, 10_000);
     return () => clearInterval(interval);
   }, [refreshStatus]);
 
@@ -45,8 +47,9 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
       return undefined;
     }
   }, [refreshStatus]);
-
   const gatewayRecord = services.find((s) => s.service_id === "hermes-gateway");
+  const frontendRecord = services.find((s) => s.service_id === "aios-frontend");
+
   const gatewayStatus =
     gatewayRecord?.status === "running"
       ? "running"
@@ -54,22 +57,28 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
         ? "error"
         : "stopped";
 
+  const frontendKnownDown =
+    !loading &&
+    statusError === null &&
+    services.length > 0 &&
+    frontendRecord?.status !== "running";
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <RuntimeStatusBar services={services} loading={loading} />
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
-        <div className="flex h-[90%] w-full max-h-full min-h-0 flex-col overflow-hidden">
-          {loading ? (
-            <div className="flex h-full items-center justify-center">
-              <Spinner size={24} className="animate-spin text-zinc-500" />
-              <span className="sr-only">{t("loadingRuntime")}</span>
-            </div>
-          ) : ready ? (
-            <WebContentsHost layerId="aios-home" className="h-full w-full" />
-          ) : (
-            <RuntimeGuard gatewayStatus={gatewayStatus} onNavigate={onNavigate} onStarted={refreshStatus} />
-          )}
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {frontendKnownDown ? (
+          <RuntimeGuard
+            gatewayStatus={gatewayStatus}
+            onNavigate={onNavigate}
+            onStarted={refreshStatus}
+          />
+        ) : (
+          <WebContentsHost
+            layerId="aios-home"
+            className="h-full w-full min-h-0"
+          />
+        )}
       </div>
     </div>
   );

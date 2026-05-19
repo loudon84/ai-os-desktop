@@ -9,12 +9,15 @@ function getAiOsHomeUrl(): string {
   return `http://127.0.0.1:${config.frontendPort}/zh`;
 }
 
+function normalizeUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
 async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
   const url = getAiOsHomeUrl();
   const existing = svm.getView("aios-home");
 
   if (!existing) {
-    // Create view if not exists
     await svm.createView("aios-home", "aios-home", url, {
       layer: "content",
     });
@@ -22,7 +25,6 @@ async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
     return;
   }
 
-  // Check if view needs reload
   const webContents = existing.getWebContents?.();
   const currentUrl = webContents?.getURL?.() ?? "";
   const state = existing.getState?.() ?? "unknown";
@@ -31,6 +33,7 @@ async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
     !currentUrl ||
     currentUrl === "about:blank" ||
     currentUrl.startsWith("chrome-error://") ||
+    normalizeUrl(currentUrl) !== normalizeUrl(url) ||
     state === "creating" ||
     state === "loading" ||
     state === "destroyed";

@@ -178,12 +178,16 @@ export interface PortCheckResult {
 
 export interface AiOsAPI {
   getRuntimeStatus(): Promise<AiOsRuntimeStatus>;
+  getRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot>;
   installAiOs(options: AiOsInstallOptions): Promise<AiOsInstallResult>;
   startAiOs(): Promise<AiOsRuntimeStatus>;
   stopAiOs(): Promise<AiOsRuntimeStatus>;
   restartAiOs(): Promise<AiOsRuntimeStatus>;
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   openAiOsHome(): Promise<void>;
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   reloadAiOsHome(): Promise<void>;
+  /** @deprecated 使用 shell:view:set-bounds 路径代替 */
   setAiOsViewBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void>;
   getAiOsLogs(service: AiOsServiceId, options?: AiOsLogQueryOptions): Promise<AiOsLogEntry[]>;
   runDoctor(): Promise<AiOsDoctorReport>;
