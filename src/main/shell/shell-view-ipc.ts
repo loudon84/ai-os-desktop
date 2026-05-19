@@ -6,6 +6,7 @@ import type {
   ShellViewLoadUrlRequest,
 } from "../../shared/shell/shell-view-contract";
 import { ShellViewChannels } from "../../shared/shell/shell-view-contract";
+import { BROWSER_PARTITION } from "../browser/browser-types";
 import { getAiOsEnvConfig } from "../aios/aios-config";
 
 function getAiOsHomeUrl(): string {
@@ -65,7 +66,10 @@ async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {
   if (!existing) {
     await svm.createView("web-operator", "web-operator", url, {
       layer: "content",
+      partition: BROWSER_PARTITION,
       sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
     });
     console.log("[SHELL-IPC] Lazy created web-operator view");
   }
@@ -214,6 +218,60 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
   ipcMain.handle(ShellViewChannels.GET_ALL, async () => {
     return svm.getAllViewSnapshots();
   });
+
+  ipcMain.handle(
+    ShellViewChannels.RELOAD,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+      await ensureKnownView(svm, layerId);
+      svm.reloadView(layerId);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.STOP_LOADING,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+      await ensureKnownView(svm, layerId);
+      svm.stopLoadingView(layerId);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.GO_BACK,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+      await ensureKnownView(svm, layerId);
+      svm.goBackView(layerId);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.GO_FORWARD,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+      await ensureKnownView(svm, layerId);
+      svm.goForwardView(layerId);
+    },
+  );
+
+  ipcMain.handle(
+    ShellViewChannels.RECOVER,
+    async (_event, layerId: string): Promise<void> => {
+      if (!layerId || typeof layerId !== "string") {
+        throw new Error(`Invalid layerId: ${layerId}`);
+      }
+      await svm.recoverView(layerId);
+    },
+  );
 
   console.log("[SHELL-IPC] ShellView IPC handlers registered");
 }

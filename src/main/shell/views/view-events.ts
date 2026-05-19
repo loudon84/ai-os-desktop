@@ -5,6 +5,7 @@ import type {
   ShellViewBounds,
   ShellViewState,
 } from "../../../shared/shell/view-contract";
+import type { ShellViewSnapshot } from "../../../shared/shell/shell-view-contract";
 
 /**
  * View 事件映射
@@ -45,6 +46,20 @@ export interface ViewEventMap {
     kind: ShellViewKind;
     layer: ShellViewLayer;
   };
+  "view:metadata-changed": {
+    snapshot: ShellViewSnapshot;
+  };
+  "view:load-failed": {
+    id: string;
+    url: string;
+    errorCode: number;
+    errorDescription: string;
+  };
+  "view:crashed": {
+    id: string;
+    reason: string;
+    exitCode: number;
+  };
 }
 
 /**
@@ -71,7 +86,6 @@ export class ViewEventBus extends EventEmitter {
     return super.off(event, listener);
   }
 
-  // 便捷方法
   emitViewCreated(
     id: string,
     kind: ShellViewKind,
@@ -127,7 +141,28 @@ export class ViewEventBus extends EventEmitter {
   ): void {
     this.emit("view:brought-to-front", { id, kind, layer });
   }
+
+  emitViewMetadataChanged(snapshot: ShellViewSnapshot): void {
+    this.emit("view:metadata-changed", { snapshot });
+  }
+
+  emitViewLoadFailed(
+    id: string,
+    url: string,
+    errorCode: number,
+    errorDescription: string,
+  ): void {
+    this.emit("view:load-failed", {
+      id,
+      url,
+      errorCode,
+      errorDescription,
+    });
+  }
+
+  emitViewCrashed(id: string, reason: string, exitCode: number): void {
+    this.emit("view:crashed", { id, reason, exitCode });
+  }
 }
 
-// 全局单例
 export const viewEventBus = new ViewEventBus();

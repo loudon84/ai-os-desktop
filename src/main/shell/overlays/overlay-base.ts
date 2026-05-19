@@ -1,5 +1,6 @@
 import { BrowserWindow, WebContentsView } from "electron";
 import { EventEmitter } from "events";
+import { evaluateLayoutCalc } from "../layout-calc-parser";
 import type {
   OverlayBounds,
   OverlayLayout,
@@ -66,22 +67,7 @@ class LayoutCalculator {
    * 支持: 100% - 40px, 50% + 100px, 100px, etc.
    */
   private evaluateCalc(expression: string, baseSize: number): number {
-    // 处理百分比
-    expression = expression.replace(/(\d+(?:\.\d+)?)%/g, (_match, percent) => {
-      return String((baseSize * parseFloat(percent)) / 100);
-    });
-
-    // 移除 px 单位
-    expression = expression.replace(/px/g, "");
-
-    // 安全求值（仅支持 + - * / 和数字）
-    try {
-      const result = new Function(`return (${expression})`)();
-      return Math.floor(result);
-    } catch {
-      console.error(`[LayoutCalculator] Failed to evaluate: ${expression}`);
-      return 0;
-    }
+    return evaluateLayoutCalc(expression, baseSize);
   }
 }
 

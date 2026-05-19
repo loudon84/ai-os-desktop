@@ -475,6 +475,26 @@ Dropdown 系统 IPC。
 | `shell:view:destroy` | `layerId: string` | `void` | 销毁指定 View |
 | `shell:view:get-state` | `layerId: string` | `ShellViewSnapshot \| null` | 获取 View 快照 |
 | `shell:view:get-all` | 无 | `ShellViewSnapshot[]` | 获取全部 View 快照 |
+| `shell:view:reload` | `layerId: string` | `void` | 重新加载 |
+| `shell:view:stop-loading` | `layerId: string` | `void` | 停止加载 |
+| `shell:view:go-back` | `layerId: string` | `void` | 后退 |
+| `shell:view:go-forward` | `layerId: string` | `void` | 前进 |
+| `shell:view:recover` | `layerId: string` | `void` | 崩溃/失败后重建 View |
+
+**Renderer 事件**（Main → Renderer，`webContents.send`）：
+
+| Event | Payload | 说明 |
+|---|---|---|
+| `shell:view:metadata-changed` | `{ snapshot: ShellViewSnapshot }` | title/favicon/loading/navigation 等元数据更新 |
+| `shell:view:load-failed` | `{ id, url, errorCode, errorDescription }` | 主框架加载失败 |
+| `shell:view:crashed` | `{ id, reason, exitCode }` | 渲染进程崩溃 |
+
+**MainPage 状态 IPC (V2.3)**：
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `main-page:read` | 无 | `MainPagePersistedState` | 读取 `~/.hermes/desktop/main-page-state.json` |
+| `main-page:write` | `MainPagePersistedState` | `void` | 写入持久化状态 |
 
 **Preload API**: `window.shellView`
 
@@ -489,8 +509,18 @@ interface ShellViewAPI {
   destroy: (layerId: string) => Promise<void>;
   getState: (layerId: string) => Promise<ShellViewSnapshot | null>;
   getAll: () => Promise<ShellViewSnapshot[]>;
+  reload: (layerId: string) => Promise<void>;
+  stopLoading: (layerId: string) => Promise<void>;
+  goBack: (layerId: string) => Promise<void>;
+  goForward: (layerId: string) => Promise<void>;
+  recover: (layerId: string) => Promise<void>;
+  onMetadataChanged: (cb) => () => void;
+  onLoadFailed: (cb) => () => void;
+  onCrashed: (cb) => () => void;
 }
 ```
+
+**Preload API**: `window.mainPageState` — `{ read(), write(state) }`
 
 **Lazy create**: `aios-home` 与 `web-operator` 在 `set-bounds` / `activate` / `load-url` / `focus` 时若不存在会自动创建（`web-operator` 默认 `about:blank`）。
 

@@ -1,6 +1,6 @@
 # SMC Copilot Shell 架构文档
 
-> 版本: 0.3.5 | 最后更新: V2.2 MainPage 第三阶段
+> 版本: 0.3.5 | 最后更新: V2.3 MainPage 第四阶段
 
 ## 架构概述
 
@@ -135,6 +135,16 @@ browser.open / Toolbar
 external tab (+)
   → shellView.create(external-browser:uuid) → WebContentsHost(layerId)
 ```
+
+### V2.3 增量（生产化 + KeepAlive）
+
+| 能力 | 说明 |
+|------|------|
+| ShellView metadata | `ManagedWebContentsView.getSnapshot()` + `shell-view-event-forwarder` → `useShellViewMetadata` |
+| 导航 | `shellView.reload/stopLoading/goBack/goForward/recover`；顶栏统一走 `shellView` |
+| 持久化 | `main-page-state.json` @ `~/.hermes/desktop/`；`window.mainPageState` |
+| React KeepAlive | `KeepAliveView` 包裹 Chat/Settings 等管理页，`display:none` 不 unmount |
+| 安全 | `layout-calc-parser.ts` 替代 `LayoutCalculator` / `overlay-base` 的 `new Function` |
 
 ## 核心模块
 

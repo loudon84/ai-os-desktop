@@ -1,5 +1,4 @@
 import { WebContentsView, BrowserWindow } from "electron";
-import { join } from "path";
 import type {
   ShellViewKind,
   ShellViewLayer,
@@ -7,6 +6,7 @@ import type {
   ShellViewBounds,
   ShellViewOptions,
 } from "../../../shared/shell/view-contract";
+import type { ShellViewSnapshot } from "../../../shared/shell/shell-view-contract";
 import { viewRegistry } from "./view-registry";
 import { viewEventBus } from "./view-events";
 
@@ -24,6 +24,17 @@ export class ManagedWebContentsView {
   private parent: BrowserWindow;
   private currentBounds: ShellViewBounds = { x: 0, y: 0, width: 0, height: 0 };
 
+  private title = "";
+  private favicon: string | undefined;
+  private loading = false;
+
+  private errorCode: number | undefined;
+  private errorDescription: string | undefined;
+
+  private crashed = false;
+  private crashedReason: string | undefined;
+  private crashedExitCode: number | undefined;
+
   constructor(
     id: string,
     kind: ShellViewKind,
@@ -34,20 +45,15 @@ export class ManagedWebContentsView {
     this.kind = kind;
     this.parent = parent;
 
-    // 从注册表获取默认 layer
     const registryEntry = viewRegistry.get(kind);
     this.layer = layer ?? registryEntry?.defaultLayer ?? "content";
   }
 
-  /**
-   * 创建 WebContentsView 并加载 URL
-   */
   async create(
     url: string,
     options?: Partial<ShellViewOptions>,
   ): Promise<void> {
     if (this.view && !this.view.webContents.isDestroyed()) {
-      // View 已存在，直接导航
       await this.load(url);
       return;
     }
@@ -56,7 +62,6 @@ export class ManagedWebContentsView {
 
     const registryEntry = viewRegistry.get(this.kind);
 
-    // 合并选项（优先级：传入 > 注册表 > 默认值）
     const sandbox = options?.sandbox ?? registryEntry?.defaultSandbox ?? true;
     const nodeIntegration =
       options?.nodeIntegration ??
@@ -71,7 +76,6 @@ export class ManagedWebContentsView {
     const preload =
       options?.preload ?? registryEntry?.defaultPreload ?? undefined;
 
-    // 创建 WebContentsView
     const webPreferences: Electron.WebPreferences = {
       sandbox,
       nodeIntegration,
@@ -88,48 +92,65 @@ export class ManagedWebContentsView {
 
     this.view = new WebContentsView({ webPreferences });
 
-    // 添加到父窗口
     this.parent.contentView.addChildView(this.view);
-
-    // 初始隐藏（等待 activate）
     this.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
 
-    // 绑定事件
     this.bindViewEvents();
 
-    // 加载 URL
+    this.loading = true;
     this.setState("loading");
     await this.view.webContents.loadURL(url);
+    this.loading = false;
     this.setState("ready");
 
-    // 触发事件
     viewEventBus.emitViewCreated(this.id, this.kind, this.layer);
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 加载新 URL
-   */
   async load(url: string): Promise<void> {
     if (!this.view || this.view.webContents.isDestroyed()) {
       throw new Error(`View ${this.id} is not created or destroyed`);
     }
 
+    this.loading = true;
+    this.errorCode = undefined;
+    this.errorDescription = undefined;
+    this.crashed = false;
     this.setState("loading");
     await this.view.webContents.loadURL(url);
+    this.loading = false;
     this.setState("ready");
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 重新加载
-   */
   reload(): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
     this.view.webContents.reload();
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 显示 View（设置 bounds）
-   */
+  stopLoading(): void {
+    const wc = this.getWebContents();
+    if (!wc) return;
+    wc.stop();
+    this.loading = false;
+    this.emitMetadataChanged();
+  }
+
+  goBack(): void {
+    const wc = this.getWebContents();
+    if (!wc || !wc.canGoBack()) return;
+    wc.goBack();
+    this.emitMetadataChanged();
+  }
+
+  goForward(): void {
+    const wc = this.getWebContents();
+    if (!wc || !wc.canGoForward()) return;
+    wc.goForward();
+    this.emitMetadataChanged();
+  }
+
   show(bounds: ShellViewBounds): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
 
@@ -142,11 +163,9 @@ export class ManagedWebContentsView {
     }
 
     viewEventBus.emitViewBoundsChanged(this.id, this.kind, bounds);
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 隐藏 View（bounds 设为 0）
-   */
   hide(): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
 
@@ -156,11 +175,9 @@ export class ManagedWebContentsView {
       this.setState("hidden");
       viewEventBus.emitViewDeactivated(this.id, this.kind, this.layer);
     }
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 更新 bounds（保持 active 状态）
-   */
   updateBounds(bounds: ShellViewBounds): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
 
@@ -168,38 +185,25 @@ export class ManagedWebContentsView {
     this.view.setBounds(bounds);
 
     viewEventBus.emitViewBoundsChanged(this.id, this.kind, bounds);
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 获取当前 bounds
-   */
   getBounds(): ShellViewBounds {
     return { ...this.currentBounds };
   }
 
-  /**
-   * 聚焦
-   */
   focus(): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
     this.view.webContents.focus();
   }
 
-  /**
-   * 打开开发者工具
-   */
   openDevTools(): void {
     if (!this.view || this.view.webContents.isDestroyed()) return;
     this.view.webContents.openDevTools({ mode: "detach" });
   }
 
-  /**
-   * 销毁 View
-   */
   destroy(): void {
     if (!this.view) return;
-
-    const previousState = this.state;
 
     if (!this.view.webContents.isDestroyed()) {
       this.parent.contentView.removeChildView(this.view);
@@ -212,95 +216,156 @@ export class ManagedWebContentsView {
     viewEventBus.emitViewDestroyed(this.id, this.kind, this.layer);
   }
 
-  /**
-   * 是否已就绪
-   */
   isReady(): boolean {
     return this.view !== null && !this.view.webContents.isDestroyed();
   }
 
-  /**
-   * 是否处于 active 状态
-   */
   isActive(): boolean {
     return this.state === "active";
   }
 
-  /**
-   * 获取 WebContents
-   */
   getWebContents(): Electron.WebContents | null {
     if (!this.view || this.view.webContents.isDestroyed()) return null;
     return this.view.webContents;
   }
 
-  /**
-   * 获取状态
-   */
   getState(): ShellViewState {
     return this.state;
   }
 
-  /**
-   * 获取 ID
-   */
   getId(): string {
     return this.id;
   }
 
-  /**
-   * 获取 Kind
-   */
   getKind(): ShellViewKind {
     return this.kind;
   }
 
-  /**
-   * 获取 Layer
-   */
   getLayer(): ShellViewLayer {
     return this.layer;
   }
 
-  /**
-   * 获取底层 WebContentsView（供 ShellViewManager 操作 z-index）
-   */
   getNativeView(): WebContentsView | null {
     return this.view;
   }
 
-  /**
-   * 设置状态
-   */
+  getSnapshot(): ShellViewSnapshot {
+    const webContents = this.getWebContents();
+
+    return {
+      id: this.id,
+      kind: this.kind,
+      layer: this.layer,
+      state: this.state,
+      active: this.isActive(),
+
+      url: webContents?.getURL() ?? "",
+      title: this.title || webContents?.getTitle?.() || "",
+      favicon: this.favicon,
+
+      loading: this.loading,
+      canGoBack: webContents?.canGoBack() ?? false,
+      canGoForward: webContents?.canGoForward() ?? false,
+
+      bounds: this.getBounds(),
+
+      errorCode: this.errorCode,
+      errorDescription: this.errorDescription,
+
+      crashed: this.crashed,
+      crashedReason: this.crashedReason,
+      crashedExitCode: this.crashedExitCode,
+
+      updatedAt: Date.now(),
+    };
+  }
+
+  private emitMetadataChanged(): void {
+    viewEventBus.emitViewMetadataChanged(this.getSnapshot());
+  }
+
   private setState(newState: ShellViewState): void {
     const previousState = this.state;
     this.state = newState;
     viewEventBus.emitViewStateChanged(this.id, newState, previousState);
+    this.emitMetadataChanged();
   }
 
-  /**
-   * 绑定 View 事件
-   */
   private bindViewEvents(): void {
     if (!this.view) return;
 
-    this.view.webContents.on(
+    const wc = this.view.webContents;
+
+    wc.on("page-title-updated", (_event, title) => {
+      this.title = title;
+      this.emitMetadataChanged();
+    });
+
+    wc.on("page-favicon-updated", (_event, favicons) => {
+      this.favicon = favicons?.[0];
+      this.emitMetadataChanged();
+    });
+
+    wc.on("did-start-loading", () => {
+      this.loading = true;
+      this.errorCode = undefined;
+      this.errorDescription = undefined;
+      this.crashed = false;
+      this.emitMetadataChanged();
+    });
+
+    wc.on("did-stop-loading", () => {
+      this.loading = false;
+      this.emitMetadataChanged();
+    });
+
+    wc.on("did-navigate", () => {
+      this.emitMetadataChanged();
+    });
+
+    wc.on("did-navigate-in-page", () => {
+      this.emitMetadataChanged();
+    });
+
+    wc.on(
       "did-fail-load",
-      (_event, errorCode, errorDescription) => {
-        console.error(
-          `[VIEW:${this.id}] Load failed:`,
+      (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame) return;
+
+        this.loading = false;
+        this.errorCode = errorCode;
+        this.errorDescription = errorDescription;
+
+        viewEventBus.emitViewLoadFailed(
+          this.id,
+          validatedURL,
           errorCode,
           errorDescription,
         );
+
+        this.emitMetadataChanged();
       },
     );
 
-    this.view.webContents.on("render-process-gone", (_event, details) => {
+    wc.on("render-process-gone", (_event, details) => {
+      this.loading = false;
+      this.crashed = true;
+      this.crashedReason = details.reason;
+      this.crashedExitCode = details.exitCode;
+
+      viewEventBus.emitViewCrashed(
+        this.id,
+        details.reason,
+        details.exitCode,
+      );
+
       console.error(
         `[VIEW:${this.id}] Renderer process gone:`,
         details.reason,
         details.exitCode,
       );
+
+      this.emitMetadataChanged();
     });
   }
 }

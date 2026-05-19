@@ -71,6 +71,13 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Tab DnD**：`@dnd-kit`；`profile-workspace:*` 与 `external-browser:*` 可排序；系统三 Tab 固定左侧
 - **Legacy**：`browser-view-manager.ts` 保留未删，供回滚
 
+**V2.3（MainPage 第四阶段，PRD `prd/v2.3_mainpage.md`）**：
+- **Metadata 事件链**：`shell:view:metadata-changed` / `load-failed` / `crashed` → MainViewTabs 真实 title、loading、error
+- **导航 IPC**：reload / stop / back / forward / recover
+- **Tab 持久化**：`main-page:read|write` → `~/.hermes/desktop/main-page-state.json`
+- **Workspace KeepAlive**：`KeepAliveView.tsx` 保活 React 管理页
+- **DEV Debug**：`MainPageDebugPanel`（`import.meta.env.DEV`）
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |

@@ -180,6 +180,8 @@ import { registerAiosIpc } from "./aios/aios-ipc";
 import { getAiOsEnvConfig } from "./aios/aios-config";
 import { ShellViewManager } from "./shell/views/shell-view-manager";
 import { registerShellViewIpc, destroyShellViews } from "./shell/shell-view-ipc";
+import { bindShellViewEventForwarder } from "./shell/shell-view-event-forwarder";
+import { registerMainPageStateIpc } from "./shell/main-page-state-ipc";
 import { buildAppMenu } from "./shell/shell-menu";
 import { ModalManager } from "./shell/overlays/modal-manager";
 import { DropdownManager } from "./shell/overlays/dropdown-manager";
@@ -214,7 +216,7 @@ const launchArgs = {
 };
 
 // Debug flag to show native menu bar (for testing menu template)
-const showNativeMenuBar = false ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
+const showNativeMenuBar = true ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -406,6 +408,12 @@ function setupIPC(): void {
   try {
     setupProfileRuntimeIPC();
   } catch { /* profile-runtime not available in early setup */ }
+
+  try {
+    registerMainPageStateIpc();
+  } catch (err) {
+    console.error("[MAIN-PAGE] Failed to register main page state IPC:", err);
+  }
 
   // First Run Wizard IPC
   try {
@@ -1335,10 +1343,14 @@ app.whenReady().then(async () => {
       console.error("[SHELL] Failed to initialize ShellViewManager:", err);
     }
 
-    // ShellView IPC
+    // ShellView IPC + renderer event forwarder
     if (shellViewManager) {
       try {
         registerShellViewIpc(shellViewManager);
+        const unbindShellViewEvents = bindShellViewEventForwarder(mainWindow);
+        mainWindow.on("closed", () => {
+          unbindShellViewEvents();
+        });
       } catch (err) {
         console.error("[SHELL-IPC] Failed to register ShellView IPC:", err);
       }

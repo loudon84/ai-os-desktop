@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ChatBubble,
   Clock,
@@ -21,9 +21,12 @@ import {
 import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
 import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
 import { StatusBar } from "../../components/layout/StatusBar";
+import { useKeepAliveRegistry } from "../../components/layout/useKeepAliveRegistry";
 import { MainPage } from "../MainPage/MainPage";
 import type { SidebarMode } from "../MainPage/main-page-types";
 import { useExternalBrowserTabs } from "../MainPage/useExternalBrowserTabs";
+import { useShellViewMetadata } from "../MainPage/useShellViewMetadata";
+import { resolveActiveShellLayerId } from "../MainPage/shell-layer-id";
 import type { View } from "../../types/desktop-shell";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
@@ -32,6 +35,7 @@ import { useUpdateState } from "../../hooks/useUpdateState";
 import { useRemoteMode } from "../../hooks/useRemoteMode";
 import { useProfileEntries } from "../../hooks/useProfileEntries";
 import type { NavItem } from "../../types/desktop-shell";
+import type { MainPagePersistedState } from "../../../../shared/shell/main-page-state-contract";
 
 const NAV_ITEMS: NavItem[] = [
   { view: "aios-home", icon: LayoutDashboard, labelKey: "navigation.aiosHome" },
@@ -53,6 +57,40 @@ const NAV_ITEMS: NavItem[] = [
   { view: "settings", icon: SettingsIcon, labelKey: "navigation.settings" },
 ];
 
+function isValidRestoredView(
+  view: string | undefined,
+  tabOrder: string[],
+  externalTabIds: string[],
+): view is View {
+  if (!view) return false;
+  const known: View[] = [
+    "aios-home",
+    "aios-workspace",
+    "chat",
+    "sessions",
+    "agents",
+    "office",
+    "models",
+    "providers",
+    "skills",
+    "soul",
+    "memory",
+    "tools",
+    "schedules",
+    "gateway",
+    "runtime-setup",
+    "web-operator",
+    "profile-runtime",
+    "settings",
+  ];
+  if (known.includes(view as View)) return true;
+  if (view.startsWith("profile-workspace:") && tabOrder.includes(view)) return true;
+  if (view.startsWith("external-browser:") && externalTabIds.includes(view)) {
+    return true;
+  }
+  return false;
+}
+
 function Layout(): React.JSX.Element {
   const navigation = useDesktopNavigation();
   const {
@@ -64,9 +102,15 @@ function Layout(): React.JSX.Element {
   } = useUpdateState();
   const remoteMode = useRemoteMode(navigation.view);
   const profileEntries = useProfileEntries();
+  const metadataById = useShellViewMetadata();
+  const keepAliveEntries = useKeepAliveRegistry(String(navigation.view));
+
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
   const [tabOrder, setTabOrder] = useState<string[]>([]);
-  const { externalTabs, openExternalTab, closeExternalTab, reloadExternalTab } =
+  const [hydrated, setHydrated] = useState(false);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { externalTabs, openExternalTab, closeExternalTab, restoreExternalTabs } =
     useExternalBrowserTabs();
 
   const draggableTabIds = useMemo(() => {
@@ -78,6 +122,37 @@ function Layout(): React.JSX.Element {
   }, [profileEntries, externalTabs]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const state = await window.mainPageState.read();
+        if (cancelled) return;
+
+        setSidebarMode(state.sidebarMode);
+        setTabOrder(state.tabOrder);
+        await restoreExternalTabs(state.externalTabs);
+
+        const externalIds = state.externalTabs.map((t) => t.id);
+        if (
+          isValidRestoredView(state.lastActiveView, state.tabOrder, externalIds)
+        ) {
+          navigation.navigateToView(state.lastActiveView);
+        }
+      } catch (err) {
+        console.warn("[Layout] failed to restore main page state:", err);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  useEffect(() => {
     setTabOrder((prev) => {
       const kept = prev.filter((id) => draggableTabIds.includes(id));
       const appended = draggableTabIds.filter((id) => !kept.includes(id));
@@ -85,9 +160,49 @@ function Layout(): React.JSX.Element {
     });
   }, [draggableTabIds]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current);
+    }
+
+    persistTimerRef.current = setTimeout(() => {
+      const payload: MainPagePersistedState = {
+        version: 1,
+        sidebarMode,
+        tabOrder,
+        externalTabs: externalTabs.map((tab) => ({
+          id: tab.id,
+          title: tab.title,
+          url: tab.url,
+          createdAt: tab.createdAt,
+          updatedAt: tab.updatedAt,
+        })),
+        lastActiveView: String(navigation.view),
+      };
+      void window.mainPageState.write(payload).catch((err) => {
+        console.warn("[Layout] failed to persist main page state:", err);
+      });
+    }, 300);
+
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+      }
+    };
+  }, [hydrated, sidebarMode, tabOrder, externalTabs, navigation.view]);
+
+  const activeShellLayerId = resolveActiveShellLayerId(navigation.view);
+  const activeMetadata = activeShellLayerId
+    ? metadataById[activeShellLayerId]
+    : undefined;
+
   const canCloseActiveTab =
     typeof navigation.view === "string" &&
     navigation.view.startsWith("external-browser:");
+
+  const canNavigateShell = activeShellLayerId !== null;
 
   const handleCloseTab = useCallback(
     (id: View) => {
@@ -102,19 +217,37 @@ function Layout(): React.JSX.Element {
     [closeExternalTab, navigation],
   );
 
+  const runShellNav = useCallback(
+    (action: (layerId: string) => Promise<void>) => {
+      const layerId = resolveActiveShellLayerId(navigation.view);
+      if (!layerId) return;
+      void action(layerId);
+    },
+    [navigation.view],
+  );
+
   const handleReloadActiveTab = useCallback(() => {
-    const active = navigation.view;
+    runShellNav((layerId) => window.shellView.reload(layerId));
+  }, [runShellNav]);
 
-    if (active === "web-operator") {
-      void window.aiosBrowser.reload();
-      return;
-    }
+  const handleStopActiveTab = useCallback(() => {
+    runShellNav((layerId) => window.shellView.stopLoading(layerId));
+  }, [runShellNav]);
 
-    if (typeof active === "string" && active.startsWith("external-browser:")) {
-      const tab = externalTabs.find((item) => item.id === active);
-      if (tab) void reloadExternalTab(tab);
-    }
-  }, [navigation.view, externalTabs, reloadExternalTab]);
+  const handleBackActiveTab = useCallback(() => {
+    runShellNav((layerId) => window.shellView.goBack(layerId));
+  }, [runShellNav]);
+
+  const handleForwardActiveTab = useCallback(() => {
+    runShellNav((layerId) => window.shellView.goForward(layerId));
+  }, [runShellNav]);
+
+  const handleRecoverTab = useCallback(
+    (id: View) => {
+      void window.shellView.recover(String(id));
+    },
+    [],
+  );
 
   const handleCloseActiveTab = useCallback(() => {
     const active = navigation.view;
@@ -134,6 +267,14 @@ function Layout(): React.JSX.Element {
     }
   }, [navigation.navigateToView]);
 
+  if (!hydrated) {
+    return (
+      <div className="MainPage layout MainPage--sidebar-expanded">
+        <main className="MainPage__content" />
+      </div>
+    );
+  }
+
   return (
     <MainPage
       activeProfile={navigation.activeProfile}
@@ -142,14 +283,23 @@ function Layout(): React.JSX.Element {
       externalTabs={externalTabs}
       tabOrder={tabOrder}
       sidebarMode={sidebarMode}
+      metadataById={metadataById}
+      keepAliveEntries={keepAliveEntries}
       canCloseActiveTab={canCloseActiveTab}
+      canNavigateShell={canNavigateShell}
+      canGoBack={activeMetadata?.canGoBack ?? false}
+      canGoForward={activeMetadata?.canGoForward ?? false}
       onSidebarModeChange={setSidebarMode}
       onNavigate={navigation.navigateToView}
       onSelectProfile={navigation.handleSelectProfile}
       onTabOrderChange={setTabOrder}
       onCloseTab={handleCloseTab}
+      onRecoverTab={handleRecoverTab}
       onOpenExternalTab={openExternalTab}
       onReloadActiveTab={handleReloadActiveTab}
+      onStopActiveTab={handleStopActiveTab}
+      onBackActiveTab={handleBackActiveTab}
+      onForwardActiveTab={handleForwardActiveTab}
       onCloseActiveTab={handleCloseActiveTab}
       sidebar={
         <DesktopSidebar

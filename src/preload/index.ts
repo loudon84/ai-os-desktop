@@ -27,6 +27,7 @@ import { profileRuntimeApi } from "./profile-runtime-api";
 import { profileEntryApi } from "./profile-entry-api";
 import { aiosApi } from "./aios-api";
 import { shellViewApi } from "./shell-view-api";
+import { mainPageStateApi } from "./main-page-state-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const hermesAPI = {
@@ -853,6 +854,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("profileEntry", profileEntryApi);
     contextBridge.exposeInMainWorld("aiosRuntime", aiosApi);
     contextBridge.exposeInMainWorld("shellView", shellViewApi);
+    contextBridge.exposeInMainWorld("mainPageState", mainPageStateApi);
   } catch (error) {
     console.error(error);
   }
@@ -871,4 +873,6 @@ if (process.contextIsolated) {
   window.aiosRuntime = aiosApi;
   // @ts-ignore (define in dts)
   window.shellView = shellViewApi;
+  // @ts-ignore (define in dts)
+  window.mainPageState = mainPageStateApi;
 }

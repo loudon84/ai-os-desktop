@@ -594,9 +594,37 @@ interface ShellViewSnapshot {
   kind: string;
   layer: string;
   state: string;
-  bounds: ShellViewBoundsIPC;
-  url: string;
   active: boolean;
+  url: string;
+  title: string;
+  favicon?: string;
+  loading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  bounds: ShellViewBoundsIPC;
+  errorCode?: number;
+  errorDescription?: string;
+  crashed?: boolean;
+  crashedReason?: string;
+  crashedExitCode?: number;
+  updatedAt: number;
+}
+
+interface ShellViewMetadataChangedEvent {
+  snapshot: ShellViewSnapshot;
+}
+
+interface ShellViewLoadFailedEvent {
+  id: string;
+  url: string;
+  errorCode: number;
+  errorDescription: string;
+}
+
+interface ShellViewCrashedEvent {
+  id: string;
+  reason: string;
+  exitCode: number;
 }
 
 interface ShellViewAPI {
@@ -612,8 +640,37 @@ interface ShellViewAPI {
   focus: (layerId: string) => Promise<void>;
   hide: (layerId: string) => Promise<void>;
   destroy: (layerId: string) => Promise<void>;
+  reload: (layerId: string) => Promise<void>;
+  stopLoading: (layerId: string) => Promise<void>;
+  goBack: (layerId: string) => Promise<void>;
+  goForward: (layerId: string) => Promise<void>;
+  recover: (layerId: string) => Promise<void>;
   getState: (layerId: string) => Promise<ShellViewSnapshot | null>;
   getAll: () => Promise<ShellViewSnapshot[]>;
+  onMetadataChanged: (
+    callback: (event: ShellViewMetadataChangedEvent) => void,
+  ) => () => void;
+  onLoadFailed: (callback: (event: ShellViewLoadFailedEvent) => void) => () => void;
+  onCrashed: (callback: (event: ShellViewCrashedEvent) => void) => () => void;
+}
+
+interface MainPagePersistedState {
+  version: 1;
+  sidebarMode: "expanded" | "rail" | "hidden";
+  tabOrder: string[];
+  externalTabs: Array<{
+    id: `external-browser:${string}`;
+    title: string;
+    url: string;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  lastActiveView?: string;
+}
+
+interface MainPageStateAPI {
+  read: () => Promise<MainPagePersistedState>;
+  write: (state: MainPagePersistedState) => Promise<void>;
 }
 
 declare global {
@@ -627,6 +684,7 @@ declare global {
     /** @deprecated V1.9 使用 window.shellView 代替 */
     smcShell: SmcShellAPI;
     shellView: ShellViewAPI;
+    mainPageState: MainPageStateAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

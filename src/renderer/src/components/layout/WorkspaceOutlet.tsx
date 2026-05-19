@@ -19,6 +19,7 @@ import { ProfileWorkspaceScreen } from "../../screens/ProfileWorkspace/ProfileWo
 import { RuntimeSetupScreen } from "../../screens/RuntimeSetup/RuntimeSetupScreen";
 import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
 import { WebContentsHost } from "../shell/WebContentsHost";
+import { KeepAliveView } from "./KeepAliveView";
 import type { View } from "../../types/desktop-shell";
 
 export interface WorkspaceOutletProps {
@@ -52,7 +53,7 @@ export function WorkspaceOutlet({
 }: WorkspaceOutletProps): React.JSX.Element {
   return (
     <>
-      {view === "aios-home" && (
+      <KeepAliveView active={view === "aios-home"}>
         <div
           style={{
             display: "flex",
@@ -64,15 +65,9 @@ export function WorkspaceOutlet({
         >
           <AIOSHomeScreen onNavigate={onNavigate} />
         </div>
-      )}
-      <div
-        style={{
-          display: view === "chat" ? "flex" : "none",
-          flex: 1,
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "chat"}>
         <Chat
           messages={messages}
           setMessages={setMessages}
@@ -80,9 +75,10 @@ export function WorkspaceOutlet({
           profile={activeProfile}
           onNewChat={onNewChat}
         />
-      </div>
-      {view === "sessions" &&
-        (remoteMode ? (
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "sessions"}>
+        {remoteMode ? (
           <RemoteNotice feature="Sessions" />
         ) : (
           <Sessions
@@ -90,9 +86,11 @@ export function WorkspaceOutlet({
             onNewChat={onNewChat}
             currentSessionId={currentSessionId}
           />
-        ))}
-      {view === "agents" &&
-        (remoteMode ? (
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "agents"}>
+        {remoteMode ? (
           <RemoteNotice feature="Profiles" />
         ) : (
           <Agents
@@ -100,85 +98,93 @@ export function WorkspaceOutlet({
             onSelectProfile={onSelectProfile}
             onChatWith={onChatWithProfile}
           />
-        ))}
-      {officeVisited && (
-        <div
-          style={{
-            display: view === "office" ? "flex" : "none",
-            flex: 1,
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
+        )}
+      </KeepAliveView>
+
+      {officeVisited ? (
+        <KeepAliveView active={view === "office"}>
           <Office visible={view === "office"} />
-        </div>
-      )}
-      {view === "models" && <Models />}
-      <div
-        style={{
-          display: view === "providers" ? "flex" : "none",
-          flex: 1,
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+        </KeepAliveView>
+      ) : null}
+
+      <KeepAliveView active={view === "models"}>
+        <Models />
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "providers"}>
         {remoteMode ? (
-          view === "providers" && <RemoteNotice feature="Providers" />
+          <RemoteNotice feature="Providers" />
         ) : (
           <Providers profile={activeProfile} visible={view === "providers"} />
         )}
-      </div>
-      {view === "skills" &&
-        (remoteMode ? (
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "skills"}>
+        {remoteMode ? (
           <RemoteNotice feature="Skills" />
         ) : (
           <Skills profile={activeProfile} />
-        ))}
-      {view === "soul" &&
-        (remoteMode ? (
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "soul"}>
+        {remoteMode ? (
           <RemoteNotice feature="Persona" />
         ) : (
           <Soul profile={activeProfile} />
-        ))}
-      {view === "memory" &&
-        (remoteMode ? (
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "memory"}>
+        {remoteMode ? (
           <RemoteNotice feature="Memory" />
         ) : (
           <Memory profile={activeProfile} />
-        ))}
-      {view === "tools" &&
-        (remoteMode ? (
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "tools"}>
+        {remoteMode ? (
           <RemoteNotice feature="Tools" />
         ) : (
           <Tools profile={activeProfile} />
-        ))}
-      {view === "schedules" && <Schedules profile={activeProfile} />}
-      {view === "gateway" &&
-        (remoteMode ? (
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "schedules"}>
+        <Schedules profile={activeProfile} />
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "gateway"}>
+        {remoteMode ? (
           <RemoteNotice feature="Gateway" />
         ) : (
           <Gateway profile={activeProfile} />
-        ))}
-      {view === "web-operator" && <WebOperatorScreen />}
-      {view === "runtime-setup" && <RuntimeSetupScreen />}
-      {view === "profile-runtime" && <ProfileRuntimeScreen />}
-      {view === "aios-workspace" && <AIOSWorkspaceScreen profile="default" />}
+        )}
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "settings"}>
+        <Settings profile={activeProfile} />
+      </KeepAliveView>
+
+      <KeepAliveView active={view === "web-operator"}>
+        <WebOperatorScreen />
+      </KeepAliveView>
+      <KeepAliveView active={view === "runtime-setup"}>
+        <RuntimeSetupScreen />
+      </KeepAliveView>
+      <KeepAliveView active={view === "profile-runtime"}>
+        <ProfileRuntimeScreen />
+      </KeepAliveView>
+      <KeepAliveView active={view === "aios-workspace"}>
+        <AIOSWorkspaceScreen profile="default" />
+      </KeepAliveView>
       {typeof view === "string" && view.startsWith("profile-workspace:") && (
         <ProfileWorkspaceScreen profileId={view.split(":")[1]} />
       )}
       {typeof view === "string" && view.startsWith("external-browser:") && (
         <WebContentsHost layerId={view} className="h-full w-full min-h-0" />
       )}
-      <div
-        style={{
-          display: view === "settings" ? "flex" : "none",
-          flex: 1,
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <Settings profile={activeProfile} />
-      </div>
     </>
   );
 }

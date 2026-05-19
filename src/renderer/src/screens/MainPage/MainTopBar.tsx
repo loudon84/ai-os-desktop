@@ -8,8 +8,12 @@ import {
   Plus,
   RotateCw,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Square,
 } from "lucide-react";
 import { WindowControls } from "../../components/layout/WindowControls";
+import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-contract";
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
@@ -24,14 +28,22 @@ interface MainTopBarProps {
   externalTabs: ExternalBrowserTab[];
   tabOrder: string[];
   sidebarMode: SidebarMode;
+  metadataById: Record<string, ShellViewSnapshot>;
   canCloseActiveTab: boolean;
+  canNavigateShell: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
   onSidebarModeChange: (mode: SidebarMode) => void;
   onNavigate: (view: View) => void;
   onSelectProfile: (name: string) => void;
   onTabOrderChange: (order: string[]) => void;
   onCloseTab: (id: View) => void;
+  onRecoverTab: (id: View) => void;
   onOpenExternalTab: (url: string) => Promise<View>;
   onReloadActiveTab: () => void;
+  onStopActiveTab: () => void;
+  onBackActiveTab: () => void;
+  onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
 }
 
@@ -55,14 +67,22 @@ export function MainTopBar({
   externalTabs,
   tabOrder,
   sidebarMode,
+  metadataById,
   canCloseActiveTab,
+  canNavigateShell,
+  canGoBack,
+  canGoForward,
   onSidebarModeChange,
   onNavigate,
   onSelectProfile,
   onTabOrderChange,
   onCloseTab,
+  onRecoverTab,
   onOpenExternalTab,
   onReloadActiveTab,
+  onStopActiveTab,
+  onBackActiveTab,
+  onForwardActiveTab,
   onCloseActiveTab,
 }: MainTopBarProps): React.JSX.Element {
   const SidebarIcon = sidebarMode === "hidden" ? PanelLeftOpen : PanelLeftClose;
@@ -123,9 +143,11 @@ export function MainTopBar({
         profileEntries={profileEntries}
         externalTabs={externalTabs}
         tabOrder={tabOrder}
+        metadataById={metadataById}
         onTabOrderChange={onTabOrderChange}
         onNavigate={onNavigate}
         onCloseTab={onCloseTab}
+        onRecoverTab={onRecoverTab}
       />
 
       <div className="MainTopBar__actions no-drag">
@@ -155,6 +177,37 @@ export function MainTopBar({
             </form>
           ) : null}
         </div>
+
+        {canNavigateShell ? (
+          <>
+            <button
+              type="button"
+              aria-label="Back"
+              title="Back"
+              disabled={!canGoBack}
+              onClick={onBackActiveTab}
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label="Forward"
+              title="Forward"
+              disabled={!canGoForward}
+              onClick={onForwardActiveTab}
+            >
+              <ChevronRight size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label="Stop loading"
+              title="Stop loading"
+              onClick={onStopActiveTab}
+            >
+              <Square size={13} />
+            </button>
+          </>
+        ) : null}
 
         <button type="button" aria-label="Reload tab" title="Reload tab" onClick={onReloadActiveTab}>
           <RotateCw size={15} />

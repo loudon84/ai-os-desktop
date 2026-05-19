@@ -1,5 +1,4 @@
-﻿import { useEffect } from "react";
-import { WebContentsHost } from "../../components/shell/WebContentsHost";
+﻿import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import { BrowserToolbar } from "./BrowserToolbar";
 import { BrowserStatePanel } from "./BrowserStatePanel";
 import { ScreenshotPanel } from "./ScreenshotPanel";
@@ -7,19 +6,9 @@ import { BrowserActionLog } from "./BrowserActionLog";
 import "./web-operator.css";
 import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
 
-const WEB_OPERATOR_HOME_URL = "about:blank";
-
 export function WebOperatorScreen(): React.JSX.Element {
-  useEffect(() => {
-    void window.shellView
-      .create(WEB_OPERATOR_LAYER_ID, "web-operator", WEB_OPERATOR_HOME_URL, {
-        layer: "content",
-        sandbox: true,
-      })
-      .catch(() => {
-        // View may already exist from a prior visit or lazy IPC create
-      });
-  }, []);
+  // View lifecycle: lazy create via shell:view:set-bounds (WebContentsHost) or
+  // ShellBrowserViewAdapter on browser.open — never destroy/recreate on sidebar switch.
 
   return (
     <div className="web-operator-layout">

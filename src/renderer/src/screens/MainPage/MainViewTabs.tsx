@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
+import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-contract";
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
 import { buildMainWorkspaceTabs } from "./main-page-tabs";
@@ -29,27 +30,48 @@ interface MainViewTabsProps {
   profileEntries: ProfileEntrySummary[];
   externalTabs: ExternalBrowserTab[];
   tabOrder: string[];
+  metadataById: Record<string, ShellViewSnapshot>;
   onTabOrderChange: (order: string[]) => void;
   onNavigate: (view: View) => void;
   onCloseTab: (id: View) => void;
+  onRecoverTab: (id: View) => void;
 }
 
 interface TabItem extends MainWorkspaceTab {
   draggable: boolean;
 }
 
+function tabItemClass(
+  isActive: boolean,
+  metadata: ShellViewSnapshot | undefined,
+): string {
+  const parts = ["MainViewTabs__item"];
+  if (isActive) parts.push("active");
+  if (metadata?.loading) parts.push("is-loading");
+  if (metadata?.errorCode || metadata?.crashed) parts.push("has-error");
+  return parts.join(" ");
+}
+
 function SortableTabButton({
   tab,
   label,
   isActive,
+  metadata,
+  showRecover,
   onNavigate,
   onCloseTab,
+  onRecoverTab,
+  recoverLabel,
 }: {
   tab: TabItem;
   label: string;
   isActive: boolean;
+  metadata: ShellViewSnapshot | undefined;
+  showRecover: boolean;
   onNavigate: (view: View) => void;
   onCloseTab: (id: View) => void;
+  onRecoverTab: (id: View) => void;
+  recoverLabel: string;
 }): React.JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: tab.id, disabled: !tab.draggable });
@@ -76,14 +98,33 @@ function SortableTabButton({
           <GripVertical size={12} />
         </button>
       ) : null}
+      {metadata?.favicon ? (
+        <img
+          src={metadata.favicon}
+          alt=""
+          className="MainViewTabs__favicon"
+        />
+      ) : null}
       <button
         type="button"
-        className={`MainViewTabs__item ${isActive ? "active" : ""}`}
+        className={tabItemClass(isActive, metadata)}
         title={label}
         onClick={() => onNavigate(tab.id)}
       >
         <span>{label}</span>
       </button>
+      {showRecover ? (
+        <button
+          type="button"
+          className="MainViewTabs__recover no-drag"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRecoverTab(tab.id);
+          }}
+        >
+          {recoverLabel}
+        </button>
+      ) : null}
       {tab.closeable ? (
         <button
           type="button"
@@ -106,9 +147,11 @@ export function MainViewTabs({
   profileEntries,
   externalTabs,
   tabOrder,
+  metadataById,
   onTabOrderChange,
   onNavigate,
   onCloseTab,
+  onRecoverTab,
 }: MainViewTabsProps): React.JSX.Element {
   const { t } = useI18n();
 
@@ -153,24 +196,57 @@ export function MainViewTabs({
     onTabOrderChange(arrayMove(draggableIds, oldIndex, newIndex));
   };
 
-  const renderLabel = (tab: TabItem): string =>
-    tab.titleKey ? t(tab.titleKey) : (tab.title ?? tab.id);
+  const renderLabel = (tab: TabItem): string => {
+    const metadata = metadataById[String(tab.id)];
+    if (metadata?.title) return metadata.title;
+    if (tab.titleKey) return t(tab.titleKey);
+    return tab.title ?? String(tab.id);
+  };
+
+  const needsRecover = (tabId: string): boolean => {
+    const metadata = metadataById[tabId];
+    return Boolean(metadata?.crashed || metadata?.errorCode);
+  };
+
+  const recoverLabel = t("shellView.recover", { defaultValue: "Recover" });
 
   return (
     <nav className="MainViewTabs no-drag" aria-label="Workspace tabs">
       {fixedTabs.map((tab) => {
         const item: TabItem = { ...tab, draggable: false };
+        const metadata = metadataById[String(tab.id)];
         const label = renderLabel(item);
+        const isActive = activeView === tab.id;
         return (
-          <button
-            key={tab.id}
-            type="button"
-            className={`MainViewTabs__item ${activeView === tab.id ? "active" : ""}`}
-            title={label}
-            onClick={() => onNavigate(tab.id)}
-          >
-            <span>{label}</span>
-          </button>
+          <div key={tab.id} className="MainViewTabs__sortable">
+            {metadata?.favicon ? (
+              <img
+                src={metadata.favicon}
+                alt=""
+                className="MainViewTabs__favicon"
+              />
+            ) : null}
+            <button
+              type="button"
+              className={tabItemClass(isActive, metadata)}
+              title={label}
+              onClick={() => onNavigate(tab.id)}
+            >
+              <span>{label}</span>
+            </button>
+            {needsRecover(String(tab.id)) ? (
+              <button
+                type="button"
+                className="MainViewTabs__recover no-drag"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRecoverTab(tab.id);
+                }}
+              >
+                {recoverLabel}
+              </button>
+            ) : null}
+          </div>
         );
       })}
 
@@ -182,8 +258,12 @@ export function MainViewTabs({
               tab={tab}
               label={renderLabel(tab)}
               isActive={activeView === tab.id}
+              metadata={metadataById[String(tab.id)]}
+              showRecover={needsRecover(String(tab.id))}
               onNavigate={onNavigate}
               onCloseTab={onCloseTab}
+              onRecoverTab={onRecoverTab}
+              recoverLabel={recoverLabel}
             />
           ))}
         </SortableContext>

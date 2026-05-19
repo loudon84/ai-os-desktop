@@ -549,6 +549,18 @@
 #### browser-controller.ts — BrowserController
 
 - **职责**: 所有浏览器操作统一入口；V2.2 注入 `BrowserViewPort`；`openExternalUrl` 成功后 `emit browser.opened`
+
+#### shell-view-event-forwarder.ts — ShellView 事件转发（V2.3）
+
+- **职责**: `viewEventBus` → `mainWindow.webContents.send`（metadata / load-failed / crashed）
+
+#### main-page-state-store.ts — MainPage 持久化（V2.3）
+
+- **职责**: `~/.hermes/desktop/main-page-state.json`；`tabOrder` / `externalTabs` / `sidebarMode` / `lastActiveView`
+
+#### layout-calc-parser.ts — 安全 calc 解析（V2.3）
+
+- **职责**: 有限 `calc()` 求值（仅 +/-、px、%）；供 `ShellViewManager` 与 `overlay-base`
 - **核心方法**: `openExternalUrl()`, `goBack/Forward/Reload()`, `getPageState()`, `captureScreenshot()`, `clickSelector()`, `typeIntoSelector()`, `extractTable()`, `confirmAction()`, `rejectAction()`, `getAuditLog()`
 - **注入脚本**: `__get_page_state__`, `__click_selector__`, `__type_selector__`, `__extract_table__`
 

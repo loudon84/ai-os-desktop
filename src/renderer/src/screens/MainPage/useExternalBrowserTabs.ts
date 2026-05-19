@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { ExternalBrowserTabState } from "../../../../shared/shell/main-page-state-contract";
 import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab } from "./main-page-types";
 
@@ -41,24 +42,48 @@ export function useExternalBrowserTabs() {
     return id;
   }, []);
 
-  const closeExternalTab = useCallback(async (id: `external-browser:${string}`) => {
-    await window.shellView.destroy(id);
-    setTabs((prev) => prev.filter((tab) => tab.id !== id));
-  }, []);
+  const closeExternalTab = useCallback(
+    async (id: `external-browser:${string}`) => {
+      await window.shellView.destroy(id);
+      setTabs((prev) => prev.filter((tab) => tab.id !== id));
+    },
+    [],
+  );
 
-  const reloadExternalTab = useCallback(async (tab: ExternalBrowserTab) => {
-    await window.shellView.loadUrl(tab.id, tab.url);
-    setTabs((prev) =>
-      prev.map((item) =>
-        item.id === tab.id ? { ...item, updatedAt: Date.now() } : item,
-      ),
-    );
-  }, []);
+  const restoreExternalTabs = useCallback(
+    async (persisted: ExternalBrowserTabState[]): Promise<void> => {
+      const restored: ExternalBrowserTab[] = [];
+
+      for (const item of persisted) {
+        try {
+          await window.shellView.create(item.id, "external-browser", item.url, {
+            layer: "content",
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+          });
+          restored.push({
+            id: item.id,
+            title: item.title || titleFromUrl(item.url),
+            url: item.url,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          });
+        } catch (err) {
+          console.warn("[useExternalBrowserTabs] restore tab failed:", item.id, err);
+        }
+      }
+
+      setTabs(restored);
+    },
+    [],
+  );
 
   return {
     externalTabs: tabs,
+    setExternalTabs: setTabs,
     openExternalTab,
     closeExternalTab,
-    reloadExternalTab,
+    restoreExternalTabs,
   };
 }

@@ -9,6 +9,7 @@ import type {
   ViewActivationConfig,
 } from "../../../shared/shell/view-contract";
 import type { ShellViewSnapshot } from "../../../shared/shell/shell-view-contract";
+import { evaluateLayoutCalc } from "../layout-calc-parser";
 import { ManagedWebContentsView } from "./managed-webcontents-view";
 import { viewRegistry } from "./view-registry";
 import { viewEventBus } from "./view-events";
@@ -81,15 +82,7 @@ class LayoutCalculator {
     // 移除 px 单位
     expression = expression.replace(/px/g, "");
 
-    // 安全求值（仅支持 + - * / 和数字）
-    try {
-      // 使用 Function 构造器进行安全求值
-      const result = new Function(`return (${expression})`)();
-      return Math.floor(result);
-    } catch {
-      console.error(`[LayoutCalculator] Failed to evaluate: ${expression}`);
-      return 0;
-    }
+    return evaluateLayoutCalc(expression, baseSize);
   }
 }
 
@@ -105,6 +98,8 @@ class LayoutCalculator {
 export class ShellViewManager extends EventEmitter {
   private views: Map<string, ManagedWebContentsView> = new Map();
   private activeViewsByLayer: Map<ShellViewLayer, Set<string>> = new Map();
+  private lastActivationLayoutById = new Map<string, ShellViewLayout>();
+  private lastActivationBoundsById = new Map<string, ShellViewBounds>();
   private mainWindow: BrowserWindow;
 
   constructor(mainWindow: BrowserWindow) {
@@ -122,12 +117,14 @@ export class ShellViewManager extends EventEmitter {
     url: string,
     options?: Partial<ShellViewOptions>,
   ): Promise<void> {
-    // 检查是否已存在
     if (this.views.has(id)) {
+      // V2.3 keep-alive: never destroy on createView — recoverView is the
+      // explicit path for destroy+recreate.  If the caller wants a different
+      // URL, use loadUrl instead.
       console.warn(
-        `[ShellViewManager] View ${id} already exists, destroying first`,
+        `[ShellViewManager] View ${id} already exists, skipping create (keep-alive)`,
       );
-      this.destroyView(id);
+      return;
     }
 
     // 创建 ManagedWebContentsView
@@ -164,12 +161,16 @@ export class ShellViewManager extends EventEmitter {
     let bounds: ShellViewBounds;
     if (boundsOrLayout) {
       if (this.isLayout(boundsOrLayout)) {
+        this.lastActivationLayoutById.set(id, boundsOrLayout);
+        this.lastActivationBoundsById.delete(id);
         const calc = new LayoutCalculator(
           this.mainWindow.getBounds().width,
           this.mainWindow.getBounds().height,
         );
         bounds = calc.calculate(boundsOrLayout);
       } else {
+        this.lastActivationBoundsById.set(id, boundsOrLayout);
+        this.lastActivationLayoutById.delete(id);
         bounds = boundsOrLayout;
       }
     } else {
@@ -339,16 +340,58 @@ export class ShellViewManager extends EventEmitter {
       return null;
     }
 
-    const webContents = view.getWebContents();
-    return {
-      id: view.getId(),
-      kind: view.getKind(),
-      layer: view.getLayer(),
-      state: view.getState(),
-      bounds: view.getBounds(),
-      url: webContents?.getURL() ?? "",
-      active: view.isActive(),
-    };
+    return view.getSnapshot();
+  }
+
+  reloadView(id: string): void {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    view.reload();
+  }
+
+  stopLoadingView(id: string): void {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    view.stopLoading();
+  }
+
+  goBackView(id: string): void {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    view.goBack();
+  }
+
+  goForwardView(id: string): void {
+    const view = this.views.get(id);
+    if (!view) {
+      throw new Error(`[ShellViewManager] View ${id} not found`);
+    }
+    view.goForward();
+  }
+
+  async recoverView(id: string): Promise<void> {
+    const snapshot = this.getViewSnapshot(id);
+    if (!snapshot?.url) {
+      throw new Error(`[ShellViewManager] Cannot recover ${id}: empty url`);
+    }
+
+    const kind = snapshot.kind;
+    const layer = snapshot.layer;
+    const url = snapshot.url;
+    const bounds = snapshot.bounds;
+    const wasActive = snapshot.active;
+
+    this.destroyView(id);
+    await this.createView(id, kind, url, { layer });
+    if (wasActive && bounds.width > 0 && bounds.height > 0) {
+      this.activateView(id, bounds);
+    }
   }
 
   getAllViewSnapshots(): ShellViewSnapshot[] {
@@ -398,16 +441,15 @@ export class ShellViewManager extends EventEmitter {
     const winBounds = this.mainWindow.getBounds();
     const calc = new LayoutCalculator(winBounds.width, winBounds.height);
 
-    // 获取所有 active 且使用 percentage layout 的 view
-    for (const [layer, ids] of this.activeViewsByLayer) {
+    for (const ids of this.activeViewsByLayer.values()) {
       for (const id of ids) {
         const view = this.views.get(id);
         if (!view || !view.isActive()) continue;
 
-        // 获取当前 bounds（如果是 percentage，需要重新计算）
-        // 注意：这里简化处理，实际应该存储原始 layout
-        // 当前实现：保持当前 bounds（像素值）
-        // 如果需要百分比重算，需要额外存储 layout 信息
+        const layout = this.lastActivationLayoutById.get(id);
+        if (!layout) continue;
+
+        view.updateBounds(calc.calculate(layout));
       }
     }
   }
