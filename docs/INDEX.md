@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.5（V1.9 + **V2.0/V2.1/V2.2 MainPage**） |
+| **版本** | 0.3.5（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -78,6 +78,23 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Workspace KeepAlive**：`KeepAliveView.tsx` 保活 React 管理页
 - **DEV Debug**：`MainPageDebugPanel`（`import.meta.env.DEV`）
 
+**V3.2（MainPage Workspace Module Host，PRD `prd/v3.2_module_mainpage.md`）**：
+- **Workspace registry**：`src/shared/workspace/` + `src/renderer/src/workspace/`；`WorkspaceRenderer` 驱动 `WorkspaceOutlet`
+- **顶栏 4 固定 Tab**：`aios-home` / `aios-workspace` / `web-operator` / `office`；`external-browser:{uuid}` 动态 Tab
+- **Sidebar 二级 panel**：`workspace-secondary-nav.ts`；`aios-workspace` → Chat / Sessions / Agents panels
+- **统一 Settings Drawer**：`screens/SettingsDrawer/`（Account / Runtime / Profiles / Config sync）；不切换 Workspace
+- **MainPage 状态 V2**：`workspaceOrder`、`workspaceSecondaryState`、`migrateMainPageState`
+- **Token 注入**：`token-header-injector` → `persist:aios-desktop` 分区
+
+**V3.2.1（Hotfix，计划 `.cursor/plans/v3.2.1_hotfix_a6676597.plan.md`）**：
+- **Session 三分区**（`browser-partitions.ts`）：`persist:aios-desktop`（Home + token）/ `persist:aios-external-web`（Web Operator）/ `persist:external-browser-{uuid}`（每 Tab 独立，防 Cookie 串扰）
+- **Token 端口**：`token-inject-url.ts` 读取 `getAiOsEnvConfig().frontendPort` / `backendPort`；不注入 Gateway 8642
+- **Runtime 入口收敛（PRD #5）**：`RuntimeGuard` 仅「启动 Gateway」+「打开设置」；`onOpenRuntimeSettings` ≡ `openSettingsDrawer("runtime")`；禁止独立 HermesRuntimeSettingsDrawer
+- **`WorkspaceRenderer`**：按 `module.kind`（webview / composite / react）分发
+- **`MainViewTabs`**：固定 Tab 由 registry `draggable: false` 判定；仅 `external-browser:*` 可拖
+- **i18n**：四语言 `navigation.ts` 补齐二级侧栏与 `openSettings` 等 key
+- **单测**：`tests/browser-partitions.test.ts`、`tests/token-inject-url.test.ts`
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -91,7 +108,9 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/browser/` | Web Operator — **ShellBrowserViewAdapter** + BrowserController/SecurityGuard/AuditLogger/ToolBridge（`browser-view-manager.ts` legacy） | 按需扩展 |
 | `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView**（7 个文件） | 谨慎修改，影响全进程通信 |
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
-| `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell 契约；**`shell/main-page-constants.ts`**、**`shell/shell-view-contract.ts`** | 谨慎修改 |
+| `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |
+| `src/renderer/src/workspace/` | **V3.2** Workspace registry / tabs / `WorkspaceRenderer` 路由 | 顶栏 Tab 与 Outlet |
+| `src/main/auth/` | **V3.2.1** `token-inject-url.ts`、`token-header-injector.ts` | AI-OS Home Authorization |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |

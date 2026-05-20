@@ -466,7 +466,7 @@ Dropdown 系统 IPC。
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `shell:view:create` | `ShellViewCreateRequest` | `void` | 创建指定 layerId 的 WebContentsView |
+| `shell:view:create` | `ShellViewCreateRequest` | `void` | 创建指定 layerId 的 WebContentsView；`options.partition` 见 V3.2.1 三分区表（external-browser **必填** per-tab partition） |
 | `shell:view:activate` | `layerId: string` | `void` | 激活指定 Layer 的 View |
 | `shell:view:set-bounds` | `layerId: string, bounds: { x, y, width, height }` | `void` | 设置指定 View 的位置与尺寸（width/height 必须 ≥ 1） |
 | `shell:view:load-url` | `{ layerId, url }` | `void` | 对已存在 View 加载 URL |
@@ -489,12 +489,54 @@ Dropdown 系统 IPC。
 | `shell:view:load-failed` | `{ id, url, errorCode, errorDescription }` | 主框架加载失败 |
 | `shell:view:crashed` | `{ id, reason, exitCode }` | 渲染进程崩溃 |
 
-**MainPage 状态 IPC (V2.3)**：
+**MainPage 状态 IPC (V2.3 / V3.2)**：
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `main-page:read` | 无 | `MainPagePersistedState` | 读取 `~/.hermes/desktop/main-page-state.json` |
-| `main-page:write` | `MainPagePersistedState` | `void` | 写入持久化状态 |
+| `main-page:read` | 无 | `MainPagePersistedState` | 读取 `~/.hermes/desktop/main-page-state.json`；V1 自动迁移为 V2 |
+| `main-page:write` | `MainPagePersistedState` | `void` | 写入持久化状态（**version 必须为 2**） |
+
+**V3.2 `MainPagePersistedStateV2` 字段**：`sidebarMode`、`workspaceOrder`（原 `tabOrder`）、`externalTabs`、`lastActiveWorkspace`、`lastSettingsDrawerPanel`、`workspaceSecondaryState`（各 Workspace 二级 panel，如 `aios-workspace` → `chat`）。
+
+**V3.2 统一 Settings Drawer**：Renderer 内 `SettingsDrawer`（Account / Runtime / Profiles / Desktop config sync），**打开 Drawer 不切换顶栏 Workspace Tab**；Runtime 运维 UI 在 `HermesRuntimePanel`，底层仍调用既有 `hermesAPI` / `profileRuntime` IPC。
+
+**V3.2.1 Runtime 快捷入口（PRD #5）**：以下入口语义等价，均打开 **Settings Drawer → Runtime panel**，**不**提供独立 Runtime 页面或 `HermesRuntimeSettingsDrawer`：
+
+| Renderer 入口 | Prop / 调用 | 等价 Main 行为 |
+|---|---|---|
+| `RuntimeGuard`「打开设置」 | `onOpenRuntimeSettings()` | Layout `openSettingsDrawer("runtime")` |
+| `MainTopBar` / Profile 管理 | `onOpenSettingsDrawer("runtime")` | 同上 |
+| `MainProfileSwitch`「管理配置」 | `onManageProfiles` → `onOpenRuntimeSettings` | 同上 |
+
+`resumeSessionId` **不**写入 `workspaceSecondaryState`（仅内存，避免持久化脏状态）。
+
+**V3.2.1 WebContents Session 分区**（`src/shared/shell/browser-partitions.ts` + `view-registry.ts`）：
+
+| 分区 | Layer / 用途 | `shell:view:create` 默认 | Token 注入 |
+|---|---|---|---|
+| `persist:aios-desktop` | `aios-home` | registry 默认 | **是** |
+| `persist:aios-external-web` | `web-operator` | registry 默认（`BROWSER_PARTITION`） | 否 |
+| `persist:external-browser-{uuid}` | `external-browser:{uuid}` | **无默认**；创建时 **必须** 传 `options.partition` | 否 |
+
+```typescript
+// external tab（Renderer → preload shellView.create）
+import { externalBrowserPartition } from "@shared/shell/browser-partitions";
+
+await shellView.create({
+  layerId: `external-browser:${uuid}`,
+  kind: "external-browser",
+  url,
+  options: { partition: externalBrowserPartition(`external-browser:${uuid}`) },
+});
+```
+
+**V3.2 / V3.2.1 Token 注入（Main only）**：
+
+- **安装**：`installTokenHeaderInjector()`（应用启动时调用一次）
+- **分区**：仅 `TOKEN_INJECT_PARTITIONS` = `[persist:aios-desktop]`（`token-inject-url.ts`）
+- **URL 判定**：`shouldInjectTokenForUrl(url)` — 主机 `127.0.0.1` 或 `localhost`，端口集合来自 `getAiOsEnvConfig()` 的 **`frontendPort`** 与 **`backendPort`**（默认 3000 / 8000）
+- **不注入**：Hermes Gateway（如 `8642`）、`persist:aios-external-web`、`persist:external-browser-*`
+- **凭据**：`readEncryptedSession().accessToken` → 请求头 `Authorization: Bearer <token>`
 
 **Preload API**: `window.shellView`
 
@@ -531,7 +573,7 @@ interface ShellViewAPI {
 | 进入页 | `shellView.create("web-operator", ...)` 或由 adapter 在 `browser.open` 时创建 | `WebOperatorScreen` mount 可 catch 已存在 |
 | 布局 | `WebContentsHost` + `shellView.setBounds` | ResizeObserver 驱动 bounds |
 | 用户/Hermes Open | `aiosBrowser.open` | Main `ShellBrowserViewAdapter` 加载同一 WebContents；`browser.opened` 切 tab |
-| external tab | MainTopBar「+」→ `shellView.create(external-browser:uuid)` | 与 web-operator layer 隔离 |
+| external tab | MainTopBar「+」→ `shellView.create(external-browser:uuid, { partition: externalBrowserPartition(id) })` | 每 Tab 独立 partition，与 web-operator / aios-home 隔离 |
 
 Layer 常量：renderer `web-operator-constants.ts`；main `shell-browser-view-adapter.ts` → `WEB_OPERATOR_LAYER_ID`。
 

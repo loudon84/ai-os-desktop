@@ -149,6 +149,11 @@
   background: var(--bg-secondary);
 }
 
+.web-operator-layout__panel--focused {
+  outline: 1px solid var(--accent, #3b82f6);
+  outline-offset: -1px;
+}
+
 .web-operator-layout__panel {
   border-top: 1px solid var(--border);
 }

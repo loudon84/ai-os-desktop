@@ -2,11 +2,17 @@ import type {
   ShellViewKind,
   ViewRegistryEntry,
 } from "../../../shared/shell/view-contract";
+import {
+  AIOS_HOME_PARTITION,
+  WEB_OPERATOR_PARTITION,
+} from "../../../shared/shell/browser-partitions";
 
 /**
- * View 注册表
+ * ShellView session partition strategy (V3.2.1):
  *
- * 管理各种 View 类型的默认配置。
+ * - aios-home: persist:aios-desktop (+ token header injection on frontend/backend ports)
+ * - web-operator: persist:aios-external-web (no token injection)
+ * - external-browser:*: persist:external-browser-{uuid} per tab (required at create; no token)
  */
 export class ViewRegistry {
   private entries: Map<ShellViewKind, ViewRegistryEntry> = new Map();
@@ -15,58 +21,41 @@ export class ViewRegistry {
     this.registerDefaults();
   }
 
-  /**
-   * 注册 View 类型
-   */
   register(kind: ShellViewKind, entry: ViewRegistryEntry): void {
     this.entries.set(kind, entry);
   }
 
-  /**
-   * 获取 View 类型配置
-   */
   get(kind: ShellViewKind): ViewRegistryEntry | undefined {
     return this.entries.get(kind);
   }
 
-  /**
-   * 检查是否已注册
-   */
   has(kind: ShellViewKind): boolean {
     return this.entries.has(kind);
   }
 
-  /**
-   * 获取所有已注册类型
-   */
   getAllKinds(): ShellViewKind[] {
     return Array.from(this.entries.keys());
   }
 
-  /**
-   * 注册默认配置
-   */
   private registerDefaults(): void {
-    // Web Operator
     this.register("web-operator", {
       kind: "web-operator",
       defaultLayer: "content",
-      defaultPartition: "persist:browser",
+      defaultPartition: WEB_OPERATOR_PARTITION,
       defaultSandbox: true,
       defaultPreload: undefined,
     });
 
-    // AI-OS Home
     this.register("aios-home", {
       kind: "aios-home",
       defaultLayer: "content",
-      defaultPartition: "persist:aios-desktop",
+      defaultPartition: AIOS_HOME_PARTITION,
       defaultSandbox: true,
       defaultContextIsolation: true,
       defaultPreload: undefined,
     });
 
-    // External Browser
+    // Per-tab partition required at create — see externalBrowserPartition()
     this.register("external-browser", {
       kind: "external-browser",
       defaultLayer: "content",
@@ -74,9 +63,7 @@ export class ViewRegistry {
     });
 
     // renderer-root 不纳入 ShellViewManager 管理
-    // 因此不在注册表中
   }
 }
 
-// 全局单例
 export const viewRegistry = new ViewRegistry();

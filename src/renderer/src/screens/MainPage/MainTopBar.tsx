@@ -4,8 +4,6 @@ import {
   PanelLeftOpen,
   Settings,
   UserCircle,
-  Globe,
-  LayoutDashboard,
   Plus,
   RotateCw,
   X,
@@ -18,6 +16,7 @@ import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-cont
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
+import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
 import { MainViewTabs } from "./MainViewTabs";
 import { MainProfileSwitch } from "./MainProfileSwitch";
 import { MainRuntimeIndicator } from "./MainRuntimeIndicator";
@@ -46,8 +45,7 @@ interface MainTopBarProps {
   onBackActiveTab: () => void;
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
-  onOpenRuntimeSettings: () => void;
-  onOpenUserMenu: () => void;
+  onOpenSettingsDrawer: (panel?: SettingsDrawerPanel) => void;
 }
 
 function nextSidebarMode(mode: SidebarMode): SidebarMode {
@@ -87,8 +85,7 @@ export function MainTopBar({
   onBackActiveTab,
   onForwardActiveTab,
   onCloseActiveTab,
-  onOpenRuntimeSettings,
-  onOpenUserMenu,
+  onOpenSettingsDrawer,
 }: MainTopBarProps): React.JSX.Element {
   const SidebarIcon = sidebarMode === "hidden" ? PanelLeftOpen : PanelLeftClose;
   const [newTabOpen, setNewTabOpen] = useState(false);
@@ -139,14 +136,13 @@ export function MainTopBar({
         activeProfile={activeProfile}
         onSelectProfile={onSelectProfile}
         onNavigate={onNavigate}
-        onOpenRuntimeSettings={onOpenRuntimeSettings}
+        onOpenRuntimeSettings={() => onOpenSettingsDrawer("runtime")}
       />
 
       <MainRuntimeIndicator activeProfile={activeProfile} />
 
       <MainViewTabs
         activeView={activeView}
-        profileEntries={profileEntries}
         externalTabs={externalTabs}
         tabOrder={tabOrder}
         metadataById={metadataById}
@@ -225,21 +221,20 @@ export function MainTopBar({
           </button>
         ) : null}
 
-        <button type="button" aria-label="AI-OS Home" onClick={() => onNavigate("aios-home")}>
-          <LayoutDashboard size={15} />
-        </button>
-        <button type="button" aria-label="Web Operator" onClick={() => onNavigate("web-operator")}>
-          <Globe size={15} />
-        </button>
         <button
           type="button"
-          aria-label="Runtime Settings"
-          title="Runtime Settings"
-          onClick={onOpenRuntimeSettings}
+          aria-label="Settings"
+          title="Settings"
+          onClick={() => onOpenSettingsDrawer("runtime")}
         >
           <Settings size={15} />
         </button>
-        <button type="button" aria-label="User" title="User" onClick={onOpenUserMenu}>
+        <button
+          type="button"
+          aria-label="User"
+          title="User"
+          onClick={() => onOpenSettingsDrawer("account")}
+        >
           <UserCircle size={15} />
         </button>
       </div>

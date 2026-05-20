@@ -16,8 +16,8 @@ export function registerMainPageStateIpc(): void {
   ipcMain.handle(
     MainPageStateChannels.WRITE,
     (_event, state: MainPagePersistedState): void => {
-      if (!state || state.version !== 1) {
-        throw new Error("Invalid main page state: version must be 1");
+      if (!state || state.version !== 2) {
+        throw new Error("Invalid main page state: version must be 2");
       }
       writeMainPageState(state);
     },

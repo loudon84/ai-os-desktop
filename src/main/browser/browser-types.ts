@@ -36,6 +36,9 @@ export const JS_SCRIPT_NAMES = new Set([
   "__extract_table__"
 ]);
 
-export const BROWSER_PARTITION = "persist:aios-external-web";
+import { WEB_OPERATOR_PARTITION } from "../../shared/shell/browser-partitions";
+
+/** @deprecated Use WEB_OPERATOR_PARTITION from shared/shell/browser-partitions */
+export const BROWSER_PARTITION = WEB_OPERATOR_PARTITION;
 
 export const PENDING_ACTION_TIMEOUT_MS = 5 * 60 * 1000;

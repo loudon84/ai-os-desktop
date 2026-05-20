@@ -1,14 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import type { MainPagePersistedState } from "../../shared/shell/main-page-state-contract";
+import { migrateMainPageState } from "./main-page-state-migrate";
 import { profileHome } from "../utils";
-
-const DEFAULT_STATE: MainPagePersistedState = {
-  version: 1,
-  sidebarMode: "expanded",
-  tabOrder: [],
-  externalTabs: [],
-};
 
 /** Persists under ~/.hermes/desktop/ (aligned with other desktop shell state). */
 function getStatePath(): string {
@@ -19,25 +13,16 @@ function getStatePath(): string {
 
 export function readMainPageState(): MainPagePersistedState {
   try {
-    const raw = JSON.parse(
-      readFileSync(getStatePath(), "utf-8"),
-    ) as Partial<MainPagePersistedState>;
-    return {
-      ...DEFAULT_STATE,
-      ...raw,
-      version: 1,
-      externalTabs: Array.isArray(raw.externalTabs)
-        ? raw.externalTabs
-        : DEFAULT_STATE.externalTabs,
-      tabOrder: Array.isArray(raw.tabOrder)
-        ? raw.tabOrder
-        : DEFAULT_STATE.tabOrder,
-    };
+    const raw = JSON.parse(readFileSync(getStatePath(), "utf-8")) as unknown;
+    return migrateMainPageState(raw);
   } catch {
-    return { ...DEFAULT_STATE };
+    return migrateMainPageState(null);
   }
 }
 
 export function writeMainPageState(state: MainPagePersistedState): void {
+  if (state.version !== 2) {
+    throw new Error("Invalid main page state: version must be 2");
+  }
   writeFileSync(getStatePath(), JSON.stringify(state, null, 2), "utf-8");
 }

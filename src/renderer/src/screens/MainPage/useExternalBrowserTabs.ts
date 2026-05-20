@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { externalBrowserPartition } from "../../../../shared/shell/browser-partitions";
 import type { ExternalBrowserTabState } from "../../../../shared/shell/main-page-state-contract";
 import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab } from "./main-page-types";
@@ -33,6 +34,7 @@ export function useExternalBrowserTabs() {
 
     await window.shellView.create(id, "external-browser", normalizedUrl, {
       layer: "content",
+      partition: externalBrowserPartition(id),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -58,6 +60,7 @@ export function useExternalBrowserTabs() {
         try {
           await window.shellView.create(item.id, "external-browser", item.url, {
             layer: "content",
+            partition: externalBrowserPartition(item.id),
             sandbox: true,
             contextIsolation: true,
             nodeIntegration: false,

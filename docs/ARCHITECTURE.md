@@ -1,6 +1,6 @@
 # SMC Copilot Shell 架构文档
 
-> 版本: 0.3.5 | 最后更新: V2.3 MainPage 第四阶段
+> 版本: 0.3.5 | 最后更新: V3.2.1 MainPage Hotfix
 
 ## 架构概述
 
@@ -145,6 +145,51 @@ external tab (+)
 | 持久化 | `main-page-state.json` @ `~/.hermes/desktop/`；`window.mainPageState` |
 | React KeepAlive | `KeepAliveView` 包裹 Chat/Settings 等管理页，`display:none` 不 unmount |
 | 安全 | `layout-calc-parser.ts` 替代 `LayoutCalculator` / `overlay-base` 的 `new Function` |
+
+### V3.2 增量（Workspace Module Host）
+
+| 能力 | 说明 |
+|------|------|
+| Workspace registry | `STATIC_WORKSPACE_MODULES`（4 固定 + external 动态）；`resolveWorkspaceModule` |
+| WorkspaceRenderer | `WorkspaceOutlet` 唯一路由；按 `module.kind` 分发 webview / composite / react |
+| 二级 panel | `workspace-secondary-nav.ts` + `Layout.workspaceSecondaryState`；`AIOSWorkspaceShell` 切换 Chat/Sessions/Agents |
+| Settings Drawer | `screens/SettingsDrawer/` 统一 Account / Runtime / Profiles / Config sync；打开不切换 Tab |
+| MainPage 状态 V2 | `main-page-state-migrate.ts`；`workspaceOrder` 替代 `tabOrder` |
+| Token 注入 | `installTokenHeaderInjector()`；分区 `persist:aios-desktop` |
+
+```text
+Layout
+  → WorkspaceOutlet → WorkspaceRenderer(workspaceId)
+       ├─ kind=webview     → aios-home (AIOSHomeScreen + WebContentsHost)
+       ├─ kind=composite   → web-operator (WebOperatorScreen)
+       ├─ kind=react       → aios-workspace | office (KeepAlive)
+       └─ external-browser:* → WebViewWorkspace(layerId)
+```
+
+### V3.2.1 增量（Hotfix：分区 / Token / 入口）
+
+**WebContents Session 三分区**（`src/shared/shell/browser-partitions.ts` + `view-registry.ts`）：
+
+| 分区 | 用途 | Token 注入 |
+|------|------|------------|
+| `persist:aios-desktop` | `aios-home` | 是（`frontendPort` / `backendPort`） |
+| `persist:aios-external-web` | `web-operator` | 否 |
+| `persist:external-browser-{uuid}` | 每个 external tab | 否（`externalBrowserPartition(layerId)` 创建时必传） |
+
+```text
+useExternalBrowserTabs.openExternalTab
+  → shellView.create(id, { partition: externalBrowserPartition(id) })
+
+token-inject-url.shouldInjectTokenForUrl
+  → getAiOsEnvConfig() → localhost/127.0.0.1 + {frontendPort, backendPort}
+  → 不覆盖 8642 Gateway、不注入 web-operator / external 分区
+```
+
+| 能力 | 说明 |
+|------|------|
+| Runtime 入口收敛 | `RuntimeGuard`：启动 Gateway + 单一「打开设置」；`MainProfileSwitch.onManageProfiles` → Settings Drawer Runtime panel |
+| MainViewTabs | 固定 Tab = registry `!draggable`；可拖 = 仅 `external-browser:*` |
+| i18n | `navigation.chat` / `sessions` / `openSettings` 等四语言 |
 
 ## 核心模块
 
@@ -405,9 +450,13 @@ src/
 └── shared/
     ├── shell/
     │   ├── main-page-constants.ts # V2.0 主界面布局与默认窗口尺寸
+    │   ├── browser-partitions.ts  # V3.2.1 Session 三分区常量 + externalBrowserPartition()
     │   ├── view-contract.ts       # View 核心类型
     │   ├── shell-view-contract.ts # V1.9 ShellView IPC 契约
     │   └── overlay-contract.ts    # Overlay 契约
+    ├── workspace/                 # V3.2 Workspace 契约与二级导航
+    │   ├── workspace-contract.ts
+    │   └── workspace-secondary-nav.ts
     └── plugin/
         └── plugin-contract.ts     # 插件契约
 ```
@@ -430,6 +479,18 @@ src/
 - **全局快捷键**: 可自定义快捷键、冲突检测
 - **多窗口**: WindowManager、独立 Chat 窗口支持
 - **插件系统**: PluginLoader、PluginAPI 契约
+
+### 0.3.5 (V3.2.1 MainPage Hotfix)
+- **三分区**：`browser-partitions.ts`；external tab 每 UUID 独立 partition
+- **Token 端口**：`token-inject-url.ts` 从 `getAiOsEnvConfig()` 读取
+- **Runtime 入口**：Settings Drawer 为唯一 Runtime 运维面；`RuntimeGuard` 收敛按钮
+- **WorkspaceRenderer**：`switch (module.kind)`；registry `draggable` 与 Tab 行为一致
+
+### 0.3.5 (V3.2 Workspace Module Host)
+- **Workspace registry** + `WorkspaceRenderer` / `WorkspaceOutlet`
+- **SettingsDrawer** 统一 Runtime / Account / Profiles
+- **MainPage 状态 V2** + `workspaceSecondaryState`
+- **Token 注入**（`persist:aios-desktop`）
 
 ### 0.3.5 (V2.2 MainPage 第三阶段)
 - **ShellBrowserViewAdapter** 替代运行时 BrowserViewManager

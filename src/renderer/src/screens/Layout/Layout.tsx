@@ -1,10 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import {
-  Building,
-  Globe,
-  LayoutDashboard,
-  Grid,
-} from "../../assets/icons";
 import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
 import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
 import { StatusBar } from "../../components/layout/StatusBar";
@@ -17,23 +11,18 @@ import { resolveActiveShellLayerId } from "../MainPage/shell-layer-id";
 import type { View } from "../../types/desktop-shell";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
-import { HermesRuntimeSettingsDrawer } from "../../modules/hermes-runtime/HermesRuntimeSettingsDrawer";
-import { UserMenuDrawer } from "../../modules/auth/UserMenuDrawer";
 import { ConfigDiffConfirmDrawer } from "../../modules/auth/ConfigDiffConfirmDrawer";
+import { SettingsDrawer } from "../SettingsDrawer/SettingsDrawer";
+import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
 import { useAuth } from "../../modules/auth/AuthProvider";
 import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
 import { useUpdateState } from "../../hooks/useUpdateState";
 import { useRemoteMode } from "../../hooks/useRemoteMode";
 import { useProfileEntries } from "../../hooks/useProfileEntries";
-import type { NavItem } from "../../types/desktop-shell";
 import type { MainPagePersistedState } from "../../../../shared/shell/main-page-state-contract";
-
-const NAV_ITEMS: NavItem[] = [
-  { view: "aios-home", icon: LayoutDashboard, labelKey: "navigation.aiosHome" },
-  { view: "aios-workspace", icon: Grid, labelKey: "navigation.aiosWorkspace" },
-  { view: "web-operator", icon: Globe, labelKey: "navigation.webOperator" },
-  { view: "office", icon: Building, labelKey: "navigation.office" },
-];
+import { defaultSecondaryPanel } from "../../../../shared/workspace/workspace-secondary-nav";
+import { isStaticWorkspaceId } from "../../workspace/workspace-registry";
+import type { StaticWorkspaceId } from "../../../../shared/workspace/workspace-contract";
 
 function isValidRestoredView(
   view: string | undefined,
@@ -73,10 +62,19 @@ function Layout(): React.JSX.Element {
   const keepAliveEntries = useKeepAliveRegistry(String(navigation.view));
 
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
-  const [tabOrder, setTabOrder] = useState<string[]>([]);
+  const [workspaceOrder, setWorkspaceOrder] = useState<string[]>([]);
+  const [workspaceSecondaryState, setWorkspaceSecondaryState] = useState<
+    Record<string, string>
+  >({});
   const [hydrated, setHydrated] = useState(false);
-  const [runtimeSettingsOpen, setRuntimeSettingsOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<SettingsDrawerPanel>("runtime");
+
+  /** Opens SettingsDrawer; `runtime` panel is the sole Hermes runtime control surface (PRD #5). */
+  const openSettingsDrawer = useCallback((panel: SettingsDrawerPanel = "runtime") => {
+    setSettingsPanel(panel);
+    setSettingsDrawerOpen(true);
+  }, []);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { externalTabs, openExternalTab, closeExternalTab, restoreExternalTabs } =
@@ -96,14 +94,25 @@ function Layout(): React.JSX.Element {
         if (cancelled) return;
 
         setSidebarMode(state.sidebarMode);
-        setTabOrder(state.tabOrder);
+        setWorkspaceOrder(state.workspaceOrder);
+        setWorkspaceSecondaryState(state.workspaceSecondaryState ?? {});
         await restoreExternalTabs(state.externalTabs);
 
         const externalIds = state.externalTabs.map((t) => t.id);
-        if (isValidRestoredView(state.lastActiveView, externalIds)) {
-          navigation.navigateToView(state.lastActiveView as View);
+        const last = state.lastActiveWorkspace;
+        if (isValidRestoredView(last, externalIds)) {
+          navigation.navigateToView(last as View);
         } else {
           navigation.navigateToView("aios-home");
+        }
+
+        if (
+          state.lastSettingsDrawerPanel === "account" ||
+          state.lastSettingsDrawerPanel === "runtime" ||
+          state.lastSettingsDrawerPanel === "profiles" ||
+          state.lastSettingsDrawerPanel === "desktop"
+        ) {
+          setSettingsPanel(state.lastSettingsDrawerPanel);
         }
       } catch (err) {
         console.warn("[Layout] failed to restore main page state:", err);
@@ -119,12 +128,36 @@ function Layout(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    setTabOrder((prev) => {
+    setWorkspaceOrder((prev) => {
       const kept = prev.filter((id) => draggableTabIds.includes(id));
       const appended = draggableTabIds.filter((id) => !kept.includes(id));
       return [...kept, ...appended];
     });
   }, [draggableTabIds]);
+
+  const activeStaticWorkspace =
+    typeof navigation.view === "string" &&
+    isStaticWorkspaceId(navigation.view)
+      ? (navigation.view as StaticWorkspaceId)
+      : null;
+
+  const secondaryPanel = useMemo(() => {
+    if (!activeStaticWorkspace) return undefined;
+    const stored = workspaceSecondaryState[activeStaticWorkspace];
+    if (stored) return stored;
+    return defaultSecondaryPanel(activeStaticWorkspace);
+  }, [activeStaticWorkspace, workspaceSecondaryState]);
+
+  const handleSecondaryPanelChange = useCallback(
+    (panel: string) => {
+      if (!activeStaticWorkspace) return;
+      setWorkspaceSecondaryState((prev) => ({
+        ...prev,
+        [activeStaticWorkspace]: panel,
+      }));
+    },
+    [activeStaticWorkspace],
+  );
 
   useEffect(() => {
     if (!hydrated) return;
@@ -135,9 +168,9 @@ function Layout(): React.JSX.Element {
 
     persistTimerRef.current = setTimeout(() => {
       const payload: MainPagePersistedState = {
-        version: 1,
+        version: 2,
         sidebarMode,
-        tabOrder,
+        workspaceOrder,
         externalTabs: externalTabs.map((tab) => ({
           id: tab.id,
           title: tab.title,
@@ -145,7 +178,9 @@ function Layout(): React.JSX.Element {
           createdAt: tab.createdAt,
           updatedAt: tab.updatedAt,
         })),
-        lastActiveView: String(navigation.view),
+        lastActiveWorkspace: String(navigation.view),
+        lastSettingsDrawerPanel: settingsPanel,
+        workspaceSecondaryState,
       };
       void window.mainPageState.write(payload).catch((err) => {
         console.warn("[Layout] failed to persist main page state:", err);
@@ -157,7 +192,15 @@ function Layout(): React.JSX.Element {
         clearTimeout(persistTimerRef.current);
       }
     };
-  }, [hydrated, sidebarMode, tabOrder, externalTabs, navigation.view]);
+  }, [
+    hydrated,
+    sidebarMode,
+    workspaceOrder,
+    externalTabs,
+    navigation.view,
+    settingsPanel,
+    workspaceSecondaryState,
+  ]);
 
   const activeShellLayerId = resolveActiveShellLayerId(navigation.view);
   const activeMetadata = activeShellLayerId
@@ -247,7 +290,7 @@ function Layout(): React.JSX.Element {
       activeView={navigation.view}
       profileEntries={profileEntries}
       externalTabs={externalTabs}
-      tabOrder={tabOrder}
+      tabOrder={workspaceOrder}
       sidebarMode={sidebarMode}
       metadataById={metadataById}
       keepAliveEntries={keepAliveEntries}
@@ -258,7 +301,7 @@ function Layout(): React.JSX.Element {
       onSidebarModeChange={setSidebarMode}
       onNavigate={navigation.navigateToView}
       onSelectProfile={navigation.handleSelectProfile}
-      onTabOrderChange={setTabOrder}
+      onTabOrderChange={setWorkspaceOrder}
       onCloseTab={handleCloseTab}
       onRecoverTab={handleRecoverTab}
       onOpenExternalTab={openExternalTab}
@@ -267,18 +310,17 @@ function Layout(): React.JSX.Element {
       onBackActiveTab={handleBackActiveTab}
       onForwardActiveTab={handleForwardActiveTab}
       onCloseActiveTab={handleCloseActiveTab}
-      onOpenRuntimeSettings={() => setRuntimeSettingsOpen(true)}
-      onOpenUserMenu={() => setUserMenuOpen(true)}
+      onOpenSettingsDrawer={openSettingsDrawer}
       sidebar={
         <DesktopSidebar
           mode={sidebarMode}
-          view={navigation.view}
-          navItems={NAV_ITEMS}
+          workspaceId={navigation.view}
+          secondaryPanel={secondaryPanel}
+          onSecondaryPanelChange={handleSecondaryPanelChange}
           updateState={updateState}
           updateError={updateError}
           updateVersion={updateVersion}
           downloadPercent={downloadPercent}
-          onNavigate={navigation.navigateToView}
           onUpdate={handleUpdate}
         />
       }
@@ -288,7 +330,9 @@ function Layout(): React.JSX.Element {
           activeProfile={navigation.activeProfile}
           officeVisited={navigation.officeVisited}
           onNavigate={navigation.navigateToView}
-          onOpenRuntimeSettings={() => setRuntimeSettingsOpen(true)}
+          onOpenRuntimeSettings={() => openSettingsDrawer("runtime")}
+          secondaryPanel={secondaryPanel}
+          onSecondaryPanelChange={handleSecondaryPanelChange}
         />
       }
       statusBar={
@@ -302,12 +346,13 @@ function Layout(): React.JSX.Element {
       drawerLayer={
         <>
           <DrawerLayer />
-          <HermesRuntimeSettingsDrawer
-            open={runtimeSettingsOpen}
+          <SettingsDrawer
+            open={settingsDrawerOpen}
+            panel={settingsPanel}
             activeProfile={navigation.activeProfile}
-            onClose={() => setRuntimeSettingsOpen(false)}
+            onPanelChange={setSettingsPanel}
+            onClose={() => setSettingsDrawerOpen(false)}
           />
-          <UserMenuDrawer open={userMenuOpen} onClose={() => setUserMenuOpen(false)} />
           <ConfigDiffConfirmDrawer
             open={Boolean(pendingBootstrapDiff?.diff?.length)}
             result={pendingBootstrapDiff}

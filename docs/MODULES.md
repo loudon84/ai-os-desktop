@@ -554,9 +554,23 @@
 
 - **职责**: `viewEventBus` → `mainWindow.webContents.send`（metadata / load-failed / crashed）
 
-#### main-page-state-store.ts — MainPage 持久化（V2.3）
+#### main-page-state-store.ts — MainPage 持久化（V2.3 / V3.2）
 
-- **职责**: `~/.hermes/desktop/main-page-state.json`；`tabOrder` / `externalTabs` / `sidebarMode` / `lastActiveView`
+- **职责**: `~/.hermes/desktop/main-page-state.json`；V3.2 读写 **version 2**（`workspaceOrder`、`workspaceSecondaryState`）；V1 经 `main-page-state-migrate.ts` 自动迁移
+
+#### view-registry.ts — ShellView 分区注册（V3.2.1）
+
+- **职责**: `aios-home` / `web-operator` / `external-browser` 默认 partition；文件头三分区策略注释
+- **分区**: `AIOS_HOME_PARTITION`、`WEB_OPERATOR_PARTITION`（来自 `browser-partitions.ts`）；external 创建时必须显式 `externalBrowserPartition(id)`
+
+#### token-inject-url.ts — Token 注入 URL 判定（V3.2.1）
+
+- **职责**: `getTokenInjectPorts()`、`shouldInjectTokenForUrl()`；端口来自 `getAiOsEnvConfig().frontendPort/backendPort`
+- **范围**: 仅 `127.0.0.1` / `localhost`；不注入 Gateway 8642
+
+#### token-header-injector.ts — Session 请求头注入（V3.2 / V3.2.1）
+
+- **职责**: `installTokenHeaderInjector()`；对 `persist:aios-desktop` 分区在 `shouldInjectTokenForUrl` 为真时附加 `Authorization: Bearer`
 
 #### layout-calc-parser.ts — 安全 calc 解析（V2.3）
 
@@ -651,9 +665,9 @@
 | **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + Sidebar 槽 + Outlet + StatusBar + Modal/Drawer |
 | **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.2** 顶栏：Sidebar、Tabs、**「+」新 external tab**、Reload/Close、`WindowControls` |
 | **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1+** `buildMainWorkspaceTabs` / `isWorkspaceTabView`（含 external） |
-| **tab-order.ts** | **screens/MainPage/tab-order.ts** | **V2.2** `sortTabsByOrder` / `isDraggableTabId` / `FIXED_TAB_IDS` |
-| **useExternalBrowserTabs.ts** | **screens/MainPage/useExternalBrowserTabs.ts** | **V2.2** external tab CRUD + `shellView.create/destroy/loadUrl` |
-| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V2.2** 固定系统 Tab + 可拖 profile/external tabs（`@dnd-kit`） |
+| **tab-order.ts** | **screens/MainPage/tab-order.ts** | **V3.2.1** `sortTabsByOrder` / `isDraggableTabId`；`FIXED_TAB_IDS` 由 registry `!draggable` 导出 |
+| **useExternalBrowserTabs.ts** | **screens/MainPage/useExternalBrowserTabs.ts** | **V3.2.1** external tab CRUD；`shellView.create` 传 `partition: externalBrowserPartition(id)` |
+| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V3.2.1** 固定 Tab = `resolveWorkspaceModule` 且 `!draggable`；可拖仅 `external-browser:*`（`@dnd-kit`） |
 | **MainProfileSwitch** | **screens/MainPage/MainProfileSwitch.tsx** | **V2.0** 当前 Profile + `ProfileSwitcherDropdown` |
 | **MainRuntimeIndicator** | **screens/MainPage/MainRuntimeIndicator.tsx** | **V2.0** 当前 Profile Gateway 状态（轮询 `profileRuntime.getRuntimeStatus()`） |
 | **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
@@ -678,8 +692,35 @@
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
 | **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
-| **AIOSWorkspace** | **screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx** | **V1.1 AI-OS 主控工作台（主控对话/多 Profile 状态/委派入口/Web Operator）** |
+| **AIOSWorkspace** | **screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx** | **V3.2** 工作台壳；`AIOSWorkspaceShell` 二级 panel（Chat/Sessions/Agents） |
+| **AIOSWorkspaceShell** | **screens/AIOSWorkspace/panels/AIOSWorkspaceShell.tsx** | **V3.2** 按 `activePanel` 切换 `ChatPanel` / `SessionsPanel` / `AgentsPanel` |
+| **ChatPanel** | **screens/AIOSWorkspace/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
+| **SessionsPanel** | **screens/AIOSWorkspace/panels/SessionsPanel.tsx** | **V3.2** 会话列表/搜索（`listCachedSessions` / `searchSessions`） |
+| **SettingsDrawer** | **screens/SettingsDrawer/SettingsDrawer.tsx** | **V3.2** 统一设置抽屉（Account / Runtime / Profiles / Config sync） |
+| **HermesRuntimePanel** | **screens/SettingsDrawer/HermesRuntimePanel.tsx** | **V3.2** Runtime 运维唯一 UI（Gateway / Profile Runtime） |
 | **ProfileWorkspace** | **screens/ProfileWorkspace/ProfileWorkspaceScreen.tsx** | **V1.1 specialist 独立工作台（独立 chat/skills/context/audit）** |
+
+### renderer/workspace/ — V3.2 Workspace 路由（V3.2.1 加固）
+
+| 模块 | 文件 | 职责 |
+|---|---|---|
+| workspace-registry | `workspace/workspace-registry.ts` | 4 静态 Workspace 元数据（`kind` / `draggable` / `shellLayerId`）；`web-operator`/`office` **不可拖** |
+| workspace-tabs | `workspace/workspace-tabs.ts` | `buildWorkspaceTabs`；`isWorkspaceTabView` 复用 `isStaticWorkspaceId` |
+| resolve-workspace | `workspace/resolve-workspace.ts` | View → Shell layerId |
+| WorkspaceRenderer | `components/workspace/WorkspaceRenderer.tsx` | **V3.2.1** `switch (module.kind)`；external → `WebViewWorkspace` |
+
+### shared/workspace/ — V3.2 契约
+
+| 模块 | 文件 | 职责 |
+|---|---|---|
+| workspace-contract | `shared/workspace/workspace-contract.ts` | `WorkspaceModule`、`WorkspaceSecondaryPanel` 类型 |
+| workspace-secondary-nav | `shared/workspace/workspace-secondary-nav.ts` | 各 Workspace 二级 panel 列表与 i18n key（`navigation.*`） |
+
+### shared/shell/ — V3.2.1 分区
+
+| 模块 | 文件 | 职责 |
+|---|---|---|
+| browser-partitions | `shared/shell/browser-partitions.ts` | `AIOS_HOME_PARTITION`、`WEB_OPERATOR_PARTITION`、`externalBrowserPartition()` |
 
 ### components/ — 共享组件
 
@@ -696,7 +737,8 @@
 | WebContentsHost | components/shell/WebContentsHost.tsx | **V1.9** 通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级） |
 | PipMirrorFields | components/install/PipMirrorFields.tsx | V1.4.1 PyPI 镜像选择字段 |
 | InstallWizard | components/install-wizard/install-wizard.tsx | 安装向导组件 |
-| RuntimeGuard | components/runtime/RuntimeGuard.tsx | 运行时守卫 |
+| RuntimeGuard | components/runtime/RuntimeGuard.tsx | **V3.2.1** AI-OS Home 未就绪时：启动 Gateway +「打开设置」（`openSettingsDrawer("runtime")`） |
+| ProfileSwitcherDropdown | components/dropdowns/ProfileSwitcherDropdown.tsx | Profile 切换；**V3.2.1** `manageSettings` / `createProfile` i18n |
 | RuntimeStatusBar | components/runtime/RuntimeStatusBar.tsx | 运行时状态栏 |
 
 ### components/layout/ — V2.0 Desktop Shell（二级导航与 Outlet）
@@ -704,7 +746,7 @@
 | 组件 | 文件 | 职责 |
 |---|---|---|
 | DesktopSidebar | components/layout/DesktopSidebar.tsx | **V2.1** 二级导航；`mode: expanded \| rail \| hidden`（rail 仅 icon） |
-| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | 主工作区视图路由（Chat/Office/Settings/AIOSHome 等） |
+| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | **V3.2** 委托 `WorkspaceRenderer`（按 `view` + `secondaryPanel` 渲染 Workspace） |
 | WindowControls | components/layout/WindowControls.tsx | Win/Linux 窗口按钮；**V2.0** 主界面挂于 `MainTopBar`；调用 `hermesAPI.windowControls`；macOS 返回 null |
 | StatusBar | components/layout/StatusBar.tsx | 底栏 24px：profile、连接模式、更新状态 |
 | ModalLayer | components/layout/ModalLayer.tsx | 全局 Modal 挂载点（占位） |

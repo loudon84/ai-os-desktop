@@ -178,6 +178,7 @@ import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
 import { registerAiosIpc } from "./aios/aios-ipc";
 import { registerAuthIpc } from "./auth/auth-ipc";
+import { installTokenHeaderInjector } from "./auth/token-header-injector";
 import { registerUserConfigIpc } from "./user-config/user-config-ipc";
 import { getAiOsEnvConfig } from "./aios/aios-config";
 import { ShellViewManager } from "./shell/views/shell-view-manager";
@@ -420,6 +421,12 @@ function setupIPC(): void {
     registerAuthIpc();
   } catch (err) {
     console.error("[AUTH] Failed to register auth IPC:", err);
+  }
+
+  try {
+    installTokenHeaderInjector();
+  } catch (err) {
+    console.error("[AUTH] Failed to install token header injector:", err);
   }
 
   // First Run Wizard IPC

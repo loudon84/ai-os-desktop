@@ -19,15 +19,14 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
 import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-contract";
-import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
-import { buildMainWorkspaceTabs } from "./main-page-tabs";
+import { buildWorkspaceTabs } from "../../workspace/workspace-tabs";
+import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { ExternalBrowserTab, MainWorkspaceTab } from "./main-page-types";
-import { FIXED_TAB_IDS, isDraggableTabId, sortTabsByOrder } from "./tab-order";
+import { isDraggableTabId, sortTabsByOrder } from "./tab-order";
 
 interface MainViewTabsProps {
   activeView: View;
-  profileEntries: ProfileEntrySummary[];
   externalTabs: ExternalBrowserTab[];
   tabOrder: string[];
   metadataById: Record<string, ShellViewSnapshot>;
@@ -144,7 +143,6 @@ function SortableTabButton({
 
 export function MainViewTabs({
   activeView,
-  profileEntries,
   externalTabs,
   tabOrder,
   metadataById,
@@ -161,13 +159,26 @@ export function MainViewTabs({
   );
 
   const { fixedTabs, draggableTabs } = useMemo(() => {
-    const workspaceTabs = buildMainWorkspaceTabs();
-    const fixed = workspaceTabs.filter((tab) =>
-      (FIXED_TAB_IDS as readonly string[]).includes(tab.id),
-    );
-    const profileDraggable: TabItem[] = workspaceTabs
-      .filter((tab) => isDraggableTabId(tab.id))
-      .map((tab) => ({ ...tab, draggable: true }));
+    const workspaceTabs = buildWorkspaceTabs();
+    const fixed: TabItem[] = workspaceTabs
+      .filter((tab) => {
+        const mod = resolveWorkspaceModule(tab.id);
+        return mod !== null && !mod.draggable;
+      })
+      .map((tab) => ({
+        ...tab,
+        draggable: resolveWorkspaceModule(tab.id)?.draggable ?? false,
+      }));
+
+    const draggable: TabItem[] = workspaceTabs
+      .filter((tab) => {
+        const mod = resolveWorkspaceModule(tab.id);
+        return mod === null || mod.draggable;
+      })
+      .map((tab) => ({
+        ...tab,
+        draggable: resolveWorkspaceModule(tab.id)?.draggable ?? false,
+      }));
 
     const externalItems: TabItem[] = externalTabs.map((tab) => ({
       id: tab.id as View,
@@ -177,11 +188,11 @@ export function MainViewTabs({
       draggable: true,
     }));
 
-    const merged = [...profileDraggable, ...externalItems];
+    const merged = [...draggable, ...externalItems];
     const sorted = sortTabsByOrder(merged, tabOrder);
 
     return { fixedTabs: fixed, draggableTabs: sorted };
-  }, [profileEntries, externalTabs, tabOrder]);
+  }, [externalTabs, tabOrder]);
 
   const draggableIds = draggableTabs.map((tab) => String(tab.id));
 

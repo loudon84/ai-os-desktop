@@ -3,6 +3,7 @@ import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-cont
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
+import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
 import { MainTopBar } from "./MainTopBar";
 import { MainPageDebugPanel } from "./MainPageDebugPanel";
 import type { KeepAliveEntry } from "../../components/layout/useKeepAliveRegistry";
@@ -37,8 +38,7 @@ export interface MainPageProps {
   onBackActiveTab: () => void;
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
-  onOpenRuntimeSettings: () => void;
-  onOpenUserMenu: () => void;
+  onOpenSettingsDrawer: (panel?: SettingsDrawerPanel) => void;
 }
 
 export function MainPage({
@@ -71,8 +71,7 @@ export function MainPage({
   onBackActiveTab,
   onForwardActiveTab,
   onCloseActiveTab,
-  onOpenRuntimeSettings,
-  onOpenUserMenu,
+  onOpenSettingsDrawer,
 }: MainPageProps): React.JSX.Element {
   return (
     <div className={`MainPage layout MainPage--sidebar-${sidebarMode}`}>
@@ -100,8 +99,7 @@ export function MainPage({
         onBackActiveTab={onBackActiveTab}
         onForwardActiveTab={onForwardActiveTab}
         onCloseActiveTab={onCloseActiveTab}
-        onOpenRuntimeSettings={onOpenRuntimeSettings}
-        onOpenUserMenu={onOpenUserMenu}
+        onOpenSettingsDrawer={onOpenSettingsDrawer}
       />
 
       <div className="MainPage__body">

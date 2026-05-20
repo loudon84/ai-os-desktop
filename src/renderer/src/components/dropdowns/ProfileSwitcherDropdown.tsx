@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { User, Check, ChevronRight, Settings, Plus } from "lucide-react";
+import { useI18n } from "../useI18n";
 
 interface Profile {
   id: string;
@@ -35,6 +36,7 @@ export const ProfileSwitcherDropdown: React.FC<ProfileSwitcherDropdownProps> = (
   currentProfile,
   profiles: initialProfiles,
 }) => {
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles || []);
   const [loading, setLoading] = useState(!initialProfiles);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -209,7 +211,7 @@ export const ProfileSwitcherDropdown: React.FC<ProfileSwitcherDropdownProps> = (
           className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
         >
           <Plus size={16} />
-          Create New Profile
+          {t("navigation.createProfile", { defaultValue: "Create New Profile" })}
         </button>
         
         <button
@@ -217,7 +219,7 @@ export const ProfileSwitcherDropdown: React.FC<ProfileSwitcherDropdownProps> = (
           className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
         >
           <Settings size={16} />
-          Manage Profiles
+          {t("navigation.manageSettings", { defaultValue: "Settings" })}
         </button>
       </div>
     </div>

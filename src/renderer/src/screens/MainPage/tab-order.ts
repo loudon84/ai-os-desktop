@@ -1,3 +1,5 @@
+import { STATIC_WORKSPACE_MODULES } from "../../workspace/workspace-registry";
+
 export function sortTabsByOrder<T extends { id: string }>(
   tabs: T[],
   order: string[],
@@ -14,4 +16,7 @@ export function isDraggableTabId(id: string): boolean {
   return id.startsWith("external-browser:");
 }
 
-export const FIXED_TAB_IDS = ["aios-home", "aios-workspace", "web-operator"] as const;
+/** Static workspace tabs that are not reorderable in the tab bar. */
+export const FIXED_TAB_IDS = STATIC_WORKSPACE_MODULES.filter((m) => !m.draggable).map(
+  (m) => m.id,
+) as readonly string[];

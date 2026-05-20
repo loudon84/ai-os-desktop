@@ -654,19 +654,8 @@ interface ShellViewAPI {
   onCrashed: (callback: (event: ShellViewCrashedEvent) => void) => () => void;
 }
 
-interface MainPagePersistedState {
-  version: 1;
-  sidebarMode: "expanded" | "rail" | "hidden";
-  tabOrder: string[];
-  externalTabs: Array<{
-    id: `external-browser:${string}`;
-    title: string;
-    url: string;
-    createdAt: number;
-    updatedAt: number;
-  }>;
-  lastActiveView?: string;
-}
+type MainPagePersistedState =
+  import("../shared/shell/main-page-state-contract").MainPagePersistedState;
 
 interface MainPageStateAPI {
   read: () => Promise<MainPagePersistedState>;
