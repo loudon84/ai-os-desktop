@@ -8,6 +8,10 @@ const mockWebContents = () => ({
   openDevTools: vi.fn(),
   close: vi.fn(),
   isDestroyed: vi.fn().mockReturnValue(false),
+  getURL: vi.fn().mockReturnValue("https://example.com"),
+  getTitle: vi.fn().mockReturnValue("Example"),
+  canGoBack: vi.fn().mockReturnValue(false),
+  canGoForward: vi.fn().mockReturnValue(false),
   on: vi.fn(),
 });
 

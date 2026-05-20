@@ -5,14 +5,23 @@ import { join } from "path";
 const ROOT = join(__dirname, "..");
 const indexSrc = readFileSync(join(ROOT, "src/main/index.ts"), "utf-8");
 const windowIpcSrc = readFileSync(join(ROOT, "src/main/window/window-ipc.ts"), "utf-8");
-const preloadSrc = readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8");
+const authIpcSrc = readFileSync(join(ROOT, "src/main/auth/auth-ipc.ts"), "utf-8");
+const userConfigIpcSrc = readFileSync(
+  join(ROOT, "src/main/user-config/user-config-ipc.ts"),
+  "utf-8",
+);
+const preloadSrc = [
+  readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8"),
+  readFileSync(join(ROOT, "src/preload/auth-api.ts"), "utf-8"),
+  readFileSync(join(ROOT, "src/preload/user-config-api.ts"), "utf-8"),
+].join("\n");
 
 /**
- * Extract all IPC channel names registered in main/index.ts.
+ * Extract IPC channel names from ipcMain.handle or safeHandle registrations.
  */
 function extractIpcHandleChannels(src: string): string[] {
   const channels: string[] = [];
-  const re = /ipcMain\.handle\(\s*["']([^"']+)["']/g;
+  const re = /(?:ipcMain\.handle|safeHandle)\(\s*["']([^"']+)["']/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     channels.push(m[1]);
@@ -21,7 +30,7 @@ function extractIpcHandleChannels(src: string): string[] {
 }
 
 /**
- * Extract all ipcRenderer.invoke channel names from preload.
+ * Extract all ipcRenderer.invoke channel names from preload sources.
  */
 function extractPreloadInvokeChannels(src: string): string[] {
   const channels: string[] = [];
@@ -62,14 +71,21 @@ const DYNAMIC_MAIN_CHANNELS = [
   "aios:get-runtime-snapshot",
 ];
 
-// Channels used internally by Modal system (internal-view-api.ts uses ipcRenderer.send, not invoke)
-const INTERNAL_VIEW_CHANNELS = [
-  "internal-view:get-data", // This uses invoke, others use send
+// Channels used internally or via dedicated preload modules not scanned here
+const MAIN_ONLY_CHANNELS = [
+  "internal-view:get-data",
+  "shortcut:get-all",
+  "shortcut:update",
+  "shortcut:reset",
+  "shortcut:validate",
+  "shortcut:check-conflicts",
 ];
 
 const mainChannels = [
   ...extractIpcHandleChannels(indexSrc),
   ...extractIpcHandleChannels(windowIpcSrc),
+  ...extractIpcHandleChannels(authIpcSrc),
+  ...extractIpcHandleChannels(userConfigIpcSrc),
   ...DYNAMIC_MAIN_CHANNELS,
 ];
 const preloadChannels = extractPreloadInvokeChannels(preloadSrc);
@@ -89,9 +105,7 @@ describe("IPC Handler ↔ Preload Consistency", () => {
   });
 
   it("every main handler has a matching preload invoke", () => {
-    // Exclude internal-view channels that use ipcRenderer.send instead of invoke
-    const excludeChannels = [...INTERNAL_VIEW_CHANNELS];
-    const filteredMainChannels = mainChannels.filter((ch) => !excludeChannels.includes(ch));
+    const filteredMainChannels = mainChannels.filter((ch) => !MAIN_ONLY_CHANNELS.includes(ch));
     const missing = filteredMainChannels.filter((ch) => !preloadChannels.includes(ch));
     expect(missing).toEqual([]);
   });

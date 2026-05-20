@@ -8,9 +8,13 @@ import type { RuntimeServiceRecord } from "../../../../shared/aios/aios-contract
 
 export interface AIOSHomeScreenProps {
   onNavigate: (view: View) => void;
+  onOpenRuntimeSettings?: () => void;
 }
 
-export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.Element {
+export function AIOSHomeScreen({
+  onNavigate,
+  onOpenRuntimeSettings,
+}: AIOSHomeScreenProps): React.JSX.Element {
   const { t } = useTranslation("aiosHome");
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
@@ -70,7 +74,7 @@ export function AIOSHomeScreen({ onNavigate }: AIOSHomeScreenProps): React.JSX.E
         {frontendKnownDown ? (
           <RuntimeGuard
             gatewayStatus={gatewayStatus}
-            onNavigate={onNavigate}
+            onOpenRuntimeSettings={onOpenRuntimeSettings}
             onStarted={refreshStatus}
           />
         ) : (

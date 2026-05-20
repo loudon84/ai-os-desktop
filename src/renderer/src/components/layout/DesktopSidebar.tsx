@@ -1,6 +1,5 @@
-import { Download, LayoutDashboard, Users, Cpu } from "../../assets/icons";
+import { Download } from "../../assets/icons";
 import { useI18n } from "../../components/useI18n";
-import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import type { NavItem, UpdateState, View } from "../../types/desktop-shell";
 import type { SidebarMode } from "../../screens/MainPage/main-page-types";
 
@@ -8,8 +7,6 @@ export interface DesktopSidebarProps {
   mode?: SidebarMode;
   view: View;
   navItems: NavItem[];
-  profileEntries: ProfileEntrySummary[];
-  activeProfile: string;
   updateState: UpdateState;
   updateError: string | null;
   updateVersion: string | null;
@@ -22,8 +19,6 @@ export function DesktopSidebar({
   mode = "expanded",
   view,
   navItems,
-  profileEntries,
-  activeProfile: _activeProfile,
   updateState,
   updateError,
   updateVersion,
@@ -49,53 +44,6 @@ export function DesktopSidebar({
             {showLabels ? t(labelKey) : null}
           </button>
         ))}
-
-        {profileEntries.length > 0 && (
-          <>
-            <div className="sidebar-nav-divider" />
-            {showLabels ? (
-              <div className="sidebar-nav-group-label">AI-OS</div>
-            ) : null}
-            <button
-              type="button"
-              className={`sidebar-nav-item ${view === "aios-workspace" ? "active" : ""}`}
-              title="AI-OS"
-              onClick={() => onNavigate("aios-workspace")}
-            >
-              <LayoutDashboard size={16} />
-              {showLabels ? "AI-OS" : null}
-            </button>
-            {showLabels ? (
-              <div className="sidebar-nav-group-label">Experts</div>
-            ) : null}
-            {profileEntries
-              .filter((e) => e.entryType === "specialist-workspace")
-              .map((entry) => (
-                <button
-                  key={entry.profileId}
-                  type="button"
-                  className={`sidebar-nav-item ${view === `profile-workspace:${entry.profileId}` ? "active" : ""}`}
-                  title={entry.title}
-                  onClick={() => onNavigate(`profile-workspace:${entry.profileId}`)}
-                >
-                  <Users size={16} />
-                  {showLabels ? entry.title : null}
-                </button>
-              ))}
-            {showLabels ? (
-              <div className="sidebar-nav-group-label">Runtime</div>
-            ) : null}
-            <button
-              type="button"
-              className={`sidebar-nav-item ${view === "profile-runtime" ? "active" : ""}`}
-              title="Profile Runtime"
-              onClick={() => onNavigate("profile-runtime")}
-            >
-              <Cpu size={16} />
-              {showLabels ? "Profile Runtime" : null}
-            </button>
-          </>
-        )}
       </nav>
 
       <div className="sidebar-footer">

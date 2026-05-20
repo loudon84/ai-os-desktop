@@ -130,7 +130,7 @@ function getSnapshotServiceDefs(): Array<{
       displayName: "AI-OS Frontend",
       port: config.frontendPort,
       baseUrl: `http://127.0.0.1:${config.frontendPort}`,
-      healthUrl: `http://127.0.0.1:${config.frontendPort}/zh`,
+      healthUrl: `http://127.0.0.1:${config.frontendPort}`,
     },
   ];
 }
@@ -175,7 +175,7 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   );
 
   const ready = services.every((s) => s.status === "running");
-  const webAppUrl = `http://127.0.0.1:${serviceDefs.find(s => s.id === "aios-frontend")?.port ?? 3000}/zh`;
+  const webAppUrl = `http://127.0.0.1:${serviceDefs.find(s => s.id === "aios-frontend")?.port ?? 3000}`;
 
   return {
     services,

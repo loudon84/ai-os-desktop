@@ -10,15 +10,8 @@ export interface PageHeaderProps {
 }
 
 function resolveHeaderTitle(view: View, t: (key: string) => string): string {
-  if (typeof view === "string" && view.startsWith("profile-workspace:")) {
-    const profileId = view.split(":")[1];
-    return profileId ? `Profile: ${profileId}` : "Profile Workspace";
-  }
   if (view === "aios-workspace") {
     return "AI-OS";
-  }
-  if (view === "profile-runtime") {
-    return "Profile Runtime";
   }
   const key = resolveViewTitleKey(view);
   const translated = t(key);
@@ -33,7 +26,7 @@ export function PageHeader({
   actions,
 }: PageHeaderProps): React.JSX.Element {
   const { t } = useI18n();
-  const resolvedTitle = title ?? resolveHeaderTitle(view, t);  
+  const resolvedTitle = title ?? resolveHeaderTitle(view, t);
   return (
     <header className="page-header app-drag-region">
       <div className="page-header__leading no-drag">

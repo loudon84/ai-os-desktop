@@ -28,6 +28,8 @@ import { profileEntryApi } from "./profile-entry-api";
 import { aiosApi } from "./aios-api";
 import { shellViewApi } from "./shell-view-api";
 import { mainPageStateApi } from "./main-page-state-api";
+import { authApi } from "./auth-api";
+import { userConfigApi } from "./user-config-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const hermesAPI = {
@@ -855,6 +857,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("aiosRuntime", aiosApi);
     contextBridge.exposeInMainWorld("shellView", shellViewApi);
     contextBridge.exposeInMainWorld("mainPageState", mainPageStateApi);
+    contextBridge.exposeInMainWorld("desktopAuth", authApi);
+    contextBridge.exposeInMainWorld("desktopUserConfig", userConfigApi);
   } catch (error) {
     console.error(error);
   }
@@ -875,4 +879,8 @@ if (process.contextIsolated) {
   window.shellView = shellViewApi;
   // @ts-ignore (define in dts)
   window.mainPageState = mainPageStateApi;
+  // @ts-ignore (define in dts)
+  window.desktopAuth = authApi;
+  // @ts-ignore (define in dts)
+  window.desktopUserConfig = userConfigApi;
 }

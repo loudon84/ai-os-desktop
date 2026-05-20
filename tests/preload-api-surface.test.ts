@@ -4,6 +4,11 @@ import { join } from "path";
 
 const ROOT = join(__dirname, "..");
 const preloadSrc = readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8");
+const authApiSrc = readFileSync(join(ROOT, "src/preload/auth-api.ts"), "utf-8");
+const userConfigApiSrc = readFileSync(
+  join(ROOT, "src/preload/user-config-api.ts"),
+  "utf-8",
+);
 const preloadTypes = readFileSync(join(ROOT, "src/preload/index.d.ts"), "utf-8");
 
 /**
@@ -61,8 +66,12 @@ describe("Preload API Surface", () => {
 
   it("every type declaration has a preload implementation", () => {
     const nestedApis = ["windowControls"];
+    const shellMenuListeners = ["onDropdownShow", "onDropdownClose", "onDropdownCloseAll"];
     const missing = typeMethods.filter(
-      (m) => !preloadMethods.includes(m) && !nestedApis.includes(m),
+      (m) =>
+        !preloadMethods.includes(m) &&
+        !nestedApis.includes(m) &&
+        !shellMenuListeners.includes(m),
     );
     expect(missing).toEqual([]);
   });
@@ -263,6 +272,27 @@ describe("Legacy APIs preserved (backward compat)", () => {
 });
 
 // ─── IPC channel consistency ────────────────────────────
+
+describe("V3 Desktop Auth & User Config APIs", () => {
+  it("preload exposes desktopAuth IPC channels", () => {
+    expect(preloadSrc).toContain('exposeInMainWorld("desktopAuth"');
+    expect(authApiSrc).toContain('"auth:get-session"');
+    expect(authApiSrc).toContain('"auth:login"');
+    expect(authApiSrc).toContain('"auth:logout"');
+    expect(authApiSrc).toContain('"auth:refresh"');
+  });
+
+  it("preload exposes desktopUserConfig IPC channels", () => {
+    expect(preloadSrc).toContain('exposeInMainWorld("desktopUserConfig"');
+    expect(userConfigApiSrc).toContain('"user-config:bootstrap"');
+    expect(userConfigApiSrc).toContain('"user-config:apply-remote"');
+  });
+
+  it("Window interface declares desktopAuth and desktopUserConfig", () => {
+    expect(preloadTypes).toContain("desktopAuth:");
+    expect(preloadTypes).toContain("desktopUserConfig:");
+  });
+});
 
 describe("IPC channel consistency", () => {
   it("preload invoke calls use quoted string channel names", () => {

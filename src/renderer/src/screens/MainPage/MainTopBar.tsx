@@ -3,6 +3,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  UserCircle,
   Globe,
   LayoutDashboard,
   Plus,
@@ -45,6 +46,8 @@ interface MainTopBarProps {
   onBackActiveTab: () => void;
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
+  onOpenRuntimeSettings: () => void;
+  onOpenUserMenu: () => void;
 }
 
 function nextSidebarMode(mode: SidebarMode): SidebarMode {
@@ -84,6 +87,8 @@ export function MainTopBar({
   onBackActiveTab,
   onForwardActiveTab,
   onCloseActiveTab,
+  onOpenRuntimeSettings,
+  onOpenUserMenu,
 }: MainTopBarProps): React.JSX.Element {
   const SidebarIcon = sidebarMode === "hidden" ? PanelLeftOpen : PanelLeftClose;
   const [newTabOpen, setNewTabOpen] = useState(false);
@@ -134,6 +139,7 @@ export function MainTopBar({
         activeProfile={activeProfile}
         onSelectProfile={onSelectProfile}
         onNavigate={onNavigate}
+        onOpenRuntimeSettings={onOpenRuntimeSettings}
       />
 
       <MainRuntimeIndicator activeProfile={activeProfile} />
@@ -225,8 +231,16 @@ export function MainTopBar({
         <button type="button" aria-label="Web Operator" onClick={() => onNavigate("web-operator")}>
           <Globe size={15} />
         </button>
-        <button type="button" aria-label="Settings" onClick={() => onNavigate("settings")}>
+        <button
+          type="button"
+          aria-label="Runtime Settings"
+          title="Runtime Settings"
+          onClick={onOpenRuntimeSettings}
+        >
           <Settings size={15} />
+        </button>
+        <button type="button" aria-label="User" title="User" onClick={onOpenUserMenu}>
+          <UserCircle size={15} />
         </button>
       </div>
 

@@ -11,7 +11,7 @@ import { getAiOsEnvConfig } from "../aios/aios-config";
 
 function getAiOsHomeUrl(): string {
   const config = getAiOsEnvConfig();
-  return `http://127.0.0.1:${config.frontendPort}/zh`;
+  return `http://127.0.0.1:${config.frontendPort}`;
 }
 
 function normalizeUrl(url: string): string {

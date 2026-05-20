@@ -1,20 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  ChatBubble,
-  Clock,
-  Users,
-  Settings as SettingsIcon,
-  Puzzle,
-  Sparkles,
-  Brain,
-  Wrench,
-  Signal,
   Building,
-  Layers,
-  KeyRound,
-  Timer,
   Globe,
-  Activity,
   LayoutDashboard,
   Grid,
 } from "../../assets/icons";
@@ -30,6 +17,10 @@ import { resolveActiveShellLayerId } from "../MainPage/shell-layer-id";
 import type { View } from "../../types/desktop-shell";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
+import { HermesRuntimeSettingsDrawer } from "../../modules/hermes-runtime/HermesRuntimeSettingsDrawer";
+import { UserMenuDrawer } from "../../modules/auth/UserMenuDrawer";
+import { ConfigDiffConfirmDrawer } from "../../modules/auth/ConfigDiffConfirmDrawer";
+import { useAuth } from "../../modules/auth/AuthProvider";
 import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
 import { useUpdateState } from "../../hooks/useUpdateState";
 import { useRemoteMode } from "../../hooks/useRemoteMode";
@@ -40,58 +31,34 @@ import type { MainPagePersistedState } from "../../../../shared/shell/main-page-
 const NAV_ITEMS: NavItem[] = [
   { view: "aios-home", icon: LayoutDashboard, labelKey: "navigation.aiosHome" },
   { view: "aios-workspace", icon: Grid, labelKey: "navigation.aiosWorkspace" },
-  { view: "chat", icon: ChatBubble, labelKey: "navigation.chat" },
-  { view: "sessions", icon: Clock, labelKey: "navigation.sessions" },
-  { view: "agents", icon: Users, labelKey: "navigation.agents" },
-  { view: "office", icon: Building, labelKey: "navigation.office" },
-  { view: "models", icon: Layers, labelKey: "navigation.models" },
-  { view: "providers", icon: KeyRound, labelKey: "navigation.providers" },
-  { view: "skills", icon: Puzzle, labelKey: "navigation.skills" },
-  { view: "soul", icon: Sparkles, labelKey: "navigation.soul" },
-  { view: "memory", icon: Brain, labelKey: "navigation.memory" },
-  { view: "tools", icon: Wrench, labelKey: "navigation.tools" },
-  { view: "schedules", icon: Timer, labelKey: "navigation.schedules" },
-  { view: "gateway", icon: Signal, labelKey: "navigation.gateway" },
-  { view: "runtime-setup", icon: Activity, labelKey: "navigation.runtimeSetup" },
   { view: "web-operator", icon: Globe, labelKey: "navigation.webOperator" },
-  { view: "settings", icon: SettingsIcon, labelKey: "navigation.settings" },
+  { view: "office", icon: Building, labelKey: "navigation.office" },
 ];
 
 function isValidRestoredView(
   view: string | undefined,
-  tabOrder: string[],
   externalTabIds: string[],
 ): view is View {
   if (!view) return false;
+
   const known: View[] = [
     "aios-home",
     "aios-workspace",
-    "chat",
-    "sessions",
-    "agents",
-    "office",
-    "models",
-    "providers",
-    "skills",
-    "soul",
-    "memory",
-    "tools",
-    "schedules",
-    "gateway",
-    "runtime-setup",
     "web-operator",
-    "profile-runtime",
-    "settings",
+    "office",
   ];
+
   if (known.includes(view as View)) return true;
-  if (view.startsWith("profile-workspace:") && tabOrder.includes(view)) return true;
+
   if (view.startsWith("external-browser:") && externalTabIds.includes(view)) {
     return true;
   }
+
   return false;
 }
 
 function Layout(): React.JSX.Element {
+  const { pendingBootstrapDiff, setPendingBootstrapDiff } = useAuth();
   const navigation = useDesktopNavigation();
   const {
     updateVersion,
@@ -108,18 +75,17 @@ function Layout(): React.JSX.Element {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("expanded");
   const [tabOrder, setTabOrder] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [runtimeSettingsOpen, setRuntimeSettingsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { externalTabs, openExternalTab, closeExternalTab, restoreExternalTabs } =
     useExternalBrowserTabs();
 
-  const draggableTabIds = useMemo(() => {
-    const profileIds = profileEntries
-      .filter((e) => e.enabled && e.entryType === "specialist-workspace")
-      .map((e) => `profile-workspace:${e.profileId}`);
-    const externalIds = externalTabs.map((t) => t.id);
-    return [...profileIds, ...externalIds];
-  }, [profileEntries, externalTabs]);
+  const draggableTabIds = useMemo(
+    () => externalTabs.map((t) => t.id as string),
+    [externalTabs],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -134,10 +100,10 @@ function Layout(): React.JSX.Element {
         await restoreExternalTabs(state.externalTabs);
 
         const externalIds = state.externalTabs.map((t) => t.id);
-        if (
-          isValidRestoredView(state.lastActiveView, state.tabOrder, externalIds)
-        ) {
-          navigation.navigateToView(state.lastActiveView);
+        if (isValidRestoredView(state.lastActiveView, externalIds)) {
+          navigation.navigateToView(state.lastActiveView as View);
+        } else {
+          navigation.navigateToView("aios-home");
         }
       } catch (err) {
         console.warn("[Layout] failed to restore main page state:", err);
@@ -301,13 +267,13 @@ function Layout(): React.JSX.Element {
       onBackActiveTab={handleBackActiveTab}
       onForwardActiveTab={handleForwardActiveTab}
       onCloseActiveTab={handleCloseActiveTab}
+      onOpenRuntimeSettings={() => setRuntimeSettingsOpen(true)}
+      onOpenUserMenu={() => setUserMenuOpen(true)}
       sidebar={
         <DesktopSidebar
           mode={sidebarMode}
           view={navigation.view}
           navItems={NAV_ITEMS}
-          profileEntries={profileEntries}
-          activeProfile={navigation.activeProfile}
           updateState={updateState}
           updateError={updateError}
           updateVersion={updateVersion}
@@ -319,20 +285,10 @@ function Layout(): React.JSX.Element {
       outlet={
         <WorkspaceOutlet
           view={navigation.view}
-          remoteMode={remoteMode}
           activeProfile={navigation.activeProfile}
-          messages={navigation.messages}
-          setMessages={navigation.setMessages}
-          currentSessionId={navigation.currentSessionId}
           officeVisited={navigation.officeVisited}
-          onNewChat={navigation.handleNewChat}
-          onResumeSession={navigation.handleResumeSession}
-          onSelectProfile={navigation.handleSelectProfile}
-          onChatWithProfile={(name) => {
-            navigation.handleSelectProfile(name);
-            navigation.setView("chat");
-          }}
           onNavigate={navigation.navigateToView}
+          onOpenRuntimeSettings={() => setRuntimeSettingsOpen(true)}
         />
       }
       statusBar={
@@ -343,7 +299,23 @@ function Layout(): React.JSX.Element {
         />
       }
       modalLayer={<ModalLayer />}
-      drawerLayer={<DrawerLayer />}
+      drawerLayer={
+        <>
+          <DrawerLayer />
+          <HermesRuntimeSettingsDrawer
+            open={runtimeSettingsOpen}
+            activeProfile={navigation.activeProfile}
+            onClose={() => setRuntimeSettingsOpen(false)}
+          />
+          <UserMenuDrawer open={userMenuOpen} onClose={() => setUserMenuOpen(false)} />
+          <ConfigDiffConfirmDrawer
+            open={Boolean(pendingBootstrapDiff?.diff?.length)}
+            result={pendingBootstrapDiff}
+            onClose={() => setPendingBootstrapDiff(null)}
+            onApplied={() => setPendingBootstrapDiff(null)}
+          />
+        </>
+      }
     />
   );
 }

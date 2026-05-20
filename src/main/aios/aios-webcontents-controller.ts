@@ -13,7 +13,7 @@ export class AiOsWebContentsController {
 
   constructor(mainWindow: BrowserWindow, frontendPort: number = 3000) {
     this.mainWindow = mainWindow;
-    this.homeUrl = `http://127.0.0.1:${frontendPort}/zh`;
+    this.homeUrl = `http://127.0.0.1:${frontendPort}`;
     this.registerIpc();
   }
 

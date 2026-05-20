@@ -16,12 +16,14 @@ interface MainProfileSwitchProps {
   activeProfile: string;
   onSelectProfile: (name: string) => void;
   onNavigate: (view: View) => void;
+  onOpenRuntimeSettings?: () => void;
 }
 
 export function MainProfileSwitch({
   activeProfile,
   onSelectProfile,
   onNavigate,
+  onOpenRuntimeSettings,
 }: MainProfileSwitchProps): React.JSX.Element {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -67,8 +69,8 @@ export function MainProfileSwitch({
           currentProfile={activeProfile}
           onClose={closeDropdown}
           onSelectProfile={onSelectProfile}
-          onManageProfiles={() => onNavigate("profile-runtime")}
-          onCreateProfile={() => onNavigate("agents")}
+          onManageProfiles={() => onOpenRuntimeSettings?.()}
+          onCreateProfile={() => onNavigate("aios-workspace")}
         />
       ) : null}
     </>

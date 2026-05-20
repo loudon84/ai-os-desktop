@@ -2,26 +2,26 @@ import { useState, useCallback } from "react";
 import { Signal, Play, Settings as SettingsIcon, FileText, Activity } from "../../assets/icons";
 import { Spinner } from "../../assets/icons";
 import { useI18n } from "../useI18n";
-import type { View } from "../../types/desktop-shell";
 
 export interface RuntimeGuardProps {
   gatewayStatus: string;
-  onNavigate: (view: View) => void;
+  onOpenRuntimeSettings?: () => void;
   onStarted?: () => void | Promise<void>;
 }
 
-export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGuardProps): React.JSX.Element {
+export function RuntimeGuard({
+  gatewayStatus,
+  onOpenRuntimeSettings,
+  onStarted,
+}: RuntimeGuardProps): React.JSX.Element {
   const { t } = useI18n();
   const [starting, setStarting] = useState(false);
 
   const handleStartRuntime = useCallback(async () => {
     setStarting(true);
     try {
-      // Start Hermes Gateway first
       await window.hermesAPI.startGateway();
-      // Then start full AI-OS Runtime (backend + frontend)
       await window.aiosRuntime?.startAiOs?.();
-      // Notify parent that runtime is started
       await onStarted?.();
     } catch (err) {
       console.error("[RuntimeGuard] Failed to start AI-OS runtime:", err);
@@ -29,6 +29,10 @@ export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGu
       setStarting(false);
     }
   }, [onStarted]);
+
+  const openSettings = () => {
+    onOpenRuntimeSettings?.();
+  };
 
   return (
     <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-8">
@@ -38,22 +42,15 @@ export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGu
             <Signal size={28} className="text-zinc-400" />
           </div>
         </div>
-
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-zinc-100">
-            {t("runtimeGuard.title")}
-          </h2>
-          <p className="text-sm text-zinc-400 leading-relaxed">
-            {t("runtimeGuard.description")}
-          </p>
+          <h2 className="text-lg font-semibold text-zinc-100">{t("runtimeGuard.title")}</h2>
+          <p className="text-sm text-zinc-400 leading-relaxed">{t("runtimeGuard.description")}</p>
         </div>
-
         {gatewayStatus === "error" && (
           <div className="px-4 py-3 rounded-lg bg-red-900/20 border border-red-800/40 text-xs text-red-300">
             {t("runtimeGuard.gatewayError")}
           </div>
         )}
-
         <div className="space-y-2">
           <button
             type="button"
@@ -64,11 +61,10 @@ export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGu
             {starting ? <Spinner size={14} className="animate-spin" /> : <Play size={14} />}
             {t("runtimeGuard.startGateway")}
           </button>
-
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => onNavigate("runtime-setup")}
+              onClick={openSettings}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
             >
               <SettingsIcon size={13} />
@@ -76,17 +72,16 @@ export function RuntimeGuard({ gatewayStatus, onNavigate, onStarted }: RuntimeGu
             </button>
             <button
               type="button"
-              onClick={() => onNavigate("gateway")}
+              onClick={openSettings}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-colors"
             >
               <FileText size={13} />
               {t("runtimeGuard.viewLogs")}
             </button>
           </div>
-
           <button
             type="button"
-            onClick={() => onNavigate("runtime-setup")}
+            onClick={openSettings}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-800/60 text-xs text-zinc-500 transition-colors"
           >
             <Activity size={13} />

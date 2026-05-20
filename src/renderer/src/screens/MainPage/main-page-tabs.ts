@@ -1,6 +1,5 @@
-import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
-import type { View } from "../../types/desktop-shell";
 import type { MainWorkspaceTab } from "./main-page-types";
+import type { View } from "../../types/desktop-shell";
 
 const STATIC_TABS: MainWorkspaceTab[] = [
   {
@@ -23,22 +22,8 @@ const STATIC_TABS: MainWorkspaceTab[] = [
   },
 ];
 
-export function buildMainWorkspaceTabs(
-  profileEntries: ProfileEntrySummary[],
-): MainWorkspaceTab[] {
-  const profileTabs: MainWorkspaceTab[] = profileEntries
-    .filter((entry) => entry.enabled)
-    .filter((entry) => entry.entryType === "specialist-workspace")
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((entry) => ({
-      id: `profile-workspace:${entry.profileId}` as View,
-      title: entry.title || entry.profileId,
-      closeable: false,
-      source: "profile" as const,
-      profileId: entry.profileId,
-    }));
-
-  return [...STATIC_TABS, ...profileTabs];
+export function buildMainWorkspaceTabs(): MainWorkspaceTab[] {
+  return [...STATIC_TABS];
 }
 
 export function isWorkspaceTabView(view: View): boolean {
@@ -46,7 +31,6 @@ export function isWorkspaceTabView(view: View): boolean {
     view === "aios-home" ||
     view === "aios-workspace" ||
     view === "web-operator" ||
-    (typeof view === "string" && view.startsWith("profile-workspace:")) ||
     (typeof view === "string" && view.startsWith("external-browser:"))
   );
 }

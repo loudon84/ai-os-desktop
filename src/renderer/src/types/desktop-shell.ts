@@ -2,28 +2,13 @@ import type { LucideIcon } from "lucide-react";
 
 export type View =
   | "aios-home"
-  | "chat"
-  | "sessions"
-  | "agents"
-  | "office"
-  | "models"
-  | "providers"
-  | "skills"
-  | "soul"
-  | "memory"
-  | "tools"
-  | "schedules"
-  | "gateway"
-  | "web-operator"
-  | "settings"
   | "aios-workspace"
-  | "profile-runtime"
-  | "runtime-setup"
-  | `profile-workspace:${string}`
+  | "web-operator"
+  | "office"
   | `external-browser:${string}`;
 
 export interface NavItem {
-  view: View;
+  view: Exclude<View, `external-browser:${string}`>;
   icon: LucideIcon;
   labelKey: string;
 }
@@ -32,28 +17,14 @@ export type UpdateState = "available" | "downloading" | "ready" | null;
 
 export const VIEW_TITLE_KEYS: Partial<Record<View, string>> = {
   "aios-home": "navigation.aiosHome",
-  chat: "navigation.chat",
-  sessions: "navigation.sessions",
-  agents: "navigation.agents",
-  office: "navigation.office",
-  models: "navigation.models",
-  providers: "navigation.providers",
-  skills: "navigation.skills",
-  soul: "navigation.soul",
-  memory: "navigation.memory",
-  tools: "navigation.tools",
-  schedules: "navigation.schedules",
-  gateway: "navigation.gateway",
-  "runtime-setup": "navigation.runtimeSetup",
-  "web-operator": "navigation.webOperator",
-  settings: "navigation.settings",
   "aios-workspace": "navigation.aiosWorkspace",
-  "profile-runtime": "navigation.profileRuntime",
+  "web-operator": "navigation.webOperator",
+  office: "navigation.office",
 };
 
 export function resolveViewTitleKey(view: View): string {
-  if (typeof view === "string" && view.startsWith("profile-workspace:")) {
-    return "navigation.profileWorkspace";
+  if (typeof view === "string" && view.startsWith("external-browser:")) {
+    return "navigation.externalBrowser";
   }
-  return VIEW_TITLE_KEYS[view] ?? "navigation.chat";
+  return VIEW_TITLE_KEYS[view] ?? "navigation.aiosHome";
 }

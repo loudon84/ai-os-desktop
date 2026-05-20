@@ -28,6 +28,8 @@ import installEn from "./locales/en/install";
 import constantsEn from "./locales/en/constants";
 import aiosHomeEn from "./locales/en/aiosHome";
 import shellViewEn from "./locales/en/shellView";
+import authEn from "./locales/en/auth";
+import runtimeSettingsEn from "./locales/en/runtimeSettings";
 import commonEs from "./locales/es/common";
 import navigationEs from "./locales/es/navigation";
 import welcomeEs from "./locales/es/welcome";
@@ -50,6 +52,8 @@ import installEs from "./locales/es/install";
 import constantsEs from "./locales/es/constants";
 import aiosHomeEs from "./locales/es/aiosHome";
 import shellViewEs from "./locales/es/shellView";
+import authEs from "./locales/es/auth";
+import runtimeSettingsEs from "./locales/es/runtimeSettings";
 import commonZh from "./locales/zh-CN/common";
 import navigationZh from "./locales/zh-CN/navigation";
 import welcomeZh from "./locales/zh-CN/welcome";
@@ -72,6 +76,8 @@ import installZh from "./locales/zh-CN/install";
 import constantsZh from "./locales/zh-CN/constants";
 import aiosHomeZh from "./locales/zh-CN/aiosHome";
 import shellViewZh from "./locales/zh-CN/shellView";
+import authZh from "./locales/zh-CN/auth";
+import runtimeSettingsZh from "./locales/zh-CN/runtimeSettings";
 import commonPt from "./locales/pt-BR/common";
 import navigationPt from "./locales/pt-BR/navigation";
 import welcomePt from "./locales/pt-BR/welcome";
@@ -94,6 +100,8 @@ import installPt from "./locales/pt-BR/install";
 import constantsPt from "./locales/pt-BR/constants";
 import aiosHomePt from "./locales/pt-BR/aiosHome";
 import shellViewPt from "./locales/pt-BR/shellView";
+import authPt from "./locales/pt-BR/auth";
+import runtimeSettingsPt from "./locales/pt-BR/runtimeSettings";
 
 export const resources = {
   en: {
@@ -120,6 +128,8 @@ export const resources = {
       memory: memoryEn,
       install: installEn,
       constants: constantsEn,
+      auth: authEn,
+      runtimeSettings: runtimeSettingsEn,
     },
   },
   es: {
@@ -146,6 +156,8 @@ export const resources = {
       memory: memoryEs,
       install: installEs,
       constants: constantsEs,
+      auth: authEs,
+      runtimeSettings: runtimeSettingsEs,
     },
   },
   "zh-CN": {
@@ -172,6 +184,8 @@ export const resources = {
       memory: memoryZh,
       install: installZh,
       constants: constantsZh,
+      auth: authZh,
+      runtimeSettings: runtimeSettingsZh,
     },
   },
   "pt-BR": {
@@ -198,6 +212,8 @@ export const resources = {
       memory: memoryPt,
       install: installPt,
       constants: constantsPt,
+      auth: authPt,
+      runtimeSettings: runtimeSettingsPt,
     },
   },
 } satisfies Resource;

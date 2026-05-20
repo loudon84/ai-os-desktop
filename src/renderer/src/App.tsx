@@ -5,6 +5,8 @@ import Welcome from "./screens/Welcome/Welcome";
 import Install from "./screens/Install/Install";
 import Setup from "./screens/Setup/Setup";
 import Layout from "./screens/Layout/Layout";
+import { AuthProvider } from "./modules/auth/AuthProvider";
+import { LoginGate } from "./modules/auth/LoginGate";
 import SplashScreen from "./screens/SplashScreen/SplashScreen";
 import { useI18n } from "./components/useI18n";
 
@@ -165,7 +167,13 @@ function App(): React.JSX.Element {
           />
         );
       case "main":
-        return <Layout />;
+        return (
+          <AuthProvider>
+            <LoginGate>
+              <Layout />
+            </LoginGate>
+          </AuthProvider>
+        );
     }
   }
 

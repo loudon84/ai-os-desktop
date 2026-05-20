@@ -578,6 +578,44 @@ interface AiOsRuntimeSnapshot {
 
 ---
 
+### Desktop Auth（V3）
+
+Renderer 通过 `window.desktopAuth` 访问；**不**向 Renderer 返回 `accessToken` / `refreshToken`。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `auth:get-session` | — | `PublicAuthSession \| null` | 当前公开会话（无 token） |
+| `auth:login` | `LoginInput` | `PublicAuthSession` | 登录；token 写入 Main `safeStorage` |
+| `auth:logout` | — | `void` | 登出并删除 `userData/auth/session.enc` |
+| `auth:refresh` | — | `PublicAuthSession \| null` | 刷新会话 |
+
+Mock：`HERMES_USE_MOCK_AUTH !== "false"` 时使用 `MockAuthClient`；backend 就绪后切换 `HttpAuthClient`（`http://127.0.0.1:{backendPort}/api/v1/desktop/auth/*`）。
+
+开发环境若 `safeStorage` 不可用，Main 在 `!app.isPackaged` 时回退写入 `userData/auth/session.json`（明文，仅 dev）。
+
+### Desktop User Config Bootstrap（V3）
+
+Renderer 通过 `window.desktopUserConfig` 访问。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `user-config:get-local` | — | `DesktopBootstrapConfig \| null` | 本地缓存的 bootstrap 配置 |
+| `user-config:fetch-remote` | — | `DesktopBootstrapConfig` | 从 AI-OS backend 拉取 |
+| `user-config:bootstrap` | — | `BootstrapResult` | 首次登录覆盖；后续返回 diff |
+| `user-config:diff-remote` | — | `ConfigDiffItem[]` | 本地 vs 远程 diff |
+| `user-config:apply-remote` | `confirmToken?: string` | `BootstrapResult` | 用户确认后应用 |
+
+应用顺序见 `user-config-applier.ts` + `user-config-applier-hermes.ts`（profiles/env → connection → models → toolsets/platforms → AI-OS env → reconcile/start → restartGateway → 提交本地缓存）。
+
+Mock 环境变量：
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `HERMES_USE_MOCK_AUTH` | mock 开启 | `false` 时 Auth 走 HTTP |
+| `HERMES_USE_MOCK_USER_CONFIG` | 跟随 Auth mock | `true` / `false` 显式覆盖 bootstrap 客户端 |
+
+---
+
 ## 事件推送 (Main → Renderer)
 
 ### 快捷键事件

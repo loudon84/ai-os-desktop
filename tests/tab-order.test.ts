@@ -5,19 +5,10 @@ describe("sortTabsByOrder", () => {
   it("orders tabs by tabOrder index", () => {
     const tabs = [
       { id: "external-browser:a" },
-      { id: "profile-workspace:writer" },
       { id: "external-browser:b" },
     ];
-    const sorted = sortTabsByOrder(tabs, [
-      "profile-workspace:writer",
-      "external-browser:b",
-      "external-browser:a",
-    ]);
-    expect(sorted.map((t) => t.id)).toEqual([
-      "profile-workspace:writer",
-      "external-browser:b",
-      "external-browser:a",
-    ]);
+    const sorted = sortTabsByOrder(tabs, ["external-browser:b", "external-browser:a"]);
+    expect(sorted.map((t) => t.id)).toEqual(["external-browser:b", "external-browser:a"]);
   });
 
   it("appends unknown ids at end", () => {
@@ -29,9 +20,10 @@ describe("sortTabsByOrder", () => {
 });
 
 describe("isDraggableTabId", () => {
-  it("matches profile and external tabs", () => {
-    expect(isDraggableTabId("profile-workspace:coding")).toBe(true);
+  it("matches external-browser tabs only", () => {
     expect(isDraggableTabId("external-browser:uuid")).toBe(true);
+    expect(isDraggableTabId("profile-workspace:coding")).toBe(false);
     expect(isDraggableTabId("web-operator")).toBe(false);
+    expect(isDraggableTabId("aios-home")).toBe(false);
   });
 });

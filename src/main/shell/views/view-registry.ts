@@ -66,13 +66,6 @@ export class ViewRegistry {
       defaultPreload: undefined,
     });
 
-    // Profile Page
-    this.register("profile-page", {
-      kind: "profile-page",
-      defaultLayer: "content",
-      defaultSandbox: true,
-    });
-
     // External Browser
     this.register("external-browser", {
       kind: "external-browser",

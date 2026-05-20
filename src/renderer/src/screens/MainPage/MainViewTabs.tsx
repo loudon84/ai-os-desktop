@@ -161,7 +161,7 @@ export function MainViewTabs({
   );
 
   const { fixedTabs, draggableTabs } = useMemo(() => {
-    const workspaceTabs = buildMainWorkspaceTabs(profileEntries);
+    const workspaceTabs = buildMainWorkspaceTabs();
     const fixed = workspaceTabs.filter((tab) =>
       (FIXED_TAB_IDS as readonly string[]).includes(tab.id),
     );

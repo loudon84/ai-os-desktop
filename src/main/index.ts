@@ -177,6 +177,8 @@ import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
 import { registerAiosIpc } from "./aios/aios-ipc";
+import { registerAuthIpc } from "./auth/auth-ipc";
+import { registerUserConfigIpc } from "./user-config/user-config-ipc";
 import { getAiOsEnvConfig } from "./aios/aios-config";
 import { ShellViewManager } from "./shell/views/shell-view-manager";
 import { registerShellViewIpc, destroyShellViews } from "./shell/shell-view-ipc";
@@ -398,7 +400,6 @@ function setupIPC(): void {
 
   // Internal View IPC (for Modal system)
   try {
-    const { setupInternalViewIpc } = require("./shell/overlays/internal-view-ipc");
     setupInternalViewIpc();
   } catch (err) {
     console.error("[MODAL] Failed to setup internal view IPC:", err);
@@ -413,6 +414,12 @@ function setupIPC(): void {
     registerMainPageStateIpc();
   } catch (err) {
     console.error("[MAIN-PAGE] Failed to register main page state IPC:", err);
+  }
+
+  try {
+    registerAuthIpc();
+  } catch (err) {
+    console.error("[AUTH] Failed to register auth IPC:", err);
   }
 
   // First Run Wizard IPC
@@ -1326,6 +1333,12 @@ app.whenReady().then(async () => {
       console.log("[AIOS] AIOS IPC handlers registered successfully");
     } catch (err) {
       console.error("[AIOS] Failed to register AIOS IPC:", err);
+    }
+
+    try {
+      registerUserConfigIpc(mainWindow);
+    } catch (err) {
+      console.error("[USER-CONFIG] Failed to register user-config IPC:", err);
     }
 
     // Enterprise Install IPC (late — handlers that need mainWindow)

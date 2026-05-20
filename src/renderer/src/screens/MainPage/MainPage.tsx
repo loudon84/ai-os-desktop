@@ -37,6 +37,8 @@ export interface MainPageProps {
   onBackActiveTab: () => void;
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
+  onOpenRuntimeSettings: () => void;
+  onOpenUserMenu: () => void;
 }
 
 export function MainPage({
@@ -69,6 +71,8 @@ export function MainPage({
   onBackActiveTab,
   onForwardActiveTab,
   onCloseActiveTab,
+  onOpenRuntimeSettings,
+  onOpenUserMenu,
 }: MainPageProps): React.JSX.Element {
   return (
     <div className={`MainPage layout MainPage--sidebar-${sidebarMode}`}>
@@ -96,6 +100,8 @@ export function MainPage({
         onBackActiveTab={onBackActiveTab}
         onForwardActiveTab={onForwardActiveTab}
         onCloseActiveTab={onCloseActiveTab}
+        onOpenRuntimeSettings={onOpenRuntimeSettings}
+        onOpenUserMenu={onOpenUserMenu}
       />
 
       <div className="MainPage__body">

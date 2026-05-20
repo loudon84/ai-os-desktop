@@ -11,9 +11,7 @@ export function sortTabsByOrder<T extends { id: string }>(
 }
 
 export function isDraggableTabId(id: string): boolean {
-  return (
-    id.startsWith("profile-workspace:") || id.startsWith("external-browser:")
-  );
+  return id.startsWith("external-browser:");
 }
 
 export const FIXED_TAB_IDS = ["aios-home", "aios-workspace", "web-operator"] as const;
