@@ -1,0 +1,28 @@
+---
+description: 代码计划或功能实现完成后，同步更新 AGENTS.md 与 docs/ 核心文档
+alwaysApply: true
+---
+
+# Post-Implementation Docs Sync
+
+当**代码计划全部阶段完成**、**功能实现收尾**、或用户明确要求更新文档时：
+
+1. **立即加载并执行**项目 skill：`.agents/skills/sync-project-docs/SKILL.md`
+2. 基于 `git diff` / 本次变更文件，按 skill 中的文档映射更新下列文件（仅改与本次变更相关的段落）：
+   - `AGENTS.md`
+   - `docs/INDEX.md`
+   - `docs/READING_GUIDE.md`
+   - `docs/ARCHITECTURE.md`
+   - `docs/API_CONTRACTS.md`
+3. 文档更新是实现的**最后一步**，与 typecheck / test 同级；未完成文档同步不得宣告任务完成。
+
+## 跳过条件
+
+- 仅 typo / 注释 / 格式化，无行为或契约变化
+- 用户明确说「不要改文档」
+
+## 禁止
+
+- 凭记忆编造 IPC channel、文件路径或版本号
+- 大段复制粘贴代码到文档
+- 修改 `docs/MODULES.md`（本规则范围外，除非用户另行要求）

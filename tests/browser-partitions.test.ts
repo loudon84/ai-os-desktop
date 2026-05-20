@@ -3,6 +3,7 @@ import {
   externalBrowserPartition,
   WEB_OPERATOR_PARTITION,
   AIOS_HOME_PARTITION,
+  SHELL_PARTITIONS,
 } from "../src/shared/shell/browser-partitions";
 
 describe("externalBrowserPartition", () => {
@@ -17,9 +18,10 @@ describe("externalBrowserPartition", () => {
   });
 });
 
-describe("partition constants", () => {
+describe("partition constants (V3.3)", () => {
   it("exports canonical home and web-operator partitions", () => {
-    expect(AIOS_HOME_PARTITION).toBe("persist:aios-desktop");
-    expect(WEB_OPERATOR_PARTITION).toBe("persist:aios-external-web");
+    expect(AIOS_HOME_PARTITION).toBe("persist:aios-home");
+    expect(WEB_OPERATOR_PARTITION).toBe("persist:web-operator");
+    expect(SHELL_PARTITIONS.AIOS_HOME).toBe("persist:aios-home");
   });
 });

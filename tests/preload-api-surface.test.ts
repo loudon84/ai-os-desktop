@@ -276,7 +276,8 @@ describe("Legacy APIs preserved (backward compat)", () => {
 describe("V3 Desktop Auth & User Config APIs", () => {
   it("preload exposes desktopAuth IPC channels", () => {
     expect(preloadSrc).toContain('exposeInMainWorld("desktopAuth"');
-    expect(authApiSrc).toContain('"auth:get-session"');
+    expect(authApiSrc).toContain('"auth:get-state"');
+    expect(authApiSrc).toContain('"auth:save-endpoint-config"');
     expect(authApiSrc).toContain('"auth:login"');
     expect(authApiSrc).toContain('"auth:logout"');
     expect(authApiSrc).toContain('"auth:refresh"');

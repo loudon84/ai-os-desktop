@@ -1,14 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies
 const getConnectionConfig = vi.fn();
 const resolveRuntimeState = vi.fn();
 const testRemoteConnection = vi.fn();
 const startSshTunnel = vi.fn();
 const isSshTunnelHealthy = vi.fn();
+const hydrateTokenStore = vi.fn();
+const readStoredSession = vi.fn();
+const readAuthEndpointConfig = vi.fn();
+const readBootstrapState = vi.fn();
 
 vi.mock("electron", () => ({
-  app: { getVersion: () => "0.1.7" },
+  app: {
+    getVersion: () => "0.1.7",
+    getPath: () => "/tmp/test-user-data",
+  },
+  safeStorage: {
+    isEncryptionAvailable: () => false,
+  },
 }));
 
 vi.mock("../src/main/config", () => ({
@@ -28,9 +37,140 @@ vi.mock("../src/main/ssh-tunnel", () => ({
   isSshTunnelHealthy,
 }));
 
+vi.mock("../src/main/auth/token-store", () => ({
+  hydrateTokenStore,
+  readStoredSession,
+}));
+
+vi.mock("../src/main/auth/auth-endpoint-config-store", () => ({
+  readAuthEndpointConfig,
+}));
+
+vi.mock("../src/main/user-config/user-config-store", () => ({
+  readBootstrapState,
+}));
+
+const mockEndpoint = {
+  backendUrl: "http://127.0.0.1:8000",
+  authPrefix: "/api/auth",
+  aiosHomeUrl: "http://127.0.0.1:3000",
+};
+
+const mockSession = {
+  accessToken: "tok",
+  tokenType: "Bearer" as const,
+  user: { id: "1", username: "a" },
+};
+
+const bootstrapInitialized = {
+  initialized: true,
+  lastConfigHash: "hash",
+  lastConfigVersion: "v1",
+  lastAppliedAt: "2026-01-01T00:00:00.000Z",
+};
+
+const bootstrapPending = {
+  initialized: false,
+  lastConfigHash: null,
+  lastConfigVersion: null,
+  lastAppliedAt: null,
+};
+
 describe("resolveStartupDecision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hydrateTokenStore.mockResolvedValue(mockSession);
+    readStoredSession.mockResolvedValue(mockSession);
+    readAuthEndpointConfig.mockReturnValue(mockEndpoint);
+    readBootstrapState.mockReturnValue(bootstrapInitialized);
+  });
+
+  describe("Auth gate (V3.3 / V3.3.1 all modes)", () => {
+    it("should return login when not authenticated (local)", async () => {
+      getConnectionConfig.mockReturnValue({ mode: "local" });
+      readStoredSession.mockResolvedValue(null);
+
+      const { resolveStartupDecision } =
+        await import("../src/main/startup/startup-decision");
+      const decision = await resolveStartupDecision();
+
+      expect(decision.nextScreen).toBe("login");
+      expect(decision.reason).toBe("auth-required");
+    });
+
+    it("should return login when endpoint config missing", async () => {
+      getConnectionConfig.mockReturnValue({ mode: "local" });
+      readAuthEndpointConfig.mockReturnValue(null);
+
+      const { resolveStartupDecision } =
+        await import("../src/main/startup/startup-decision");
+      const decision = await resolveStartupDecision();
+
+      expect(decision.nextScreen).toBe("login");
+      expect(decision.reason).toBe("auth-required");
+    });
+
+    it("should return login when remote mode but not authenticated", async () => {
+      getConnectionConfig.mockReturnValue({
+        mode: "remote",
+        remoteUrl: "http://remote.test:8642",
+        apiKey: "test-key",
+      });
+      readStoredSession.mockResolvedValue(null);
+
+      const { resolveStartupDecision } =
+        await import("../src/main/startup/startup-decision");
+      const decision = await resolveStartupDecision();
+
+      expect(decision.nextScreen).toBe("login");
+      expect(decision.reason).toBe("auth-required");
+      expect(decision.connectionMode).toBe("remote");
+      expect(testRemoteConnection).not.toHaveBeenCalled();
+    });
+
+    it("should return login when ssh mode but not authenticated", async () => {
+      getConnectionConfig.mockReturnValue({
+        mode: "ssh",
+        ssh: {
+          host: "test.example.com",
+          port: 22,
+          username: "test",
+          keyPath: "/path/to/key",
+          remotePort: 8642,
+          localPort: 18642,
+        },
+      });
+      readStoredSession.mockResolvedValue(null);
+
+      const { resolveStartupDecision } =
+        await import("../src/main/startup/startup-decision");
+      const decision = await resolveStartupDecision();
+
+      expect(decision.nextScreen).toBe("login");
+      expect(decision.reason).toBe("auth-required");
+      expect(decision.connectionMode).toBe("ssh");
+      expect(startSshTunnel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Bootstrap gate (V3.3.1)", () => {
+    it("should return login with bootstrap-pending when auth ok but bootstrap not initialized", async () => {
+      getConnectionConfig.mockReturnValue({ mode: "local" });
+      readBootstrapState.mockReturnValue(bootstrapPending);
+      resolveRuntimeState.mockReturnValue({
+        runtimeReady: true,
+        modelConfigured: true,
+        updateMode: true,
+      });
+
+      const { resolveStartupDecision } =
+        await import("../src/main/startup/startup-decision");
+      const decision = await resolveStartupDecision();
+
+      expect(decision.nextScreen).toBe("login");
+      expect(decision.reason).toBe("bootstrap-pending");
+      expect(resolveRuntimeState).not.toHaveBeenCalled();
+    });
   });
 
   describe("Case A: Update skip install - runtime ready + model configured", () => {
@@ -119,7 +259,7 @@ describe("resolveStartupDecision", () => {
   });
 
   describe("Remote mode", () => {
-    it("should return main when remote connection is ok", async () => {
+    it("should return main when remote connection is ok after auth+bootstrap", async () => {
       getConnectionConfig.mockReturnValue({
         mode: "remote",
         remoteUrl: "http://remote.test:8642",
@@ -139,7 +279,7 @@ describe("resolveStartupDecision", () => {
       expect(decision.runtime).toBeNull();
     });
 
-    it("should return welcome when remote connection fails", async () => {
+    it("should return welcome when remote connection fails after auth+bootstrap", async () => {
       getConnectionConfig.mockReturnValue({
         mode: "remote",
         remoteUrl: "http://remote.test:8642",
@@ -159,7 +299,7 @@ describe("resolveStartupDecision", () => {
   });
 
   describe("SSH mode", () => {
-    it("should return main when SSH tunnel is healthy", async () => {
+    it("should return main when SSH tunnel is healthy after auth+bootstrap", async () => {
       getConnectionConfig.mockReturnValue({
         mode: "ssh",
         ssh: {

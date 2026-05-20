@@ -193,5 +193,6 @@ export interface AiOsAPI {
   runDoctor(): Promise<AiOsDoctorReport>;
   reconcile(): Promise<AiOsReconcileResult>;
   checkPorts(): Promise<PortCheckResult[]>;
+  getHomeUrl(): Promise<{ url: string }>;
   onAiOsRuntimeChanged(callback: (event: RuntimeStatusChangeEvent) => void): () => void;
 }

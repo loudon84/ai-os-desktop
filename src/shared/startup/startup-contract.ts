@@ -8,10 +8,12 @@ import type { RuntimeState } from "../enterprise/runtime-state-contract";
  */
 
 /** 启动后应进入的屏幕 */
-export type StartupScreen = "main" | "welcome" | "installing" | "setup";
+export type StartupScreen = "login" | "main" | "welcome" | "installing" | "setup";
 
 /** 启动决策的原因，用于诊断和日志 */
 export type StartupDecisionReason =
+  | "auth-required"
+  | "bootstrap-pending"
   | "runtime-ready-model-configured"
   | "runtime-ready-model-missing"
   | "runtime-missing"

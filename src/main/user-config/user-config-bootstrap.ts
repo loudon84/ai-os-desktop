@@ -1,6 +1,7 @@
 import type { BrowserWindow } from "electron";
 import type { BootstrapResult } from "../../shared/user-config/user-config-contract";
-import { readEncryptedSession } from "../auth/token-store";
+import { readStoredSession } from "../auth/token-store";
+import { refreshAiosHomeView } from "../shell/aios-home-view-coordinator";
 import { applyUserConfig } from "./user-config-applier";
 import {
   fetchRemoteBootstrapConfig,
@@ -17,11 +18,12 @@ export async function bootstrapUserConfig(
   mainWindow: BrowserWindow | null,
 ): Promise<BootstrapResult> {
   const state = readBootstrapState();
-  const session = readEncryptedSession();
+  const session = await readStoredSession();
   const remote = await fetchRemoteBootstrapConfig(session?.accessToken);
 
   if (!state.initialized) {
     await applyUserConfig(remote, mainWindow);
+    await refreshAiosHomeView();
     return {
       ok: true,
       firstLogin: true,
@@ -65,6 +67,7 @@ export async function applyRemoteUserConfig(
   }
 
   await applyUserConfig(remote, mainWindow);
+  await refreshAiosHomeView();
   return {
     ok: true,
     firstLogin: false,

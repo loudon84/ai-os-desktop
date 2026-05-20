@@ -674,7 +674,7 @@ declare global {
     smcShell: SmcShellAPI;
     shellView: ShellViewAPI;
     mainPageState: MainPageStateAPI;
-    desktopAuth: import("../shared/auth/auth-contract").AuthAPI;
+    desktopAuth: import("../shared/auth/auth-contract").DesktopAuthAPI;
     desktopUserConfig: import("../shared/user-config/user-config-contract").UserConfigAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }

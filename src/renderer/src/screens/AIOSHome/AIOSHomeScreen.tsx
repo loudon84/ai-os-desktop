@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { RuntimeGuard } from "../../components/runtime/RuntimeGuard";
 import { RuntimeStatusBar } from "../../components/runtime/RuntimeStatusBar";
 import { WebContentsHost } from "../../components/shell/WebContentsHost";
@@ -12,13 +11,12 @@ export interface AIOSHomeScreenProps {
 }
 
 export function AIOSHomeScreen({
-  onNavigate,
   onOpenRuntimeSettings,
 }: AIOSHomeScreenProps): React.JSX.Element {
-  const { t } = useTranslation("aiosHome");
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [homeUrl, setHomeUrl] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -31,6 +29,12 @@ export function AIOSHomeScreen({
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void window.aiosRuntime.getHomeUrl().then(({ url }) => setHomeUrl(url)).catch(() => {
+      setHomeUrl(null);
+    });
   }, []);
 
   useEffect(() => {
@@ -70,6 +74,14 @@ export function AIOSHomeScreen({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <RuntimeStatusBar services={services} loading={loading} />
+      {homeUrl && (
+        <div
+          className="border-b border-zinc-800 bg-zinc-900/60 px-3 py-1 font-mono text-[10px] text-zinc-500 truncate"
+          title={homeUrl}
+        >
+          {homeUrl}
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {frontendKnownDown ? (
           <RuntimeGuard

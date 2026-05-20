@@ -9,10 +9,15 @@ const mocks = vi.hoisted(() => ({
   diff: vi.fn(),
   apply: vi.fn(),
   stash: vi.fn(),
+  refreshView: vi.fn(),
 }));
 
 vi.mock("../src/main/auth/token-store", () => ({
-  readEncryptedSession: mocks.readSession,
+  readStoredSession: mocks.readSession,
+}));
+
+vi.mock("../src/main/shell/aios-home-view-coordinator", () => ({
+  refreshAiosHomeView: mocks.refreshView,
 }));
 
 vi.mock("../src/main/user-config/user-config-client", () => ({
@@ -37,8 +42,8 @@ import { bootstrapUserConfig } from "../src/main/user-config/user-config-bootstr
 
 function remoteConfig(hash: string): DesktopBootstrapConfig {
   return {
-    schemaVersion: 1,
-    configVersion: "v1",
+    schemaVersion: 2,
+    configVersion: "v2",
     configHash: hash,
     user: {
       userId: "u1",
@@ -60,8 +65,10 @@ function remoteConfig(hash: string): DesktopBootstrapConfig {
       models: [],
     },
     aios: {
-      frontendUrl: "http://127.0.0.1:3000",
       backendUrl: "http://127.0.0.1:8000",
+      authPrefix: "/api/auth",
+      aiosHomeUrl: "http://127.0.0.1:3000",
+      frontendUrl: "http://127.0.0.1:3000",
       autoStart: false,
     },
   };
@@ -70,7 +77,8 @@ function remoteConfig(hash: string): DesktopBootstrapConfig {
 describe("bootstrapUserConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.readSession.mockReturnValue({ accessToken: "tok" });
+    mocks.readSession.mockResolvedValue({ accessToken: "tok" });
+    mocks.refreshView.mockResolvedValue(undefined);
     mocks.stash.mockReturnValue("confirm-token-1");
   });
 
@@ -83,6 +91,7 @@ describe("bootstrapUserConfig", () => {
     expect(result.firstLogin).toBe(true);
     expect(result.applied).toBe(true);
     expect(mocks.apply).toHaveBeenCalledOnce();
+    expect(mocks.refreshView).toHaveBeenCalledOnce();
   });
 
   it("subsequent login with diff returns confirm token without applying", async () => {

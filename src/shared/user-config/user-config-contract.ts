@@ -1,5 +1,5 @@
 export interface DesktopBootstrapConfig {
-  schemaVersion: 1;
+  schemaVersion: 2;
   configVersion: string;
   configHash: string;
   user: {
@@ -57,8 +57,11 @@ export interface DesktopBootstrapConfig {
     platforms?: Record<string, boolean>;
   };
   aios: {
-    frontendUrl: string;
     backendUrl: string;
+    authPrefix: string;
+    aiosHomeUrl: string;
+    /** @deprecated Use aiosHomeUrl — kept for backward compatibility */
+    frontendUrl?: string;
     workspacePath?: string;
     autoStart: boolean;
     env?: Record<string, string>;
@@ -101,4 +104,5 @@ export interface UserConfigAPI {
   bootstrap(): Promise<BootstrapResult>;
   diffRemoteConfig(): Promise<ConfigDiffItem[]>;
   applyRemoteConfig(confirmToken?: string): Promise<BootstrapResult>;
+  getBootstrapState(): Promise<BootstrapState>;
 }

@@ -1,6 +1,6 @@
 # SMC Copilot Shell 架构文档
 
-> 版本: 0.3.5 | 最后更新: V3.2.1 MainPage Hotfix
+> 版本: 0.3.6 | 最后更新: V3.3.1 Auth Hotfix + 本地 Bootstrap
 
 ## 架构概述
 
@@ -155,7 +155,7 @@ external tab (+)
 | 二级 panel | `workspace-secondary-nav.ts` + `Layout.workspaceSecondaryState`；`AIOSWorkspaceShell` 切换 Chat/Sessions/Agents |
 | Settings Drawer | `screens/SettingsDrawer/` 统一 Account / Runtime / Profiles / Config sync；打开不切换 Tab |
 | MainPage 状态 V2 | `main-page-state-migrate.ts`；`workspaceOrder` 替代 `tabOrder` |
-| Token 注入 | `installTokenHeaderInjector()`；分区 `persist:aios-desktop` |
+| Token 注入 | `installTokenHeaderInjector()`；分区 `persist:aios-home`（V3.3 origin 白名单） |
 
 ```text
 Layout
@@ -172,9 +172,11 @@ Layout
 
 | 分区 | 用途 | Token 注入 |
 |------|------|------------|
-| `persist:aios-desktop` | `aios-home` | 是（`frontendPort` / `backendPort`） |
-| `persist:aios-external-web` | `web-operator` | 否 |
+| `persist:aios-home` | `aios-home` | 是（origin 白名单，V3.3+） |
+| `persist:web-operator` | `web-operator` | 否 |
 | `persist:external-browser-{uuid}` | 每个 external tab | 否（`externalBrowserPartition(layerId)` 创建时必传） |
+
+**V3.2.1 历史分区名**（已 superseded）：`persist:aios-desktop` / `persist:aios-external-web`。
 
 ```text
 useExternalBrowserTabs.openExternalTab
@@ -190,6 +192,44 @@ token-inject-url.shouldInjectTokenForUrl
 | Runtime 入口收敛 | `RuntimeGuard`：启动 Gateway + 单一「打开设置」；`MainProfileSwitch.onManageProfiles` → Settings Drawer Runtime panel |
 | MainViewTabs | 固定 Tab = registry `!draggable`；可拖 = 仅 `external-browser:*` |
 | i18n | `navigation.chat` / `sessions` / `openSettings` 等四语言 |
+
+### V3.3 增量（Auth Embed + 启动门控）
+
+**应用生命周期**（`App.tsx` + `useStartupGate.ts`）：
+
+```text
+splash → login → welcome → installing → setup → main
+         ↑
+    auth + bootstrap 门控（全连接模式）
+```
+
+| 能力 | 说明 |
+|------|------|
+| Login 屏 | `LoginScreen` — Endpoint 三字段 + **邮箱**密码；登录 AI-OS Auth（默认 `:8000`），非 Hermes Gateway |
+| Token Vault | Main `token-store.ts`：keytar → safeStorage → 内存；禁止明文落盘 |
+| Header 注入 | `token-header-injector` + origin 白名单；分区 `persist:aios-home` |
+| Endpoint 持久化 | `auth-endpoint-config.json` @ userData |
+
+```text
+LoginScreen
+  → desktopAuth.saveEndpointConfig + login({ email, password })
+  → auth-client POST {backend}{authPrefix}/login
+  → token-store (Main only)
+  → desktopUserConfig.bootstrap() → user-config-applier
+  → recheck → smcShell.resolveStartupDecision()
+```
+
+### V3.3.1 增量（本地 Bootstrap + 启动 IPC 接线）
+
+| 能力 | 说明 |
+|------|------|
+| 统一门控 | `startup-decision.ts`：local / remote / ssh 均先检查 endpoint + token + `bootstrapState.initialized` |
+| 本地 Bootstrap | `user-config-client.ts` 默认 **不 HTTP**；由 session + endpoint 合成 `local-v1`；`HERMES_USE_REMOTE_USER_CONFIG=true` 才拉 `GET /api/v1/desktop/bootstrap` |
+| smcShell | Preload `shell-api.ts` → `window.smcShell`；Main `setupStartupIPC()` 注册 `startup:resolve-decision` |
+| aios-home 显示 | `aios-home-view-coordinator`：bootstrap 时仅 prepare（create/load + **deactivate**）；进入 main 后 `WebContentsHost` setBounds 才激活嵌入页 |
+| Auth HTTP 契约 | 请求 `{ email, password }` / `{ refresh_token }`；响应 snake_case 兼容 |
+
+**环境变量**（见 `docs/API_CONTRACTS.md`）：`HERMES_USE_MOCK_AUTH`、`HERMES_USE_MOCK_USER_CONFIG`、`HERMES_USE_REMOTE_USER_CONFIG`。
 
 ## 核心模块
 
@@ -480,6 +520,14 @@ src/
 - **多窗口**: WindowManager、独立 Chat 窗口支持
 - **插件系统**: PluginLoader、PluginAPI 契约
 
+### 0.3.6 (V3.3.1 Auth Hotfix + 本地 Bootstrap)
+- **启动门控**：local / remote / ssh 统一 auth + bootstrap；`window.smcShell` + `startup:resolve-decision`
+- **AI-OS Auth**：登录字段 `email`；HTTP refresh `{ refresh_token }`；默认 `/api/v1/auth` @ `:8000`
+- **Bootstrap 默认本地**：不请求 `/api/v1/desktop/bootstrap`；`local-v1` 合成 + apply
+- **aios-home**：coordinator deactivate 至主界面 setBounds；避免登录阶段 WebContentsView 覆盖 React UI
+- **Bootstrap apply**：同步 `auth-endpoint-config` + prepare aios-home URL
+- **分区当前值**：`persist:aios-home` / `persist:web-operator` / `persist:external-browser-{uuid}`
+
 ### 0.3.5 (V3.2.1 MainPage Hotfix)
 - **三分区**：`browser-partitions.ts`；external tab 每 UUID 独立 partition
 - **Token 端口**：`token-inject-url.ts` 从 `getAiOsEnvConfig()` 读取
@@ -490,7 +538,7 @@ src/
 - **Workspace registry** + `WorkspaceRenderer` / `WorkspaceOutlet`
 - **SettingsDrawer** 统一 Runtime / Account / Profiles
 - **MainPage 状态 V2** + `workspaceSecondaryState`
-- **Token 注入**（`persist:aios-desktop`）
+- **Token 注入**（`persist:aios-home`，V3.3 重命名）
 
 ### 0.3.5 (V2.2 MainPage 第三阶段)
 - **ShellBrowserViewAdapter** 替代运行时 BrowserViewManager

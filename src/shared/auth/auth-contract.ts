@@ -1,9 +1,31 @@
-export interface LoginInput {
-  username: string;
-  password: string;
-  tenantCode?: string;
+export interface AuthEndpointConfig {
+  backendUrl: string;
+  authPrefix: string;
+  aiosHomeUrl: string;
 }
 
+export interface LoginInput {
+  endpointConfig: AuthEndpointConfig;
+  /** AI-OS Auth API expects a valid email address */
+  email: string;
+  password: string;
+}
+
+export interface DesktopAuthUser {
+  id: string;
+  username: string;
+  displayName?: string;
+  tenantId?: string;
+}
+
+export interface DesktopAuthState {
+  authenticated: boolean;
+  endpointConfig: AuthEndpointConfig | null;
+  user: DesktopAuthUser | null;
+  expiresAt: string | null;
+}
+
+/** @deprecated Use DesktopAuthState — kept for migration references */
 export interface PublicAuthSession {
   userId: string;
   username: string;
@@ -13,18 +35,65 @@ export interface PublicAuthSession {
   accessTokenExpiresAt: string;
 }
 
+export interface StoredAuthSession {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  tokenType: "Bearer";
+  user: DesktopAuthUser;
+}
+
+/** @deprecated Use StoredAuthSession */
 export interface InternalAuthSession extends PublicAuthSession {
   accessToken: string;
   refreshToken?: string;
 }
 
-export interface AuthAPI {
-  getSession(): Promise<PublicAuthSession | null>;
-  login(input: LoginInput): Promise<PublicAuthSession>;
-  logout(): Promise<void>;
-  refresh(): Promise<PublicAuthSession | null>;
+export interface DesktopAuthAPI {
+  getState(): Promise<DesktopAuthState>;
+  saveEndpointConfig(config: AuthEndpointConfig): Promise<AuthEndpointConfig>;
+  login(input: LoginInput): Promise<DesktopAuthState>;
+  logout(): Promise<DesktopAuthState>;
+  refresh(): Promise<DesktopAuthState>;
 }
 
+export function toPublicState(
+  session: StoredAuthSession | null,
+  endpointConfig: AuthEndpointConfig | null,
+): DesktopAuthState {
+  if (!session) {
+    return {
+      authenticated: false,
+      endpointConfig,
+      user: null,
+      expiresAt: null,
+    };
+  }
+  return {
+    authenticated: true,
+    endpointConfig,
+    user: session.user,
+    expiresAt: session.expiresAt ?? null,
+  };
+}
+
+/** Maps legacy internal session shape to StoredAuthSession */
+export function internalToStored(session: InternalAuthSession): StoredAuthSession {
+  return {
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    expiresAt: session.accessTokenExpiresAt,
+    tokenType: "Bearer",
+    user: {
+      id: session.userId,
+      username: session.username,
+      displayName: session.displayName,
+      tenantId: session.tenantId,
+    },
+  };
+}
+
+/** @deprecated Use toPublicState */
 export function toPublicSession(session: InternalAuthSession): PublicAuthSession {
   return {
     userId: session.userId,

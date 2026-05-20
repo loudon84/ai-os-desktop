@@ -10,8 +10,8 @@ import {
 /**
  * ShellView session partition strategy (V3.2.1):
  *
- * - aios-home: persist:aios-desktop (+ token header injection on frontend/backend ports)
- * - web-operator: persist:aios-external-web (no token injection)
+ * - aios-home: persist:aios-home (+ token header injection on whitelisted origins)
+ * - web-operator: persist:web-operator (no token injection)
  * - external-browser:*: persist:external-browser-{uuid} per tab (required at create; no token)
  */
 export class ViewRegistry {

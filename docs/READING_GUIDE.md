@@ -15,60 +15,67 @@
 
 7. `src/preload/index.ts` — 预加载桥接层（hermesAPI 90+ 方法定义）
 8. `src/preload/index.d.ts` — TypeScript 类型声明
-9. `src/preload/aios-api.ts` — AI-OS Preload API
-10. `src/preload/profile-runtime-api.ts` — Profile Runtime Preload API
-11. `src/preload/browser-api.ts` — Web Operator Preload API
-12. `src/main/index.ts` — 主进程入口（IPC 注册中心）
-13. `docs/API_CONTRACTS.md` — IPC 通信契约
+9. `src/preload/shell-api.ts` — **smcShell**（`resolveStartupDecision` 启动门控）
+10. `src/preload/auth-api.ts` — **desktopAuth**（V3.3 登录，无 token 暴露）
+11. `src/preload/user-config-api.ts` — **desktopUserConfig**（bootstrap apply / diff）
+12. `src/preload/aios-api.ts` — AI-OS Preload API
+13. `src/preload/profile-runtime-api.ts` — Profile Runtime Preload API
+14. `src/preload/browser-api.ts` — Web Operator Preload API
+15. `src/main/index.ts` — 主进程入口（IPC 注册中心，含 `setupStartupIPC()`）
+16. `docs/API_CONTRACTS.md` — IPC 通信契约
 
 ### 第三阶段：理解核心模块
 
-14. `src/main/hermes.ts` — Gateway 管理 + 消息路由（最核心）
-15. `src/main/sse-parser.ts` — SSE 流解析
-16. `src/main/config.ts` — 配置管理
-17. `src/main/installer.ts` — 安装管理
+17. `src/main/hermes.ts` — Gateway 管理 + 消息路由（最核心）
+18. `src/main/sse-parser.ts` — SSE 流解析
+19. `src/main/config.ts` — 配置管理
+20. `src/main/installer.ts` — 安装管理
 
 ### 第四阶段：理解数据模块
 
-18. `src/main/sessions.ts` — 会话查询
-19. `src/main/session-cache.ts` — 会话缓存
-20. `src/main/models.ts` + `src/main/default-models.ts` — 模型管理
-21. `src/main/profiles.ts` — 配置档案
-22. `src/main/memory.ts` — 记忆管理
-23. `src/main/soul.ts` — 人格管理
-24. `src/main/tools.ts` — 工具集
-25. `src/main/skills.ts` — 技能管理
-26. `src/main/cronjobs.ts` — 定时任务
+21. `src/main/sessions.ts` — 会话查询
+22. `src/main/session-cache.ts` — 会话缓存
+23. `src/main/models.ts` + `src/main/default-models.ts` — 模型管理
+24. `src/main/profiles.ts` — 配置档案
+25. `src/main/memory.ts` — 记忆管理
+26. `src/main/soul.ts` — 人格管理
+27. `src/main/tools.ts` — 工具集
+28. `src/main/skills.ts` — 技能管理
+29. `src/main/cronjobs.ts` — 定时任务
 
 ### 第五阶段：理解运行时模块
 
-27. `src/main/profile-runtime-manager.ts` — Profile Runtime 生命周期
-28. `src/main/profile-runtime-db.ts` — SQLite 控制面
-29. `src/main/profile-runtime-ipc.ts` — Profile Runtime IPC
-30. `src/main/gateway-supervisor.ts` — 健康监管 + 自动重启
-31. `src/main/gateway-log-collector.ts` — 日志收集
-32. `src/main/runtime-reconciler.ts` — 状态恢复
-33. `src/main/aios/aios-ipc.ts` — AI-OS IPC
-34. `src/main/aios/aios-runtime-supervisor.ts` — AI-OS 运行时监管
-35. `src/main/aios/aios-reconciler.ts` — AI-OS 状态恢复
+30. `src/main/profile-runtime-manager.ts` — Profile Runtime 生命周期
+31. `src/main/profile-runtime-db.ts` — SQLite 控制面
+32. `src/main/profile-runtime-ipc.ts` — Profile Runtime IPC
+33. `src/main/gateway-supervisor.ts` — 健康监管 + 自动重启
+34. `src/main/gateway-log-collector.ts` — 日志收集
+35. `src/main/runtime-reconciler.ts` — 状态恢复
+36. `src/main/aios/aios-ipc.ts` — AI-OS IPC
+37. `src/main/aios/aios-runtime-supervisor.ts` — AI-OS 运行时监管
+38. `src/main/aios/aios-reconciler.ts` — AI-OS 状态恢复
 
 ### 第六阶段：理解 UI 层
 
-36. `src/renderer/src/App.tsx` — 根组件（屏幕路由）
-37. `src/renderer/src/constants.ts` — 常量定义
-38. `src/renderer/src/screens/Layout/Layout.tsx` — 主布局（V1.4 编排层）
-39. `src/renderer/src/screens/Chat/Chat.tsx` — 聊天页（最核心 UI）
-40. `src/renderer/src/components/layout/` — Desktop Shell 组件族
-41. 其他 screens/ 按需阅读
+39. `src/renderer/src/App.tsx` — 根组件（屏幕路由 + `useStartupGate`）
+40. `src/renderer/src/hooks/useStartupGate.ts` — splash → login → … 启动门控
+41. `src/renderer/src/constants.ts` — 常量定义
+42. `src/renderer/src/screens/Layout/Layout.tsx` — 主布局（MainPage 编排）
+43. `src/renderer/src/modules/auth/LoginScreen.tsx` — V3.3 登录 + bootstrap
+44. `src/renderer/src/screens/Chat/Chat.tsx` — 聊天页（最核心 UI）
+45. `src/renderer/src/components/layout/` — Desktop Shell 组件族
+46. 其他 screens/ 按需阅读
 
 ### 第七阶段：理解共享模块
 
-42. `src/shared/i18n/index.ts` — i18n 核心
-43. `src/shared/i18n/config.ts` — i18n 配置
-44. `src/shared/i18n/locales/zh-CN/` — 中文翻译（参考）
-45. `src/shared/profile-runtime/profile-runtime-contract.ts` — Profile Runtime 契约
-46. `src/shared/enterprise/enterprise-contract.ts` — Enterprise 契约
-47. `src/shared/aios/aios-contract.ts` — AI-OS 契约
+47. `src/shared/i18n/index.ts` — i18n 核心
+48. `src/shared/i18n/config.ts` — i18n 配置
+49. `src/shared/i18n/locales/zh-CN/` — 中文翻译（参考）
+50. `src/shared/auth/auth-contract.ts` — Auth / LoginInput（`email`）
+51. `src/shared/user-config/user-config-contract.ts` — Bootstrap schema v2
+52. `src/shared/profile-runtime/profile-runtime-contract.ts` — Profile Runtime 契约
+53. `src/shared/enterprise/enterprise-contract.ts` — Enterprise 契约
+54. `src/shared/aios/aios-contract.ts` — AI-OS 契约
 
 ---
 
@@ -121,11 +128,24 @@
 8. `src/main/gateway-log-collector.ts` — 日志收集
 9. `src/main/runtime-reconciler.ts` — 状态恢复
 
+### 阅读 AI-OS Auth + Bootstrap + 启动门控（V3.3 / V3.3.1）
+
+1. `src/renderer/src/hooks/useStartupGate.ts` — splash → login → … 路由
+2. `src/renderer/src/modules/auth/LoginScreen.tsx` — Endpoint + 邮箱登录 + bootstrap
+3. `src/preload/shell-api.ts` — `window.smcShell.resolveStartupDecision`
+4. `src/preload/auth-api.ts` / `user-config-api.ts` — Renderer API
+5. `src/main/startup/startup-ipc.ts` + `startup-decision.ts` — 启动门控（auth + bootstrap 前置）
+6. `src/main/auth/auth-client.ts` — AI-OS HTTP Auth（`email` / `refresh_token`）
+7. `src/main/auth/token-store.ts` — Token Vault（keytar / safeStorage / 内存）
+8. `src/main/user-config/user-config-client.ts` — 默认本地 bootstrap（`local-v1`）
+9. `src/main/user-config/user-config-bootstrap.ts` + `user-config-applier.ts` — apply 链
+10. `src/main/shell/aios-home-view-coordinator.ts` — aios-home prepare + deactivate
+
 ### 阅读 AI-OS Runtime
 
 1. `src/renderer/src/screens/AIOSHome/AIOSHomeScreen.tsx` — AI-OS 首页
-2. `src/renderer/src/screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx` — AI-OS 工作台
-3. `src/renderer/src/components/aios/AiOsWebAppHost.tsx` — Web 宿主
+2. `src/renderer/src/components/shell/WebContentsHost.tsx` — 嵌入视口 bounds / show
+3. `src/renderer/src/screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx` — AI-OS 工作台
 4. `src/preload/aios-api.ts` — Preload API
 5. `src/main/aios/aios-ipc.ts` — IPC handler
 6. `src/main/aios/aios-runtime-supervisor.ts` — 运行时监管
@@ -171,7 +191,7 @@
 2. **入口文件** — 精确路径
 3. **页面结构** — 页面 → 组件 → Hook 链
 4. **组件依赖** — import 关系
-5. **IPC 调用** — 使用的 hermesAPI / profileRuntime / aiosRuntime / aiosBrowser 方法
+5. **IPC 调用** — 使用的 `hermesAPI` / `smcShell` / `desktopAuth` / `desktopUserConfig` / `profileRuntime` / `aiosRuntime` / `aiosBrowser` 方法
 6. **数据流** — 用户操作 → IPC → 主进程 → 返回
 7. **类型定义** — 关键 TypeScript 类型
 8. **可复用模式** — 现有可复用的组件/函数

@@ -179,10 +179,12 @@ import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./ent
 import { registerAiosIpc } from "./aios/aios-ipc";
 import { registerAuthIpc } from "./auth/auth-ipc";
 import { installTokenHeaderInjector } from "./auth/token-header-injector";
+import { setupStartupIPC } from "./startup/startup-ipc";
 import { registerUserConfigIpc } from "./user-config/user-config-ipc";
 import { getAiOsEnvConfig } from "./aios/aios-config";
 import { ShellViewManager } from "./shell/views/shell-view-manager";
 import { registerShellViewIpc, destroyShellViews } from "./shell/shell-view-ipc";
+import { bindShellViewManager, unbindShellViewManager } from "./shell/aios-home-view-coordinator";
 import { bindShellViewEventForwarder } from "./shell/shell-view-event-forwarder";
 import { registerMainPageStateIpc } from "./shell/main-page-state-ipc";
 import { buildAppMenu } from "./shell/shell-menu";
@@ -421,6 +423,12 @@ function setupIPC(): void {
     registerAuthIpc();
   } catch (err) {
     console.error("[AUTH] Failed to register auth IPC:", err);
+  }
+
+  try {
+    setupStartupIPC();
+  } catch (err) {
+    console.error("[STARTUP] Failed to register startup IPC:", err);
   }
 
   try {
@@ -1366,10 +1374,12 @@ app.whenReady().then(async () => {
     // ShellView IPC + renderer event forwarder
     if (shellViewManager) {
       try {
+        bindShellViewManager(shellViewManager);
         registerShellViewIpc(shellViewManager);
         const unbindShellViewEvents = bindShellViewEventForwarder(mainWindow);
         mainWindow.on("closed", () => {
           unbindShellViewEvents();
+          unbindShellViewManager();
         });
       } catch (err) {
         console.error("[SHELL-IPC] Failed to register ShellView IPC:", err);

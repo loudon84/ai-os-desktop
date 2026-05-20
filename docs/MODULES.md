@@ -538,7 +538,7 @@
 
 #### shell-browser-view-adapter.ts — ShellBrowserViewAdapter（V2.2）
 
-- **职责**: `BrowserViewPort` → ShellViewManager layer `web-operator`；partition `persist:aios-external-web`
+- **职责**: `BrowserViewPort` → ShellViewManager layer `web-operator`；partition `persist:web-operator`
 - **常量**: `WEB_OPERATOR_LAYER_ID`
 
 #### browser-view-manager.ts — BrowserViewManager（legacy）
@@ -563,14 +563,14 @@
 - **职责**: `aios-home` / `web-operator` / `external-browser` 默认 partition；文件头三分区策略注释
 - **分区**: `AIOS_HOME_PARTITION`、`WEB_OPERATOR_PARTITION`（来自 `browser-partitions.ts`）；external 创建时必须显式 `externalBrowserPartition(id)`
 
-#### token-inject-url.ts — Token 注入 URL 判定（V3.2.1）
+#### token-inject-url.ts — Token 注入 URL 判定（V3.3+）
 
-- **职责**: `getTokenInjectPorts()`、`shouldInjectTokenForUrl()`；端口来自 `getAiOsEnvConfig().frontendPort/backendPort`
-- **范围**: 仅 `127.0.0.1` / `localhost`；不注入 Gateway 8642
+- **职责**: `shouldInjectTokenForUrl()`；origin 白名单来自 `AuthEndpointConfig`（`buildAllowedOrigins`）
+- **范围**: 仅 `TOKEN_INJECT_PARTITIONS` = `[persist:aios-home]`
 
-#### token-header-injector.ts — Session 请求头注入（V3.2 / V3.2.1）
+#### token-header-injector.ts — Session 请求头注入（V3.3+）
 
-- **职责**: `installTokenHeaderInjector()`；对 `persist:aios-desktop` 分区在 `shouldInjectTokenForUrl` 为真时附加 `Authorization: Bearer`
+- **职责**: `installTokenHeaderInjector()`；对 `persist:aios-home` 分区在 origin 白名单匹配时附加 `Authorization: Bearer`
 
 #### layout-calc-parser.ts — 安全 calc 解析（V2.3）
 

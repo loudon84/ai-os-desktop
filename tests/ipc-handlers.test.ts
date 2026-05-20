@@ -10,10 +10,15 @@ const userConfigIpcSrc = readFileSync(
   join(ROOT, "src/main/user-config/user-config-ipc.ts"),
   "utf-8",
 );
+const aiosIpcSrc = readFileSync(join(ROOT, "src/main/aios/aios-ipc.ts"), "utf-8");
+const startupIpcSrc = readFileSync(join(ROOT, "src/main/startup/startup-ipc.ts"), "utf-8");
+const shellApiSrc = readFileSync(join(ROOT, "src/preload/shell-api.ts"), "utf-8");
 const preloadSrc = [
   readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8"),
   readFileSync(join(ROOT, "src/preload/auth-api.ts"), "utf-8"),
   readFileSync(join(ROOT, "src/preload/user-config-api.ts"), "utf-8"),
+  readFileSync(join(ROOT, "src/preload/aios-api.ts"), "utf-8"),
+  shellApiSrc,
 ].join("\n");
 
 /**
@@ -67,8 +72,14 @@ const DYNAMIC_MAIN_CHANNELS = [
   "first-run-wizard:cancel-install",
   "first-run-wizard:select-zip-file",
   "enterprise:get-installer-precheck",
-  // AIOS IPC (registered in aios/aios-ipc.ts)
-  "aios:get-runtime-snapshot",
+];
+
+// Preload still invokes these; handlers live in deprecated AiOsWebContentsController (not registered at runtime)
+const DEPRECATED_PRELOAD_CHANNELS = [
+  "aios:install",
+  "aios:view:load-home",
+  "aios:view:reload",
+  "aios:view:set-bounds",
 ];
 
 // Channels used internally or via dedicated preload modules not scanned here
@@ -86,6 +97,8 @@ const mainChannels = [
   ...extractIpcHandleChannels(windowIpcSrc),
   ...extractIpcHandleChannels(authIpcSrc),
   ...extractIpcHandleChannels(userConfigIpcSrc),
+  ...extractIpcHandleChannels(aiosIpcSrc),
+  ...extractIpcHandleChannels(startupIpcSrc),
   ...DYNAMIC_MAIN_CHANNELS,
 ];
 const preloadChannels = extractPreloadInvokeChannels(preloadSrc);
@@ -100,7 +113,9 @@ describe("IPC Handler ↔ Preload Consistency", () => {
   });
 
   it("every preload invoke has a matching main handler", () => {
-    const missing = preloadChannels.filter((ch) => !mainChannels.includes(ch));
+    const missing = preloadChannels.filter(
+      (ch) => !mainChannels.includes(ch) && !DEPRECATED_PRELOAD_CHANNELS.includes(ch),
+    );
     expect(missing).toEqual([]);
   });
 
@@ -159,6 +174,44 @@ describe("New IPC handlers from v0.8/v0.9 features", () => {
 });
 
 // ─── Legacy handlers still present ──────────────────────
+
+describe("Startup IPC handlers (V3.3)", () => {
+  it("startup-ipc registers startup:resolve-decision", () => {
+    expect(extractIpcHandleChannels(startupIpcSrc)).toContain("startup:resolve-decision");
+  });
+
+  it("main index calls setupStartupIPC", () => {
+    expect(indexSrc).toContain("setupStartupIPC");
+  });
+
+  it("preload exposes smcShell and invokes startup:resolve-decision", () => {
+    expect(readFileSync(join(ROOT, "src/preload/index.ts"), "utf-8")).toContain(
+      'exposeInMainWorld("smcShell"',
+    );
+    expect(shellApiSrc).toContain('"startup:resolve-decision"');
+    expect(preloadChannels).toContain("startup:resolve-decision");
+  });
+});
+
+describe("Auth IPC handlers (V3.3)", () => {
+  const authChannels = [
+    "auth:get-state",
+    "auth:save-endpoint-config",
+    "auth:login",
+    "auth:logout",
+    "auth:refresh",
+  ];
+
+  for (const ch of authChannels) {
+    it(`auth-ipc registers: ${ch}`, () => {
+      expect(extractIpcHandleChannels(authIpcSrc)).toContain(ch);
+    });
+
+    it(`preload invokes: ${ch}`, () => {
+      expect(preloadChannels).toContain(ch);
+    });
+  }
+});
 
 describe("Legacy IPC handlers preserved", () => {
   const legacyChannels = [

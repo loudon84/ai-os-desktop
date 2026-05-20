@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.5（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix**） |
+| **版本** | 0.3.6（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -40,7 +40,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **菜单接管**：删除 index.ts 内联 `buildMenu()`，统一使用 `shell-menu.ts` 的 `buildAppMenu`，含异常回退最小菜单
 - **ShellViewManager 集成**：以 SVM 统一管理 aios-home View，URL 由 `getAiOsEnvConfig()` 动态决定，`AiOsWebContentsController` 标记 @deprecated
 - **ShellView IPC**：新增 `shell:view:activate`、`shell:view:set-bounds`、`shell:view:hide` 三个 IPC 通道 + 参数校验
-- **Preload API**：新增 `window.shellView`（activate/setBounds/hide），`window.smcShell` 标记 @deprecated
+- **Preload API**：`window.shellView`（ShellView 全量 IPC）；**V3.3.1** 恢复并正式暴露 `window.smcShell`（`resolveStartupDecision` 启动门控）
 - **WebContentsHost**：通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级UI），替换 `AiOsWebAppHost`
 - **i18n**：新增 shellView 模块（en/zh-CN/es/pt-BR）
 
@@ -84,16 +84,30 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Sidebar 二级 panel**：`workspace-secondary-nav.ts`；`aios-workspace` → Chat / Sessions / Agents panels
 - **统一 Settings Drawer**：`screens/SettingsDrawer/`（Account / Runtime / Profiles / Config sync）；不切换 Workspace
 - **MainPage 状态 V2**：`workspaceOrder`、`workspaceSecondaryState`、`migrateMainPageState`
-- **Token 注入**：`token-header-injector` → `persist:aios-desktop` 分区
+- **Token 注入**：`token-header-injector` → `persist:aios-home` 分区（V3.3 origin 白名单）
 
 **V3.2.1（Hotfix，计划 `.cursor/plans/v3.2.1_hotfix_a6676597.plan.md`）**：
-- **Session 三分区**（`browser-partitions.ts`）：`persist:aios-desktop`（Home + token）/ `persist:aios-external-web`（Web Operator）/ `persist:external-browser-{uuid}`（每 Tab 独立，防 Cookie 串扰）
+- **Session 三分区**（历史，V3.3 已重命名）：见 V3.3 / V3.3.1 当前值 `persist:aios-home` / `persist:web-operator` / `persist:external-browser-{uuid}`
 - **Token 端口**：`token-inject-url.ts` 读取 `getAiOsEnvConfig().frontendPort` / `backendPort`；不注入 Gateway 8642
 - **Runtime 入口收敛（PRD #5）**：`RuntimeGuard` 仅「启动 Gateway」+「打开设置」；`onOpenRuntimeSettings` ≡ `openSettingsDrawer("runtime")`；禁止独立 HermesRuntimeSettingsDrawer
 - **`WorkspaceRenderer`**：按 `module.kind`（webview / composite / react）分发
 - **`MainViewTabs`**：固定 Tab 由 registry `draggable: false` 判定；仅 `external-browser:*` 可拖
 - **i18n**：四语言 `navigation.ts` 补齐二级侧栏与 `openSettings` 等 key
 - **单测**：`tests/browser-partitions.test.ts`、`tests/token-inject-url.test.ts`
+
+**V3.3（Auth Embed，PRD `prd/v3.3_module_ui.md`）**：
+- **启动顺序**：`splash → login → welcome/install/setup → main`（login 在 Hermes 安装之前）
+- **Endpoint + Login 合一**：`LoginScreen` 配置 backendUrl / authPrefix / aiosHomeUrl + 邮箱密码
+- **Main Token Vault**：keytar → safeStorage → 内存；Renderer 仅见 `DesktopAuthState`（无 token）
+- **Session 分区当前值**：`persist:aios-home` / `persist:web-operator` / `persist:external-browser-{uuid}`
+
+**V3.3.1（Auth Hotfix + 本地 Bootstrap）**：
+- **启动门控**：local / remote / ssh 统一 auth + bootstrap；`bootstrap-pending` → LoginScreen 自动 bootstrap
+- **AI-OS Auth**：HTTP `{ email, password }` → `POST /api/v1/auth/login`（默认 backend `:8000`）；**不是** Hermes Gateway 登录
+- **Bootstrap 默认本地**：不请求 `GET /api/v1/desktop/bootstrap`；合成 `local-v1` 配置并 apply；远程拉取需 `HERMES_USE_REMOTE_USER_CONFIG=true`
+- **smcShell + startup IPC**：`window.smcShell.resolveStartupDecision()` ↔ `startup:resolve-decision` ↔ `startup-decision.ts`
+- **aios-home 嵌入时机**：coordinator create/reload 后 deactivate；主界面 `WebContentsHost` setBounds 后才显示
+- **Bootstrap apply**：同步 endpoint config + prepare `aios-home` URL（`user-config-applier.ts` / `aios-home-view-coordinator.ts`）
 
 ## 核心目录
 
@@ -106,11 +120,13 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
 | `src/main/browser/` | Web Operator — **ShellBrowserViewAdapter** + BrowserController/SecurityGuard/AuditLogger/ToolBridge（`browser-view-manager.ts` legacy） | 按需扩展 |
-| `src/preload/` | 预加载桥接层 — contextBridge 暴露 **hermesAPI（90+ 方法，含 windowControls）+ aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView**（7 个文件） | 谨慎修改，影响全进程通信 |
+| `src/preload/` | 预加载桥接层 — **hermesAPI + smcShell + desktopAuth + desktopUserConfig + aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView + mainPageState** | 谨慎修改，影响全进程通信 |
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |
 | `src/renderer/src/workspace/` | **V3.2** Workspace registry / tabs / `WorkspaceRenderer` 路由 | 顶栏 Tab 与 Outlet |
-| `src/main/auth/` | **V3.2.1** `token-inject-url.ts`、`token-header-injector.ts` | AI-OS Home Authorization |
+| `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | AI-OS 登录 + Bearer 注入 |
+| `src/main/user-config/` | **V3.3** 本地 bootstrap apply / diff / applier | 登录后桌面配置落盘 |
+| `src/main/startup/` | **V3.3.1** `startup-decision.ts`、`startup-ipc.ts` | 启动门控（auth + bootstrap 前置） |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |

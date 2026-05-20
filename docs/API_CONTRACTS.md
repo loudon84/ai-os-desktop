@@ -20,25 +20,32 @@
 
 ### Startup Gate（启动路由决策）
 
+Renderer 通过 `window.smcShell.resolveStartupDecision()` 访问（Preload：`src/preload/shell-api.ts`）。
+
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `startup:resolve-decision` | — | `StartupDecision` | 解析启动决策，决定进入 main/welcome/setup/installing |
+| `startup:resolve-decision` | — | `StartupDecision` | 解析启动路由；Main 注册于 `setupStartupIPC()` |
 
 **StartupDecision 结构：**
 ```typescript
 {
   runtime: RuntimeState | null;
   connectionMode: "local" | "remote" | "ssh";
-  nextScreen: "main" | "welcome" | "setup" | "installing";
+  nextScreen: "login" | "main" | "welcome" | "setup" | "installing";
   skipAgentInstall: boolean;
   skipModelSetup: boolean;
   shouldVerifyInBackground: boolean;
-  reason: StartupDecisionReason;
+  reason: StartupDecisionReason; // 含 auth-required | bootstrap-pending | runtime-ready-* | remote-* | ssh-*
   error?: string;
 }
 ```
 
-**决策规则：**
+**V3.3.1 门控顺序**（`startup-decision.ts`）：① endpoint + token → ② `bootstrapState.initialized` → ③ 按 connection mode 分支（local 可能 → main / setup / welcome）。
+
+**决策规则（V3.3.1，按优先级）：**
+- 无 endpoint 或 token → `login`（`reason: auth-required`）
+- 有 token 但 `!bootstrapState.initialized` → `login`（`reason: bootstrap-pending`；LoginScreen 自动 bootstrap）
+- 上述通过后，按 connection mode 分支：
 - `runtimeReady && modelConfigured` → `main`（跳过安装和配置）
 - `runtimeReady && !modelConfigured` → `setup`（跳过安装，只做配置）
 - `!runtimeReady` → `welcome`（需要安装）
@@ -514,8 +521,8 @@ Dropdown 系统 IPC。
 
 | 分区 | Layer / 用途 | `shell:view:create` 默认 | Token 注入 |
 |---|---|---|---|
-| `persist:aios-desktop` | `aios-home` | registry 默认 | **是** |
-| `persist:aios-external-web` | `web-operator` | registry 默认（`BROWSER_PARTITION`） | 否 |
+| `persist:aios-home` | `aios-home` | registry 默认 | **是**（origin 白名单） |
+| `persist:web-operator` | `web-operator` | registry 默认（`BROWSER_PARTITION`） | 否 |
 | `persist:external-browser-{uuid}` | `external-browser:{uuid}` | **无默认**；创建时 **必须** 传 `options.partition` | 否 |
 
 ```typescript
@@ -530,13 +537,15 @@ await shellView.create({
 });
 ```
 
-**V3.2 / V3.2.1 Token 注入（Main only）**：
+**V3.3 Token 注入（Main only）**：
 
 - **安装**：`installTokenHeaderInjector()`（应用启动时调用一次）
-- **分区**：仅 `TOKEN_INJECT_PARTITIONS` = `[persist:aios-desktop]`（`token-inject-url.ts`）
-- **URL 判定**：`shouldInjectTokenForUrl(url)` — 主机 `127.0.0.1` 或 `localhost`，端口集合来自 `getAiOsEnvConfig()` 的 **`frontendPort`** 与 **`backendPort`**（默认 3000 / 8000）
-- **不注入**：Hermes Gateway（如 `8642`）、`persist:aios-external-web`、`persist:external-browser-*`
-- **凭据**：`readEncryptedSession().accessToken` → 请求头 `Authorization: Bearer <token>`
+- **分区**：仅 `TOKEN_INJECT_PARTITIONS` = `[persist:aios-home]`
+- **URL 判定**：`shouldInjectTokenForUrl(url)` — origin 白名单来自 `AuthEndpointConfig`（`aiosHomeUrl` + `backendUrl`）
+- **不注入**：`persist:web-operator`、`persist:external-browser-*`、`persist:aios-workspace`、`persist:office`
+- **凭据**：`getCachedAccessToken()` → 请求头 `Authorization: Bearer <token>`（keytar → safeStorage → 内存）
+
+**V3.2 / V3.2.1（已 superseded）**：端口-based 注入 + `persist:aios-desktop`。
 
 **Preload API**: `window.shellView`
 
@@ -597,8 +606,9 @@ Layer 常量：renderer `web-operator-constants.ts`；main `shell-browser-view-a
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
 | `aios:get-runtime-snapshot` | 无 | `AiOsRuntimeSnapshot` | 获取 AI-OS 运行时快照，包含 services、ready、webAppUrl |
+| `aios:get-home-url` | 无 | `{ url: string }` | 只读解析当前 AI-OS Home URL（无 token） |
 
-**Preload API**: `window.aiosRuntime.getRuntimeSnapshot()`
+**Preload API**: `window.aiosRuntime.getRuntimeSnapshot()` / `getHomeUrl()`
 
 ```typescript
 interface AiOsRuntimeSnapshot {
@@ -620,41 +630,72 @@ interface AiOsRuntimeSnapshot {
 
 ---
 
-### Desktop Auth（V3）
+### Desktop Auth（V3.3）
 
 Renderer 通过 `window.desktopAuth` 访问；**不**向 Renderer 返回 `accessToken` / `refreshToken`。
 
+**LoginInput**（`src/shared/auth/auth-contract.ts`）：
+
+```typescript
+{
+  endpointConfig: { backendUrl: string; authPrefix: string; aiosHomeUrl: string };
+  email: string;    // AI-OS backend 要求有效邮箱格式
+  password: string;
+}
+```
+
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
-| `auth:get-session` | — | `PublicAuthSession \| null` | 当前公开会话（无 token） |
-| `auth:login` | `LoginInput` | `PublicAuthSession` | 登录；token 写入 Main `safeStorage` |
-| `auth:logout` | — | `void` | 登出并删除 `userData/auth/session.enc` |
-| `auth:refresh` | — | `PublicAuthSession \| null` | 刷新会话 |
+| `auth:get-state` | — | `DesktopAuthState` | 认证状态 + endpoint 配置（无 token） |
+| `auth:save-endpoint-config` | `AuthEndpointConfig` | `AuthEndpointConfig` | 持久化 endpoint 到 `userData/auth-endpoint-config.json` |
+| `auth:login` | `LoginInput` | `DesktopAuthState` | 登录；token 写入 Main（keytar / safeStorage / 内存） |
+| `auth:logout` | — | `DesktopAuthState` | 登出并清除 token vault + 停止注入 |
+| `auth:refresh` | — | `DesktopAuthState` | 刷新会话 |
 
-Mock：`HERMES_USE_MOCK_AUTH !== "false"` 时使用 `MockAuthClient`；backend 就绪后切换 `HttpAuthClient`（`http://127.0.0.1:{backendPort}/api/v1/desktop/auth/*`）。
+**AI-OS Auth HTTP**（`auth-client.ts`，非 IPC；默认 `HERMES_USE_MOCK_AUTH` 关闭时启用）：
 
-开发环境若 `safeStorage` 不可用，Main 在 `!app.isPackaged` 时回退写入 `userData/auth/session.json`（明文，仅 dev）。
+| 操作 | 方法 + URL | 请求体 | 响应映射 |
+|---|---|---|---|
+| 登录 | `POST {backendUrl}{authPrefix}/login` | `{ email, password }` | `access_token` / `accessToken` → vault |
+| 刷新 | `POST {backendUrl}{authPrefix}/refresh` | `{ refresh_token }` | 同上 |
+| 登出 | `POST {backendUrl}{authPrefix}/logout` | Bearer header | best-effort |
 
-### Desktop User Config Bootstrap（V3）
+默认 Endpoint（`getDefaultAuthEndpointConfig()`）：backend `http://127.0.0.1:8000`、authPrefix `/api/v1/auth`、aiosHomeUrl `http://127.0.0.1:3000`。
 
-Renderer 通过 `window.desktopUserConfig` 访问。
+Mock：仅当 `HERMES_USE_MOCK_AUTH=true`（单元测试/调试）时使用 `MockAuthClient`；否则始终向配置的 AI-OS Auth 发起 HTTP 请求。
+
+**V3.3.1 启动门控**：所有连接模式均先要求 endpoint + token + `bootstrapState.initialized`；未完成 bootstrap 时 `reason: bootstrap-pending` → LoginScreen 自动重试 bootstrap。
+
+不可加密时**禁止明文落盘**，仅内存 session。keytar 加载失败时回退 safeStorage / 内存（见 `token-store.ts`）。
+
+### Desktop User Config Bootstrap（V3.3）
+
+Renderer 通过 `window.desktopUserConfig` 访问。`DesktopBootstrapConfig.schemaVersion` = **2**（`aios.authPrefix`、`aios.aiosHomeUrl`；兼容 `frontendUrl`）。
 
 | IPC Channel | 参数 | 返回值 | 说明 |
 |---|---|---|---|
 | `user-config:get-local` | — | `DesktopBootstrapConfig \| null` | 本地缓存的 bootstrap 配置 |
-| `user-config:fetch-remote` | — | `DesktopBootstrapConfig` | 从 AI-OS backend 拉取 |
+| `user-config:get-bootstrap-state` | — | `BootstrapState` | 是否已完成首次 bootstrap |
+| `user-config:fetch-remote` | — | `DesktopBootstrapConfig` | 解析 bootstrap 配置（**默认本地合成**，见下） |
 | `user-config:bootstrap` | — | `BootstrapResult` | 首次登录覆盖；后续返回 diff |
 | `user-config:diff-remote` | — | `ConfigDiffItem[]` | 本地 vs 远程 diff |
 | `user-config:apply-remote` | `confirmToken?: string` | `BootstrapResult` | 用户确认后应用 |
 
 应用顺序见 `user-config-applier.ts` + `user-config-applier-hermes.ts`（profiles/env → connection → models → toolsets/platforms → AI-OS env → reconcile/start → restartGateway → 提交本地缓存）。
 
-Mock 环境变量：
+**Bootstrap 来源（默认）**：登录成功后 Desktop **不请求** `GET /api/v1/desktop/bootstrap`，而是根据当前 auth session + endpoint 在 Main 合成 `local-v1`（`configVersion: "local-v1"`）并 apply。Backend 实现该接口后，设 `HERMES_USE_REMOTE_USER_CONFIG=true` 恢复远程拉取。
+
+**远程 Bootstrap API**（仅 `HERMES_USE_REMOTE_USER_CONFIG=true`）：`GET {normalizeBackendBaseUrl(backendUrl)}/api/v1/desktop/bootstrap`，Bearer 认证，响应 `DesktopBootstrapConfig` schema v2。
+
+**aios-home 嵌入**：bootstrap apply 会 prepare URL（`refreshAiosHomeView`），但 coordinator 在 create/reload 后 **deactivate**；进入 main 且 `WebContentsHost.setBounds("aios-home")` 后才显示嵌入页。
+
+Mock / 远程环境变量：
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `HERMES_USE_MOCK_AUTH` | mock 开启 | `false` 时 Auth 走 HTTP |
-| `HERMES_USE_MOCK_USER_CONFIG` | 跟随 Auth mock | `true` / `false` 显式覆盖 bootstrap 客户端 |
+| `HERMES_USE_MOCK_AUTH` | 显式 `true` 时启用 Mock Auth | 默认关闭；Desktop 登录一律走 AI-OS HTTP Auth |
+| `HERMES_USE_MOCK_USER_CONFIG` | 关闭 | `true` 时使用 mock bootstrap 数据（单测/调试） |
+| `HERMES_USE_REMOTE_USER_CONFIG` | 关闭 | `true` 时从 `{backendUrl}/api/v1/desktop/bootstrap` 拉取远程配置 |
 
 ---
 

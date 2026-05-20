@@ -9,7 +9,8 @@ export interface UserMenuDrawerProps {
 
 export function UserMenuDrawer({ open, onClose }: UserMenuDrawerProps): React.JSX.Element | null {
   const { t } = useI18n();
-  const { session, logout } = useAuth();
+  const { authState, logout } = useAuth();
+  const user = authState?.user;
 
   if (!open) return null;
 
@@ -34,12 +35,12 @@ export function UserMenuDrawer({ open, onClose }: UserMenuDrawerProps): React.JS
           </button>
         </header>
         <div className="flex-1 p-4 text-sm text-zinc-300">
-          {session ? (
+          {user ? (
             <>
-              <p className="font-medium text-zinc-100">{session.displayName}</p>
-              <p className="text-xs text-zinc-500">{session.username}</p>
-              {session.tenantName ? (
-                <p className="mt-2 text-xs text-zinc-500">{session.tenantName}</p>
+              <p className="font-medium text-zinc-100">{user.displayName ?? user.username}</p>
+              <p className="text-xs text-zinc-500">{user.username}</p>
+              {user.tenantId ? (
+                <p className="mt-2 text-xs text-zinc-500">{user.tenantId}</p>
               ) : null}
             </>
           ) : null}

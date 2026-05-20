@@ -7,58 +7,73 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { PublicAuthSession } from "../../../../shared/auth/auth-contract";
+import type { DesktopAuthState } from "../../../../shared/auth/auth-contract";
 import type { BootstrapResult } from "../../../../shared/user-config/user-config-contract";
 
 interface AuthContextValue {
-  session: PublicAuthSession | null;
+  authState: DesktopAuthState | null;
   loading: boolean;
   pendingBootstrapDiff: BootstrapResult | null;
-  setSession: (session: PublicAuthSession | null) => void;
+  setAuthState: (state: DesktopAuthState | null) => void;
   setPendingBootstrapDiff: (result: BootstrapResult | null) => void;
-  refreshSession: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
-  const [session, setSession] = useState<PublicAuthSession | null>(null);
+const emptyState: DesktopAuthState = {
+  authenticated: false,
+  endpointConfig: null,
+  user: null,
+  expiresAt: null,
+};
+
+export function AuthProvider({
+  children,
+  onLogoutComplete,
+}: {
+  children: ReactNode;
+  onLogoutComplete?: () => void;
+}): React.JSX.Element {
+  const [authState, setAuthState] = useState<DesktopAuthState | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingBootstrapDiff, setPendingBootstrapDiff] = useState<BootstrapResult | null>(
     null,
   );
 
-  const refreshSession = useCallback(async () => {
+  const refreshAuth = useCallback(async () => {
     setLoading(true);
     try {
-      const s = await window.desktopAuth.getSession();
-      setSession(s);
+      const state = await window.desktopAuth.getState();
+      setAuthState(state);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void refreshSession();
-  }, [refreshSession]);
+    void refreshAuth();
+  }, [refreshAuth]);
 
   const logout = useCallback(async () => {
-    await window.desktopAuth.logout();
-    setSession(null);
-  }, []);
+    const state = await window.desktopAuth.logout();
+    setAuthState(state);
+    setPendingBootstrapDiff(null);
+    onLogoutComplete?.();
+  }, [onLogoutComplete]);
 
   const value = useMemo(
     () => ({
-      session,
+      authState: authState ?? emptyState,
       loading,
       pendingBootstrapDiff,
-      setSession,
+      setAuthState,
       setPendingBootstrapDiff,
-      refreshSession,
+      refreshAuth,
       logout,
     }),
-    [session, loading, pendingBootstrapDiff, refreshSession, logout],
+    [authState, loading, pendingBootstrapDiff, refreshAuth, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -70,7 +85,7 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export function useAuthSession(): Pick<AuthContextValue, "session" | "loading"> {
-  const { session, loading } = useAuth();
-  return { session, loading };
+export function useAuthSession(): Pick<AuthContextValue, "authState" | "loading"> {
+  const { authState, loading } = useAuth();
+  return { authState, loading };
 }

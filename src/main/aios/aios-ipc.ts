@@ -11,6 +11,7 @@ import { runAiOsDoctor } from "./aios-doctor";
 import { reconcileAiOsRuntime } from "./aios-reconciler";
 import { checkPortConflicts } from "./aios-port-check";
 import { getAiOsEnvConfig } from "./aios-config";
+import { resolveAiosHomeUrl } from "./aios-home-url";
 import { listRuntimeServiceEvents } from "../profile-runtime-db";
 import type { AiOsServiceId, AiOsLogQueryOptions } from "../../shared/aios/aios-contract";
 
@@ -71,5 +72,9 @@ export function registerAiosIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle("aios:check-ports", async () => {
     const config = getAiOsEnvConfig();
     return checkPortConflicts([config.backendPort, config.frontendPort]);
+  });
+
+  ipcMain.handle("aios:get-home-url", () => {
+    return { url: resolveAiosHomeUrl() };
   });
 }

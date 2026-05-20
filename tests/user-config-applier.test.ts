@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DesktopBootstrapConfig } from "../src/shared/user-config/user-config-contract";
 
+const isAiOsInstalledMock = vi.hoisted(() => vi.fn(() => false));
+
 const mocks = vi.hoisted(() => ({
   applyHermes: vi.fn(),
   reconcile: vi.fn(),
@@ -13,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   capture: vi.fn(),
   restore: vi.fn(),
   getConnection: vi.fn(),
+  writeEndpoint: vi.fn(),
+  updateInjection: vi.fn(),
+  readSession: vi.fn(),
 }));
 
 vi.mock("../src/main/user-config/user-config-applier-hermes", () => ({
@@ -34,6 +39,22 @@ vi.mock("../src/main/hermes", () => ({
 vi.mock("../src/main/aios/aios-config", () => ({
   saveAiOsEnvConfig: mocks.saveAiOs,
   writeAiOsEnvFile: mocks.writeAiOs,
+}));
+
+vi.mock("../src/main/aios/aios-paths", () => ({
+  isAiOsInstalled: isAiOsInstalledMock,
+}));
+
+vi.mock("../src/main/auth/auth-endpoint-config-store", () => ({
+  writeAuthEndpointConfig: mocks.writeEndpoint,
+}));
+
+vi.mock("../src/main/auth/token-injection-policy", () => ({
+  updateTokenInjectionPolicy: mocks.updateInjection,
+}));
+
+vi.mock("../src/main/auth/token-store", () => ({
+  readStoredSession: mocks.readSession,
 }));
 
 vi.mock("../src/main/user-config/user-config-store", () => ({
@@ -77,8 +98,10 @@ function sampleConfig(): DesktopBootstrapConfig {
       models: [],
     },
     aios: {
-      frontendUrl: "http://127.0.0.1:3000",
       backendUrl: "http://127.0.0.1:8000",
+      authPrefix: "/api/auth",
+      aiosHomeUrl: "http://127.0.0.1:3000",
+      frontendUrl: "http://127.0.0.1:3000",
       autoStart: false,
     },
   };
@@ -111,6 +134,13 @@ describe("applyUserConfig", () => {
     });
     mocks.applyHermes.mockResolvedValue(undefined);
     mocks.reconcile.mockResolvedValue(undefined);
+    isAiOsInstalledMock.mockReturnValue(false);
+    mocks.readSession.mockResolvedValue({ accessToken: "tok" });
+    mocks.writeEndpoint.mockReturnValue({
+      backendUrl: "http://127.0.0.1:8000",
+      authPrefix: "/api/auth",
+      aiosHomeUrl: "http://127.0.0.1:3000",
+    });
   });
 
   it("commits local config and state only after successful apply", async () => {
@@ -126,6 +156,13 @@ describe("applyUserConfig", () => {
       }),
     );
     expect(mocks.restore).not.toHaveBeenCalled();
+    expect(mocks.writeAiOs).not.toHaveBeenCalled();
+  });
+
+  it("writes .env.desktop.local when ai-os-full is installed", async () => {
+    isAiOsInstalledMock.mockReturnValue(true);
+    await applyUserConfig(sampleConfig(), null);
+    expect(mocks.writeAiOs).toHaveBeenCalledOnce();
   });
 
   it("restores snapshot when applyHermesBootstrapConfig throws", async () => {

@@ -1,6 +1,8 @@
 import { BrowserWindow, WebContentsView, ipcMain } from "electron";
 
-const AIOS_PARTITION = "persist:aios-desktop";
+import { AIOS_HOME_PARTITION } from "../../shared/shell/browser-partitions";
+
+const AIOS_PARTITION = AIOS_HOME_PARTITION;
 
 /**
  * @deprecated V1.9 停用。由 ShellViewManager 统一管理 View。

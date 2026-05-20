@@ -7,56 +7,11 @@ import type {
 } from "../../shared/shell/shell-view-contract";
 import { ShellViewChannels } from "../../shared/shell/shell-view-contract";
 import { BROWSER_PARTITION } from "../browser/browser-types";
-import { getAiOsEnvConfig } from "../aios/aios-config";
-
-function getAiOsHomeUrl(): string {
-  const config = getAiOsEnvConfig();
-  return `http://127.0.0.1:${config.frontendPort}`;
-}
-
-function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, "");
-}
+import { bindShellViewManager, refreshAiosHomeView } from "./aios-home-view-coordinator";
 
 async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
-  const url = getAiOsHomeUrl();
-  const existing = svm.getView("aios-home");
-
-  if (!existing) {
-    await svm.createView("aios-home", "aios-home", url, {
-      layer: "content",
-    });
-    console.log(`[SHELL-IPC] Lazy created aios-home view: ${url}`);
-    return;
-  }
-
-  const webContents = existing.getWebContents?.();
-  const currentUrl = webContents?.getURL?.() ?? "";
-  const state = existing.getState?.() ?? "unknown";
-
-  const shouldReload =
-    !currentUrl ||
-    currentUrl === "about:blank" ||
-    currentUrl.startsWith("chrome-error://") ||
-    normalizeUrl(currentUrl) !== normalizeUrl(url) ||
-    state === "creating" ||
-    state === "loading" ||
-    state === "destroyed";
-
-  if (shouldReload) {
-    try {
-      await existing.load?.(url);
-      console.log(`[SHELL-IPC] Reloaded aios-home view: ${url}`);
-    } catch (err) {
-      console.warn("[SHELL-IPC] Failed to reload aios-home, recreating:", err);
-      // Destroy and recreate
-      svm.destroyView?.("aios-home");
-      await svm.createView("aios-home", "aios-home", url, {
-        layer: "content",
-      });
-      console.log(`[SHELL-IPC] Recreated aios-home view: ${url}`);
-    }
-  }
+  bindShellViewManager(svm);
+  await refreshAiosHomeView();
 }
 
 async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {

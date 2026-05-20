@@ -1,22 +1,10 @@
 import type { ReactNode } from "react";
-import { useAuthSession } from "./AuthProvider";
-import { BootstrapScreen } from "./BootstrapScreen";
-import { LoginScreen } from "./LoginScreen";
 
+/** @deprecated V3.3 — login is handled at App startup; this is a passthrough. */
 export interface LoginGateProps {
   children: ReactNode;
 }
 
 export function LoginGate({ children }: LoginGateProps): React.JSX.Element {
-  const { session, loading } = useAuthSession();
-
-  if (loading) {
-    return <BootstrapScreen state="checking-session" />;
-  }
-
-  if (!session) {
-    return <LoginScreen />;
-  }
-
   return <>{children}</>;
 }

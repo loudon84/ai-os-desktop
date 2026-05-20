@@ -1,13 +1,10 @@
 import { session } from "electron";
-import { readEncryptedSession } from "./token-store";
-import {
-  shouldInjectTokenForUrl,
-  TOKEN_INJECT_PARTITIONS,
-} from "./token-inject-url";
+import { getCachedAccessToken } from "./token-store";
+import { shouldInjectTokenForUrl, TOKEN_INJECT_PARTITIONS } from "./token-inject-url";
 
 /**
- * Injects Authorization for local AI-OS frontend/backend only.
- * Does NOT attach to web-operator or external-browser partitions.
+ * Injects Authorization for aios-home partition only, on whitelisted origins.
+ * Does NOT attach to web-operator, external-browser, office, or aios-workspace.
  */
 export function installTokenHeaderInjector(): void {
   for (const partition of TOKEN_INJECT_PARTITIONS) {
@@ -18,8 +15,7 @@ export function installTokenHeaderInjector(): void {
         return;
       }
 
-      const internal = readEncryptedSession();
-      const token = internal?.accessToken;
+      const token = getCachedAccessToken();
       if (!token) {
         callback({ requestHeaders: details.requestHeaders });
         return;
@@ -32,4 +28,15 @@ export function installTokenHeaderInjector(): void {
   }
 
   console.log("[auth] Token header injector installed for aios-home partition");
+}
+
+export async function beforeLoadAiosHome(): Promise<void> {
+  const { readAuthEndpointConfig } = await import("./auth-endpoint-config-store");
+  const { readStoredSession, hydrateTokenStore } = await import("./token-store");
+  const { updateTokenInjectionPolicy } = await import("./token-injection-policy");
+
+  await hydrateTokenStore();
+  const endpointConfig = readAuthEndpointConfig();
+  const session = await readStoredSession();
+  updateTokenInjectionPolicy(endpointConfig, Boolean(session?.accessToken));
 }

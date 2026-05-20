@@ -1,8 +1,10 @@
-import { app } from "electron";
 import { getConnectionConfig } from "../config";
+import { readAuthEndpointConfig } from "../auth/auth-endpoint-config-store";
+import { hydrateTokenStore, readStoredSession } from "../auth/token-store";
 import { resolveRuntimeState } from "../enterprise/runtime-state-resolver";
 import { testRemoteConnection } from "../hermes";
 import { isSshTunnelHealthy, startSshTunnel } from "../ssh-tunnel";
+import { readBootstrapState } from "../user-config/user-config-store";
 import type {
   StartupDecision,
   StartupScreen,
@@ -10,21 +12,62 @@ import type {
   ConnectionMode,
 } from "../../shared/startup/startup-contract";
 
+function authRequiredDecision(connectionMode: ConnectionMode): StartupDecision {
+  return {
+    runtime: null,
+    connectionMode,
+    nextScreen: "login",
+    skipAgentInstall: true,
+    skipModelSetup: true,
+    shouldVerifyInBackground: false,
+    reason: "auth-required",
+  };
+}
+
+function bootstrapPendingDecision(connectionMode: ConnectionMode): StartupDecision {
+  return {
+    runtime: null,
+    connectionMode,
+    nextScreen: "login",
+    skipAgentInstall: true,
+    skipModelSetup: true,
+    shouldVerifyInBackground: false,
+    reason: "bootstrap-pending",
+  };
+}
+
 /**
  * 解析启动决策
  *
- * 根据连接配置和运行时状态，决定应用启动后应进入哪个屏幕。
- * 这是 Startup Gate 的核心函数，在 Main Process 中执行。
- *
- * 硬性验收规则：
- * - runtimeReady && modelConfigured → main（跳过安装和配置）
- * - runtimeReady && !modelConfigured → setup（跳过安装，只做配置）
- * - !runtimeReady → welcome（需要安装）
+ * V3.3.1 规则（所有连接模式统一）：
+ * 1. endpoint + auth token 必须就绪，否则 → login
+ * 2. bootstrap 必须 initialized，否则 → login（bootstrap-pending）
+ * 3. 按 connection mode 分支：
+ *    - remote/ssh → 连接检测 → main / welcome
+ *    - local → runtimeReady + modelConfigured → main
+ *    - local → runtimeReady + !modelConfigured → setup
+ *    - local → !runtimeReady → welcome
  */
 export async function resolveStartupDecision(): Promise<StartupDecision> {
   const conn = getConnectionConfig();
+  const connectionMode: ConnectionMode = conn.mode === "remote" || conn.mode === "ssh"
+    ? conn.mode
+    : "local";
 
-  // 1. Remote 模式
+  // V3.3.1: auth + bootstrap gate for all modes
+  await hydrateTokenStore();
+  const endpointConfig = readAuthEndpointConfig();
+  const session = await readStoredSession();
+  if (!endpointConfig || !session?.accessToken) {
+    return authRequiredDecision(connectionMode);
+  }
+
+  const bootstrap = readBootstrapState();
+  if (!bootstrap.initialized) {
+    return bootstrapPendingDecision(connectionMode);
+  }
+
+  // Remote mode
   if (conn.mode === "remote" && conn.remoteUrl) {
     const ok = await testRemoteConnection(conn.remoteUrl, conn.apiKey);
     const nextScreen: StartupScreen = ok ? "main" : "welcome";
@@ -44,7 +87,7 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
     };
   }
 
-  // 2. SSH 模式
+  // SSH mode
   if (conn.mode === "ssh" && conn.ssh && conn.ssh.host) {
     try {
       await startSshTunnel(conn.ssh);
@@ -60,18 +103,18 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
           shouldVerifyInBackground: false,
           reason: "ssh-ready",
         };
-      } else {
-        return {
-          runtime: null,
-          connectionMode: "ssh",
-          nextScreen: "welcome",
-          skipAgentInstall: true,
-          skipModelSetup: true,
-          shouldVerifyInBackground: false,
-          reason: "ssh-unreachable",
-          error: "SSH tunnel health check failed",
-        };
       }
+
+      return {
+        runtime: null,
+        connectionMode: "ssh",
+        nextScreen: "welcome",
+        skipAgentInstall: true,
+        skipModelSetup: true,
+        shouldVerifyInBackground: false,
+        reason: "ssh-unreachable",
+        error: "SSH tunnel health check failed",
+      };
     } catch (err) {
       return {
         runtime: null,
@@ -86,10 +129,9 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
     }
   }
 
-  // 3. 本地模式
+  // Local mode
   const runtime = resolveRuntimeState();
 
-  // Case A: 运行时已就绪且模型已配置 → 直接进主页
   if (runtime.runtimeReady && runtime.modelConfigured) {
     return {
       runtime,
@@ -102,7 +144,6 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
     };
   }
 
-  // Case B: 运行时已就绪但模型未配置 → 进 Setup
   if (runtime.runtimeReady && !runtime.modelConfigured) {
     return {
       runtime,
@@ -115,7 +156,6 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
     };
   }
 
-  // Case C: 运行时未就绪 → 进 Welcome（需要安装）
   return {
     runtime,
     connectionMode: "local",

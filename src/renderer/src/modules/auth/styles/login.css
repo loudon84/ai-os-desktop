@@ -1,0 +1,7 @@
+.login-screen {
+  min-height: 100vh;
+}
+
+.login-brand-panel {
+  background: linear-gradient(135deg, rgb(9 9 11) 0%, rgb(24 24 27) 100%);
+}

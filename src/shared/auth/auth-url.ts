@@ -1,0 +1,72 @@
+import type { AuthEndpointConfig } from "./auth-contract";
+
+export function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+/** Strip accidental API path suffixes from a backend base URL (e.g. /api/v1). */
+export function normalizeBackendBaseUrl(url: string): string {
+  let value = normalizeBaseUrl(url);
+  value = value.replace(/\/api\/v\d+(?:\/auth|\/desktop)?$/i, "");
+  value = value.replace(/\/api\/auth$/i, "");
+  return value.replace(/\/+$/, "") || url.trim();
+}
+
+export function buildDesktopApiUrl(backendUrl: string, path: string): string {
+  const normalizedPath = path.replace(/^\/+/, "");
+  return `${normalizeBackendBaseUrl(backendUrl)}/api/v1/desktop/${normalizedPath}`;
+}
+
+export function normalizePrefix(prefix: string): string {
+  const value = prefix.trim();
+  if (!value) return "/api/v1/auth";
+  if (!value.startsWith("/")) return `/${value.replace(/\/+$/, "")}`;
+  return value.replace(/\/+$/, "") || "/";
+}
+
+export type AuthUrlPath = "login" | "refresh" | "me" | "logout";
+
+export function buildAuthUrl(config: AuthEndpointConfig, path: AuthUrlPath): string {
+  return `${normalizeBaseUrl(config.backendUrl)}${normalizePrefix(config.authPrefix)}/${path}`;
+}
+
+export function buildAllowedOrigins(config: AuthEndpointConfig): string[] {
+  const origins = new Set<string>();
+  origins.add(new URL(config.aiosHomeUrl).origin);
+  origins.add(new URL(config.backendUrl).origin);
+  return Array.from(origins);
+}
+
+export function isAllowedUrl(url: string, allowedOrigins: string[]): boolean {
+  try {
+    const origin = new URL(url).origin;
+    return allowedOrigins.includes(origin);
+  } catch {
+    return false;
+  }
+}
+
+export function isValidHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeEndpointConfig(input: AuthEndpointConfig): AuthEndpointConfig {
+  return {
+    backendUrl: normalizeBaseUrl(input.backendUrl),
+    authPrefix: normalizePrefix(input.authPrefix),
+    aiosHomeUrl: normalizeBaseUrl(input.aiosHomeUrl),
+  };
+}
+
+export function getDefaultAuthEndpointConfig(): AuthEndpointConfig {
+  return {
+    backendUrl: "http://127.0.0.1:8000",
+    authPrefix: "/api/v1/auth",
+    aiosHomeUrl: "http://127.0.0.1:3000",
+  };
+}

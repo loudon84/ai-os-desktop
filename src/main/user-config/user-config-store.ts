@@ -5,6 +5,7 @@ import type {
   BootstrapState,
   DesktopBootstrapConfig,
 } from "../../shared/user-config/user-config-contract";
+import { normalizeBootstrapConfig } from "../../shared/user-config/user-config-normalize";
 
 const USER_CONFIG_DIR = join(app.getPath("userData"), "user-config");
 const BOOTSTRAP_STATE_FILE = join(USER_CONFIG_DIR, "bootstrap-state.json");
@@ -29,10 +30,12 @@ export function writeBootstrapState(state: BootstrapState): void {
 
 export function readLocalBootstrapConfig(): DesktopBootstrapConfig | null {
   if (!existsSync(LOCAL_CONFIG_FILE)) return null;
-  return JSON.parse(readFileSync(LOCAL_CONFIG_FILE, "utf-8")) as DesktopBootstrapConfig;
+  const raw = JSON.parse(readFileSync(LOCAL_CONFIG_FILE, "utf-8")) as DesktopBootstrapConfig;
+  return normalizeBootstrapConfig(raw);
 }
 
 export function writeLocalBootstrapConfig(config: DesktopBootstrapConfig): void {
+  const normalized = normalizeBootstrapConfig(config);
   mkdirSync(dirname(LOCAL_CONFIG_FILE), { recursive: true });
-  writeFileSync(LOCAL_CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
+  writeFileSync(LOCAL_CONFIG_FILE, JSON.stringify(normalized, null, 2), "utf-8");
 }

@@ -30,6 +30,7 @@ import { shellViewApi } from "./shell-view-api";
 import { mainPageStateApi } from "./main-page-state-api";
 import { authApi } from "./auth-api";
 import { userConfigApi } from "./user-config-api";
+import { shellApi } from "./shell-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const hermesAPI = {
@@ -859,6 +860,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("mainPageState", mainPageStateApi);
     contextBridge.exposeInMainWorld("desktopAuth", authApi);
     contextBridge.exposeInMainWorld("desktopUserConfig", userConfigApi);
+    contextBridge.exposeInMainWorld("smcShell", shellApi);
   } catch (error) {
     console.error(error);
   }
@@ -883,4 +885,6 @@ if (process.contextIsolated) {
   window.desktopAuth = authApi;
   // @ts-ignore (define in dts)
   window.desktopUserConfig = userConfigApi;
+  // @ts-ignore (define in dts)
+  window.smcShell = shellApi;
 }
