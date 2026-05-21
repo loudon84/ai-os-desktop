@@ -46,6 +46,8 @@ export interface SyncRoleLibraryResult {
 
 export interface InstallExpertPresetInput {
   overwrite?: boolean;
+  /** 优先 team_v1.4；省略时默认加载 team_v1.4 再回退 v1 */
+  presetVersion?: string;
 }
 
 export interface InstallExpertPresetResult {

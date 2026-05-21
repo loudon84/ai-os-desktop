@@ -51,13 +51,19 @@ export function setupProfileRoleIPC(): void {
     );
   });
 
-  ipcMain.handle("profile-role:previewExpertPreset", async (_event, input?: { overwrite?: boolean }) => {
-    return previewExpertPresetInstall(input);
-  });
+  ipcMain.handle(
+    "profile-role:previewExpertPreset",
+    async (_event, input?: { overwrite?: boolean; presetVersion?: string }) => {
+      return previewExpertPresetInstall(input);
+    },
+  );
 
-  ipcMain.handle("profile-role:installPreset", async (_event, input?: { overwrite?: boolean }) => {
-    return installExpertPreset(input);
-  });
+  ipcMain.handle(
+    "profile-role:installPreset",
+    async (_event, input?: { overwrite?: boolean; presetVersion?: string }) => {
+      return installExpertPreset(input);
+    },
+  );
 
   ipcMain.handle("profile-role:listSpecs", async () => {
     const records = listProfileRoleSpecs();

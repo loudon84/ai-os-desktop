@@ -65,8 +65,10 @@ interface ParsedProfile {
   roleSpec?: ParsedRoleSpec;
 }
 
+const SUPPORTED_PRESET_VERSIONS = new Set<number | string>([1, "1", "v1", "team_v1.4"]);
+
 export interface ParsedImportConfig {
-  version: number;
+  version: number | string;
   runtime?: { db?: string; defaultAdapter?: string };
   gateway?: { host?: string; healthPath?: string };
   roleLibrary?: RoleLibraryRef;
@@ -156,7 +158,9 @@ function parseProfileDef(name: string, raw: unknown): ParsedProfile {
 export function parseImportConfigYaml(content: string): ParsedImportConfig {
   const raw = yaml.load(content) as Record<string, unknown>;
   if (!raw || typeof raw !== "object") throw new Error("Invalid YAML: expected object");
-  if (raw.version !== 1) throw new Error(`Unsupported config version: ${raw.version}`);
+  if (!SUPPORTED_PRESET_VERSIONS.has(raw.version as number | string)) {
+    throw new Error(`Unsupported config version: ${raw.version}`);
+  }
   if (!raw.profiles || typeof raw.profiles !== "object") throw new Error("Missing 'profiles' section");
 
   const roleLibraryRaw = raw.roleLibrary as Record<string, unknown> | undefined;
@@ -175,7 +179,7 @@ export function parseImportConfigYaml(content: string): ParsedImportConfig {
   }
 
   return {
-    version: raw.version as number,
+    version: raw.version as number | string,
     runtime: raw.runtime as ParsedImportConfig["runtime"],
     gateway: raw.gateway as ParsedImportConfig["gateway"],
     roleLibrary,

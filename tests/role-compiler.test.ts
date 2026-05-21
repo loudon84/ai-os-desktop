@@ -40,5 +40,10 @@ describe("compileProfileRole", () => {
     };
     expect(manifest.profile).toBe("writer-9601");
     expect(manifest.checksum).toBe(result.checksum);
+
+    const soul = readFileSync(result.soulPath, "utf-8");
+    expect(soul).toContain("# 写作生文专家");
+    expect(soul).not.toMatch(/端口\s*\d+/);
+    expect(soul).not.toContain("9601");
   });
 });

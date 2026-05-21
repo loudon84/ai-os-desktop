@@ -95,9 +95,12 @@ function buildSoulMarkdown(input: CompileProfileRoleInput): string {
   const delegation = DELEGATION_LINES[input.roleKey] ?? [];
   const deliverables = DEFAULT_DELIVERABLES[input.roleKey] ?? ["结构化交付物清单"];
 
-  const summary =
-    input.roleSummary?.trim() ||
-    `你是 Hermes Desktop 中的${input.roleName}，在端口 ${input.port} 上提供专家能力。`;
+  const trimmedSummary = input.roleSummary?.trim();
+  const summary = trimmedSummary
+    ? trimmedSummary.startsWith("你是")
+      ? trimmedSummary
+      : `你是 Hermes Desktop 中的${input.roleName}，负责${trimmedSummary.replace(/[。.]$/, "")}。`
+    : `你是 Hermes Desktop 中的${input.roleName}。`;
 
   return [
     `# ${input.roleName}`,

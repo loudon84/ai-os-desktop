@@ -14,28 +14,43 @@ import type {
   ExpertPresetPreviewResult,
 } from "../../shared/profile-roles/profile-role-contract";
 
-const PRESET_FILENAME = "hermes-expert-profiles.v1.yaml";
+const PRESET_V14 = "hermes-expert-profiles.team_v1.4.yaml";
+const PRESET_V1 = "hermes-expert-profiles.v1.yaml";
 
 const VALID_NAME_REGEX = /^[a-z][a-z0-9-]{1,31}$/;
 
-export function resolveExpertPresetPath(): string {
-  const candidates = [
-    join(process.cwd(), "resources/profile-presets", PRESET_FILENAME),
-    join(app.getAppPath(), "resources/profile-presets", PRESET_FILENAME),
-    join(process.resourcesPath, "profile-presets", PRESET_FILENAME),
-    join(__dirname, "../../../resources/profile-presets", PRESET_FILENAME),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
+function presetFilenames(version?: string): string[] {
+  if (version === "v1" || version === "1") {
+    return [PRESET_V1];
   }
-  return candidates[0];
+  return [PRESET_V14, PRESET_V1];
+}
+
+export function resolveExpertPresetPath(version?: string): string {
+  const names = presetFilenames(version);
+  const bases = [
+    process.cwd(),
+    app.getAppPath(),
+    process.resourcesPath,
+    join(__dirname, "../../../resources"),
+  ];
+  for (const name of names) {
+    for (const base of bases) {
+      const p =
+        base === process.resourcesPath
+          ? join(base, "profile-presets", name)
+          : join(base, "resources/profile-presets", name);
+      if (existsSync(p)) return p;
+    }
+  }
+  return join(process.cwd(), "resources/profile-presets", names[0]);
 }
 
 export function previewExpertPresetInstall(
   input?: InstallExpertPresetInput,
 ): ExpertPresetPreviewResult {
   const overwrite = input?.overwrite ?? false;
-  const presetPath = resolveExpertPresetPath();
+  const presetPath = resolveExpertPresetPath(input?.presetVersion);
   const empty: ExpertPresetPreviewResult = {
     canInstall: false,
     totalProfiles: 0,
@@ -120,7 +135,7 @@ export function previewExpertPresetInstall(
 export async function installExpertPreset(
   input?: InstallExpertPresetInput,
 ): Promise<InstallExpertPresetResult> {
-  const presetPath = resolveExpertPresetPath();
+  const presetPath = resolveExpertPresetPath(input?.presetVersion);
   if (!existsSync(presetPath)) {
     return {
       ok: false,
