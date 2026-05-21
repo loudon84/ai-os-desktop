@@ -32,7 +32,7 @@ function isValidRestoredView(
 
   const known: View[] = [
     "aios-home",
-    "aios-workspace",
+    "workspaces",
     "task-workbench",
     "web-operator",
     "office",

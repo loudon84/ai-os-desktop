@@ -668,7 +668,7 @@ interface MainPageStateAPI {
   write: (state: MainPagePersistedState) => Promise<void>;
 }
 
-interface AiosWorkspaceAPI {
+interface WorkspacesAPI {
   listFiles: (
     profileId: string,
     relativePath?: string,
@@ -688,7 +688,7 @@ interface AiosWorkspaceAPI {
 declare global {
   interface Window {
     electron: ElectronAPI;
-    aiosWorkspace: AiosWorkspaceAPI;
+    workspaces: WorkspacesAPI;
     hermesAPI: HermesAPI;
     aiosBrowser: AiosBrowserAPI;
     profileRuntime: ProfileRuntimeAPI;

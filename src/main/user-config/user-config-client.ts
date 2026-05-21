@@ -42,7 +42,7 @@ function buildMockConfig(versionSuffix: string): DesktopBootstrapConfig {
     },
     features: {
       aiosHome: true,
-      aiosWorkspace: true,
+      workspaces: true,
       webOperator: true,
       office: true,
       hermesRuntimeDrawer: true,
@@ -92,7 +92,7 @@ function buildLocalBootstrapConfig(session: StoredAuthSession): DesktopBootstrap
     },
     features: {
       aiosHome: true,
-      aiosWorkspace: true,
+      workspaces: true,
       webOperator: true,
       office: true,
       hermesRuntimeDrawer: true,

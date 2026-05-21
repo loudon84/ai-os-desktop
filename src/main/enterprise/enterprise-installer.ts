@@ -211,9 +211,9 @@ export async function executeEnterpriseInstallPipeline(
     writeInstallMarker(marker);
     onProgress(makeProgress("write-install-marker", "completed", 97, "安装标记已写入"));
 
-    onProgress(makeProgress("open-aios-workspace", "completed", 100, "安装完成"));
+    onProgress(makeProgress("open-workspaces", "completed", 100, "安装完成"));
     lock.release();
-    logger.info("open-aios-workspace", "企业安装完成");
+    logger.info("open-workspaces", "企业安装完成");
 
     return { ok: true, marker };
   } catch (err) {

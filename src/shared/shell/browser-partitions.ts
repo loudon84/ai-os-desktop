@@ -1,7 +1,7 @@
 /** Canonical shell session partitions (V3.3). */
 export const SHELL_PARTITIONS = {
   AIOS_HOME: "persist:aios-home",
-  AIOS_WORKSPACE: "persist:aios-workspace",
+  WORKSPACES: "persist:workspaces",
   WEB_OPERATOR: "persist:web-operator",
   OFFICE: "persist:office",
   EXTERNAL_BROWSER_PREFIX: "persist:external-browser-",

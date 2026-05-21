@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type View =
   | "aios-home"
-  | "aios-workspace"
+  | "workspaces"
   | "task-workbench"
   | "web-operator"
   | "office"
@@ -18,7 +18,7 @@ export type UpdateState = "available" | "downloading" | "ready" | null;
 
 export const VIEW_TITLE_KEYS: Partial<Record<View, string>> = {
   "aios-home": "navigation.aiosHome",
-  "aios-workspace": "navigation.aiosWorkspace",
+  workspaces: "navigation.workspaces",
   "task-workbench": "navigation.taskWorkbench",
   "web-operator": "navigation.webOperator",
   office: "navigation.office",

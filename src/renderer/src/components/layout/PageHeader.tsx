@@ -10,7 +10,7 @@ export interface PageHeaderProps {
 }
 
 function resolveHeaderTitle(view: View, t: (key: string) => string): string {
-  if (view === "aios-workspace") {
+  if (view === "workspaces") {
     return "AI-OS";
   }
   const key = resolveViewTitleKey(view);

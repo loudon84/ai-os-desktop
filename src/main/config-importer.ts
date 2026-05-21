@@ -371,7 +371,7 @@ export async function importConfig(
             config_json: null,
           });
         } else {
-          const defaultEntryType = isDefault ? "aios-workspace" : "specialist-workspace";
+          const defaultEntryType = isDefault ? "workspaces" : "specialist-workspace";
           const defaultRoute = isDefault ? "aios" : `profile/${name}`;
           const defaultIcon = isDefault ? "layout-dashboard" : "user";
           insertProfileEntry({

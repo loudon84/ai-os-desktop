@@ -4,7 +4,7 @@ import { shouldInjectTokenForUrl, TOKEN_INJECT_PARTITIONS } from "./token-inject
 
 /**
  * Injects Authorization for aios-home partition only, on whitelisted origins.
- * Does NOT attach to web-operator, external-browser, office, or aios-workspace.
+ * Does NOT attach to web-operator, external-browser, office, or workspaces.
  */
 export function installTokenHeaderInjector(): void {
   for (const partition of TOKEN_INJECT_PARTITIONS) {

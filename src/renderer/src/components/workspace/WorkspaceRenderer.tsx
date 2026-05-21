@@ -1,6 +1,6 @@
 import Office from "../../screens/Office/Office";
 import { WebOperatorScreen } from "../../screens/WebOperator/WebOperatorScreen";
-import { AIOSWorkspaceScreen } from "../../screens/AIOSWorkspace/AIOSWorkspaceScreen";
+import { WorkspacesScreen } from "../../screens/Workspaces";
 import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
 import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
@@ -91,8 +91,8 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
         );
       }
       return (
-        <ReactWorkspace active={workspaceId === "aios-workspace"}>
-          <AIOSWorkspaceScreen
+        <ReactWorkspace active={workspaceId === "workspaces"}>
+          <WorkspacesScreen
             profile={activeProfile}
             activePanel={secondaryPanel}
             onPanelChange={onSecondaryPanelChange}

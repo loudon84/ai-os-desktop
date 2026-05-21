@@ -35,13 +35,13 @@ import { shellApi } from "./shell-api";
 import { copilotServeApi } from "./copilot-serve-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
-const aiosWorkspace = {
+const workspaces = {
   listFiles: (profileId: string, relativePath?: string) =>
-    ipcRenderer.invoke("aios-workspace:list-files", profileId, relativePath ?? "."),
+    ipcRenderer.invoke("workspaces:list-files", profileId, relativePath ?? "."),
   readFile: (profileId: string, relativePath: string) =>
-    ipcRenderer.invoke("aios-workspace:read-file", profileId, relativePath),
+    ipcRenderer.invoke("workspaces:read-file", profileId, relativePath),
   gitStatus: (profileId: string) =>
-    ipcRenderer.invoke("aios-workspace:git-status", profileId),
+    ipcRenderer.invoke("workspaces:git-status", profileId),
 };
 
 const hermesAPI = {
@@ -879,7 +879,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("desktopUserConfig", userConfigApi);
     contextBridge.exposeInMainWorld("smcShell", shellApi);
     contextBridge.exposeInMainWorld("copilotServe", copilotServeApi);
-    contextBridge.exposeInMainWorld("aiosWorkspace", aiosWorkspace);
+    contextBridge.exposeInMainWorld("workspaces", workspaces);
   } catch (error) {
     console.error(error);
   }
@@ -909,5 +909,5 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.smcShell = shellApi;
   // @ts-ignore (define in dts)
-  window.aiosWorkspace = aiosWorkspace;
+  window.workspaces = workspaces;
 }

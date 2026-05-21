@@ -70,7 +70,7 @@ export function MainProfileSwitch({
           onClose={closeDropdown}
           onSelectProfile={onSelectProfile}
           onManageProfiles={() => onOpenRuntimeSettings?.()}
-          onCreateProfile={() => onNavigate("aios-workspace")}
+          onCreateProfile={() => onNavigate("workspaces")}
         />
       ) : null}
     </>

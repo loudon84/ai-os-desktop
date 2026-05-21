@@ -18,7 +18,7 @@ export type InstallStage =
   | "optional-start-auto-start-profiles"
   | "run-runtime-doctor"
   | "write-install-marker"
-  | "open-aios-workspace";
+  | "open-workspaces";
 
 export const INSTALL_STAGES: InstallStage[] = [
   "check-enterprise-install",
@@ -40,7 +40,7 @@ export const INSTALL_STAGES: InstallStage[] = [
   "optional-start-auto-start-profiles",
   "run-runtime-doctor",
   "write-install-marker",
-  "open-aios-workspace",
+  "open-workspaces",
 ];
 
 export type PreflightSeverity = "P0" | "P1" | "P2";
@@ -107,7 +107,7 @@ export const INSTALL_STAGE_WEIGHTS: Record<InstallStage, number> = {
   "optional-start-auto-start-profiles": 3,
   "run-runtime-doctor": 3,
   "write-install-marker": 1,
-  "open-aios-workspace": 0,
+  "open-workspaces": 0,
 };
 
 export type EnterpriseErrorCode =

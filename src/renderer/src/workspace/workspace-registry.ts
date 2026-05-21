@@ -12,8 +12,8 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     source: "system",
   },
   {
-    id: "aios-workspace",
-    titleKey: "navigation.aiosWorkspace",
+    id: "workspaces",
+    titleKey: "navigation.workspaces",
     kind: "react",
     closeable: false,
     draggable: false,
