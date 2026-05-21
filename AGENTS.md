@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（V2.0 MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix**） |
+| 版本 | 0.3.6（V2.0 MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix** + **V4.0 Multi Profiles**） |
 | appId | `com.smc.smc-ai-copilot`（productName: SMC Copilot） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -62,6 +62,7 @@ AI-OS Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等；**含 `windowControls`、`getInstallerPrecheck`** |
 | `window.aiosBrowser` | `src/preload/browser-api.ts` | Web Operator（13 方法 + 事件） |
 | `window.profileRuntime` | `src/preload/profile-runtime-api.ts` | 多 Profile 运行时（20 方法，含日志/自动重启） |
+| `window.profileRole` | `src/preload/profile-role-api.ts` | **V4.0** 专家角色预设安装、角色库同步、role spec 查询/重编译 |
 | `window.profileEntry` | `src/preload/profile-entry-api.ts` | Profile 页面入口与布局（5 方法） |
 | `window.mainPageState` | `src/preload/main-page-state-api.ts` | MainPage 壳状态 V2（workspaceOrder / externalTabs / sidebarMode / workspaceSecondaryState） |
 | `window.smcShell` | `src/preload/shell-api.ts` | **启动门控** `resolveStartupDecision()`；窗口控制 / openExternal |
@@ -286,7 +287,7 @@ AgentSourceSelect / install-wizard
 
 1. `src/renderer/src/screens/<Name>/` 组件
 2. `Layout.tsx` 导航项 + 路由
-3. `src/shared/i18n/locales/*/` 四个语言的对应模块（共 20 个模块名，见 `MODULES.md`）
+3. `src/shared/i18n/locales/*/` en 与 zh-CN 的对应模块（共 20 个模块名，见 `MODULES.md`）
 4. 通过 Preload API 调主进程，不在 Renderer 写文件 IO
 
 ### 新增 Profile Runtime 能力
@@ -320,7 +321,7 @@ AgentSourceSelect / install-wizard
 | UI | React 19 + TailwindCSS 4 + Lucide |
 | 语言 | TypeScript 5.9 |
 | DB | better-sqlite3 |
-| i18n | i18next（en / es / pt-BR / zh-CN，源语言 en） |
+| i18n | i18next（en / zh-CN，源语言 en） |
 | 测试 | Vitest + Testing Library |
 
 ```bash
@@ -402,6 +403,7 @@ npm run lint         # ESLint
 | **V3.2** | Workspace registry、SettingsDrawer 统一、Sidebar 二级、state V2、token 注入 | `workspace-registry.ts`, `SettingsDrawer/`, `workspace-secondary-nav.ts`, `main-page-state-migrate.ts`, `token-header-injector.ts` |
 | **V3.3** | Endpoint Config + Main Token Vault + origin 白名单注入 + login 启动门控 + schema v2 | `auth-endpoint-config-store.ts`, `token-store.ts`, `token-header-injector.ts`, `browser-partitions.ts`, `LoginScreen`, `startup-decision.ts` |
 | **V3.3.1** | 本地 bootstrap 默认、email 登录、smcShell 启动 IPC、aios-home 延迟显示 | `user-config-client.ts`, `auth-client.ts`, `shell-api.ts`, `startup-ipc.ts`, `aios-home-view-coordinator.ts` |
+| **V4.0** | 专家 Profile 预设（9601–9641）、`agency-agents-zh` 角色编译、`profile_role_specs` DB v3、Gateway `HERMES_HOME` 隔离、Settings Profiles 管理 UI | `profile-roles/*`, `profile-role-ipc.ts`, `hermes-local-adapter.ts`, `SettingsDrawer/multi-profiles/*`, `hermes-expert-profiles.v1.yaml` |
 | **V3.2.1** | 三分区、per-tab external partition、token 端口可配置、Runtime 入口收敛、kind 分发、registry Tab 规则 | `browser-partitions.ts`, `token-inject-url.ts`, `view-registry.ts`, `RuntimeGuard.tsx`, `MainViewTabs.tsx` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 

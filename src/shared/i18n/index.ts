@@ -30,30 +30,6 @@ import aiosHomeEn from "./locales/en/aiosHome";
 import shellViewEn from "./locales/en/shellView";
 import authEn from "./locales/en/auth";
 import runtimeSettingsEn from "./locales/en/runtimeSettings";
-import commonEs from "./locales/es/common";
-import navigationEs from "./locales/es/navigation";
-import welcomeEs from "./locales/es/welcome";
-import setupEs from "./locales/es/setup";
-import chatEs from "./locales/es/chat";
-import settingsEs from "./locales/es/settings";
-import toolsEs from "./locales/es/tools";
-import sessionsEs from "./locales/es/sessions";
-import modelsEs from "./locales/es/models";
-import providersEs from "./locales/es/providers";
-import officeEs from "./locales/es/office";
-import errorsEs from "./locales/es/errors";
-import schedulesEs from "./locales/es/schedules";
-import skillsEs from "./locales/es/skills";
-import gatewayEs from "./locales/es/gateway";
-import agentsEs from "./locales/es/agents";
-import soulEs from "./locales/es/soul";
-import memoryEs from "./locales/es/memory";
-import installEs from "./locales/es/install";
-import constantsEs from "./locales/es/constants";
-import aiosHomeEs from "./locales/es/aiosHome";
-import shellViewEs from "./locales/es/shellView";
-import authEs from "./locales/es/auth";
-import runtimeSettingsEs from "./locales/es/runtimeSettings";
 import commonZh from "./locales/zh-CN/common";
 import navigationZh from "./locales/zh-CN/navigation";
 import welcomeZh from "./locales/zh-CN/welcome";
@@ -78,30 +54,6 @@ import aiosHomeZh from "./locales/zh-CN/aiosHome";
 import shellViewZh from "./locales/zh-CN/shellView";
 import authZh from "./locales/zh-CN/auth";
 import runtimeSettingsZh from "./locales/zh-CN/runtimeSettings";
-import commonPt from "./locales/pt-BR/common";
-import navigationPt from "./locales/pt-BR/navigation";
-import welcomePt from "./locales/pt-BR/welcome";
-import setupPt from "./locales/pt-BR/setup";
-import chatPt from "./locales/pt-BR/chat";
-import settingsPt from "./locales/pt-BR/settings";
-import toolsPt from "./locales/pt-BR/tools";
-import sessionsPt from "./locales/pt-BR/sessions";
-import modelsPt from "./locales/pt-BR/models";
-import providersPt from "./locales/pt-BR/providers";
-import officePt from "./locales/pt-BR/office";
-import errorsPt from "./locales/pt-BR/errors";
-import schedulesPt from "./locales/pt-BR/schedules";
-import skillsPt from "./locales/pt-BR/skills";
-import gatewayPt from "./locales/pt-BR/gateway";
-import agentsPt from "./locales/pt-BR/agents";
-import soulPt from "./locales/pt-BR/soul";
-import memoryPt from "./locales/pt-BR/memory";
-import installPt from "./locales/pt-BR/install";
-import constantsPt from "./locales/pt-BR/constants";
-import aiosHomePt from "./locales/pt-BR/aiosHome";
-import shellViewPt from "./locales/pt-BR/shellView";
-import authPt from "./locales/pt-BR/auth";
-import runtimeSettingsPt from "./locales/pt-BR/runtimeSettings";
 
 export const resources = {
   en: {
@@ -132,34 +84,6 @@ export const resources = {
       runtimeSettings: runtimeSettingsEn,
     },
   },
-  es: {
-    aiosHome: aiosHomeEs,
-    shellView: shellViewEs,
-    translation: {
-      common: commonEs,
-      navigation: navigationEs,
-      welcome: welcomeEs,
-      setup: setupEs,
-      chat: chatEs,
-      settings: settingsEs,
-      tools: toolsEs,
-      sessions: sessionsEs,
-      models: modelsEs,
-      providers: providersEs,
-      office: officeEs,
-      errors: errorsEs,
-      schedules: schedulesEs,
-      skills: skillsEs,
-      gateway: gatewayEs,
-      agents: agentsEs,
-      soul: soulEs,
-      memory: memoryEs,
-      install: installEs,
-      constants: constantsEs,
-      auth: authEs,
-      runtimeSettings: runtimeSettingsEs,
-    },
-  },
   "zh-CN": {
     aiosHome: aiosHomeZh,
     shellView: shellViewZh,
@@ -186,34 +110,6 @@ export const resources = {
       constants: constantsZh,
       auth: authZh,
       runtimeSettings: runtimeSettingsZh,
-    },
-  },
-  "pt-BR": {
-    aiosHome: aiosHomePt,
-    shellView: shellViewPt,
-    translation: {
-      common: commonPt,
-      navigation: navigationPt,
-      welcome: welcomePt,
-      setup: setupPt,
-      chat: chatPt,
-      settings: settingsPt,
-      tools: toolsPt,
-      sessions: sessionsPt,
-      models: modelsPt,
-      providers: providersPt,
-      office: officePt,
-      errors: errorsPt,
-      schedules: schedulesPt,
-      skills: skillsPt,
-      gateway: gatewayPt,
-      agents: agentsPt,
-      soul: soulPt,
-      memory: memoryPt,
-      install: installPt,
-      constants: constantsPt,
-      auth: authPt,
-      runtimeSettings: runtimeSettingsPt,
     },
   },
 } satisfies Resource;

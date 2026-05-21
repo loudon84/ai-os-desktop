@@ -839,12 +839,10 @@ Layout → MainPage → MainTopBar + DesktopSidebar + WorkspaceOutlet + StatusBa
 
 | 文件 | 职责 |
 |---|---|
-| index.ts | i18next 实例初始化，4 语言资源加载，t() 翻译函数 |
-| config.ts | SOURCE_LOCALE=en, FALLBACK_LOCALE=en, APP_LOCALES=[en, es, pt-BR, zh-CN] |
+| index.ts | i18next 实例初始化，en/zh-CN 资源加载，t() 翻译函数 |
+| config.ts | SOURCE_LOCALE=en, FALLBACK_LOCALE=en, APP_LOCALES=[en, zh-CN] |
 | types.ts | AppLocale 类型, TranslationTree |
-| locales/en/ | 英文翻译（21 模块） |
-| locales/es/ | 西班牙文翻译 |
-| locales/pt-BR/ | 葡萄牙文(巴西)翻译 |
+| locales/en/ | 英文翻译（源语言） |
 | locales/zh-CN/ | 简体中文翻译 |
 
 每种语言的翻译模块: common, navigation, welcome, setup, chat, settings, tools, sessions, models, providers, office, errors, schedules, skills, gateway, agents, soul, memory, install, constants, **aiosHome**

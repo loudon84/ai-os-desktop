@@ -8,13 +8,20 @@ import {
   insertRuntimeInstance,
   insertProfileEntry,
   insertCapability,
-  insertSkill,
   insertAuditEvent,
   transaction,
   getProfileByName,
   checkPortConflict,
   generateId,
+  deleteProfileCascade,
 } from "./profile-runtime-db";
+import { syncRoleLibrary } from "./profile-roles/role-library-sync";
+import {
+  installRoleSpecForProfile,
+  validateRoleSpec,
+  type ParsedRoleSpec,
+} from "./profile-roles/role-install-service";
+import type { RoleLibraryRef } from "../shared/profile-roles/profile-role-contract";
 import type { ProfileErrorCode } from "../shared/profile-runtime/profile-runtime-contract";
 import type { ImportRuntimeConfigResult } from "../shared/profile-runtime/profile-runtime-contract";
 
@@ -55,12 +62,14 @@ interface ParsedProfile {
   entry?: ParsedProfileEntry;
   capabilities?: string[];
   soulPrompt?: string;
+  roleSpec?: ParsedRoleSpec;
 }
 
-interface ParsedConfig {
+export interface ParsedImportConfig {
   version: number;
   runtime?: { db?: string; defaultAdapter?: string };
   gateway?: { host?: string; healthPath?: string };
+  roleLibrary?: RoleLibraryRef;
   profiles: Record<string, ParsedProfile>;
 }
 
@@ -96,17 +105,88 @@ function validateCapabilities(caps?: string[]): ProfileErrorCode | null {
   return null;
 }
 
-function parseYaml(content: string): ParsedConfig {
+function parseProfileDef(name: string, raw: unknown): ParsedProfile {
+  if (!raw || typeof raw !== "object") {
+    throw new Error(`Profile "${name}": invalid definition`);
+  }
+  const p = raw as Record<string, unknown>;
+  const displayName = typeof p.displayName === "string" ? p.displayName : "";
+  const runtimeType = typeof p.runtimeType === "string" ? p.runtimeType : "";
+  const port = typeof p.port === "number" ? p.port : Number(p.port);
+  if (!displayName) throw new Error(`Profile "${name}": displayName is required`);
+  if (!runtimeType) throw new Error(`Profile "${name}": runtimeType is required`);
+
+  let roleSpec: ParsedRoleSpec | undefined;
+  if (p.roleSpec !== undefined) {
+    const validated = validateRoleSpec(p.roleSpec);
+    if (!validated.ok) {
+      throw new Error(`Profile "${name}": ${validated.message}`);
+    }
+    roleSpec = validated.spec;
+  }
+
+  const entryRaw = p.entry as Record<string, unknown> | undefined;
+  let entry: ParsedProfileEntry | undefined;
+  if (entryRaw && typeof entryRaw === "object") {
+    entry = {
+      type: String(entryRaw.type ?? ""),
+      route: String(entryRaw.route ?? ""),
+      title: String(entryRaw.title ?? ""),
+      icon: typeof entryRaw.icon === "string" ? entryRaw.icon : undefined,
+    };
+  }
+
+  return {
+    displayName,
+    role: typeof p.role === "string" ? p.role : undefined,
+    runtimeType,
+    enabled: typeof p.enabled === "boolean" ? p.enabled : undefined,
+    autoStart: typeof p.autoStart === "boolean" ? p.autoStart : undefined,
+    port,
+    model: typeof p.model === "string" ? p.model : undefined,
+    entry,
+    capabilities: Array.isArray(p.capabilities)
+      ? (p.capabilities as string[])
+      : undefined,
+    soulPrompt: typeof p.soulPrompt === "string" ? p.soulPrompt : undefined,
+    roleSpec,
+  };
+}
+
+export function parseImportConfigYaml(content: string): ParsedImportConfig {
   const raw = yaml.load(content) as Record<string, unknown>;
   if (!raw || typeof raw !== "object") throw new Error("Invalid YAML: expected object");
   if (raw.version !== 1) throw new Error(`Unsupported config version: ${raw.version}`);
   if (!raw.profiles || typeof raw.profiles !== "object") throw new Error("Missing 'profiles' section");
+
+  const roleLibraryRaw = raw.roleLibrary as Record<string, unknown> | undefined;
+  let roleLibrary: RoleLibraryRef | undefined;
+  if (roleLibraryRaw && typeof roleLibraryRaw.repo === "string") {
+    roleLibrary = {
+      repo: roleLibraryRaw.repo,
+      branch: typeof roleLibraryRaw.branch === "string" ? roleLibraryRaw.branch : undefined,
+      localDir: typeof roleLibraryRaw.localDir === "string" ? roleLibraryRaw.localDir : undefined,
+    };
+  }
+
+  const profiles: Record<string, ParsedProfile> = {};
+  for (const [name, def] of Object.entries(raw.profiles as Record<string, unknown>)) {
+    profiles[name] = parseProfileDef(name, def);
+  }
+
   return {
     version: raw.version as number,
-    runtime: raw.runtime as ParsedConfig["runtime"],
-    gateway: raw.gateway as ParsedConfig["gateway"],
-    profiles: raw.profiles as Record<string, ParsedProfile>,
+    runtime: raw.runtime as ParsedImportConfig["runtime"],
+    gateway: raw.gateway as ParsedImportConfig["gateway"],
+    roleLibrary,
+    profiles,
   };
+}
+
+type ParsedConfig = ParsedImportConfig;
+
+function parseYaml(content: string): ParsedConfig {
+  return parseImportConfigYaml(content);
 }
 
 function createProfileDirectories(name: string, soulPrompt?: string): string[] {
@@ -142,10 +222,10 @@ function createProfileDirectories(name: string, soulPrompt?: string): string[] {
   return createdDirs;
 }
 
-export function importConfig(
+export async function importConfig(
   yamlContent: string,
   options?: { overwrite?: boolean },
-): ImportRuntimeConfigResult {
+): Promise<ImportRuntimeConfigResult> {
   const overwrite = options?.overwrite ?? false;
   const errors: Array<{ profileName: string; errorCode: ProfileErrorCode; message: string }> = [];
   const importedNames: string[] = [];
@@ -163,6 +243,27 @@ export function importConfig(
   }
 
   initProfileRuntimeDb();
+
+  let syncedSourceRoot: string | undefined;
+  let libraryCommit: string | undefined;
+  if (config.roleLibrary) {
+    const syncResult = await syncRoleLibrary(config.roleLibrary);
+    if (!syncResult.ok) {
+      return {
+        ok: false,
+        importedCount: 0,
+        errors: [
+          {
+            profileName: "",
+            errorCode: "PROFILE_CONFIG_INVALID",
+            message: syncResult.error ?? "Role library sync failed",
+          },
+        ],
+      };
+    }
+    syncedSourceRoot = syncResult.localPath;
+    libraryCommit = syncResult.commit;
+  }
 
   const profileEntries = Object.entries(config.profiles);
 
@@ -213,12 +314,10 @@ export function importConfig(
       const role = isDefault ? "aios-controller" as const : "specialist" as const;
       const profileId = existing?.id ?? generateId();
       const home = profileHome(name);
-      const ts = new Date().toISOString();
 
       transaction(() => {
         if (existing) {
-          const db = require("./profile-runtime-db").getDb();
-          db.prepare("DELETE FROM profiles WHERE id = ?").run(existing.id);
+          deleteProfileCascade(existing.id);
         }
 
         insertProfile({
@@ -308,6 +407,32 @@ export function importConfig(
         });
       });
 
+      if (profileDef.roleSpec) {
+        const roleResult = await installRoleSpecForProfile({
+          profileId,
+          profileName: name,
+          displayName: profileDef.displayName,
+          port: profileDef.port,
+          profileHome: home,
+          roleSummary: profileDef.role,
+          roleSpec: profileDef.roleSpec,
+          roleLibrary: config.roleLibrary,
+          skipLibrarySync: Boolean(syncedSourceRoot),
+          syncedSourceRoot,
+          libraryCommit,
+        });
+        if (!roleResult.ok) {
+          errors.push(
+            makeError(
+              name,
+              "PROFILE_CONFIG_INVALID",
+              roleResult.error ?? "Role spec install failed",
+            ),
+          );
+          continue;
+        }
+      }
+
       importedNames.push(name);
     } catch (e) {
       errors.push(makeError(name, "PROFILE_CONFIG_INVALID", `Import failed: ${String(e)}`));
@@ -321,10 +446,10 @@ export function importConfig(
   };
 }
 
-export function importConfigFromFile(
+export async function importConfigFromFile(
   filePath: string,
   options?: { overwrite?: boolean },
-): ImportRuntimeConfigResult {
+): Promise<ImportRuntimeConfigResult> {
   if (!existsSync(filePath)) {
     return {
       ok: false,

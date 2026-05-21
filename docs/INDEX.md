@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC Copilot |
 | **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.6（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix**） |
+| **版本** | 0.3.6（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix** + **V4.0 Multi Profiles**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |

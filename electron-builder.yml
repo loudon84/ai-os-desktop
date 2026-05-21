@@ -22,6 +22,10 @@ extraResources:
     to: resources/skills/
     filter:
       - "**/*"
+  - from: resources/profile-presets/
+    to: resources/profile-presets/
+    filter:
+      - "**/*"
 win:
   executableName: smc-ai-copilot
   target:

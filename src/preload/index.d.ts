@@ -2,6 +2,7 @@ import { ElectronAPI } from "@electron-toolkit/preload";
 import type { AppLocale } from "../shared/i18n/types";
 import type { AiosBrowserAPI } from "./browser-api";
 import type { ProfileRuntimeAPI, ProfileEntryAPI } from "../shared/profile-runtime/profile-runtime-contract";
+import type { ProfileRoleAPI } from "../shared/profile-roles/profile-role-contract";
 import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
 import type { RuntimeState } from "../shared/enterprise/runtime-state-contract";
 import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
@@ -668,6 +669,7 @@ declare global {
     hermesAPI: HermesAPI;
     aiosBrowser: AiosBrowserAPI;
     profileRuntime: ProfileRuntimeAPI;
+    profileRole: ProfileRoleAPI;
     profileEntry: ProfileEntryAPI;
     aiosRuntime: AiOsAPI;
     /** @deprecated V1.9 使用 window.shellView 代替 */

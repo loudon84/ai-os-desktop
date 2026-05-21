@@ -24,6 +24,7 @@ import type { MigrationStatus } from "../shared/enterprise/migration-contract";
 import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
 import { aiosBrowser } from "./browser-api";
 import { profileRuntimeApi } from "./profile-runtime-api";
+import { profileRoleApi } from "./profile-role-api";
 import { profileEntryApi } from "./profile-entry-api";
 import { aiosApi } from "./aios-api";
 import { shellViewApi } from "./shell-view-api";
@@ -854,6 +855,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("hermesAPI", hermesAPI);
     contextBridge.exposeInMainWorld("aiosBrowser", aiosBrowser);
     contextBridge.exposeInMainWorld("profileRuntime", profileRuntimeApi);
+    contextBridge.exposeInMainWorld("profileRole", profileRoleApi);
     contextBridge.exposeInMainWorld("profileEntry", profileEntryApi);
     contextBridge.exposeInMainWorld("aiosRuntime", aiosApi);
     contextBridge.exposeInMainWorld("shellView", shellViewApi);
@@ -873,6 +875,8 @@ if (process.contextIsolated) {
   window.aiosBrowser = aiosBrowser;
   // @ts-ignore (define in dts)
   window.profileRuntime = profileRuntimeApi;
+  // @ts-ignore (define in dts)
+  window.profileRole = profileRoleApi;
   // @ts-ignore (define in dts)
   window.profileEntry = profileEntryApi;
   // @ts-ignore (define in dts)

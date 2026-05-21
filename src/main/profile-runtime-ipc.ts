@@ -34,6 +34,13 @@ export function setupProfileRuntimeIPC(): void {
     return importConfig(content);
   });
 
+  ipcMain.handle(
+    "profile-runtime:importConfigContentWithOptions",
+    async (_event, content: string, options?: { overwrite?: boolean }) => {
+      return importConfig(content, options);
+    },
+  );
+
   ipcMain.handle("profile-runtime:listProfiles", async () => {
     return listProfileSummaries();
   });

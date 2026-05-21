@@ -154,6 +154,7 @@ external tab (+)
 | WorkspaceRenderer | `WorkspaceOutlet` 唯一路由；按 `module.kind` 分发 webview / composite / react |
 | 二级 panel | `workspace-secondary-nav.ts` + `Layout.workspaceSecondaryState`；`AIOSWorkspaceShell` 切换 Chat/Sessions/Agents |
 | Settings Drawer | `screens/SettingsDrawer/` 统一 Account / Runtime / Profiles / Config sync；打开不切换 Tab |
+| **V4.0 Multi Profiles** | Settings → **Profiles** → `multi-profiles/MultiProfilesPanel`；`window.profileRole` 安装专家预设；`hermes-local-adapter` 按 profile home 启动 Gateway |
 | MainPage 状态 V2 | `main-page-state-migrate.ts`；`workspaceOrder` 替代 `tabOrder` |
 | Token 注入 | `installTokenHeaderInjector()`；分区 `persist:aios-home`（V3.3 origin 白名单） |
 

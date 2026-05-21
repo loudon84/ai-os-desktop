@@ -20,6 +20,7 @@
 11. `src/preload/user-config-api.ts` — **desktopUserConfig**（bootstrap apply / diff）
 12. `src/preload/aios-api.ts` — AI-OS Preload API
 13. `src/preload/profile-runtime-api.ts` — Profile Runtime Preload API
+13b. `src/preload/profile-role-api.ts` — **V4.0** Profile Role（专家预设 / 角色库 / recompile）
 14. `src/preload/browser-api.ts` — Web Operator Preload API
 15. `src/main/index.ts` — 主进程入口（IPC 注册中心，含 `setupStartupIPC()`）
 16. `docs/API_CONTRACTS.md` — IPC 通信契约
@@ -48,6 +49,9 @@
 30. `src/main/profile-runtime-manager.ts` — Profile Runtime 生命周期
 31. `src/main/profile-runtime-db.ts` — SQLite 控制面
 32. `src/main/profile-runtime-ipc.ts` — Profile Runtime IPC
+32b. `src/main/profile-role-ipc.ts` — **V4.0** Profile Role IPC
+32c. `src/main/profile-roles/` — role-library-sync、role-compiler、role-preset-installer
+32d. `src/main/hermes-local-adapter.ts` — 多 Profile Gateway 启动（`HERMES_HOME` 隔离）
 33. `src/main/gateway-supervisor.ts` — 健康监管 + 自动重启
 34. `src/main/gateway-log-collector.ts` — 日志收集
 35. `src/main/runtime-reconciler.ts` — 状态恢复

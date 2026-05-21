@@ -700,6 +700,59 @@ Mock / 远程环境变量：
 
 ---
 
+## Profile Runtime IPC（`window.profileRuntime`）
+
+Preload：`src/preload/profile-runtime-api.ts`。Main：`setupProfileRuntimeIPC()`。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `profile-runtime:importConfig` | `filePath: string` | `ImportRuntimeConfigResult` | 从 YAML 文件导入 |
+| `profile-runtime:importConfigContent` | `content: string` | `ImportRuntimeConfigResult` | 从 YAML 字符串导入 |
+| `profile-runtime:importConfigContentWithOptions` | `content, { overwrite? }` | `ImportRuntimeConfigResult` | 带覆盖选项导入 |
+| `profile-runtime:listProfiles` | — | `ProfileSummary[]` | 列表 |
+| `profile-runtime:getProfile` | `profileId` | `ProfileSummary \| null` | 详情 |
+| `profile-runtime:startProfile` | `profileId` | `ProfileGatewayState` | 启动 Gateway |
+| `profile-runtime:stopProfile` | `profileId` | `ProfileGatewayState` | 停止 |
+| `profile-runtime:restartProfile` | `profileId` | `ProfileGatewayState` | 重启 |
+| `profile-runtime:startAll` | — | `ProfileGatewayState[]` | 批量启动 |
+| `profile-runtime:stopAll` | — | `ProfileGatewayState[]` | 批量停止 |
+| `profile-runtime:status` | — | `ProfileGatewayState[]` | 运行时状态 |
+| `profile-runtime:delegate` | `DelegateToProfileRequest` | `DelegateToProfileResult` | 跨 Profile 委派 |
+| `profile-runtime:listProfileSkills` | `profileId` | `ProfileSkillSummary[]` | Profile 技能 |
+| `profile-runtime:copySkill` | `CopySkillRequest` | `CopySkillResult[]` | 技能同步 |
+| `profile-runtime:listProfileSessions` | `profileId` | `ProfileSessionSummary[]` | 会话列表 |
+| `profile-runtime:shareSessionContext` | `ShareSessionContextRequest` | `ShareSessionContextResult[]` | 会话共享 |
+| `profile-runtime:listSharedContexts` | `profileId` | `SharedContextRef[]` | 共享上下文 |
+| `profile-runtime:deleteSharedContext` | `contextId` | `{ ok: boolean }` | 删除共享 |
+| `profile-runtime:listAuditEvents` | `AuditEventFilter` | `AuditEventRecord[]` | 审计 |
+| `profile-runtime:getGatewayLogs` | `profileId, options?` | `GatewayLogEntry[]` | Gateway 日志 |
+| `profile-runtime:setAutoRestart` | `profileId, enabled` | `void` | 自动重启开关 |
+
+**事件**：`profile-runtime:onStatusChanged` → Preload `onRuntimeStatusChanged`（返回 unsubscribe）。
+
+**V4.0 Gateway 隔离**（`hermes-local-adapter.ts`）：spawn 时设置 `HERMES_HOME` / `HERMES_PROFILE` / `HERMES_PROFILE_HOME` / `HERMES_GATEWAY_HOST` / `HERMES_GATEWAY_PORT`；`stop` 读取对应 profile home 的 `gateway.pid`。
+
+---
+
+## Profile Role IPC（`window.profileRole`，V4.0）
+
+Preload：`src/preload/profile-role-api.ts`。Main：`setupProfileRoleIPC()`。类型：`src/shared/profile-roles/profile-role-contract.ts`。
+
+| IPC Channel | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `profile-role:syncLibrary` | `RoleLibraryRef?` | `SyncRoleLibraryResult` | git clone/更新 `~/.hermes/desktop/role-library/agency-agents-zh`；写入 `audit_events`（`action: sync_role_library`） |
+| `profile-role:previewExpertPreset` | `{ overwrite? }` | `ExpertPresetPreviewResult` | 安装前端口/重名预检（不写 DB） |
+| `profile-role:installPreset` | `{ overwrite? }` | `InstallExpertPresetResult` | 安装 `resources/profile-presets/hermes-expert-profiles.v1.yaml`（6 专家 Profile）；`partialSuccess` 表示部分导入 |
+| `profile-role:listSpecs` | — | `ProfileRoleSpecSummary[]` | 角色规格列表 |
+| `profile-role:getSpec` | `profileId` | `ProfileRoleSpecSummary \| null` | 单 Profile 角色元数据 |
+| `profile-role:recompile` | `profileId` | `RecompileProfileRoleResult` | 重新生成 SOUL/MEMORY/profile-role.json |
+
+**DB**：`profile-runtime.db` schema v3 表 `profile_role_specs`（`profile-runtime-db.ts`）。
+
+**UI**：Settings Drawer → **Profiles** panel → `MultiProfilesPanel`（安装预设 / 启停 / 角色源 / 日志）。
+
+---
+
 ## 事件推送 (Main → Renderer)
 
 ### 快捷键事件

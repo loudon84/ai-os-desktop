@@ -17,7 +17,7 @@ function LocaleSwitcherProbe(): React.JSX.Element {
 
   return (
     <>
-      <button onClick={() => setLocale("es")}>Switch to Spanish</button>
+      <button onClick={() => setLocale("zh-CN")}>Switch to Chinese</button>
       <div>{t("welcome.title")}</div>
     </>
   );
@@ -59,7 +59,7 @@ describe("I18nProvider", () => {
     expect(await screen.findByText("Welcome to Hermes")).toBeInTheDocument();
   });
 
-  it("renders Spanish translations after switching locale", async () => {
+  it("renders zh-CN translations after switching locale", async () => {
     render(
       <I18nProvider>
         <LocaleSwitcherProbe />
@@ -67,10 +67,10 @@ describe("I18nProvider", () => {
     );
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Switch to Spanish" }));
+      fireEvent.click(screen.getByRole("button", { name: "Switch to Chinese" }));
     });
 
-    expect(setLocale).toHaveBeenLastCalledWith("es");
-    expect(await screen.findByText("Bienvenido a Hermes")).toBeInTheDocument();
+    expect(setLocale).toHaveBeenLastCalledWith("zh-CN");
+    expect(await screen.findByText("欢迎使用 Hermes")).toBeInTheDocument();
   });
 });

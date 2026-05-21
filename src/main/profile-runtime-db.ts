@@ -27,11 +27,12 @@ import type {
   RuntimeServiceStatus,
   RuntimeEventLevel,
 } from "../shared/aios/aios-contract";
+import type { ProfileRoleSpecRecord } from "../shared/profile-roles/profile-role-contract";
 
 const DB_DIR = join(HERMES_HOME, "desktop");
 const DB_PATH = join(DB_DIR, "profile-runtime.db");
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 let dbInstance: Database.Database | null = null;
 
@@ -267,6 +268,35 @@ function createIndexesV2(db: Database.Database): void {
   `);
 }
 
+function createTablesV3(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS profile_role_specs (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      role_key TEXT NOT NULL,
+      role_name TEXT NOT NULL,
+      role_source_repo TEXT NOT NULL,
+      role_source_paths_json TEXT NOT NULL,
+      role_summary TEXT,
+      role_manifest_path TEXT NOT NULL,
+      soul_path TEXT NOT NULL,
+      memory_path TEXT,
+      source_checksum TEXT NOT NULL,
+      installed_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      UNIQUE(profile_id, role_key)
+    );
+  `);
+}
+
+function createIndexesV3(db: Database.Database): void {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_profile_role_specs_profile ON profile_role_specs(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_profile_role_specs_key ON profile_role_specs(role_key);
+  `);
+}
+
 export function initProfileRuntimeDb(): Database.Database {
   const db = getDb();
 
@@ -290,6 +320,10 @@ export function initProfileRuntimeDb(): Database.Database {
       if (ver < 2) {
         createTablesV2(db);
         createIndexesV2(db);
+      }
+      if (ver < 3) {
+        createTablesV3(db);
+        createIndexesV3(db);
       }
       db.prepare(
         "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
@@ -348,6 +382,111 @@ export function deleteProfile(id: string): boolean {
   const db = getDb();
   const result = db.prepare("DELETE FROM profiles WHERE id = ?").run(id);
   return result.changes > 0;
+}
+
+/** Deletes profile and all FK-cascaded rows (runtime, entries, role specs, etc.). */
+export function deleteProfileCascade(id: string): boolean {
+  return deleteProfile(id);
+}
+
+// --- Profile Role Spec CRUD ---
+
+export function insertProfileRoleSpec(
+  record: Omit<ProfileRoleSpecRecord, "installed_at" | "updated_at">,
+): ProfileRoleSpecRecord {
+  const db = getDb();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO profile_role_specs (
+      id, profile_id, role_key, role_name, role_source_repo, role_source_paths_json,
+      role_summary, role_manifest_path, soul_path, memory_path, source_checksum,
+      installed_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    record.id,
+    record.profile_id,
+    record.role_key,
+    record.role_name,
+    record.role_source_repo,
+    record.role_source_paths_json,
+    record.role_summary,
+    record.role_manifest_path,
+    record.soul_path,
+    record.memory_path,
+    record.source_checksum,
+    ts,
+    ts,
+  );
+  return { ...record, installed_at: ts, updated_at: ts };
+}
+
+export function updateProfileRoleSpec(
+  id: string,
+  patch: Partial<
+    Pick<
+      ProfileRoleSpecRecord,
+      | "role_name"
+      | "role_source_paths_json"
+      | "role_summary"
+      | "role_manifest_path"
+      | "soul_path"
+      | "memory_path"
+      | "source_checksum"
+    >
+  >,
+): void {
+  const db = getDb();
+  const current = getProfileRoleSpecById(id);
+  if (!current) return;
+  const ts = now();
+  db.prepare(
+    `UPDATE profile_role_specs SET
+      role_name = ?,
+      role_source_paths_json = ?,
+      role_summary = ?,
+      role_manifest_path = ?,
+      soul_path = ?,
+      memory_path = ?,
+      source_checksum = ?,
+      updated_at = ?
+    WHERE id = ?`,
+  ).run(
+    patch.role_name ?? current.role_name,
+    patch.role_source_paths_json ?? current.role_source_paths_json,
+    patch.role_summary !== undefined ? patch.role_summary : current.role_summary,
+    patch.role_manifest_path ?? current.role_manifest_path,
+    patch.soul_path ?? current.soul_path,
+    patch.memory_path !== undefined ? patch.memory_path : current.memory_path,
+    patch.source_checksum ?? current.source_checksum,
+    ts,
+    id,
+  );
+}
+
+export function getProfileRoleSpecById(id: string): ProfileRoleSpecRecord | null {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM profile_role_specs WHERE id = ?")
+    .get(id) as ProfileRoleSpecRecord | null;
+}
+
+export function getProfileRoleSpecByProfileId(profileId: string): ProfileRoleSpecRecord | null {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM profile_role_specs WHERE profile_id = ?")
+    .get(profileId) as ProfileRoleSpecRecord | null;
+}
+
+export function listProfileRoleSpecs(): ProfileRoleSpecRecord[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM profile_role_specs ORDER BY installed_at ASC")
+    .all() as ProfileRoleSpecRecord[];
+}
+
+export function deleteProfileRoleSpecByProfileId(profileId: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM profile_role_specs WHERE profile_id = ?").run(profileId);
 }
 
 // --- Runtime Instance CRUD ---
@@ -499,6 +638,11 @@ export function insertSkill(record: Omit<ProfileSkillRecord, "installed_at" | "u
 export function listSkills(profileId: string): ProfileSkillRecord[] {
   const db = getDb();
   return db.prepare("SELECT * FROM profile_skills WHERE profile_id = ?").all(profileId) as ProfileSkillRecord[];
+}
+
+export function deleteSkillsByProfileAndCategory(profileId: string, category: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM profile_skills WHERE profile_id = ? AND category = ?").run(profileId, category);
 }
 
 // --- Event writes ---

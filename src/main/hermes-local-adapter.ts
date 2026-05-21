@@ -110,6 +110,12 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       }
     }
 
+    env.HERMES_HOME = home;
+    env.HERMES_PROFILE = profile.name;
+    env.HERMES_PROFILE_HOME = home;
+    env.HERMES_GATEWAY_HOST = instance.host;
+    env.HERMES_GATEWAY_PORT = String(instance.port);
+
     const proc = spawn(HERMES_SCRIPT, ["gateway"], {
       cwd: HERMES_REPO,
       env,
@@ -160,6 +166,9 @@ export const hermesLocalAdapter: RuntimeAdapter = {
   },
 
   async stop(profileId: string): Promise<ProfileGatewayState> {
+    const profile = getProfile(profileId);
+    if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+
     const instance = getRuntimeInstance(profileId);
     if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
 
@@ -172,7 +181,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
     gatewayProcesses.delete(profileId);
     stopCollecting(profileId);
 
-    const pidPath = join(profileHome(), "gateway.pid");
+    const pidPath = join(profileHome(profile.name), "gateway.pid");
     if (existsSync(pidPath)) {
       try {
         const pid = parseInt(readFileSync(pidPath, "utf-8").trim(), 10);
