@@ -1,6 +1,7 @@
 export default {
   aiosHome: "Copilot",
   aiosWorkspace: "AI-OS Workspace",
+  taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",
   office: "Office",
   externalBrowser: "External",

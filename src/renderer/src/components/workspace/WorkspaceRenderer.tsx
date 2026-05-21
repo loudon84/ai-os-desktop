@@ -2,6 +2,7 @@ import Office from "../../screens/Office/Office";
 import { WebOperatorScreen } from "../../screens/WebOperator/WebOperatorScreen";
 import { AIOSWorkspaceScreen } from "../../screens/AIOSWorkspace/AIOSWorkspaceScreen";
 import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
+import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { View } from "../../types/desktop-shell";
 import { CompositeWorkspace } from "./CompositeWorkspace";
@@ -77,6 +78,15 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
         return (
           <ReactWorkspace active={workspaceId === "office"}>
             <Office visible={workspaceId === "office"} />
+          </ReactWorkspace>
+        );
+      }
+      if (module.id === "task-workbench") {
+        return (
+          <ReactWorkspace active={workspaceId === "task-workbench"}>
+            <WorkspaceShell>
+              <TaskWorkbenchScreen />
+            </WorkspaceShell>
           </ReactWorkspace>
         );
       }

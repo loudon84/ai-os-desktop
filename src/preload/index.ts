@@ -32,6 +32,7 @@ import { mainPageStateApi } from "./main-page-state-api";
 import { authApi } from "./auth-api";
 import { userConfigApi } from "./user-config-api";
 import { shellApi } from "./shell-api";
+import { copilotServeApi } from "./copilot-serve-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const hermesAPI = {
@@ -863,6 +864,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("desktopAuth", authApi);
     contextBridge.exposeInMainWorld("desktopUserConfig", userConfigApi);
     contextBridge.exposeInMainWorld("smcShell", shellApi);
+    contextBridge.exposeInMainWorld("copilotServe", copilotServeApi);
   } catch (error) {
     console.error(error);
   }

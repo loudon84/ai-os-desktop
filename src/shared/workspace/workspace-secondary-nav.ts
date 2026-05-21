@@ -9,6 +9,7 @@ export const SECONDARY_NAV_BY_WORKSPACE: Record<
 > = {
   "aios-home": [],
   "aios-workspace": ["chat", "sessions", "agents"],
+  "task-workbench": [],
   "web-operator": ["browser-state", "screenshot", "action-log"],
   office: ["office"],
 };

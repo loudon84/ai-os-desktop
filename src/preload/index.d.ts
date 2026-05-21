@@ -6,6 +6,7 @@ import type { ProfileRoleAPI } from "../shared/profile-roles/profile-role-contra
 import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract";
 import type { RuntimeState } from "../shared/enterprise/runtime-state-contract";
 import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
+import type { CopilotServeAPI } from "../shared/copilot-serve/copilot-serve-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -678,6 +679,7 @@ declare global {
     mainPageState: MainPageStateAPI;
     desktopAuth: import("../shared/auth/auth-contract").DesktopAuthAPI;
     desktopUserConfig: import("../shared/user-config/user-config-contract").UserConfigAPI;
+    copilotServe: CopilotServeAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

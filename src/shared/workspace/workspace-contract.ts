@@ -2,6 +2,7 @@
 export type StaticWorkspaceId =
   | "aios-home"
   | "aios-workspace"
+  | "task-workbench"
   | "web-operator"
   | "office";
 

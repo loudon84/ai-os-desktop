@@ -630,6 +630,27 @@ interface AiOsRuntimeSnapshot {
 
 ---
 
+## copilot-serve（V1.3 Task Workbench）
+
+Main 管理本地 `copilot-serve`（:8765）进程；Renderer **直调** HTTP/SSE，不经 Main 转发任务 API。
+
+| IPC Channel | 返回值 | 说明 |
+|---|---|---|
+| `copilot-serve:get-connection` | `{ baseUrl, port, token } \| null` | Renderer fetch/SSE 用 `X-Copilot-Desktop-Token` |
+| `copilot-serve:get-status` | `CopilotServeStatus` | pid / port / lastError / logPath |
+| `copilot-serve:start` | `CopilotServeStatus` | `uvicorn main:app --app-dir src`，`windowsHide: true` |
+| `copilot-serve:stop` | `CopilotServeStatus` | 停止子进程 |
+| `copilot-serve:restart` | `CopilotServeStatus` | 重启 |
+| `copilot-serve:get-logs` | `string` | `~/.hermes/desktop/copilot-serve.log` |
+
+**Preload**: `window.copilotServe`（`src/preload/copilot-serve-api.ts`）
+
+**Renderer HTTP**（`src/renderer/src/lib/copilot-serve/`）：`/api/v1/tasks`、`/api/v1/approvals/*`、`/api/v1/team-tasks/pull`、全局 SSE `/api/v1/desktop/task-workbench/events/stream`、任务 SSE `/api/v1/tasks/{id}/events/stream`。
+
+**Workspace**: `task-workbench`（`TaskWorkbenchScreen` 三栏）；i18n `navigation.taskWorkbench`（en / zh-CN）。
+
+---
+
 ### Desktop Auth（V3.3）
 
 Renderer 通过 `window.desktopAuth` 访问；**不**向 Renderer 返回 `accessToken` / `refreshToken`。

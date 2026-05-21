@@ -8,6 +8,7 @@ export type AiOsServiceId =
   | "hermes-gateway"
   | "aios-backend"
   | "aios-frontend"
+  | "copilot-serve"
   | "postgres";
 
 /** Lifecycle status for any runtime service. */

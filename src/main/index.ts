@@ -178,6 +178,7 @@ import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
 import { registerAiosIpc } from "./aios/aios-ipc";
+import { registerCopilotServeIpc } from "./copilot-serve/copilot-serve-ipc";
 import { registerAuthIpc } from "./auth/auth-ipc";
 import { installTokenHeaderInjector } from "./auth/token-header-injector";
 import { setupStartupIPC } from "./startup/startup-ipc";
@@ -1350,6 +1351,13 @@ app.whenReady().then(async () => {
       console.log("[AIOS] AIOS IPC handlers registered successfully");
     } catch (err) {
       console.error("[AIOS] Failed to register AIOS IPC:", err);
+    }
+
+    try {
+      registerCopilotServeIpc(() => mainWindow);
+      console.log("[COPILOT-SERVE] IPC handlers registered");
+    } catch (err) {
+      console.error("[COPILOT-SERVE] Failed to register IPC:", err);
     }
 
     try {

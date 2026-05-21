@@ -21,6 +21,15 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     source: "local",
   },
   {
+    id: "task-workbench",
+    titleKey: "navigation.taskWorkbench",
+    kind: "react",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    source: "local",
+  },
+  {
     id: "web-operator",
     titleKey: "navigation.webOperator",
     kind: "composite",
