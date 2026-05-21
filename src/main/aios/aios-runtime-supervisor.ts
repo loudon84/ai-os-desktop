@@ -2,8 +2,9 @@ import { randomUUID } from "crypto";
 import { BrowserWindow } from "electron";
 import { isAiOsInstalled, getAiOsPaths } from "./aios-paths";
 import { writeAiOsEnvFile, getAiOsEnvConfig } from "./aios-config";
+import { resolveAiosHomeUrl } from "./aios-home-url";
 import { spawnBackend, spawnFrontend, runDbMigrate, killProcess, killAllProcesses, getProcess } from "./aios-process";
-import { checkServiceHealth, waitForHealth } from "./aios-health";
+import { checkPortalHealth, checkServiceHealth, waitForHealth } from "./aios-health";
 import {
   upsertRuntimeService,
   updateRuntimeServiceStatus,
@@ -127,12 +128,25 @@ function getSnapshotServiceDefs(): Array<{
     },
     {
       id: "aios-frontend",
-      displayName: "AI-OS Frontend",
-      port: config.frontendPort,
-      baseUrl: `http://127.0.0.1:${config.frontendPort}`,
-      healthUrl: `http://127.0.0.1:${config.frontendPort}`,
+      displayName: "AI-OS Portal (configured)",
+      port: parsePortalPort(resolveAiosHomeUrl(), config.frontendPort),
+      baseUrl: resolveAiosHomeUrl(),
+      // V3.3: health reflects login/bootstrap aiosHomeUrl, not only Desktop-spawned process
+      healthUrl: resolveAiosHomeUrl(),
     },
   ];
+}
+
+function parsePortalPort(homeUrl: string, fallbackPort: number): number {
+  try {
+    const parsed = new URL(homeUrl);
+    if (parsed.port) {
+      return Number(parsed.port);
+    }
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return fallbackPort;
+  }
 }
 
 function resolveSnapshotServiceStatus(
@@ -152,7 +166,10 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   const services: RuntimeServiceRecord[] = await Promise.all(
     serviceDefs.map(async (def) => {
       const dbRecord = getRuntimeService(def.id);
-      const healthy = await checkServiceHealth(def.healthUrl);
+      const healthy =
+        def.id === "aios-frontend"
+          ? await checkPortalHealth(def.healthUrl)
+          : await checkServiceHealth(def.healthUrl);
       const status = resolveSnapshotServiceStatus(healthy, dbRecord);
 
       return {
@@ -175,7 +192,7 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   );
 
   const ready = services.every((s) => s.status === "running");
-  const webAppUrl = `http://127.0.0.1:${serviceDefs.find(s => s.id === "aios-frontend")?.port ?? 3000}`;
+  const webAppUrl = resolveAiosHomeUrl();
 
   return {
     services,

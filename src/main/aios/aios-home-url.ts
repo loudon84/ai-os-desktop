@@ -7,20 +7,21 @@ import { getDefaultAuthEndpointConfig } from "../../shared/auth/auth-url";
 
 /**
  * Resolve AI-OS Home URL for WebContentsView load.
- * Priority: applied bootstrap config → saved endpoint config → default.
+ * Priority: login endpoint config (auth-endpoint-config.json) → applied bootstrap cache → default.
+ * Endpoint must win before bootstrap re-apply so a new login URL is not masked by stale bootstrap-config.json.
  */
 export function resolveAiosHomeUrl(): string {
+  const endpoint = readAuthEndpointConfig();
+  if (endpoint?.aiosHomeUrl) {
+    return endpoint.aiosHomeUrl;
+  }
+
   const local = readLocalBootstrapConfig();
   if (local?.aios.aiosHomeUrl) {
     return local.aios.aiosHomeUrl;
   }
   if (local?.aios.frontendUrl) {
     return local.aios.frontendUrl;
-  }
-
-  const endpoint = readAuthEndpointConfig();
-  if (endpoint?.aiosHomeUrl) {
-    return endpoint.aiosHomeUrl;
   }
 
   return getDefaultAuthEndpointConfig().aiosHomeUrl;

@@ -416,6 +416,15 @@ export class ShellViewManager extends EventEmitter {
     return view.isActive();
   }
 
+  /** Last bounds from activateView/setBounds — used to restore visibility after URL refresh. */
+  getLastActivationBounds(id: string): ShellViewBounds | undefined {
+    const bounds = this.lastActivationBoundsById.get(id);
+    if (!bounds || bounds.width < 1 || bounds.height < 1) {
+      return undefined;
+    }
+    return bounds;
+  }
+
   /**
    * 窗口 resize 时自动重算百分比 bounds
    */

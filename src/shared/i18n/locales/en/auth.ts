@@ -3,8 +3,14 @@ export default {
   logout: "Sign out",
   email: "Email",
   password: "Password",
+  loginSubtitle: "Enter your credentials to access SMC Copilot",
+  invalidEmail: "Enter a valid email address",
+  passwordTooShort: "Password must be at least 4 characters",
+  showPassword: "Show password",
+  hidePassword: "Hide password",
   tenantCode: "Tenant code",
   bootstrap: "Applying configuration…",
+  awaitingConfigConfirm: "Review the configuration changes and click Apply to continue",
   configDiff: "Configuration changes",
   configDiffApply: "Apply",
   configDiffCancel: "Cancel",
@@ -12,7 +18,7 @@ export default {
   account: "Account",
   brandTitle: "SMC Copilot",
   brandSubtitle:
-    "Sign in to your AI-OS Auth API (below). The desktop injects a Bearer token so the embedded AI-OS Home tab loads. This is not Hermes Gateway login.",
+    "Sign in to your AI-OS Auth API (below). The desktop injects a Bearer token and syncs a portal session cookie so the embedded AI-OS Home tab skips /login. This is not Hermes Gateway login.",
   loginPurposeHint:
     "Credentials are verified against AI-OS backend + Auth prefix—for the embedded portal (default http://127.0.0.1:3000), not for Hermes.",
   endpointSection: "AI-OS endpoints",

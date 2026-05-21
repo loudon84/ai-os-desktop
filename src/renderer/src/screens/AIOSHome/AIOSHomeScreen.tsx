@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { RuntimeGuard } from "../../components/runtime/RuntimeGuard";
+import { useTranslation } from "react-i18next";
 import { RuntimeStatusBar } from "../../components/runtime/RuntimeStatusBar";
 import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import type { View } from "../../types/desktop-shell";
@@ -10,9 +10,12 @@ export interface AIOSHomeScreenProps {
   onOpenRuntimeSettings?: () => void;
 }
 
+const AIOS_HOME_LAYER = "aios-home";
+
 export function AIOSHomeScreen({
   onOpenRuntimeSettings,
 }: AIOSHomeScreenProps): React.JSX.Element {
+  const { t } = useTranslation("aiosHome");
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -32,8 +35,18 @@ export function AIOSHomeScreen({
   }, []);
 
   useEffect(() => {
-    void window.aiosRuntime.getHomeUrl().then(({ url }) => setHomeUrl(url)).catch(() => {
-      setHomeUrl(null);
+    void window.aiosRuntime
+      .getHomeUrl()
+      .then(({ url }) => setHomeUrl(url))
+      .catch(() => {
+        setHomeUrl(null);
+      });
+  }, []);
+
+  // Ensure Main Process WebContentsView exists (getState alone did not create it).
+  useEffect(() => {
+    void window.shellView.getState(AIOS_HOME_LAYER).catch((err) => {
+      console.warn("[AIOSHome] Failed to ensure aios-home shell view:", err);
     });
   }, []);
 
@@ -49,52 +62,54 @@ export function AIOSHomeScreen({
     try {
       const unsub = window.aiosRuntime.onAiOsRuntimeChanged(() => {
         void refreshStatus();
+        void window.aiosRuntime
+          .getHomeUrl()
+          .then(({ url }) => setHomeUrl(url))
+          .catch(() => undefined);
       });
       return unsub;
     } catch {
       return undefined;
     }
   }, [refreshStatus]);
-  const gatewayRecord = services.find((s) => s.service_id === "hermes-gateway");
-  const frontendRecord = services.find((s) => s.service_id === "aios-frontend");
 
-  const gatewayStatus =
-    gatewayRecord?.status === "running"
-      ? "running"
-      : gatewayRecord?.status === "error"
-        ? "error"
-        : "stopped";
+  /**
+   * `aios-frontend` in snapshot = HTTP health of login-configured portal URL (aiosHomeUrl),
+   * NOT "Desktop must have spawned the Next.js child process".
+   * External `pnpm dev` on :3000 counts as running when the URL responds.
+   */
+  const portalRecord = services.find((s) => s.service_id === "aios-frontend");
 
-  const frontendKnownDown =
+  const portalUnreachable =
+    Boolean(homeUrl) &&
     !loading &&
     statusError === null &&
     services.length > 0 &&
-    frontendRecord?.status !== "running";
+    portalRecord?.status !== "running";
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <RuntimeStatusBar services={services} loading={loading} />
-      {homeUrl && (
-        <div
-          className="border-b border-zinc-800 bg-zinc-900/60 px-3 py-1 font-mono text-[10px] text-zinc-500 truncate"
-          title={homeUrl}
-        >
-          {homeUrl}
+      {portalUnreachable ? (
+        <div className="flex items-center justify-between gap-3 border-b border-amber-800/40 bg-amber-950/30 px-3 py-1.5 text-xs text-amber-100/90">
+          <RuntimeStatusBar
+            services={services}
+            loading={loading}
+            className="shrink-0"
+          />
+          <span>{t("portalUnreachable", { url: homeUrl })}</span>
+          {onOpenRuntimeSettings ? (
+            <button
+              type="button"
+              className="shrink-0 rounded border border-amber-700/50 px-2 py-0.5 text-[11px] hover:bg-amber-900/40"
+              onClick={() => onOpenRuntimeSettings()}
+            >
+              {t("openRuntimeSettings")}
+            </button>
+          ) : null}
         </div>
-      )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {frontendKnownDown ? (
-          <RuntimeGuard
-            gatewayStatus={gatewayStatus}
-            onOpenRuntimeSettings={onOpenRuntimeSettings}
-            onStarted={refreshStatus}
-          />
-        ) : (
-          <WebContentsHost
-            layerId="aios-home"
-            className="h-full w-full min-h-0"
-          />
-        )}
+      ) : null}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <WebContentsHost layerId={AIOS_HOME_LAYER} />
       </div>
     </div>
   );

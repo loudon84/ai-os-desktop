@@ -11,6 +11,8 @@ export interface ConfigDiffConfirmDrawerProps {
   result: BootstrapResult | null;
   onClose: () => void;
   onApplied?: () => void;
+  /** When true, backdrop click does not dismiss (login gate must apply before continue). */
+  preventBackdropDismiss?: boolean;
 }
 
 export function ConfigDiffConfirmDrawer({
@@ -18,6 +20,7 @@ export function ConfigDiffConfirmDrawer({
   result,
   onClose,
   onApplied,
+  preventBackdropDismiss = false,
 }: ConfigDiffConfirmDrawerProps): React.JSX.Element | null {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -39,14 +42,20 @@ export function ConfigDiffConfirmDrawer({
     }
   };
 
+  const backdrop = preventBackdropDismiss ? (
+    <div className="fixed inset-0 z-[60] bg-black/50" aria-hidden />
+  ) : (
+    <button
+      type="button"
+      className="fixed inset-0 z-[60] bg-black/50"
+      aria-label={t("auth.configDiffCancel")}
+      onClick={onClose}
+    />
+  );
+
   return (
     <>
-      <button
-        type="button"
-        className="fixed inset-0 z-[60] bg-black/50"
-        aria-label={t("auth.configDiffCancel")}
-        onClick={onClose}
-      />
+      {backdrop}
       <aside className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col border-l border-zinc-800 bg-zinc-950 shadow-xl">
         <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
           <h2 className="text-sm font-semibold text-zinc-100">{t("auth.configDiff")}</h2>

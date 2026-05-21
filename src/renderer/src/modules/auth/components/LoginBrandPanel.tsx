@@ -1,20 +1,23 @@
+import { Sparkles } from "lucide-react";
 import { useI18n } from "../../../components/useI18n";
 
 export function LoginBrandPanel(): React.JSX.Element {
   const { t } = useI18n();
 
   return (
-    <div className="login-brand-panel hidden flex-col justify-center border-r border-zinc-800 bg-zinc-950 px-10 lg:flex lg:w-[42%]">
+    <aside className="login-brand-panel hidden flex-col justify-center px-10 lg:flex lg:w-[42%] xl:px-14">
       <div
-        className="mb-6 h-12 w-12 rounded-xl bg-emerald-600/20 ring-1 ring-emerald-500/40"
+        className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--border-bright)] bg-[var(--accent-subtle)] text-[var(--accent-text)]"
         aria-hidden
-      />
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+      >
+        <Sparkles size={28} strokeWidth={1.75} />
+      </div>
+      <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] xl:text-3xl">
         {t("auth.brandTitle")}
       </h1>
-      <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-400">
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
         {t("auth.brandSubtitle")}
       </p>
-    </div>
+    </aside>
   );
 }

@@ -10,6 +10,10 @@ import {
 import { updateTokenInjectionPolicy } from "./token-injection-policy";
 import { refreshAiosHomeView } from "../shell/aios-home-view-coordinator";
 import {
+  clearPortalSession,
+  signInPortalWithCredentials,
+} from "./portal-session-bridge";
+import {
   clearStoredSession,
   hydrateTokenStore,
   readStoredSession,
@@ -51,6 +55,8 @@ export function registerAuthIpc(): void {
     });
     await writeStoredSession(session);
     updateTokenInjectionPolicy(endpoint, true);
+    await signInPortalWithCredentials(endpoint.aiosHomeUrl, input.email, input.password);
+    await refreshAiosHomeView();
     return toPublicState(session, endpoint);
   });
 
@@ -64,8 +70,10 @@ export function registerAuthIpc(): void {
         /* ignore remote logout errors */
       }
     }
+    const endpoint = readAuthEndpointConfig();
     await clearStoredSession();
-    return toPublicState(null, readAuthEndpointConfig());
+    await clearPortalSession(endpoint?.aiosHomeUrl);
+    return toPublicState(null, endpoint);
   });
 
   ipcMain.handle("auth:refresh", async () => {

@@ -17,7 +17,9 @@ export function KeepAliveView({
       aria-hidden={!active}
       style={{
         display: active ? "flex" : "none",
-        flex: 1,
+        flex: active ? 1 : undefined,
+        width: active ? "100%" : undefined,
+        height: active ? "100%" : undefined,
         minHeight: 0,
         minWidth: 0,
         flexDirection: "column",

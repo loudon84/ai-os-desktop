@@ -1376,6 +1376,11 @@ app.whenReady().then(async () => {
       try {
         bindShellViewManager(shellViewManager);
         registerShellViewIpc(shellViewManager);
+        void import("./shell/aios-home-view-coordinator")
+          .then(({ refreshAiosHomeView }) => refreshAiosHomeView())
+          .catch((err) => {
+            console.warn("[SHELL] Initial aios-home view setup failed:", err);
+          });
         const unbindShellViewEvents = bindShellViewEventForwarder(mainWindow);
         mainWindow.on("closed", () => {
           unbindShellViewEvents();

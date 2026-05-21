@@ -6,7 +6,6 @@ import { useAuth } from "./AuthProvider";
 import { BootstrapScreen } from "./BootstrapScreen";
 import { ConfigDiffConfirmDrawer } from "./ConfigDiffConfirmDrawer";
 import { EndpointConfigPanel } from "./components/EndpointConfigPanel";
-import { LoginBrandPanel } from "./components/LoginBrandPanel";
 import { LoginForm } from "./components/LoginForm";
 import "./styles/login.css";
 
@@ -25,14 +24,23 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
   const [bootstrapping, setBootstrapping] = useState(false);
   const [loadingState, setLoadingState] = useState(true);
 
+  const awaitingConfigConfirm = Boolean(pendingBootstrapDiff?.diff?.length);
+
   const runBootstrap = useCallback(async (): Promise<void> => {
     const result = await window.desktopUserConfig.bootstrap();
     if (result.diff && result.diff.length > 0) {
       setPendingBootstrapDiff(result);
       return;
     }
+    setPendingBootstrapDiff(null);
     onSuccess();
   }, [onSuccess, setPendingBootstrapDiff]);
+
+  const handleConfigApplied = useCallback(async (): Promise<void> => {
+    await refreshAuth();
+    setPendingBootstrapDiff(null);
+    onSuccess();
+  }, [onSuccess, refreshAuth, setPendingBootstrapDiff]);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +58,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
           setEndpoint(authState.endpointConfig);
         }
 
-        // V3.3.1: authenticated but bootstrap incomplete — auto-retry without re-login
         if (authState.authenticated && !bootstrapState.initialized) {
           setBootstrapping(true);
           try {
@@ -104,39 +111,53 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
     }
   };
 
-  if (loadingState || bootstrapping) {
-    return <BootstrapScreen state={bootstrapping ? "bootstrapping" : "checking-session"} />;
+  if (loadingState || bootstrapping || awaitingConfigConfirm) {
+    return (
+      <>
+        <BootstrapScreen
+          state={
+            bootstrapping
+              ? "bootstrapping"
+              : awaitingConfigConfirm
+                ? "awaiting-config-confirm"
+                : "checking-session"
+          }
+        />
+        <ConfigDiffConfirmDrawer
+          open={awaitingConfigConfirm}
+          result={pendingBootstrapDiff}
+          preventBackdropDismiss
+          onClose={() => setPendingBootstrapDiff(null)}
+          onApplied={() => void handleConfigApplied()}
+        />
+      </>
+    );
   }
 
   return (
-    <div className="login-screen flex h-full min-h-0 bg-zinc-950">
-      <LoginBrandPanel />
-      <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-12">
-        <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl">
-          <div className="rounded-md border border-emerald-500/25 bg-emerald-950/30 px-3 py-2 text-xs leading-relaxed text-emerald-100/90">
-            {t("auth.loginPurposeHint")}
+    <div className="login-screen">
+      <div className="login-card">
+        <header className="login-card-header">
+          <h1>{t("auth.login")}</h1>
+          <p>{t("auth.loginSubtitle")}</p>
+        </header>
+        <details className="login-endpoint-details">
+          <summary>{t("auth.endpointSection")}</summary>
+          <div className="login-endpoint-body">
+            <EndpointConfigPanel value={endpoint} onChange={setEndpoint} />
           </div>
-          <EndpointConfigPanel value={endpoint} onChange={setEndpoint} />
-          <LoginForm
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={(e) => void handleSubmit(e)}
-            error={error}
-            busy={bootstrapping}
-          />
-        </div>
+        </details>
+
+        <LoginForm
+          email={email}
+          password={password}
+          onEmailChange={setEmail}
+          onPasswordChange={setPassword}
+          onSubmit={(e) => void handleSubmit(e)}
+          error={error}
+          busy={bootstrapping}
+        />
       </div>
-      <ConfigDiffConfirmDrawer
-        open={Boolean(pendingBootstrapDiff?.diff?.length)}
-        result={pendingBootstrapDiff}
-        onClose={() => setPendingBootstrapDiff(null)}
-        onApplied={() => {
-          void refreshAuth();
-          onSuccess();
-        }}
-      />
     </div>
   );
 }

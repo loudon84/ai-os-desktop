@@ -34,9 +34,14 @@ export async function beforeLoadAiosHome(): Promise<void> {
   const { readAuthEndpointConfig } = await import("./auth-endpoint-config-store");
   const { readStoredSession, hydrateTokenStore } = await import("./token-store");
   const { updateTokenInjectionPolicy } = await import("./token-injection-policy");
+  const { ensurePortalSessionBeforeAiosHome } = await import("./portal-session-bridge");
 
   await hydrateTokenStore();
   const endpointConfig = readAuthEndpointConfig();
-  const session = await readStoredSession();
-  updateTokenInjectionPolicy(endpointConfig, Boolean(session?.accessToken));
+  const stored = await readStoredSession();
+  updateTokenInjectionPolicy(endpointConfig, Boolean(stored?.accessToken));
+
+  if (endpointConfig?.aiosHomeUrl && stored?.accessToken) {
+    await ensurePortalSessionBeforeAiosHome(endpointConfig.aiosHomeUrl);
+  }
 }

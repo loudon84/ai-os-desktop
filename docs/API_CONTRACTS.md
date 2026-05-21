@@ -648,7 +648,7 @@ Renderer 通过 `window.desktopAuth` 访问；**不**向 Renderer 返回 `access
 |---|---|---|---|
 | `auth:get-state` | — | `DesktopAuthState` | 认证状态 + endpoint 配置（无 token） |
 | `auth:save-endpoint-config` | `AuthEndpointConfig` | `AuthEndpointConfig` | 持久化 endpoint 到 `userData/auth-endpoint-config.json` |
-| `auth:login` | `LoginInput` | `DesktopAuthState` | 登录；token 写入 Main（keytar / safeStorage / 内存） |
+| `auth:login` | `LoginInput` | `DesktopAuthState` | 登录；token 写入 Main（keytar / safeStorage / 内存）；成功后通过 `portal-session-bridge` 在 `persist:aios-home` 建立 NextAuth 会话 Cookie（避免嵌入页再次进入 `/zh/login`） |
 | `auth:logout` | — | `DesktopAuthState` | 登出并清除 token vault + 停止注入 |
 | `auth:refresh` | — | `DesktopAuthState` | 刷新会话 |
 
@@ -696,6 +696,7 @@ Mock / 远程环境变量：
 | `HERMES_USE_MOCK_AUTH` | 显式 `true` 时启用 Mock Auth | 默认关闭；Desktop 登录一律走 AI-OS HTTP Auth |
 | `HERMES_USE_MOCK_USER_CONFIG` | 关闭 | `true` 时使用 mock bootstrap 数据（单测/调试） |
 | `HERMES_USE_REMOTE_USER_CONFIG` | 关闭 | `true` 时从 `{backendUrl}/api/v1/desktop/bootstrap` 拉取远程配置 |
+| `HERMES_PORTAL_SESSION_BRIDGE` | 开启 | `false` 时跳过 NextAuth Cookie 桥接（仅保留 Bearer 注入） |
 
 ---
 

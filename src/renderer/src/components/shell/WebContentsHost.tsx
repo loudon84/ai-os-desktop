@@ -1,54 +1,83 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  getMainPageWorkspaceBottom,
+  resolveWebContentsHostBounds,
+} from "./web-contents-host-bounds";
 
 export interface WebContentsHostProps {
   layerId: string;
   className?: string;
 }
 
+function waitFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
 export function WebContentsHost({
   layerId,
   className,
 }: WebContentsHostProps): React.JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const hiddenRef = useRef(true);
   const [error, setError] = useState(false);
   const { t } = useTranslation("shellView");
+
   const readBounds = useCallback(() => {
-    const el = ref.current;
+    const el = anchorRef.current ?? outerRef.current;
     if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return {
-      x: Math.round(rect.left),
-      y: Math.round(rect.top),
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
-    };
+    return resolveWebContentsHostBounds(
+      el.getBoundingClientRect(),
+      getMainPageWorkspaceBottom(),
+    );
   }, []);
 
-  const syncBounds = useCallback(async () => {
+  const syncBounds = useCallback(async (): Promise<boolean> => {
     const bounds = readBounds();
 
-    // If no bounds or invalid bounds, hide the view
     if (!bounds || bounds.width < 1 || bounds.height < 1) {
       if (!hiddenRef.current) {
         await window.shellView.hide(layerId).catch(() => {});
         hiddenRef.current = true;
       }
-      return;
+      return false;
     }
 
     try {
-      // Use setBounds directly to activate and position the view
-      // This avoids the fullscreen overlay issue from activate()
       await window.shellView.setBounds(layerId, bounds);
       hiddenRef.current = false;
       setError(false);
+      return true;
     } catch (err) {
       console.error("[WebContentsHost] shellView API error:", err);
       setError(true);
+      return false;
     }
   }, [readBounds, layerId]);
+
+  const syncBoundsWithRetry = useCallback(async (): Promise<void> => {
+    if (await syncBounds()) return;
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await waitFrame();
+      if (await syncBounds()) return;
+    }
+  }, [syncBounds]);
+
+  useLayoutEffect(() => {
+    void syncBoundsWithRetry();
+    const retryTimers = [100, 300, 600].map((ms) =>
+      setTimeout(() => {
+        void syncBoundsWithRetry();
+      }, ms),
+    );
+    return () => {
+      for (const timer of retryTimers) clearTimeout(timer);
+    };
+  }, [layerId, syncBoundsWithRetry]);
 
   useEffect(() => {
     let disposed = false;
@@ -57,41 +86,54 @@ export function WebContentsHost({
     const debouncedSync = (): void => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        if (!disposed) void syncBounds();
+        if (!disposed) void syncBoundsWithRetry();
       }, 16);
     };
 
-    void syncBounds();
-
-    const el = ref.current;
-    if (el) {
-      const observer = new ResizeObserver(() => {
-        debouncedSync();
-      });
-      observer.observe(el);
-
-      window.addEventListener("resize", debouncedSync);
-
+    const observeTarget = outerRef.current;
+    if (!observeTarget) {
       return () => {
         disposed = true;
-        observer.disconnect();
-        window.removeEventListener("resize", debouncedSync);
-        if (debounceTimer) clearTimeout(debounceTimer);
-        hiddenRef.current = true;
-        void window.shellView.hide(layerId).catch(() => {});
       };
     }
 
+    const resizeObserver = new ResizeObserver(() => {
+      debouncedSync();
+    });
+    resizeObserver.observe(observeTarget);
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && entry.intersectionRatio > 0) {
+          void syncBoundsWithRetry();
+        }
+      },
+      { threshold: [0, 0.01, 0.1, 1] },
+    );
+    intersectionObserver.observe(observeTarget);
+
+    window.addEventListener("resize", debouncedSync);
+
     return () => {
       disposed = true;
+      resizeObserver.disconnect();
+      intersectionObserver.disconnect();
+      window.removeEventListener("resize", debouncedSync);
+      if (debounceTimer) clearTimeout(debounceTimer);
       hiddenRef.current = true;
       void window.shellView.hide(layerId).catch(() => {});
     };
-  }, [syncBounds, layerId]);
+  }, [layerId, syncBoundsWithRetry]);
 
   if (error) {
     return (
-      <div className={className ?? "h-full w-full min-h-0 flex items-center justify-center"}>
+      <div
+        className={
+          className ??
+          "flex h-full w-full min-h-0 flex-1 items-center justify-center"
+        }
+      >
         <div className="text-center space-y-2">
           <p className="text-sm text-red-500">{t("viewLoadFailed")}</p>
           <button
@@ -99,14 +141,33 @@ export function WebContentsHost({
             className="text-xs text-blue-500 hover:underline"
             onClick={() => {
               setError(false);
-              void syncBounds();
+              void syncBoundsWithRetry();
             }}
           >
+            {t("retry")}
           </button>
         </div>
       </div>
     );
   }
 
-  return <div ref={ref} className={className ?? "h-full w-full min-h-0"} />;
+  return (
+    <div
+      ref={outerRef}
+      className={className ?? "relative flex min-h-0 w-full flex-1 overflow-hidden"}
+      style={{
+        flex: "1 1 0%",
+        minHeight: 0,
+        minWidth: 0,
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      <div
+        ref={anchorRef}
+        className="absolute inset-0"
+        data-shell-view-anchor={layerId}
+      />
+    </div>
+  );
 }

@@ -1,16 +1,28 @@
+import { Loader2 } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
+import "./styles/login.css";
+
+export type BootstrapScreenState =
+  | "checking-session"
+  | "bootstrapping"
+  | "awaiting-config-confirm";
 
 export interface BootstrapScreenProps {
-  state: "checking-session" | "bootstrapping";
+  state: BootstrapScreenState;
 }
 
 export function BootstrapScreen({ state }: BootstrapScreenProps): React.JSX.Element {
   const { t } = useI18n();
   const label =
-    state === "checking-session" ? t("auth.checkingSession") : t("auth.bootstrap");
+    state === "checking-session"
+      ? t("auth.checkingSession")
+      : state === "awaiting-config-confirm"
+        ? t("auth.awaitingConfigConfirm")
+        : t("auth.bootstrap");
   return (
-    <div className="flex h-full min-h-0 items-center justify-center bg-zinc-950">
-      <p className="text-sm text-zinc-400">{label}</p>
+    <div className="login-bootstrap-screen">
+      <Loader2 className="login-bootstrap-spinner" aria-hidden />
+      <p className="text-sm">{label}</p>
     </div>
   );
 }

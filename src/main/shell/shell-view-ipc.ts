@@ -122,6 +122,11 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
 
       await ensureKnownView(svm, request.layerId);
       await svm.loadUrl(request.layerId, request.url);
+
+      const lastBounds = svm.getLastActivationBounds(request.layerId);
+      if (lastBounds) {
+        svm.activateView(request.layerId, lastBounds);
+      }
     },
   );
 
@@ -164,6 +169,11 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
     async (_event, layerId: string) => {
       if (!layerId || typeof layerId !== "string") {
         throw new Error(`Invalid layerId: ${layerId}`);
+      }
+
+      // Lazy-create known shell layers (getState alone used to return null forever).
+      if (layerId === "aios-home" || layerId === "web-operator") {
+        await ensureKnownView(svm, layerId);
       }
 
       return svm.getViewSnapshot(layerId);

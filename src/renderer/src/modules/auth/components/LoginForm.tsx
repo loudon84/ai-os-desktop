@@ -1,4 +1,5 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useI18n } from "../../../components/useI18n";
 
 export interface LoginFormProps {
@@ -12,6 +13,10 @@ export interface LoginFormProps {
   disabled?: boolean;
 }
 
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function LoginForm({
   email,
   password,
@@ -23,38 +28,85 @@ export function LoginForm({
   disabled,
 }: LoginFormProps): React.JSX.Element {
   const { t } = useI18n();
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  const emailInvalid = emailTouched && email.trim().length > 0 && !isValidEmail(email);
+  const passwordInvalid = passwordTouched && password.length > 0 && password.length < 4;
+  const formDisabled = disabled || busy;
+
+  const handleSubmit = (e: FormEvent): void => {
+    e.preventDefault();
+    setEmailTouched(true);
+    setPasswordTouched(true);
+    if (!email.trim() || !isValidEmail(email) || password.length < 4) {
+      return;
+    }
+    onSubmit(e);
+  };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-100">{t("auth.login")}</h2>
-      <label className="block text-xs text-zinc-400">
-        {t("auth.email")}
-        <input
-          type="email"
-          className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100"
-          value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
-          autoComplete="email"
-          disabled={disabled || busy}
-        />
-      </label>
-      <label className="block text-xs text-zinc-400">
-        {t("auth.password")}
-        <input
-          type="password"
-          className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100"
-          value={password}
-          onChange={(e) => onPasswordChange(e.target.value)}
-          autoComplete="current-password"
-          disabled={disabled || busy}
-        />
-      </label>
-      {error ? <p className="text-xs text-red-400">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={disabled || busy}
-        className="w-full rounded bg-emerald-600 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-      >
+    <form onSubmit={handleSubmit} className="login-form" noValidate>
+      {error ? <div className="login-error-banner">{error}</div> : null}
+
+      <div className="login-field">
+        <label htmlFor="login-email" className="login-field-label">
+          {t("auth.email")}
+        </label>
+        <div className="login-input-wrap">
+          <input
+            id="login-email"
+            type="email"
+            className={`login-field-input${emailInvalid ? " login-field-input--invalid" : ""}`}
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+            autoComplete="email"
+            required
+            disabled={formDisabled}
+            placeholder="you@example.com"
+          />
+        </div>
+        {emailInvalid ? (
+          <p className="login-field-error">{t("auth.invalidEmail")}</p>
+        ) : null}
+      </div>
+
+      <div className="login-field">
+        <label htmlFor="login-password" className="login-field-label">
+          {t("auth.password")}
+        </label>
+        <div className="login-input-wrap login-input-wrap--password">
+          <input
+            id="login-password"
+            type={showPassword ? "text" : "password"}
+            className={`login-field-input${passwordInvalid ? " login-field-input--invalid" : ""}`}
+            value={password}
+            onChange={(e) => onPasswordChange(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
+            autoComplete="current-password"
+            required
+            minLength={4}
+            disabled={formDisabled}
+          />
+          <button
+            type="button"
+            className="login-password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            disabled={formDisabled}
+            aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+          >
+            {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+          </button>
+        </div>
+        {passwordInvalid ? (
+          <p className="login-field-error">{t("auth.passwordTooShort")}</p>
+        ) : null}
+      </div>
+
+      <button type="submit" disabled={formDisabled} className="login-submit-btn">
+        {busy ? <Loader2 className="login-submit-spinner" aria-hidden /> : null}
         {busy ? t("auth.signingIn") : t("auth.login")}
       </button>
     </form>

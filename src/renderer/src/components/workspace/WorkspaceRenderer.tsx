@@ -18,6 +18,14 @@ export interface WorkspaceRendererProps {
   onSecondaryPanelChange?: (panel: string) => void;
 }
 
+function WorkspaceShell({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+      {children}
+    </div>
+  );
+}
+
 export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Element {
   const {
     workspaceId,
@@ -30,7 +38,11 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
   } = props;
 
   if (typeof workspaceId === "string" && workspaceId.startsWith("external-browser:")) {
-    return <WebViewWorkspace layerId={workspaceId} />;
+    return (
+      <WorkspaceShell>
+        <WebViewWorkspace layerId={workspaceId} />
+      </WorkspaceShell>
+    );
   }
 
   const module = resolveWorkspaceModule(workspaceId);
@@ -42,12 +54,12 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
     case "webview":
       return (
         <ReactWorkspace active={workspaceId === "aios-home"}>
-          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+          <WorkspaceShell>
             <AIOSHomeScreen
               onNavigate={onNavigate}
               onOpenRuntimeSettings={onOpenRuntimeSettings}
             />
-          </div>
+          </WorkspaceShell>
         </ReactWorkspace>
       );
     case "composite":
@@ -80,10 +92,4 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
     default:
       return <></>;
   }
-}
-
-function motionSafeHomeWrapper({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-  );
 }

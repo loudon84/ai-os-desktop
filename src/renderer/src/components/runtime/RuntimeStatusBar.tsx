@@ -5,6 +5,7 @@ import type { RuntimeServiceRecord, RuntimeServiceStatus } from "../../../../sha
 export interface RuntimeStatusBarProps {
   services: RuntimeServiceRecord[];
   loading?: boolean;
+  className?: string;
 }
 
 const STATUS_COLORS: Record<RuntimeServiceStatus, string> = {
@@ -20,19 +21,24 @@ const STATUS_COLORS: Record<RuntimeServiceStatus, string> = {
   configuring: "text-amber-400",
 };
 
-export function RuntimeStatusBar({ services, loading = false }: RuntimeStatusBarProps): React.JSX.Element {
+export function RuntimeStatusBar({
+  services,
+  loading = false,
+  className = "",
+}: RuntimeStatusBarProps): React.JSX.Element {
   const { t } = useTranslation("aiosHome");
+  const barClass = `flex items-center gap-4 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 text-xs ${className}`.trim();
 
   if (services.length === 0) {
     return (
-      <div className="flex items-center gap-4 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 text-xs text-zinc-500">
+      <div className={`${barClass} text-zinc-500`}>
         {loading ? t("loadingRuntime") : t("noServices")}
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 text-xs">
+    <div className={barClass}>
       {services.map((svc) => (
         <div key={svc.service_id} className="flex items-center gap-1.5">
           <Circle size={7} className={`fill-current ${STATUS_COLORS[svc.status]}`} />
