@@ -191,6 +191,21 @@ export function removeMemoryEntry(index: number, profile?: string): boolean {
   return true;
 }
 
+/** Overwrite MEMORY.md in full (editor save), not append entry. */
+export function writeMemoryContent(
+  content: string,
+  profile?: string,
+): { success: boolean; error?: string } {
+  if (content.length > MEMORY_CHAR_LIMIT) {
+    return {
+      success: false,
+      error: `Exceeds limit (${content.length}/${MEMORY_CHAR_LIMIT} chars)`,
+    };
+  }
+  writeFileSafe(memoryPath(profile), content);
+  return { success: true };
+}
+
 export function writeUserProfile(
   content: string,
   profile?: string,

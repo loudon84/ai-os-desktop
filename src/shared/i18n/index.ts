@@ -30,6 +30,7 @@ import aiosHomeEn from "./locales/en/aiosHome";
 import shellViewEn from "./locales/en/shellView";
 import authEn from "./locales/en/auth";
 import runtimeSettingsEn from "./locales/en/runtimeSettings";
+import aiosWorkspaceEn from "./locales/en/aiosWorkspace";
 import commonZh from "./locales/zh-CN/common";
 import navigationZh from "./locales/zh-CN/navigation";
 import welcomeZh from "./locales/zh-CN/welcome";
@@ -54,6 +55,7 @@ import aiosHomeZh from "./locales/zh-CN/aiosHome";
 import shellViewZh from "./locales/zh-CN/shellView";
 import authZh from "./locales/zh-CN/auth";
 import runtimeSettingsZh from "./locales/zh-CN/runtimeSettings";
+import aiosWorkspaceZh from "./locales/zh-CN/aiosWorkspace";
 
 export const resources = {
   en: {
@@ -82,6 +84,7 @@ export const resources = {
       constants: constantsEn,
       auth: authEn,
       runtimeSettings: runtimeSettingsEn,
+      aiosWorkspace: aiosWorkspaceEn,
     },
   },
   "zh-CN": {
@@ -110,6 +113,7 @@ export const resources = {
       constants: constantsZh,
       auth: authZh,
       runtimeSettings: runtimeSettingsZh,
+      aiosWorkspace: aiosWorkspaceZh,
     },
   },
 } satisfies Resource;

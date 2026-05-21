@@ -16,7 +16,8 @@
     "dev": "electron-vite dev",
     "dev:fresh": "HERMES_HOME=$(mktemp -d -t hermes-fresh) electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
-    "postinstall": "electron-builder install-app-deps",
+    "rebuild:native": "node scripts/rebuild-native-deps.cjs",
+    "postinstall": "node scripts/rebuild-native-deps.cjs",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
@@ -42,6 +43,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",

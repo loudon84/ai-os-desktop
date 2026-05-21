@@ -208,6 +208,10 @@ interface HermesAPI {
     content: string,
     profile?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  writeMemoryContent: (
+    content: string,
+    profile?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
   updateMemoryEntry: (
     index: number,
     content: string,
@@ -664,9 +668,27 @@ interface MainPageStateAPI {
   write: (state: MainPagePersistedState) => Promise<void>;
 }
 
+interface AiosWorkspaceAPI {
+  listFiles: (
+    profileId: string,
+    relativePath?: string,
+  ) => Promise<
+    Array<{ name: string; path: string; isDirectory: boolean; size?: number }>
+  >;
+  readFile: (
+    profileId: string,
+    relativePath: string,
+  ) => Promise<
+    | { ok: true; content: string; encoding: "utf8" | "base64"; path: string; size: number }
+    | { ok: false; error: string }
+  >;
+  gitStatus: (profileId: string) => Promise<{ branch: string | null; dirtyCount: number }>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
+    aiosWorkspace: AiosWorkspaceAPI;
     hermesAPI: HermesAPI;
     aiosBrowser: AiosBrowserAPI;
     profileRuntime: ProfileRuntimeAPI;

@@ -20,6 +20,9 @@ export const profileRuntimeApi: ProfileRuntimeAPI = {
 
   getRuntimeStatus: () => ipcRenderer.invoke("profile-runtime:status"),
 
+  probeProfileHealth: (profileId: string) =>
+    ipcRenderer.invoke("profile-runtime:probeHealth", profileId),
+
   delegate: (input) => ipcRenderer.invoke("profile-runtime:delegate", input),
 
   listProfileSkills: (profileId: string) => ipcRenderer.invoke("profile-runtime:listProfileSkills", profileId),
@@ -27,6 +30,9 @@ export const profileRuntimeApi: ProfileRuntimeAPI = {
   copySkill: (input) => ipcRenderer.invoke("profile-runtime:copySkill", input),
 
   listProfileSessions: (profileId: string) => ipcRenderer.invoke("profile-runtime:listProfileSessions", profileId),
+
+  deleteProfileSession: (profileId: string, sessionId: string) =>
+    ipcRenderer.invoke("profile-runtime:deleteProfileSession", profileId, sessionId),
 
   shareSessionContext: (input) => ipcRenderer.invoke("profile-runtime:shareSessionContext", input),
 

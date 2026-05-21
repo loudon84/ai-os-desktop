@@ -15,6 +15,7 @@ import { startSupervision, stopSupervision, stopAllSupervision, setAutoRestartHa
 import { startCollecting, stopCollecting } from "./gateway-log-collector";
 import type { ProfileSummary, ProfileGatewayState, ProfileRuntimeStatus } from "../shared/profile-runtime/profile-runtime-contract";
 import { ProfileRuntimeError } from "../shared/profile-runtime/profile-runtime-errors";
+import { probeGatewayHealth } from "./gateway-health";
 
 const STARTUP_TIMEOUT_MS = 30_000;
 const startupTimeoutTimers = new Map<string, NodeJS.Timeout>();
@@ -311,6 +312,15 @@ export function getProfileSummary(profileId: string): ProfileSummary | null {
 
 export function getRuntimeStatus(): ProfileGatewayState[] {
   return listRuntimeInstances().map((inst) => buildState(inst));
+}
+
+/** Read-only /health probe; does not update runtime instance status. */
+export async function probeProfileHealth(profileId: string): Promise<boolean> {
+  const instance = getRuntimeInstance(profileId);
+  if (!instance || instance.status !== "running") {
+    return false;
+  }
+  return probeGatewayHealth(instance.host, instance.port);
 }
 
 function buildState(instance: ReturnType<typeof getRuntimeInstance>): ProfileGatewayState {

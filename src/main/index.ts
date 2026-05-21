@@ -99,6 +99,7 @@ import {
   addMemoryEntry,
   updateMemoryEntry,
   removeMemoryEntry,
+  writeMemoryContent,
   writeUserProfile,
 } from "./memory";
 import { readSoul, writeSoul, resetSoul } from "./soul";
@@ -174,6 +175,7 @@ import {
 } from "./ssh-remote";
 import { bindMainBrowserWindow, registerWindowIpc } from "./window/window-ipc";
 import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
+import { setupAiosWorkspaceIPC } from "./aios-workspace-ipc";
 import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
@@ -414,6 +416,7 @@ function setupIPC(): void {
   try {
     setupProfileRuntimeIPC();
     setupProfileRoleIPC();
+    setupAiosWorkspaceIPC();
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
@@ -946,6 +949,37 @@ function setupIPC(): void {
       const conn = getConnectionConfig();
       if (conn.mode === "ssh" && conn.ssh) return sshWriteUserProfile(conn.ssh, content, profile);
       return writeUserProfile(content, profile);
+    },
+  );
+  ipcMain.handle(
+    "write-memory-content",
+    (_event, content: string, profile?: string) => {
+      const conn = getConnectionConfig();
+      if (conn.mode === "ssh" && conn.ssh) {
+        return { success: false, error: "SSH mode: use local profile home" };
+      }
+      const result = writeMemoryContent(content, profile);
+      if (result.success && profile) {
+        try {
+          const { getProfileByName, insertAuditEvent, generateId } = require("./profile-runtime-db");
+          const rec = getProfileByName(profile);
+          if (rec) {
+            insertAuditEvent({
+              id: generateId(),
+              event_type: "memory",
+              profile_id: rec.id,
+              source: "user",
+              action: "memory_save",
+              payload_json: JSON.stringify({ file: "MEMORY.md" }),
+              status: "success",
+              error_message: null,
+            });
+          }
+        } catch {
+          /* audit best-effort */
+        }
+      }
+      return result;
     },
   );
 

@@ -370,10 +370,12 @@ export interface ProfileRuntimeAPI {
   startAllProfiles(): Promise<ProfileGatewayState[]>;
   stopAllProfiles(): Promise<ProfileGatewayState[]>;
   getRuntimeStatus(): Promise<ProfileGatewayState[]>;
+  probeProfileHealth(profileId: string): Promise<{ healthy: boolean }>;
   delegate(input: DelegateToProfileRequest): Promise<DelegateToProfileResult>;
   listProfileSkills(profileId: string): Promise<ProfileSkillSummary[]>;
   copySkill(input: CopySkillRequest): Promise<CopySkillResult[]>;
   listProfileSessions(profileId: string): Promise<ProfileSessionSummary[]>;
+  deleteProfileSession(profileId: string, sessionId: string): Promise<{ ok: boolean }>;
   shareSessionContext(input: ShareSessionContextRequest): Promise<ShareSessionContextResult[]>;
   listSharedContexts(profileId: string): Promise<SharedContextRef[]>;
   deleteSharedContext(contextId: string): Promise<{ ok: boolean }>;

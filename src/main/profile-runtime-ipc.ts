@@ -1,5 +1,12 @@
 import { ipcMain, BrowserWindow } from "electron";
+import { join } from "path";
+import { existsSync } from "fs";
+import Database from "better-sqlite3";
 import { importConfig, importConfigFromFile } from "./config-importer";
+import { invoke as delegationInvoke } from "./delegation-capability";
+import { copySkill } from "./skill-sync-capability";
+import { shareSessionContext } from "./session-share-capability";
+import { profileHome } from "./utils";
 import {
   startProfile,
   stopProfile,
@@ -9,6 +16,7 @@ import {
   listProfileSummaries,
   getProfileSummary,
   getRuntimeStatus,
+  probeProfileHealth,
 } from "./profile-runtime-manager";
 import {
   listSkills,
@@ -21,6 +29,7 @@ import {
   initProfileRuntimeDb,
   updateRuntimeStatus,
   getRuntimeInstance,
+  getProfile,
 } from "./profile-runtime-db";
 import { getHistory } from "./gateway-log-collector";
 import type { GatewayLogQueryOptions } from "../shared/profile-runtime/profile-runtime-contract";
@@ -73,9 +82,13 @@ export function setupProfileRuntimeIPC(): void {
     return getRuntimeStatus();
   });
 
+  ipcMain.handle("profile-runtime:probeHealth", async (_event, profileId: string) => {
+    const healthy = await probeProfileHealth(profileId);
+    return { healthy };
+  });
+
   ipcMain.handle("profile-runtime:delegate", async (_event, input: { fromProfile: string; toProfile: string; message: string; includeContextRefs?: string[]; stream?: boolean }) => {
-    const { invoke } = require("./delegation-capability");
-    return invoke(input);
+    return delegationInvoke(input);
   });
 
   ipcMain.handle("profile-runtime:listProfileSkills", async (_event, profileId: string) => {
@@ -91,28 +104,46 @@ export function setupProfileRuntimeIPC(): void {
   });
 
   ipcMain.handle("profile-runtime:copySkill", async (_event, input: { sourceProfileId: string; targetProfileIds: string[]; skillPath: string; overwrite?: boolean }) => {
-    const { copySkill } = require("./skill-sync-capability");
     return copySkill(input);
   });
 
   ipcMain.handle("profile-runtime:listProfileSessions", async (_event, profileId: string) => {
-    const { profileHome } = require("./config-importer");
-    const { join } = require("path");
-    const { existsSync } = require("fs");
-    const Database = require("better-sqlite3");
-    const home = profileHome(profileId);
+    const profile = getProfile(profileId);
+    const homeName = profile?.name ?? profileId;
+    const home = profileHome(homeName);
     const dbPath = join(home, "state.db");
     if (!existsSync(dbPath)) return [];
     const db = new Database(dbPath, { readonly: true });
     try {
-      return db.prepare("SELECT id, title, started_at as startedAt, model FROM sessions ORDER BY started_at DESC LIMIT 50").all();
+      return db
+        .prepare(
+          "SELECT id, title, started_at as startedAt, model FROM sessions ORDER BY started_at DESC LIMIT 50",
+        )
+        .all();
     } finally {
       db.close();
     }
   });
 
+  ipcMain.handle(
+    "profile-runtime:deleteProfileSession",
+    async (_event, profileId: string, sessionId: string) => {
+      const profile = getProfile(profileId);
+      const homeName = profile?.name ?? profileId;
+      const home = profileHome(homeName);
+      const dbPath = join(home, "state.db");
+      if (!existsSync(dbPath)) return { ok: true as const };
+      const db = new Database(dbPath);
+      try {
+        db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+        return { ok: true as const };
+      } finally {
+        db.close();
+      }
+    },
+  );
+
   ipcMain.handle("profile-runtime:shareSessionContext", async (_event, input: { sourceProfileId: string; sourceSessionId: string; targetProfileIds: string[]; mode: "snapshot" | "summary" | "full"; title?: string; maxChars?: number }) => {
-    const { shareSessionContext } = require("./session-share-capability");
     return shareSessionContext(input);
   });
 

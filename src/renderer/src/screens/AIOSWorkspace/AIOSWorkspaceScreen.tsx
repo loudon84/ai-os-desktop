@@ -8,11 +8,10 @@ export interface AIOSWorkspaceScreenProps {
 
 export function AIOSWorkspaceScreen({
   profile,
-  activePanel,
 }: AIOSWorkspaceScreenProps): React.JSX.Element {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden p-4">
-      <AIOSWorkspaceShell profile={profile} activePanel={activePanel} />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden p-2">
+      <AIOSWorkspaceShell profile={profile} />
     </div>
   );
 }
