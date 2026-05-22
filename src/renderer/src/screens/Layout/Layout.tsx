@@ -12,7 +12,10 @@ import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
 import { ConfigDiffConfirmDrawer } from "../../modules/auth/ConfigDiffConfirmDrawer";
 import { SettingsDrawer } from "../SettingsDrawer/SettingsDrawer";
-import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
+import {
+  isSettingsDrawerPanel,
+  type SettingsDrawerPanel,
+} from "../SettingsDrawer/settings-drawer-types";
 import { useAuth } from "../../modules/auth/AuthProvider";
 import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
 import { useUpdateState } from "../../hooks/useUpdateState";
@@ -68,10 +71,10 @@ function Layout(): React.JSX.Element {
   >({});
   const [hydrated, setHydrated] = useState(false);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
-  const [settingsPanel, setSettingsPanel] = useState<SettingsDrawerPanel>("runtime");
+  const [settingsPanel, setSettingsPanel] = useState<SettingsDrawerPanel>("server");
 
-  /** Opens SettingsDrawer; `runtime` panel is the sole Hermes runtime control surface (PRD #5). */
-  const openSettingsDrawer = useCallback((panel: SettingsDrawerPanel = "runtime") => {
+  /** Opens SettingsDrawer; `server` = global Agent / copilot-serve / profile; `runtime` = per-profile ops. */
+  const openSettingsDrawer = useCallback((panel: SettingsDrawerPanel = "server") => {
     setSettingsPanel(panel);
     setSettingsDrawerOpen(true);
   }, []);
@@ -106,12 +109,7 @@ function Layout(): React.JSX.Element {
           navigation.navigateToView("portal");
         }
 
-        if (
-          state.lastSettingsDrawerPanel === "account" ||
-          state.lastSettingsDrawerPanel === "runtime" ||
-          state.lastSettingsDrawerPanel === "profiles" ||
-          state.lastSettingsDrawerPanel === "desktop"
-        ) {
+        if (isSettingsDrawerPanel(state.lastSettingsDrawerPanel)) {
           setSettingsPanel(state.lastSettingsDrawerPanel);
         }
       } catch (err) {
@@ -300,7 +298,6 @@ function Layout(): React.JSX.Element {
       canGoForward={activeMetadata?.canGoForward ?? false}
       onSidebarModeChange={setSidebarMode}
       onNavigate={navigation.navigateToView}
-      onSelectProfile={navigation.handleSelectProfile}
       onTabOrderChange={setWorkspaceOrder}
       onCloseTab={handleCloseTab}
       onRecoverTab={handleRecoverTab}
@@ -324,7 +321,7 @@ function Layout(): React.JSX.Element {
           activeProfile={navigation.activeProfile}
           officeVisited={navigation.officeVisited}
           onNavigate={navigation.navigateToView}
-          onOpenRuntimeSettings={() => openSettingsDrawer("runtime")}
+          onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
           secondaryPanel={secondaryPanel}
           onSecondaryPanelChange={handleSecondaryPanelChange}
         />
@@ -345,6 +342,8 @@ function Layout(): React.JSX.Element {
             panel={settingsPanel}
             activeProfile={navigation.activeProfile}
             onPanelChange={setSettingsPanel}
+            onSelectProfile={navigation.handleSelectProfile}
+            onNavigate={navigation.navigateToView}
             onClose={() => setSettingsDrawerOpen(false)}
           />
           <ConfigDiffConfirmDrawer

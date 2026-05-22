@@ -10,8 +10,8 @@ import { WORKSPACE_PAGE_REGISTRY } from "../registry/workspace-pages";
 
 function PageSkeleton(): React.JSX.Element {
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
+    <div className="workspaces-page-loading">
+      <div className="workspaces-page-loading-spinner" aria-hidden />
     </div>
   );
 }
@@ -24,15 +24,11 @@ function PageErrorFallback({
   onRetry: () => void;
 }): React.JSX.Element {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500">
-      <p className="text-sm text-red-400">
+    <div className="workspaces-page-error">
+      <p className="workspaces-page-error-message">
         {error instanceof Error ? error.message : "Failed to load page"}
       </p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="rounded bg-gray-700 px-3 py-1 text-xs text-gray-300 hover:bg-gray-600"
-      >
+      <button type="button" onClick={onRetry} className="workspaces-action-button">
         Retry
       </button>
     </div>
@@ -94,26 +90,30 @@ function WorkspacesShellInner({ onOpenSettings }: { onOpenSettings?: () => void 
     : `${LAYOUT.rightPanelWidthPx}px`;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-gray-800 bg-gray-950">
+    <div className="workspaces-shell">
       <WorkspaceStatusCards onOpenSettings={onOpenSettings} />
       {loading ? (
-        <p className="shrink-0 px-3 py-0.5 text-xs text-gray-500">Loading profiles…</p>
+        <p className="workspaces-runtime-message">Loading profiles…</p>
       ) : null}
-      {error ? <p className="shrink-0 px-3 py-0.5 text-xs text-red-400">{error}</p> : null}
+      {error ? <p className="workspaces-runtime-message is-error">{error}</p> : null}
 
       <div
-        className="grid min-h-0 flex-1 overflow-hidden"
-        style={{
-          gridTemplateColumns: `${leftCol} minmax(0, 1fr) ${rightCol}`,
-        }}
+        className="workspaces-body"
+        style={
+          {
+            "--ws-left-width": leftCol,
+            "--ws-right-width": rightCol,
+          } as React.CSSProperties
+        }
       >
         <WorkspacesSidebar activeKey={activeNavItem} collapsed={leftPanelCollapsed} />
-        <main
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background"
-          style={{ minWidth: LAYOUT.centerMinWidthPx }}
-        >
-          <PageLoader pageKey={activeNavItem} />
+
+        <main className="workspaces-center">
+          <div className="workspaces-center-scroll">
+            <PageLoader pageKey={activeNavItem} />
+          </div>
         </main>
+
         {rightPanelCollapsed ? <WorkspaceRightPanelRail /> : <WorkspaceRightPanel />}
       </div>
     </div>

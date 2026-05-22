@@ -1,3 +1,4 @@
+import { LAYOUT } from "../constants";
 import { useWorkspaces } from "../context/WorkspacesContext";
 import type { RightInspectorTab } from "../types";
 import { MemoryPanel } from "../panels/MemoryPanel";
@@ -25,9 +26,16 @@ export function WorkspaceRightPanel(): React.JSX.Element {
   const { activeRightTab } = useWorkspaces();
 
   return (
-    <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-l border-gray-800 bg-gray-950">
+    <aside
+      className="workspaces-right-panel"
+      style={
+        {
+          "--ws-right-width": `${LAYOUT.rightPanelWidthPx}px`,
+        } as React.CSSProperties
+      }
+    >
       <RightInspectorTabs />
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="workspaces-right-panel-body">
         <RightPanelBody tab={activeRightTab} />
       </div>
     </aside>

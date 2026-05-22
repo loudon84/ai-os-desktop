@@ -24,17 +24,15 @@ export function HermesDoctorSection(): React.JSX.Element {
       <button
         type="button"
         disabled={busy}
-        className="rounded bg-emerald-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+        className="settings-drawer-btn-success"
         onClick={() => void runDoctor()}
       >
         {busy ? "Running…" : "Run Doctor"}
       </button>
-      {error ? <pre className="mt-3 text-xs text-red-400 whitespace-pre-wrap">{error}</pre> : null}
-      {result ? (
-        <pre className="mt-3 max-h-64 overflow-auto rounded bg-zinc-900 p-2 text-xs text-zinc-300 whitespace-pre-wrap">
-          {result}
-        </pre>
+      {error ? (
+        <pre className="settings-drawer-log-pre settings-drawer-text-error">{error}</pre>
       ) : null}
+      {result ? <pre className="settings-drawer-log-pre is-tall">{result}</pre> : null}
     </>
   );
 }

@@ -33,15 +33,15 @@ export function HermesInstallSection(): React.JSX.Element {
 
   return (
     <>
-      <p className="text-sm text-zinc-300">
-        Install: <span className="font-mono">{status ?? "—"}</span>
+      <p>
+        Install: <span>{status ?? "—"}</span>
       </p>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      <span className="mt-2 flex gap-2">
+      {error ? <p className="settings-drawer-text-error">{error}</p> : null}
+      <div className="settings-drawer-actions">
         <button
           type="button"
           disabled={busy}
-          className="rounded bg-zinc-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          className="settings-drawer-btn-secondary"
           onClick={() => void refresh()}
         >
           Refresh
@@ -49,12 +49,12 @@ export function HermesInstallSection(): React.JSX.Element {
         <button
           type="button"
           disabled={busy}
-          className="rounded bg-emerald-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          className="settings-drawer-btn-success"
           onClick={() => void runUpdate()}
         >
           Update
         </button>
-      </span>
+      </div>
     </>
   );
 }

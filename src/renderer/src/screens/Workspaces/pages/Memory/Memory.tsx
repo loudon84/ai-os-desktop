@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, RefreshCw } from "lucide-react";
 import { useI18n } from "../../../../components/useI18n";
 import { Check, ExternalLink } from "lucide-react";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 interface MemoryEntry {
   index: number;
@@ -186,20 +187,23 @@ function Memory({ profile }: { profile?: string }): React.JSX.Element {
 
   if (loading || !data) {
     return (
-      <div className="settings-container">
-        <h1 className="settings-header">{t("memory.title")}</h1>
-        <div style={{ display: "flex", justifyContent: "center", padding: 48 }}>
-          <div className="loading-spinner" />
+      <WorkspacesPageShell>
+        <div className="settings-container">
+          <h1 className="settings-header">{t("memory.title")}</h1>
+          <div className="workspaces-page-loading-center">
+            <div className="loading-spinner" />
+          </div>
         </div>
-      </div>
+      </WorkspacesPageShell>
     );
   }
 
   return (
-    <div className="settings-container">
+    <WorkspacesPageShell>
+      <div className="settings-container">
       <div className="memory-header">
         <div>
-          <h1 className="settings-header" style={{ marginBottom: 4 }}>
+          <h1 className="settings-header workspaces-page-title-tight">
             {t("memory.title")}
           </h1>
           <p className="memory-subtitle">{t("memory.subtitle")}</p>
@@ -612,7 +616,8 @@ function Memory({ profile }: { profile?: string }): React.JSX.Element {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 

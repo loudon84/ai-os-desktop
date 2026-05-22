@@ -18,27 +18,28 @@ export function HermesRuntimeSettingsDrawer({
     <>
       <button
         type="button"
-        className="fixed inset-0 z-40 bg-black/50"
+        className="settings-drawer-backdrop"
         aria-label="Close runtime settings"
         onClick={onClose}
       />
       <aside
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-zinc-800 bg-zinc-950 shadow-xl"
+        className="settings-drawer-aside"
+        style={{ maxWidth: "32rem" }}
         role="dialog"
         aria-label="Hermes Runtime Settings"
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-100">Hermes Runtime Settings</h2>
+        <header className="settings-drawer-header">
+          <h2 className="settings-drawer-title">Hermes Runtime Settings</h2>
           <button
             type="button"
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            className="settings-drawer-close"
             aria-label="Close"
             onClick={onClose}
           >
             <X size={18} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="settings-drawer-panel-fill">
           <HermesRuntimeSettings activeProfile={activeProfile} />
         </div>
       </aside>

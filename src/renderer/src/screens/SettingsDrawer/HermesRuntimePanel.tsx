@@ -8,7 +8,7 @@ export function HermesRuntimePanel({
   activeProfile,
 }: HermesRuntimePanelProps): React.JSX.Element {
   return (
-    <div className="min-h-0 flex-1 overflow-hidden">
+    <div className="settings-drawer-panel-fill">
       <HermesRuntimeSettings activeProfile={activeProfile} />
     </div>
   );

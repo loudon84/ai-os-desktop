@@ -33,25 +33,25 @@ export function ConfigDiffViewer({
   };
 
   return (
-    <div className="rounded border border-zinc-800">
-      <ul className="max-h-48 overflow-y-auto p-2 space-y-2 text-xs font-mono">
+    <div className="settings-drawer-diff">
+      <ul className="settings-drawer-diff-list">
         {result.diff?.map((item: ConfigDiffItem) => (
-          <li key={item.path} className="rounded border border-zinc-800 p-2">
-            <span className="text-emerald-400">{item.type}</span> {item.path}
+          <li key={item.path} className="settings-drawer-diff-item">
+            <span className="settings-drawer-diff-type">{item.type}</span> {item.path}
           </li>
         ))}
       </ul>
-      <div className="flex gap-2 border-t border-zinc-800 p-2">
+      <div className="settings-drawer-diff-actions">
         <button
           type="button"
-          className="flex-1 rounded bg-emerald-700 py-1.5 text-xs text-white hover:bg-emerald-600 disabled:opacity-50"
+          className="settings-drawer-btn-success"
           disabled={busy || !result.confirmToken}
           onClick={() => void apply()}
         >
           {t("auth.configDiffApply")}
         </button>
       </div>
-      {error ? <p className="px-2 pb-2 text-xs text-red-400">{error}</p> : null}
+      {error ? <p className="settings-drawer-text-error settings-drawer-padded">{error}</p> : null}
     </div>
   );
 }

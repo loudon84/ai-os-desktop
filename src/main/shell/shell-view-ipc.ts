@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import { ipcMain } from "electron";
 import type { ShellViewManager } from "./views/shell-view-manager";
 import type {
@@ -8,6 +9,7 @@ import type {
 import { ShellViewChannels } from "../../shared/shell/shell-view-contract";
 import { BROWSER_PARTITION } from "../browser/browser-types";
 import { bindShellViewManager, refreshPortalView } from "./portal-view-coordinator";
+import { viewEventBus } from "./views/view-events";
 
 async function ensurePortalView(svm: ShellViewManager): Promise<void> {
   bindShellViewManager(svm);
@@ -243,8 +245,7 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
 
 export function destroyShellViews(): void {
   try {
-    const { viewEventBus } = require("./views/view-events");
-    viewEventBus.emit("destroy-all" as never);
+    void (viewEventBus as EventEmitter).emit("destroy-all");
   } catch {
     /* best effort */
   }

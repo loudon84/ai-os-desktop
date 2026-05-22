@@ -10,24 +10,20 @@ export function RightInspectorTabs(): React.JSX.Element {
     useWorkspaces();
 
   return (
-    <div className="flex items-center gap-1 border-b border-gray-800 px-2 py-2">
+    <div className="workspaces-right-tabs">
       {TABS.map((tab) => (
         <button
           key={tab}
           type="button"
           onClick={() => setActiveRightTab(tab)}
-          className={`rounded px-2 py-1 text-xs ${
-            activeRightTab === tab
-              ? "bg-gray-700 text-gray-100"
-              : "text-gray-500 hover:text-gray-300"
-          }`}
+          className={`workspaces-right-tab ${activeRightTab === tab ? "is-active" : ""}`}
         >
           {t(`workspaces.tabs.${tab}`, { defaultValue: tab })}
         </button>
       ))}
       <button
         type="button"
-        className="ml-auto text-xs text-gray-500 hover:text-gray-300"
+        className="workspaces-right-tab workspaces-right-tabs-collapse"
         onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
         title={
           rightPanelCollapsed

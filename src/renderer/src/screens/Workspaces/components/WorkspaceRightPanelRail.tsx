@@ -10,16 +10,20 @@ export function WorkspaceRightPanelRail(): React.JSX.Element {
 
   return (
     <aside
-      className="flex min-h-0 flex-col items-center border-l border-gray-800 bg-gray-950 py-2"
-      style={{ width: LAYOUT.rightPanelCollapsedWidthPx }}
+      className="workspaces-right-rail"
+      style={
+        {
+          "--ws-right-width": `${LAYOUT.rightPanelCollapsedWidthPx}px`,
+        } as React.CSSProperties
+      }
     >
       <button
         type="button"
         onClick={() => setRightPanelCollapsed(false)}
-        className="rounded p-1.5 text-gray-500 hover:bg-gray-800 hover:text-gray-200"
+        className="workspaces-icon-button"
         title={t("workspaces.inspector.expand", { defaultValue: "Expand inspector" })}
       >
-        <PanelRightOpen className="h-4 w-4" />
+        <PanelRightOpen size={16} />
       </button>
     </aside>
   );

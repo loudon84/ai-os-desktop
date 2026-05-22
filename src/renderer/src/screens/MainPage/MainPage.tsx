@@ -29,7 +29,6 @@ export interface MainPageProps {
   canGoForward: boolean;
   onSidebarModeChange: (mode: SidebarMode) => void;
   onNavigate: (view: View) => void;
-  onSelectProfile: (name: string) => void;
   onTabOrderChange: (order: string[]) => void;
   onCloseTab: (id: View) => void;
   onRecoverTab: (id: View) => void;
@@ -68,7 +67,6 @@ export function MainPage({
   canGoForward,
   onSidebarModeChange,
   onNavigate,
-  onSelectProfile,
   onTabOrderChange,
   onCloseTab,
   onRecoverTab,
@@ -108,7 +106,6 @@ export function MainPage({
         canGoForward={canGoForward}
         onSidebarModeChange={onSidebarModeChange}
         onNavigate={onNavigate}
-        onSelectProfile={onSelectProfile}
         onTabOrderChange={onTabOrderChange}
         onCloseTab={onCloseTab}
         onRecoverTab={onRecoverTab}

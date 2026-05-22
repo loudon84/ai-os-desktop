@@ -176,6 +176,7 @@ import {
 } from "./ssh-remote";
 import { bindMainBrowserWindow, registerWindowIpc } from "./window/window-ipc";
 import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
+import { generateId, getProfileByName, insertAuditEvent } from "./profile-runtime-db";
 import { setupWorkspacesIPC } from "./workspaces-ipc";
 import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
@@ -966,7 +967,6 @@ function setupIPC(): void {
       const result = writeMemoryContent(content, profile);
       if (result.success && profile) {
         try {
-          const { getProfileByName, insertAuditEvent, generateId } = require("./profile-runtime-db");
           const rec = getProfileByName(profile);
           if (rec) {
             insertAuditEvent({

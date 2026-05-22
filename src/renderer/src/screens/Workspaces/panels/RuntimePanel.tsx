@@ -70,7 +70,7 @@ export function RuntimePanel(): React.JSX.Element {
   }, [activeProfileId]);
 
   if (!activeProfileId) {
-    return <p className="p-3 text-xs text-gray-500">{t("workspaces.noProfile")}</p>;
+    return <p className="workspaces-panel-muted">{t("workspaces.noProfile")}</p>;
   }
 
   const healthLabel =
@@ -81,30 +81,34 @@ export function RuntimePanel(): React.JSX.Element {
         : t("workspaces.runtime.healthUnhealthy", { defaultValue: "Unhealthy" });
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden p-3 text-xs text-gray-300">
-      <dl className="shrink-0 space-y-1">
-        <div className="flex justify-between">
-          <dt className="text-gray-500">{t("workspaces.runtime.port", { defaultValue: "Port" })}</dt>
+    <div className="workspaces-panel-root workspaces-panel-padded">
+      <dl className="workspaces-dl">
+        <div className="workspaces-dl-row">
+          <dt>{t("workspaces.runtime.port", { defaultValue: "Port" })}</dt>
           <dd>{runtime.port ?? "—"}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-gray-500">PID</dt>
+        <div className="workspaces-dl-row">
+          <dt>PID</dt>
           <dd>{runtime.pid ?? "—"}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-gray-500">{t("workspaces.runtime.health", { defaultValue: "Health" })}</dt>
-          <dd className={runtime.status === "running" && !runtime.healthy ? "text-amber-400" : ""}>
+        <div className="workspaces-dl-row">
+          <dt>{t("workspaces.runtime.health", { defaultValue: "Health" })}</dt>
+          <dd
+            className={
+              runtime.status === "running" && !runtime.healthy ? "is-warning" : undefined
+            }
+          >
             {healthLabel}
           </dd>
         </div>
-        {runtime.lastError ? (
-          <p className="text-red-400">{runtime.lastError}</p>
-        ) : null}
       </dl>
-      <div className="mt-3 flex shrink-0 flex-wrap gap-2">
+      {runtime.lastError ? (
+        <p className="workspaces-runtime-error-text">{runtime.lastError}</p>
+      ) : null}
+      <div className="workspaces-runtime-actions">
         <button
           type="button"
-          className="rounded bg-emerald-700 px-2 py-1 text-white hover:bg-emerald-600 disabled:opacity-50"
+          className="workspaces-runtime-btn-start"
           disabled={runtime.actionLoading}
           onClick={() => void runtime.start()}
         >
@@ -112,7 +116,7 @@ export function RuntimePanel(): React.JSX.Element {
         </button>
         <button
           type="button"
-          className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600 disabled:opacity-50"
+          className="workspaces-runtime-btn-default"
           disabled={runtime.actionLoading}
           onClick={() => void runtime.stop()}
         >
@@ -120,7 +124,7 @@ export function RuntimePanel(): React.JSX.Element {
         </button>
         <button
           type="button"
-          className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600 disabled:opacity-50"
+          className="workspaces-runtime-btn-default"
           disabled={runtime.actionLoading}
           onClick={() => void runtime.restart()}
         >
@@ -128,7 +132,7 @@ export function RuntimePanel(): React.JSX.Element {
         </button>
         <button
           type="button"
-          className="rounded border border-gray-600 px-2 py-1 hover:bg-gray-800"
+          className="workspaces-runtime-btn-default"
           onClick={() => {
             void loadLogs();
             void loadAudit();
@@ -138,18 +142,18 @@ export function RuntimePanel(): React.JSX.Element {
         </button>
       </div>
 
-      <section className="mt-3 min-h-0 flex-1 overflow-y-auto">
-        <h4 className="mb-1 font-semibold text-gray-400">
+      <section className="workspaces-panel-scroll">
+        <h4 className="workspaces-panel-section-title">
           {t("workspaces.runtime.events", { defaultValue: "Events" })}
         </h4>
         {profileEvents.length === 0 ? (
-          <p className="mb-3 text-[10px] text-gray-600">
+          <p className="workspaces-panel-list-item">
             {t("workspaces.runtime.noEvents", { defaultValue: "No recent status changes" })}
           </p>
         ) : (
-          <ul className="mb-3 space-y-1 text-[10px]">
+          <ul className="workspaces-panel-list">
             {profileEvents.map((ev) => (
-              <li key={`${ev.timestamp}-${ev.newStatus}`} className="text-gray-400">
+              <li key={`${ev.timestamp}-${ev.newStatus}`} className="workspaces-panel-list-item">
                 {new Date(ev.timestamp).toLocaleString()} · {ev.previousStatus} → {ev.newStatus}
                 {ev.reason ? ` (${ev.reason})` : ""}
               </li>
@@ -157,27 +161,27 @@ export function RuntimePanel(): React.JSX.Element {
           </ul>
         )}
 
-        <h4 className="mb-1 font-semibold text-gray-400">
+        <h4 className="workspaces-panel-section-title">
           {t("workspaces.runtime.audit", { defaultValue: "Audit" })}
         </h4>
         {auditRows.length === 0 ? (
-          <p className="mb-3 text-[10px] text-gray-600">
+          <p className="workspaces-panel-list-item">
             {t("workspaces.runtime.noAudit", { defaultValue: "No audit events" })}
           </p>
         ) : (
-          <ul className="mb-3 space-y-1 text-[10px]">
+          <ul className="workspaces-panel-list">
             {auditRows.map((row) => (
-              <li key={row.id} className="text-gray-400">
+              <li key={row.id} className="workspaces-panel-list-item">
                 {new Date(row.created_at).toLocaleString()} · {row.action} · {row.status}
               </li>
             ))}
           </ul>
         )}
 
-        <h4 className="mb-1 font-semibold text-gray-400">
+        <h4 className="workspaces-panel-section-title">
           {t("workspaces.runtime.logs", { defaultValue: "Logs" })}
         </h4>
-        <pre className="rounded bg-gray-950 p-2 text-[10px] text-gray-400 whitespace-pre-wrap">
+        <pre className="workspaces-panel-pre">
           {logs || t("workspaces.runtime.noLogs", { defaultValue: "No logs" })}
         </pre>
       </section>

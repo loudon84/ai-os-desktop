@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "../../../../components/useI18n";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 interface ToolsetInfo {
   key: string;
@@ -289,16 +290,19 @@ function Tools({ profile }: ToolsProps): React.JSX.Element {
 
   if (loading) {
     return (
-      <div className="tools-container">
-        <div className="tools-loading">
-          <div className="loading-spinner" />
+      <WorkspacesPageShell>
+        <div className="tools-container">
+          <div className="tools-loading">
+            <div className="loading-spinner" />
+          </div>
         </div>
-      </div>
+      </WorkspacesPageShell>
     );
   }
 
   return (
-    <div className="tools-container">
+    <WorkspacesPageShell>
+      <div className="tools-container">
       <div className="tools-header">
         <h2 className="tools-title">{t("tools.title")}</h2>
         <p className="tools-subtitle">{t("tools.subtitle")}</p>
@@ -383,7 +387,8 @@ function Tools({ profile }: ToolsProps): React.JSX.Element {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 

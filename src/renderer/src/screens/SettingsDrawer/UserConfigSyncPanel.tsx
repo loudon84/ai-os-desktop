@@ -23,15 +23,15 @@ export function UserConfigSyncPanel(): React.JSX.Element {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 text-sm text-zinc-300">
-      <p className="text-xs text-zinc-500">
+    <div className="settings-drawer-scroll settings-drawer-padded settings-drawer-stack">
+      <p className="settings-drawer-hint">
         {t("auth.configSyncHint", {
           defaultValue: "Pull remote desktop configuration and apply to local Hermes home.",
         })}
       </p>
       <button
         type="button"
-        className="w-full max-w-xs rounded bg-blue-600 py-2 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+        className="settings-drawer-btn-primary settings-drawer-btn-block"
         disabled={busy}
         onClick={() => void runBootstrap()}
       >
@@ -39,11 +39,11 @@ export function UserConfigSyncPanel(): React.JSX.Element {
           ? t("auth.configSyncRunning", { defaultValue: "Syncing…" })
           : t("auth.configSyncNow", { defaultValue: "Sync configuration" })}
       </button>
-      {error ? <p className="text-xs text-red-400">{error}</p> : null}
+      {error ? <p className="settings-drawer-text-error">{error}</p> : null}
       {lastResult?.diff?.length ? (
         <ConfigDiffViewer result={lastResult} onApplied={() => setLastResult(null)} />
       ) : lastResult && !lastResult.diff?.length ? (
-        <p className="text-xs text-emerald-400">
+        <p className="settings-drawer-text-success">
           {t("auth.configUpToDate", { defaultValue: "Configuration is up to date." })}
         </p>
       ) : null}

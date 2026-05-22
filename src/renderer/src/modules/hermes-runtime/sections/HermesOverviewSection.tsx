@@ -4,14 +4,14 @@ export function HermesOverviewSection(): React.JSX.Element {
   const { loading, error, version, gatewayStatus, refresh } = useHermesOverview();
 
   if (loading) {
-    return <p className="text-sm text-zinc-400">Loading…</p>;
+    return <p className="settings-drawer-text-muted">Loading…</p>;
   }
 
   if (error) {
     return (
       <>
-        <p className="text-sm text-red-400">{error}</p>
-        <button type="button" className="text-xs text-emerald-400" onClick={() => void refresh()}>
+        <p className="settings-drawer-text-error">{error}</p>
+        <button type="button" className="settings-drawer-runtime-retry" onClick={() => void refresh()}>
           Retry
         </button>
       </>
@@ -19,15 +19,11 @@ export function HermesOverviewSection(): React.JSX.Element {
   }
 
   return (
-    <dl className="space-y-3 text-sm">
-      <>
-        <dt className="text-zinc-500">Hermes version</dt>
-        <dd className="text-zinc-100 font-mono">{version ?? "—"}</dd>
-      </>
-      <>
-        <dt className="text-zinc-500">Gateway</dt>
-        <dd className="text-zinc-100 font-mono">{gatewayStatus ?? "—"}</dd>
-      </>
+    <dl>
+      <dt>Hermes version</dt>
+      <dd>{version ?? "—"}</dd>
+      <dt>Gateway</dt>
+      <dd>{gatewayStatus ?? "—"}</dd>
     </dl>
   );
 }

@@ -18,63 +18,61 @@ export function SkillsPanel(): React.JSX.Element {
 
   const useMarkdownPreview = useMemo(
     () =>
-      selectedSkill
-        ? isMarkdownSkill(selectedSkill.path, skillContent)
-        : false,
+      selectedSkill ? isMarkdownSkill(selectedSkill.path, skillContent) : false,
     [selectedSkill, skillContent],
   );
 
   if (!activeProfileId) {
-    return <p className="p-3 text-xs text-gray-500">{t("workspaces.noProfile", { defaultValue: "No profile selected" })}</p>;
+    return (
+      <p className="workspaces-panel-muted">
+        {t("workspaces.noProfile", { defaultValue: "No profile selected" })}
+      </p>
+    );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="workspaces-panel-root">
       <input
-        className="m-2 rounded bg-gray-800 px-2 py-1.5 text-xs text-gray-100"
+        className="workspaces-input"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder={t("workspaces.skills.search", { defaultValue: "Search skills…" })}
       />
       {loading ? (
-        <p className="px-3 text-xs text-gray-500">{t("common.loading")}</p>
+        <p className="workspaces-panel-muted">{t("common.loading")}</p>
       ) : error ? (
-        <p className="px-3 text-xs text-red-400">{error}</p>
+        <p className="workspaces-panel-error">{error}</p>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ul className="max-h-[40%] overflow-y-auto border-b border-gray-800 px-2 pb-2">
+        <div className="workspaces-skills-list-wrap">
+          <ul className="workspaces-skills-list">
             {Object.entries(grouped).map(([category, items]) => (
-              <li key={category} className="mb-2">
-                <p className="mb-1 text-[10px] font-semibold uppercase text-gray-500">{category}</p>
+              <li key={category} className="workspaces-skills-category">
+                <p className="workspaces-skills-category-title">{category}</p>
                 {items.map((s) => (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => void selectSkill(s)}
-                    className={`mb-1 block w-full rounded px-2 py-1 text-left text-xs ${
-                      selectedSkill?.id === s.id
-                        ? "bg-gray-700 text-gray-100"
-                        : "text-gray-400 hover:bg-gray-800"
+                    className={`workspaces-skill-item ${
+                      selectedSkill?.id === s.id ? "is-active" : ""
                     }`}
                   >
                     {s.name}
-                    <span className="ml-1 text-[10px] text-gray-600">({s.sourceType})</span>
+                    <span className="workspaces-skill-item-meta">({s.sourceType})</span>
                   </button>
                 ))}
               </li>
             ))}
           </ul>
-          <div className="min-h-0 flex-1 overflow-auto p-3 text-[11px] text-gray-300">
+          <div className="workspaces-skill-preview">
             {selectedSkill ? (
               useMarkdownPreview ? (
-                <div className="prose-invert max-w-none text-xs">
-                  <AgentMarkdown>{skillContent}</AgentMarkdown>
-                </div>
+                <AgentMarkdown>{skillContent}</AgentMarkdown>
               ) : (
-                <pre className="whitespace-pre-wrap">{skillContent}</pre>
+                <pre className="workspaces-panel-pre">{skillContent}</pre>
               )
             ) : (
-              <p className="text-gray-500">
+              <p className="workspaces-panel-muted">
                 {t("workspaces.skills.selectHint", { defaultValue: "Select a skill" })}
               </p>
             )}

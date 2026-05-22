@@ -82,20 +82,20 @@ export function ProfilePresetInstallCard({
   const previewBlocked = preview !== null && !preview.canInstall;
 
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <section className="settings-drawer-section">
+      <h3 className="settings-drawer-section-title">
         {t("runtimeSettings.multiProfilesPresetTitle")}
       </h3>
-      <p className="mb-3 text-xs text-zinc-500">
+      <p className="settings-drawer-section-desc">
         {t("runtimeSettings.multiProfilesPresetDesc")}
       </p>
       {preview ? (
-        <div className="mb-3 space-y-1 text-xs text-zinc-500">
+        <div className="settings-drawer-stack-sm settings-drawer-text-muted">
           <p>
             {t("runtimeSettings.multiProfilesPreviewCount", { count: preview.totalProfiles })}
           </p>
           {preview.portConflicts.length > 0 ? (
-            <ul className="list-inside list-disc text-amber-400/90">
+            <ul className="settings-drawer-disc-list is-warning">
               {preview.portConflicts.map((c) => (
                 <li key={`${c.profileName}-${c.port}`}>
                   {t("runtimeSettings.multiProfilesPortConflict", {
@@ -108,14 +108,14 @@ export function ProfilePresetInstallCard({
             </ul>
           ) : null}
           {preview.existingWithoutOverwrite.length > 0 ? (
-            <p className="text-amber-400/90">
+            <p className="settings-drawer-text-warning">
               {t("runtimeSettings.multiProfilesExisting", {
                 names: preview.existingWithoutOverwrite.join(", "),
               })}
             </p>
           ) : null}
           {preview.invalidProfiles.length > 0 ? (
-            <ul className="list-inside list-disc text-red-400/90">
+            <ul className="settings-drawer-disc-list is-error">
               {preview.invalidProfiles.map((item) => (
                 <li key={item.profileName || "yaml"}>
                   {item.profileName ? `${item.profileName}: ` : ""}
@@ -126,7 +126,7 @@ export function ProfilePresetInstallCard({
           ) : null}
         </div>
       ) : null}
-      <label className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
+      <label className="settings-drawer-label-row">
         <input
           type="checkbox"
           checked={overwrite}
@@ -135,10 +135,10 @@ export function ProfilePresetInstallCard({
         />
         {t("runtimeSettings.multiProfilesOverwrite")}
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="settings-drawer-actions">
         <button
           type="button"
-          className="rounded bg-emerald-700 px-3 py-1.5 text-xs text-white hover:bg-emerald-600 disabled:opacity-50"
+          className="settings-drawer-btn-success"
           disabled={busy || previewBlocked}
           onClick={() => void handleInstall()}
         >
@@ -148,7 +148,7 @@ export function ProfilePresetInstallCard({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+          className="settings-drawer-btn-secondary"
           disabled={busy}
           onClick={() => void handleSyncLibrary()}
         >
@@ -156,16 +156,14 @@ export function ProfilePresetInstallCard({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+          className="settings-drawer-btn-secondary"
           disabled={busy}
           onClick={() => void refreshPreview()}
         >
           {t("runtimeSettings.multiProfilesRecheckPorts")}
         </button>
       </div>
-      {message ? (
-        <p className="mt-2 text-xs text-zinc-400">{message}</p>
-      ) : null}
+      {message ? <p className="settings-drawer-text-muted">{message}</p> : null}
     </section>
   );
 }

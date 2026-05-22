@@ -5,6 +5,7 @@ import { useI18n } from "../../../../components/useI18n";
 import BrandLogo from "../../../../components/common/BrandLogo";
 import { detectProviderFromUrl } from "./detect-provider";
 import { useDiscoveredModels } from "../../../../hooks/useDiscoveredModels";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 interface SavedModel {
   id: string;
@@ -207,17 +208,20 @@ function Models({ visible }: ModelsProps = {}): React.JSX.Element {
 
   if (loading) {
     return (
-      <div className="settings-container">
-        <h1 className="settings-header">{t("models.title")}</h1>
-        <div className="models-loading">
-          <div className="loading-spinner" />
+      <WorkspacesPageShell>
+        <div className="settings-container">
+          <h1 className="settings-header">{t("models.title")}</h1>
+          <div className="models-loading">
+            <div className="loading-spinner" />
+          </div>
         </div>
-      </div>
+      </WorkspacesPageShell>
     );
   }
 
   return (
-    <div className="settings-container">
+    <WorkspacesPageShell>
+      <div className="settings-container">
       <div className="models-header">
         <div>
           <h1 className="settings-header models-title-tight">
@@ -494,7 +498,8 @@ function Models({ visible }: ModelsProps = {}): React.JSX.Element {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 

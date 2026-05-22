@@ -22,21 +22,19 @@ export function HermesLogsSection(): React.JSX.Element {
     void refresh();
   }, [refresh]);
 
-  if (loading) return <p className="text-sm text-zinc-400">Loading logs…</p>;
-  if (error) return <p className="text-sm text-red-400">{error}</p>;
+  if (loading) return <p className="settings-drawer-text-muted">Loading logs…</p>;
+  if (error) return <p className="settings-drawer-text-error">{error}</p>;
 
   return (
     <>
       <button
         type="button"
-        className="mb-2 text-xs text-emerald-400"
+        className="settings-drawer-runtime-retry"
         onClick={() => void refresh()}
       >
         Refresh
       </button>
-      <pre className="max-h-80 overflow-auto rounded bg-zinc-900 p-2 font-mono text-xs text-zinc-300 whitespace-pre-wrap">
-        {logs || "(empty)"}
-      </pre>
+      <pre className="settings-drawer-log-pre is-tall">{logs || "(empty)"}</pre>
     </>
   );
 }

@@ -35,8 +35,8 @@ export function ChatComposer({
 
   if (showPresetRequired) {
     return (
-      <div className="border-t border-gray-800 p-4 text-center">
-        <p className="text-xs text-gray-500">
+      <div className="workspaces-chat-composer-centered">
+        <p className="workspaces-chat-composer-hint">
           {t("workspaces.chat.presetRequired", {
             defaultValue: "Install this expert preset before chatting.",
           })}
@@ -47,17 +47,13 @@ export function ChatComposer({
 
   if (showRestartUnhealthy) {
     return (
-      <div className="border-t border-gray-800 p-4 text-center">
-        <p className="mb-2 text-xs text-amber-400/90">
+      <div className="workspaces-chat-composer-centered">
+        <p className="workspaces-chat-composer-hint is-warning">
           {t("workspaces.chat.restartUnhealthyHint", {
             defaultValue: "Profile is running but Gateway health check failed. Restart to recover.",
           })}
         </p>
-        <button
-          type="button"
-          className="rounded bg-amber-700 px-4 py-2 text-sm text-white hover:bg-amber-600"
-          onClick={onRestartProfile}
-        >
+        <button type="button" className="workspaces-chat-btn-warning" onClick={onRestartProfile}>
           {t("workspaces.runtime.restart", { defaultValue: "Restart" })}
         </button>
       </div>
@@ -66,17 +62,13 @@ export function ChatComposer({
 
   if (showStartProfile) {
     return (
-      <div className="border-t border-gray-800 p-4 text-center">
-        <p className="mb-2 text-xs text-gray-500">
+      <div className="workspaces-chat-composer-centered">
+        <p className="workspaces-chat-composer-hint">
           {t("workspaces.chat.startProfileHint", {
             defaultValue: "Profile is not running. Start it to chat.",
           })}
         </p>
-        <button
-          type="button"
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-          onClick={onStartProfile}
-        >
+        <button type="button" className="workspaces-chat-btn-primary" onClick={onStartProfile}>
           {t("workspaces.runtime.start", { defaultValue: "Start Profile" })}
         </button>
       </div>
@@ -85,7 +77,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="flex gap-2 border-t border-gray-800 p-3"
+      className="workspaces-chat-composer"
       onSubmit={(e) => {
         e.preventDefault();
         const text = input.trim();
@@ -95,33 +87,25 @@ export function ChatComposer({
       }}
     >
       <input
-        className="flex-1 rounded bg-gray-800 px-3 py-2 text-sm text-gray-100 disabled:opacity-50"
+        className="workspaces-chat-input"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder={t("navigation.chatPlaceholder", { defaultValue: "Message…" })}
         disabled={inputDisabled}
       />
       {runState === "error" && onRetry ? (
-        <button
-          type="button"
-          className="rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
-          onClick={onRetry}
-        >
+        <button type="button" className="workspaces-chat-btn-primary" onClick={onRetry}>
           {t("workspaces.chat.retry", { defaultValue: "Retry" })}
         </button>
       ) : null}
       {busy ? (
-        <button
-          type="button"
-          className="rounded border border-gray-600 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800"
-          onClick={onCancel}
-        >
+        <button type="button" className="workspaces-chat-btn-secondary" onClick={onCancel}>
           {t("common.cancel", { defaultValue: "Cancel" })}
         </button>
       ) : runState !== "error" ? (
         <button
           type="submit"
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="workspaces-chat-btn-primary"
           disabled={inputDisabled || !input.trim()}
         >
           {t("navigation.send", { defaultValue: "Send" })}

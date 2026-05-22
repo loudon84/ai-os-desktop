@@ -10,7 +10,7 @@ export function SessionSearch({
   const { t } = useI18n();
   return (
     <input
-      className="w-full rounded bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500"
+      className="workspaces-input"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={t("workspaces.sessions.search", { defaultValue: "Search sessions…" })}

@@ -1,26 +1,28 @@
 import type { NavItemKey } from "./constants";
+import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
 import { WorkspacesShell } from "./panels/WorkspacesShell";
+import "./Workspaces.css";
 
 export interface WorkspacesScreenProps {
   profile: string;
   activePanel?: string;
   onPanelChange?: (panel: string) => void;
-  onOpenRuntimeSettings?: () => void;
+  onOpenSettingsDrawer?: (panel?: SettingsDrawerPanel) => void;
 }
 
 export function WorkspacesScreen({
   profile,
   activePanel,
   onPanelChange,
-  onOpenRuntimeSettings,
+  onOpenSettingsDrawer,
 }: WorkspacesScreenProps): React.JSX.Element {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="workspaces-screen">
       <WorkspacesShell
         profile={profile}
         initialNavItem={activePanel}
         onNavItemChange={onPanelChange as ((key: NavItemKey) => void) | undefined}
-        onOpenSettings={onOpenRuntimeSettings}
+        onOpenSettings={() => onOpenSettingsDrawer?.("server")}
       />
     </div>
   );

@@ -18,7 +18,7 @@ import type { View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
 import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
 import { MainViewTabs } from "./MainViewTabs";
-import { MainProfileSwitch } from "./MainProfileSwitch";
+import { ServersEntry } from "./ServersEntry";
 import { MainRuntimeIndicator } from "./MainRuntimeIndicator";
 
 interface MainTopBarProps {
@@ -35,7 +35,6 @@ interface MainTopBarProps {
   canGoForward: boolean;
   onSidebarModeChange: (mode: SidebarMode) => void;
   onNavigate: (view: View) => void;
-  onSelectProfile: (name: string) => void;
   onTabOrderChange: (order: string[]) => void;
   onCloseTab: (id: View) => void;
   onRecoverTab: (id: View) => void;
@@ -65,7 +64,6 @@ function normalizeUrlInput(raw: string): string {
 export function MainTopBar({
   activeProfile,
   activeView,
-  profileEntries,
   externalTabs,
   tabOrder,
   sidebarMode,
@@ -76,7 +74,6 @@ export function MainTopBar({
   canGoForward,
   onSidebarModeChange,
   onNavigate,
-  onSelectProfile,
   onTabOrderChange,
   onCloseTab,
   onRecoverTab,
@@ -98,7 +95,10 @@ export function MainTopBar({
     if (!newTabOpen) return;
 
     const onPointerDown = (event: MouseEvent): void => {
-      if (newTabRef.current && !newTabRef.current.contains(event.target as Node)) {
+      if (
+        newTabRef.current &&
+        !newTabRef.current.contains(event.target as Node)
+      ) {
         setNewTabOpen(false);
       }
     };
@@ -135,16 +135,6 @@ export function MainTopBar({
           <SidebarIcon size={16} />
         </button>
       ) : null}
-
-      <MainProfileSwitch
-        activeProfile={activeProfile}
-        onSelectProfile={onSelectProfile}
-        onNavigate={onNavigate}
-        onOpenRuntimeSettings={() => onOpenSettingsDrawer("runtime")}
-      />
-
-      <MainRuntimeIndicator activeProfile={activeProfile} />
-
       <MainViewTabs
         activeView={activeView}
         externalTabs={externalTabs}
@@ -155,7 +145,6 @@ export function MainTopBar({
         onCloseTab={onCloseTab}
         onRecoverTab={onRecoverTab}
       />
-
       <div className="MainTopBar__actions no-drag">
         <div className="MainTopBar__new-tab" ref={newTabRef}>
           <button
@@ -167,7 +156,10 @@ export function MainTopBar({
             <Plus size={15} />
           </button>
           {newTabOpen ? (
-            <form className="MainTopBar__new-tab-popover no-drag" onSubmit={handleNewTabSubmit}>
+            <form
+              className="MainTopBar__new-tab-popover no-drag"
+              onSubmit={handleNewTabSubmit}
+            >
               <input
                 type="text"
                 value={newTabUrl}
@@ -215,12 +207,22 @@ export function MainTopBar({
           </>
         ) : null}
 
-        <button type="button" aria-label="Reload tab" title="Reload tab" onClick={onReloadActiveTab}>
+        <button
+          type="button"
+          aria-label="Reload tab"
+          title="Reload tab"
+          onClick={onReloadActiveTab}
+        >
           <RotateCw size={15} />
         </button>
 
         {canCloseActiveTab ? (
-          <button type="button" aria-label="Close tab" title="Close tab" onClick={onCloseActiveTab}>
+          <button
+            type="button"
+            aria-label="Close tab"
+            title="Close tab"
+            onClick={onCloseActiveTab}
+          >
             <X size={15} />
           </button>
         ) : null}
@@ -229,7 +231,7 @@ export function MainTopBar({
           type="button"
           aria-label="Settings"
           title="Settings"
-          onClick={() => onOpenSettingsDrawer("runtime")}
+          onClick={() => onOpenSettingsDrawer("server")}
         >
           <Settings size={15} />
         </button>

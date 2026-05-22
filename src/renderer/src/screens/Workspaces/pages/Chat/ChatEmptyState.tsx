@@ -53,7 +53,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
   return (
     <div className="chat-empty">
       <div className="chat-empty-icon">
-        <Bot size={64} strokeWidth={1.25} className="text-gray-400" />
+        <Bot size={64} strokeWidth={1.25} className="workspaces-chat-empty-icon" />
       </div>
       <div className="chat-empty-text">{t("chat.emptyTitle")}</div>
       <div className="chat-empty-hint">{t("chat.emptyHint")}</div>

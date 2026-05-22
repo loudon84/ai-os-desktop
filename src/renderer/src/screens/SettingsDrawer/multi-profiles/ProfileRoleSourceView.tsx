@@ -38,43 +38,41 @@ export function ProfileRoleSourceView({
   };
 
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <section className="settings-drawer-section">
+      <h3 className="settings-drawer-section-title">
         {t("runtimeSettings.multiProfilesRoleTitle")}
       </h3>
       {!profile ? (
-        <p className="text-xs text-zinc-500">{t("runtimeSettings.multiProfilesSelectProfile")}</p>
+        <p className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesSelectProfile")}</p>
       ) : !roleSpec ? (
-        <p className="text-xs text-zinc-500">{t("runtimeSettings.multiProfilesNoRoleSpec")}</p>
+        <p className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesNoRoleSpec")}</p>
       ) : (
-        <dl className="space-y-1.5 text-xs">
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500">{t("runtimeSettings.multiProfilesRoleName")}</dt>
-            <dd className="text-zinc-300">{roleSpec.roleName}</dd>
+        <dl className="settings-drawer-dl">
+          <div className="settings-drawer-dl-row">
+            <dt>{t("runtimeSettings.multiProfilesRoleName")}</dt>
+            <dd>{roleSpec.roleName}</dd>
           </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500">{t("runtimeSettings.multiProfilesRoleKey")}</dt>
-            <dd className="font-mono text-zinc-400">{roleSpec.roleKey}</dd>
+          <div className="settings-drawer-dl-row">
+            <dt>{t("runtimeSettings.multiProfilesRoleKey")}</dt>
+            <dd>{roleSpec.roleKey}</dd>
           </div>
-          <div>
-            <dt className="text-zinc-500">{t("runtimeSettings.multiProfilesSourceRepo")}</dt>
-            <dd className="mt-0.5 break-all font-mono text-[10px] text-zinc-400">
-              {roleSpec.roleSourceRepo}
-            </dd>
+          <div className="settings-drawer-dl-block">
+            <dt>{t("runtimeSettings.multiProfilesSourceRepo")}</dt>
+            <dd>{roleSpec.roleSourceRepo}</dd>
           </div>
-          <div>
-            <dt className="text-zinc-500">{t("runtimeSettings.multiProfilesSourcePaths")}</dt>
-            <dd className="mt-0.5">
-              <ul className="list-inside list-disc font-mono text-[10px] text-zinc-400">
+          <div className="settings-drawer-dl-block">
+            <dt>{t("runtimeSettings.multiProfilesSourcePaths")}</dt>
+            <dd>
+              <ul>
                 {roleSpec.sourcePaths.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
               </ul>
             </dd>
           </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500">{t("runtimeSettings.multiProfilesChecksum")}</dt>
-            <dd className="max-w-[12rem] truncate font-mono text-[10px] text-zinc-400" title={roleSpec.sourceChecksum}>
+          <div className="settings-drawer-dl-row">
+            <dt>{t("runtimeSettings.multiProfilesChecksum")}</dt>
+            <dd className="settings-drawer-dl-truncate" title={roleSpec.sourceChecksum}>
               {roleSpec.sourceChecksum}
             </dd>
           </div>
@@ -82,7 +80,7 @@ export function ProfileRoleSourceView({
       )}
       <button
         type="button"
-        className="mt-3 rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+        className="settings-drawer-btn-ghost"
         disabled={busy || !profile || !roleSpec}
         onClick={() => void handleRecompile()}
       >
@@ -90,7 +88,7 @@ export function ProfileRoleSourceView({
           ? t("runtimeSettings.multiProfilesRecompiling")
           : t("runtimeSettings.multiProfilesRecompile")}
       </button>
-      {message ? <p className="mt-2 text-xs text-zinc-400">{message}</p> : null}
+      {message ? <p className="settings-drawer-text-muted">{message}</p> : null}
     </section>
   );
 }

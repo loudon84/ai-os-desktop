@@ -1,4 +1,8 @@
-import { getRuntimeInstance, updateRuntimeStatus } from "./profile-runtime-db";
+import {
+  getRuntimeInstance,
+  updateRuntimeStatus,
+  listRuntimeInstances,
+} from "./profile-runtime-db";
 
 const SUPERVISION_INTERVAL_MS = 15_000;
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -164,7 +168,6 @@ export function getSupervisionStatus(profileId: string): {
 }
 
 export function startAllSupervision(): void {
-  const { listRuntimeInstances } = require("./profile-runtime-db");
   const all = listRuntimeInstances() as Array<{ profile_id: string; status: string; auto_restart: boolean }>;
   for (const inst of all) {
     if (inst.status === "running") {

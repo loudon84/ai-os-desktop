@@ -42,15 +42,15 @@ export function HermesConnectionSection(): React.JSX.Element {
     }
   };
 
-  if (loading) return <p className="text-sm text-zinc-400">Loading…</p>;
-  if (!config) return <p className="text-sm text-red-400">{error ?? "No config"}</p>;
+  if (loading) return <p className="settings-drawer-text-muted">Loading…</p>;
+  if (!config) return <p className="settings-drawer-text-error">{error ?? "No config"}</p>;
 
   return (
     <>
-      <label className="block text-xs text-zinc-400">
-        Mode
+      <label className="settings-drawer-field">
+        <span className="settings-drawer-field-label">Mode</span>
         <select
-          className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
+          className="settings-drawer-select"
           value={config.mode}
           onChange={(e) =>
             setConfig({
@@ -65,20 +65,20 @@ export function HermesConnectionSection(): React.JSX.Element {
         </select>
       </label>
       {config.mode === "remote" ? (
-        <label className="mt-3 block text-xs text-zinc-400">
-          Remote URL
+        <label className="settings-drawer-field">
+          <span className="settings-drawer-field-label">Remote URL</span>
           <input
-            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
+            className="settings-drawer-input"
             value={config.remoteUrl ?? ""}
             onChange={(e) => setConfig({ ...config, remoteUrl: e.target.value })}
           />
         </label>
       ) : null}
-      {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
+      {error ? <p className="settings-drawer-text-error">{error}</p> : null}
       <button
         type="button"
         disabled={saving}
-        className="mt-3 rounded bg-emerald-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+        className="settings-drawer-btn-success"
         onClick={() => void save()}
       >
         {saving ? "Saving…" : "Save"}

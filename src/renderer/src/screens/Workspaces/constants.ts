@@ -67,8 +67,7 @@ export type NavItemKey =
   | "tools"
   | "memory"
   | "providers"
-  | "models"
-  | "settings";
+  | "models";
 
 export const SIDEBAR_NAV_ITEMS: ReadonlyArray<{
   key: NavItemKey;
@@ -82,7 +81,6 @@ export const SIDEBAR_NAV_ITEMS: ReadonlyArray<{
   { key: "memory", labelI18nKey: "workspaces.nav.memory", icon: "Brain" },
   { key: "providers", labelI18nKey: "workspaces.nav.providers", icon: "Server" },
   { key: "models", labelI18nKey: "workspaces.nav.models", icon: "Box" },
-  { key: "settings", labelI18nKey: "workspaces.nav.settings", icon: "Settings" },
 ] as const;
 
 export const LAYOUT = {

@@ -50,7 +50,7 @@ export function ChatPanel(): React.JSX.Element {
   const profileInstalled = activeProfile?.installed !== false;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-gray-900">
+    <div className="workspaces-panel-root is-chat">
       <ChatHeader sessionTitle={sessionTitle} isDraft={!activeSessionId} />
       <MessageTimeline
         messages={chat.messages}

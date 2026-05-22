@@ -67,10 +67,12 @@ function normalizeNavItem(value: string | undefined): NavItemKey {
     value === "tools" ||
     value === "memory" ||
     value === "providers" ||
-    value === "models" ||
-    value === "settings"
+    value === "models"
   ) {
     return value;
+  }
+  if (value === "settings") {
+    return "chat";
   }
   return "chat";
 }

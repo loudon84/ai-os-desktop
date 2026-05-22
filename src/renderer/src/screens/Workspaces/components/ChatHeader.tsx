@@ -13,7 +13,7 @@ export function ChatHeader({
   const { activeProfile } = useWorkspaces();
   if (!activeProfile) {
     return (
-      <div className="border-b border-gray-800 px-4 py-3 text-sm text-gray-500">
+      <div className="workspaces-chat-header-empty">
         {t("workspaces.noProfile", { defaultValue: "No profile selected" })}
       </div>
     );
@@ -24,10 +24,10 @@ export function ChatHeader({
       : sessionTitle;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-4 py-3">
-      <div className="min-w-0">
-        <h2 className="truncate text-sm font-semibold text-gray-100">{activeProfile.displayName}</h2>
-        <p className="truncate text-xs text-gray-500">{subtitle}</p>
+    <div className="workspaces-chat-header">
+      <div className="workspaces-chat-header-main">
+        <h2 className="workspaces-chat-header-title">{activeProfile.displayName}</h2>
+        <p className="workspaces-chat-header-subtitle">{subtitle}</p>
       </div>
       <ProfileStatusBadge status={activeProfile.status} />
     </div>

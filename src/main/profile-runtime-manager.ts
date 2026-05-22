@@ -9,7 +9,10 @@ import {
   updateRuntimeStatus,
   insertAuditEvent,
   generateId,
+  getCapabilities,
 } from "./profile-runtime-db";
+import { hermesLocalAdapter } from "./hermes-local-adapter";
+import { reconcile } from "./runtime-reconciler";
 import { getPluginRegistry } from "./plugin-registry";
 import { startSupervision, stopSupervision, stopAllSupervision, setAutoRestartHandler, resetRestartCount } from "./gateway-supervisor";
 import { startCollecting, stopCollecting } from "./gateway-log-collector";
@@ -37,14 +40,12 @@ export function initializeProfileRuntime(): void {
   initProfileRuntimeDb();
   const registry = getPluginRegistry();
 
-  const { hermesLocalAdapter } = require("./hermes-local-adapter");
   registry.registerAdapter(hermesLocalAdapter);
 
   setAutoRestartHandler(async (profileId: string) => {
     await startProfile(profileId);
   });
 
-  const { reconcile } = require("./runtime-reconciler");
   reconcile().catch(() => {});
 }
 
@@ -267,7 +268,7 @@ export function listProfileSummaries(): ProfileSummary[] {
   const profiles = listProfiles();
   return profiles.map((profile) => {
     const instance = getRuntimeInstance(profile.id);
-    const caps = require("./profile-runtime-db").getCapabilities(profile.id) as Array<{ capability_name: string }>;
+    const caps = getCapabilities(profile.id);
     return {
       id: profile.id,
       name: profile.name,
@@ -291,7 +292,7 @@ export function getProfileSummary(profileId: string): ProfileSummary | null {
   const profile = getProfile(profileId);
   if (!profile) return null;
   const instance = getRuntimeInstance(profileId);
-  const caps = require("./profile-runtime-db").getCapabilities(profileId) as Array<{ capability_name: string }>;
+  const caps = getCapabilities(profileId);
   return {
     id: profile.id,
     name: profile.name,

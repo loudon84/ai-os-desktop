@@ -3,6 +3,7 @@ import { SETTINGS_SECTIONS, PROVIDERS } from "../../../../constants";
 import { useI18n } from "../../../../components/useI18n";
 import BrandLogo from "../../../../components/common/BrandLogo";
 import { useDiscoveredModels } from "../../../../hooks/useDiscoveredModels";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 function Providers({
   profile,
@@ -241,9 +242,10 @@ function Providers({
   const discoveryListId = "provider-model-discovery";
 
   return (
-    <div className="settings-container">
+    <WorkspacesPageShell>
+      <div className="settings-container">
       <h1 className="settings-header">{t("providers.title")}</h1>
-      <p className="models-subtitle" style={{ marginBottom: 16 }}>
+      <p className="models-subtitle workspaces-page-subtitle-spaced">
         {t("providers.subtitle")}
       </p>
 
@@ -519,7 +521,8 @@ function Providers({
           </div>
         );
       })}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 

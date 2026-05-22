@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, Download, Trash2, RefreshCw } from "lucide-react";
 import { AgentMarkdown } from "../../../../components/AgentMarkdown";
 import { useI18n } from "../../../../components/useI18n";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 interface InstalledSkill {
   name: string;
@@ -128,16 +129,19 @@ function Skills({ profile }: SkillsProps): React.JSX.Element {
 
   if (loading) {
     return (
-      <div className="skills-container">
-        <div className="skills-loading">
-          <div className="loading-spinner" />
+      <WorkspacesPageShell>
+        <div className="skills-container">
+          <div className="skills-loading">
+            <div className="loading-spinner" />
+          </div>
         </div>
-      </div>
+      </WorkspacesPageShell>
     );
   }
 
   return (
-    <div className="skills-container">
+    <WorkspacesPageShell>
+      <div className="skills-container">
       {/* Detail Panel */}
       {detailSkill && (
         <div
@@ -355,7 +359,8 @@ function Skills({ profile }: SkillsProps): React.JSX.Element {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 

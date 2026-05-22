@@ -31,19 +31,19 @@ export function MessageTimeline({
   }, [messages, streamingContent, activeTool, runState, showApproval]);
 
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="workspaces-chat-timeline">
       {messages.map((msg) => (
         <div key={msg.id}>
           <MessageBubble message={msg} />
           {msg.toolCalls?.map((tc) => (
-            <div key={tc.id} className="mt-2">
+            <div key={tc.id} className="workspaces-chat-message-wrap">
               <ToolCallCard tool={tc} />
             </div>
           ))}
         </div>
       ))}
       {activeTool && activeTool.status !== "waiting_approval" ? (
-        <div className="mt-2">
+        <div className="workspaces-chat-message-wrap">
           <ToolCallCard tool={activeTool} />
         </div>
       ) : null}
@@ -60,10 +60,8 @@ export function MessageTimeline({
         />
       ) : null}
       {streamingContent ? (
-        <div className="mr-auto max-w-[85%] rounded bg-gray-800 px-3 py-2 text-sm text-gray-100">
-          <div className="prose-invert max-w-none text-sm">
-            <AgentMarkdown>{streamingContent}</AgentMarkdown>
-          </div>
+        <div className="workspaces-chat-streaming">
+          <AgentMarkdown>{streamingContent}</AgentMarkdown>
         </div>
       ) : null}
       <div ref={bottomRef} />

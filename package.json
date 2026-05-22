@@ -8,7 +8,9 @@
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
+    "check:workspaces-no-tailwind": "node scripts/check-workspaces-no-tailwind.cjs",
     "test": "vitest run",
+    "ci": "npm run check:workspaces-no-tailwind && npm run typecheck && npm test",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",

@@ -64,14 +64,14 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
   }, [loadLogs]);
 
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <section className="settings-drawer-section">
+      <div className="settings-drawer-log-header">
+        <h3 className="settings-drawer-section-title">
           {t("runtimeSettings.multiProfilesLogsTitle")}
         </h3>
         <button
           type="button"
-          className="text-xs text-zinc-500 hover:text-zinc-300"
+          className="settings-drawer-link-btn"
           disabled={loading}
           onClick={() => void loadLogs()}
         >
@@ -79,31 +79,31 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
         </button>
       </div>
 
-      <p className="mb-1 text-[10px] uppercase text-zinc-600">
+      <p className="settings-drawer-log-label">
         {t("runtimeSettings.multiProfilesRoleSyncLogs")}
       </p>
-      <pre className="mb-3 max-h-24 overflow-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400">
+      <pre className="settings-drawer-log-pre">
         {roleSyncEvents.length === 0
           ? t("runtimeSettings.multiProfilesLogsEmpty")
           : roleSyncEvents.map(formatAuditLine).join("\n")}
       </pre>
 
       {!profileId ? (
-        <p className="text-xs text-zinc-500">{t("runtimeSettings.multiProfilesSelectProfile")}</p>
+        <p className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesSelectProfile")}</p>
       ) : (
         <>
-          <p className="mb-1 text-[10px] uppercase text-zinc-600">
+          <p className="settings-drawer-log-label">
             {t("runtimeSettings.multiProfilesGatewayLogs")}
           </p>
-          <pre className="mb-3 max-h-32 overflow-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400">
+          <pre className="settings-drawer-log-pre is-tall">
             {gatewayLogs.length === 0
               ? t("runtimeSettings.multiProfilesLogsEmpty")
               : gatewayLogs.map((l) => `[${l.level}] ${l.message}`).join("\n")}
           </pre>
-          <p className="mb-1 text-[10px] uppercase text-zinc-600">
+          <p className="settings-drawer-log-label">
             {t("runtimeSettings.multiProfilesAuditLogs")}
           </p>
-          <pre className="max-h-32 overflow-auto rounded bg-zinc-950 p-2 font-mono text-[10px] text-zinc-400">
+          <pre className="settings-drawer-log-pre is-tall">
             {auditEvents.length === 0
               ? t("runtimeSettings.multiProfilesLogsEmpty")
               : auditEvents.map(formatAuditLine).join("\n")}

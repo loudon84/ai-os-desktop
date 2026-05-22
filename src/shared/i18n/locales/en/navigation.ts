@@ -1,6 +1,6 @@
 export default {
   portal: "Copilot",
-  aiosWorkspace: "Portal Workspace",
+  workspaces: "Agent Workspace",
   taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",
   office: "Office",
@@ -19,4 +19,8 @@ export default {
   openSettings: "Open settings",
   createProfile: "Create New Profile",
   manageSettings: "Settings",
+  drawerServer: "Server & Agent",
+  drawerGeneral: "General",
+  switchProfile: "Switch Profile",
+  noProfiles: "No profiles found",
 } as const;

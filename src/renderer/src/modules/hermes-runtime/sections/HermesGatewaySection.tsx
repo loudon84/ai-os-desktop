@@ -39,15 +39,15 @@ export function HermesGatewaySection(): React.JSX.Element {
 
   return (
     <>
-      <p className="text-sm text-zinc-300">
-        Status: <span className="font-mono text-zinc-100">{status ?? "—"}</span>
+      <p>
+        Status: <strong>{status ?? "—"}</strong>
       </p>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      <span className="flex flex-wrap gap-2">
+      {error ? <p className="settings-drawer-text-error">{error}</p> : null}
+      <div className="settings-drawer-actions">
         <button
           type="button"
           disabled={busy}
-          className="rounded bg-emerald-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          className="settings-drawer-btn-success"
           onClick={() => void run("start")}
         >
           Start
@@ -55,7 +55,7 @@ export function HermesGatewaySection(): React.JSX.Element {
         <button
           type="button"
           disabled={busy}
-          className="rounded bg-zinc-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          className="settings-drawer-btn-secondary"
           onClick={() => void run("stop")}
         >
           Stop
@@ -63,12 +63,12 @@ export function HermesGatewaySection(): React.JSX.Element {
         <button
           type="button"
           disabled={busy}
-          className="rounded bg-zinc-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          className="settings-drawer-btn-secondary"
           onClick={() => void run("restart")}
         >
           Restart
         </button>
-      </span>
+      </div>
     </>
   );
 }

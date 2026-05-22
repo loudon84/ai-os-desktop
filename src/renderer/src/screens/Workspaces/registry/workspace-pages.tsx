@@ -12,7 +12,6 @@ const ToolsPage = lazy(() => import("../pages/Tools/Tools"));
 const MemoryPage = lazy(() => import("../pages/Memory/Memory"));
 const ProvidersPage = lazy(() => import("../pages/Providers/Providers"));
 const ModelsPage = lazy(() => import("../pages/Models/Models"));
-const SettingsPage = lazy(() => import("../pages/Settings/Settings"));
 
 export const WORKSPACE_PAGE_REGISTRY: Record<
   NavItemKey,
@@ -25,7 +24,6 @@ export const WORKSPACE_PAGE_REGISTRY: Record<
   memory: MemoryPage,
   providers: ProvidersPage,
   models: ModelsPage,
-  settings: SettingsPage,
 };
 
 export const WORKSPACE_PAGE_KEYS = Object.keys(WORKSPACE_PAGE_REGISTRY) as NavItemKey[];

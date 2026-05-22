@@ -18,34 +18,38 @@ export function WorkspacePanel(): React.JSX.Element {
     : t("workspaces.workspace.notGitRepo", { defaultValue: "Not a git repository" });
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-xs">
-      <p className="truncate border-b border-gray-800 px-2 py-1 text-[10px] text-gray-500" title={hermesHome}>
+    <div className="workspaces-panel-root">
+      <p className="workspaces-file-path-bar" title={hermesHome}>
         {hermesHome || t("workspaces.workspace.home", { defaultValue: "Profile home" })}
       </p>
-      <p className="border-b border-gray-800 px-2 py-1 text-[10px] text-gray-400">{gitLabel}</p>
-      <p className="px-2 py-1 text-gray-400">
+      <p className="workspaces-file-breadcrumb">{gitLabel}</p>
+      <p className="workspaces-file-breadcrumb">
         /{currentPath === "." ? "" : currentPath}
         {parent !== null ? (
-          <button type="button" className="ml-2 text-blue-400 hover:underline" onClick={() => navigate(parent)}>
+          <button
+            type="button"
+            className="workspaces-link-button"
+            onClick={() => navigate(parent)}
+          >
             ..
           </button>
         ) : null}
       </p>
       {loading ? (
-        <p className="px-2 text-gray-500">{t("common.loading")}</p>
+        <p className="workspaces-panel-muted">{t("common.loading")}</p>
       ) : error ? (
-        <p className="px-2 text-red-400">{error}</p>
+        <p className="workspaces-panel-error">{error}</p>
       ) : entries.length === 0 ? (
-        <p className="px-2 text-gray-500">
+        <p className="workspaces-panel-muted">
           {t("workspaces.workspace.empty", { defaultValue: "No files in this folder" })}
         </p>
       ) : (
-        <ul className="max-h-[45%] overflow-y-auto border-b border-gray-800 px-1">
+        <ul className="workspaces-file-list">
           {entries.map((e) => (
             <li key={e.path}>
               <button
                 type="button"
-                className="w-full truncate rounded px-2 py-1 text-left text-gray-300 hover:bg-gray-800"
+                className="workspaces-file-item"
                 onClick={() => {
                   if (e.isDirectory) navigate(e.path);
                   else void openFile(e.path);
@@ -58,7 +62,7 @@ export function WorkspacePanel(): React.JSX.Element {
           ))}
         </ul>
       )}
-      <pre className="min-h-0 flex-1 overflow-auto p-2 text-[10px] whitespace-pre-wrap text-gray-300">
+      <pre className="workspaces-preview">
         {preview
           ? preview.encoding === "base64"
             ? `[image: ${preview.path}]`

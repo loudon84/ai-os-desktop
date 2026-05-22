@@ -10,6 +10,7 @@ import { HermesDoctorSection } from "./sections/HermesDoctorSection";
 import { HermesLogsSection } from "./sections/HermesLogsSection";
 import { HermesConnectionSection } from "./sections/HermesConnectionSection";
 import { useI18n } from "../../components/useI18n";
+import "../../screens/SettingsDrawer/SettingsDrawer.css";
 
 export interface HermesRuntimeSettingsProps {
   activeProfile: string;
@@ -39,25 +40,21 @@ export function HermesRuntimeSettings({
   const [section, setSection] = useState<HermesRuntimeImplementedSection>("overview");
 
   return (
-    <div className="flex h-full min-h-0">
-      <nav className="w-36 shrink-0 border-r border-zinc-800 p-2 space-y-0.5 overflow-y-auto">
+    <div className="settings-drawer-runtime">
+      <nav className="settings-drawer-runtime-nav">
         {HERMES_RUNTIME_IMPLEMENTED_SECTIONS.map((id) => (
           <button
             key={id}
             type="button"
-            className={`w-full rounded px-2 py-1.5 text-left text-xs ${
-              section === id
-                ? "bg-zinc-700 text-zinc-100"
-                : "text-zinc-400 hover:bg-zinc-800"
-            }`}
+            className={`settings-drawer-runtime-nav-item${section === id ? " is-active" : ""}`}
             onClick={() => setSection(id)}
           >
             {t(`runtimeSettings.${id}`)}
           </button>
         ))}
       </nav>
-      <div className="min-w-0 flex-1 overflow-y-auto p-4">
-        <p className="mb-3 text-xs text-zinc-500">
+      <div className="settings-drawer-runtime-content">
+        <p className="settings-drawer-hint">
           {t("runtimeSettings.profileLabel", { profile: activeProfile })}
         </p>
         <SectionBody section={section} />

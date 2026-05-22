@@ -68,7 +68,7 @@
   color: var(--text-primary);
 }
 
-.MainProfileSwitch {
+.MainServersEntry {
   flex-shrink: 0;
   height: 40px;
   padding: 0 10px;
@@ -78,18 +78,18 @@
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   max-width: 160px;
+  cursor: pointer;
 }
 
-.MainProfileSwitch:hover {
+.MainServersEntry:hover {
   background: var(--bg-tertiary);
 }
 
-.MainProfileSwitch__label {
+.MainServersEntry__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -1,6 +1,6 @@
 export default {
-  portal: "Portal 首页",
-  aiosWorkspace: "Portal 工作台",
+  portal: "应用 首页",
+  workspaces: "智能体工作区",
   taskWorkbench: "任务工作台",
   webOperator: "Web 操作",
   office: "工作区",
@@ -19,4 +19,8 @@ export default {
   openSettings: "打开设置",
   createProfile: "新建 Profile",
   manageSettings: "设置",
+  drawerServer: "服务与 Agent",
+  drawerGeneral: "通用",
+  switchProfile: "切换 Profile",
+  noProfiles: "未找到 Profile",
 } as const;

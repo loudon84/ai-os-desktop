@@ -5,6 +5,7 @@ import { PortalScreen } from "../../screens/Portal/Index";
 import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { View } from "../../types/desktop-shell";
+import type { SettingsDrawerPanel } from "../../screens/SettingsDrawer/settings-drawer-types";
 import { CompositeWorkspace } from "./CompositeWorkspace";
 import { ReactWorkspace } from "./ReactWorkspace";
 import { WebViewWorkspace } from "./WebViewWorkspace";
@@ -14,7 +15,7 @@ export interface WorkspaceRendererProps {
   activeProfile: string;
   officeVisited: boolean;
   onNavigate: (view: View) => void;
-  onOpenRuntimeSettings?: () => void;
+  onOpenSettingsDrawer?: (panel?: SettingsDrawerPanel) => void;
   secondaryPanel?: string;
   onSecondaryPanelChange?: (panel: string) => void;
 }
@@ -33,7 +34,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
     activeProfile,
     officeVisited,
     onNavigate,
-    onOpenRuntimeSettings,
+    onOpenSettingsDrawer,
     secondaryPanel,
     onSecondaryPanelChange,
   } = props;
@@ -58,7 +59,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
           <WorkspaceShell>
             <PortalScreen
               onNavigate={onNavigate}
-              onOpenRuntimeSettings={onOpenRuntimeSettings}
+              onOpenRuntimeSettings={() => onOpenSettingsDrawer?.("runtime")}
             />
           </WorkspaceShell>
         </ReactWorkspace>
@@ -96,7 +97,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
             profile={activeProfile}
             activePanel={secondaryPanel}
             onPanelChange={onSecondaryPanelChange}
-            onOpenRuntimeSettings={onOpenRuntimeSettings}
+            onOpenSettingsDrawer={onOpenSettingsDrawer}
           />
         </ReactWorkspace>
       );

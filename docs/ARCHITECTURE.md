@@ -89,7 +89,7 @@ App (main)
 | MainPage | `screens/MainPage/MainPage.tsx` | 壳层 flex 布局与 slot 组合 |
 | MainTopBar | `screens/MainPage/MainTopBar.tsx` | 顶栏：`app-drag-region` + `no-drag` 交互区 |
 | MainViewTabs | `screens/MainPage/MainViewTabs.tsx` | 工作区 Tab：`portal` / `workspaces` / `web-operator` |
-| MainProfileSwitch | `screens/MainPage/MainProfileSwitch.tsx` | 当前 Profile + `ProfileSwitcherDropdown` |
+| ServersEntry | `screens/MainPage/ServersEntry.tsx` | 顶栏全局 Profile 摘要；点击打开 Settings Drawer `server` 面板 |
 | MainRuntimeIndicator | `screens/MainPage/MainRuntimeIndicator.tsx` | 轮询 `profileRuntime.getRuntimeStatus()` |
 | WebContentsHost | `components/shell/WebContentsHost.tsx` | 内嵌 WebContentsView；`ResizeObserver` 同步 bounds |
 
@@ -153,7 +153,7 @@ external tab (+)
 | Workspace registry | `STATIC_WORKSPACE_MODULES`（4 固定 + external 动态）；`resolveWorkspaceModule` |
 | WorkspaceRenderer | `WorkspaceOutlet` 唯一路由；按 `module.kind` 分发 webview / composite / react |
 | 二级 panel | `workspace-secondary-nav.ts` + `Layout.workspaceSecondaryState`；`AIOSWorkspaceShell` 切换 Chat/Sessions/Agents |
-| Settings Drawer | `screens/SettingsDrawer/` 统一 Account / Runtime / Profiles / Config sync；打开不切换 Tab |
+| Settings Drawer | `screens/SettingsDrawer/` — `server/`（Agent + Copilot Serve + 全局 Profile）、`general/`（外观/网络）、Account / Runtime / Profiles / Config sync；打开不切换 Tab |
 | **V4.0 Multi Profiles** | Settings → **Profiles** → `multi-profiles/MultiProfilesPanel`；`window.profileRole` 安装专家预设；`hermes-local-adapter` 按 profile home 启动 Gateway |
 | MainPage 状态 V2 | `main-page-state-migrate.ts`；`workspaceOrder` 替代 `tabOrder` |
 | Token 注入 | `installTokenHeaderInjector()`；分区 `persist:aios-home`（V3.3 origin 白名单） |
@@ -190,7 +190,7 @@ token-inject-url.shouldInjectTokenForUrl
 
 | 能力 | 说明 |
 |------|------|
-| Runtime 入口收敛 | `RuntimeGuard`：启动 Gateway + 单一「打开设置」；`MainProfileSwitch.onManageProfiles` → Settings Drawer Runtime panel |
+| Runtime 入口收敛 | `RuntimeGuard`：启动 Gateway + 打开设置；全局服务/Profile → Drawer `server`；`ServersEntry` 顶栏入口 |
 | MainViewTabs | 固定 Tab = registry `!draggable`；可拖 = 仅 `external-browser:*` |
 | i18n | `navigation.chat` / `sessions` / `openSettings` 等四语言 |
 
@@ -555,7 +555,7 @@ src/
 ### 0.3.5 (V2.0 MainPage 主界面壳层)
 - **MainPage 一级容器**: 替代 `DesktopShell` + 全局 `PageHeader`；`MainTopBar` 集成 `WindowControls`（Win/Linux）
 - **工作区 Tabs**: `MainViewTabs` — Portal / Workspace / Web Operator；首版可点击切换，无 DnD
-- **Profile / Runtime 顶栏**: `MainProfileSwitch` + `MainRuntimeIndicator`
+- **Profile / Runtime 顶栏**: `ServersEntry` + `MainRuntimeIndicator`
 - **布局常量**: `main-page-constants.ts`；主窗口默认 1280×800、最小 900×600
 - **根 CSS**: `html/body/#root` 100% 高度；`.app` 使用 `100dvh`
 

@@ -35,27 +35,25 @@ export function ProfileRuntimeActions({
   const expertProfiles = profiles.filter((p) => p.name !== "default");
 
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <section className="settings-drawer-section">
+      <h3 className="settings-drawer-section-title">
         {t("runtimeSettings.multiProfilesRuntimeTitle")}
       </h3>
-      <ul className="mb-3 max-h-40 space-y-1 overflow-y-auto">
+      <ul className="settings-drawer-list">
         {expertProfiles.length === 0 ? (
-          <li className="text-xs text-zinc-500">{t("runtimeSettings.multiProfilesEmpty")}</li>
+          <li className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesEmpty")}</li>
         ) : (
           expertProfiles.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="settings-drawer-list-item">
               <button
                 type="button"
-                className={`flex w-full items-center justify-between rounded border px-2 py-1.5 text-left text-xs ${
-                  selectedProfileId === p.id
-                    ? "border-emerald-700/60 bg-emerald-950/30"
-                    : "border-zinc-800 hover:bg-zinc-800/60"
+                className={`settings-drawer-profile-btn${
+                  selectedProfileId === p.id ? " is-active" : ""
                 }`}
                 onClick={() => onSelectProfile(p.id)}
               >
                 <span>{p.display_name}</span>
-                <span className="text-zinc-500">
+                <span className="settings-drawer-profile-meta">
                   :{p.port} · {p.runtime_status}
                 </span>
               </button>
@@ -63,10 +61,10 @@ export function ProfileRuntimeActions({
           ))
         )}
       </ul>
-      <div className="flex flex-wrap gap-2">
+      <div className="settings-drawer-actions">
         <button
           type="button"
-          className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+          className="settings-drawer-btn-ghost"
           disabled={busy || !selectedProfileId}
           onClick={() =>
             void runAction(() => window.profileRuntime.startProfile(selectedProfileId!))
@@ -76,7 +74,7 @@ export function ProfileRuntimeActions({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+          className="settings-drawer-btn-ghost"
           disabled={busy || !selectedProfileId}
           onClick={() =>
             void runAction(() => window.profileRuntime.stopProfile(selectedProfileId!))
@@ -86,7 +84,7 @@ export function ProfileRuntimeActions({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+          className="settings-drawer-btn-ghost"
           disabled={busy || !selectedProfileId}
           onClick={() =>
             void runAction(() => window.profileRuntime.restartProfile(selectedProfileId!))
@@ -96,7 +94,7 @@ export function ProfileRuntimeActions({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+          className="settings-drawer-btn-ghost"
           disabled={busy}
           onClick={() => void runAction(() => window.profileRuntime.startAllProfiles())}
         >
@@ -104,16 +102,14 @@ export function ProfileRuntimeActions({
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
+          className="settings-drawer-btn-ghost"
           disabled={busy}
           onClick={() => void runAction(() => window.profileRuntime.stopAllProfiles())}
         >
           {t("runtimeSettings.multiProfilesStopAll")}
         </button>
       </div>
-      {actionError ? (
-        <p className="mt-2 text-xs text-red-400">{actionError}</p>
-      ) : null}
+      {actionError ? <p className="settings-drawer-text-error">{actionError}</p> : null}
     </section>
   );
 }

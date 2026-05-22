@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { Plus, Search, X, MessageCircle } from "lucide-react";
 import { useI18n } from "../../../../components/useI18n";
+import { WorkspacesPageShell } from "../../components/WorkspacesPageShell";
 
 interface CachedSession {
   id: string;
@@ -211,7 +212,8 @@ function Sessions({
   const grouped = groupSessions(sessions);
 
   return (
-    <div className="sessions-container">
+    <WorkspacesPageShell>
+      <div className="sessions-container">
       {/* Header with integrated search */}
       <div className="sessions-header">
         <div className="sessions-header-top">
@@ -331,7 +333,8 @@ function Sessions({
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </WorkspacesPageShell>
   );
 }
 
