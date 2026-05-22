@@ -555,6 +555,16 @@ interface HermesAPI {
     callback: (event: { key: string }) => void,
   ) => () => void;
   onDropdownCloseAll: (callback: () => void) => () => void;
+
+  // File attachments
+  getPathForFile: (file: File) => string;
+  stageAttachment: (
+    sessionId: string,
+    filename: string,
+    base64: string,
+  ) => Promise<string>;
+  clearStagedAttachments: (sessionId: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
 }
 
 interface WindowControlsAPI {
