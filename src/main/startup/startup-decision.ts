@@ -1,4 +1,4 @@
-import { getConnectionConfig } from "../config";
+import { getConnectionConfig, getFullConnectionConfig } from "../config";
 import { readAuthEndpointConfig } from "../auth/auth-endpoint-config-store";
 import { hydrateTokenStore, readStoredSession } from "../auth/token-store";
 import { resolveRuntimeState } from "../enterprise/runtime-state-resolver";
@@ -69,7 +69,10 @@ export async function resolveStartupDecision(): Promise<StartupDecision> {
 
   // Remote mode
   if (conn.mode === "remote" && conn.remoteUrl) {
-    const ok = await testRemoteConnection(conn.remoteUrl, conn.apiKey);
+    const ok = await testRemoteConnection(
+      conn.remoteUrl,
+      getFullConnectionConfig().apiKey,
+    );
     const nextScreen: StartupScreen = ok ? "main" : "welcome";
     const reason: StartupDecisionReason = ok
       ? "remote-ready"

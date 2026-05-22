@@ -24,6 +24,6 @@ describe("isDraggableTabId", () => {
     expect(isDraggableTabId("external-browser:uuid")).toBe(true);
     expect(isDraggableTabId("profile-workspace:coding")).toBe(false);
     expect(isDraggableTabId("web-operator")).toBe(false);
-    expect(isDraggableTabId("aios-home")).toBe(false);
+    expect(isDraggableTabId("portal")).toBe(false);
   });
 });

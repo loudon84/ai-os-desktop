@@ -8,7 +8,7 @@
 export type ShellViewKind =
   | "renderer-root"
   | "web-operator"
-  | "aios-home"
+  | "portal"
   | "external-browser";
 
 /** View 层级 */

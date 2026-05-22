@@ -26,13 +26,13 @@
 - `src/main/gateway-supervisor.ts` — 健康监管 + 自动重启逻辑
 - `src/main/runtime-reconciler.ts` — App 重启后状态恢复
 
-## AI-OS Runtime 核心
+## Portal Runtime 核心
 
-- `src/main/aios/aios-ipc.ts` — AI-OS IPC 注册（14 个通道）
-- `src/main/aios/aios-runtime-supervisor.ts` — AI-OS 运行时监管
-- `src/main/aios/aios-reconciler.ts` — AI-OS 状态恢复
-- `src/main/aios/aios-process.ts` — AI-OS 进程管理
-- `src/preload/aios-api.ts` — AI-OS Preload API
+- `src/main/aios/aios-ipc.ts` — Portal IPC 注册（14 个通道）
+- `src/main/aios/aios-runtime-supervisor.ts` — Portal 运行时监管
+- `src/main/aios/aios-reconciler.ts` — Portal 状态恢复
+- `src/main/aios/aios-process.ts` — Portal 进程管理
+- `src/preload/aios-api.ts` — Portal Preload API
 
 ## 共享模块
 
@@ -43,7 +43,7 @@
 - `src/shared/enterprise/enterprise-contract.ts` — V1.2.1 Enterprise API 契约（EnterpriseInstallAPI 13 方法）
 - `src/shared/profile-runtime/profile-runtime-contract.ts` — Profile Runtime 类型定义（115+ 接口/类型/枚举）
 - `src/shared/profile-runtime/profile-runtime-errors.ts` — Profile Runtime 错误码（19 个）
-- `src/shared/aios/aios-contract.ts` — AI-OS API 契约
+- `src/shared/aios/aios-contract.ts` — Portal API 契约
 
 ## Enterprise Install 核心
 
@@ -72,7 +72,7 @@
 - Enterprise 契约变更影响安装流水线和 IPC 通信
 - 安装流水线变更影响企业部署完整性和安全性
 - Profile Runtime 核心变更影响多实例运行时和 Gateway 生命周期
-- AI-OS Runtime 核心变更影响 AI-OS 运行时管理
+- Portal Runtime 核心变更影响 Portal 运行时管理
 - 迁移运行器变更影响数据库版本兼容性
 
 任何修改需要明确理解影响范围并获得批准。

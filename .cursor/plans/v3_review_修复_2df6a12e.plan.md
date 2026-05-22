@@ -3,7 +3,7 @@ name: V3 Review 修复
 overview: 按 Review 报告 P0→P1→P2 顺序修复 V3 缺口：补全 bootstrap Applier 与失败回滚、将 Config Diff 改为 Layout overlay、接入 i18n、收敛 Hermes Drawer 占位 Tab，并增强测试与 mock 开关。
 todos:
   - id: p0-applier-pipeline
-    content: "P0.1: 扩展 user-config-applier 按 PRD §13 串联 Hermes/AI-OS/Gateway；修复 apiKeyRef，installSource 仅文档化跳过"
+    content: "P0.1: 扩展 user-config-applier 按 PRD §13 串联 Hermes/Portal/Gateway；修复 apiKeyRef，installSource 仅文档化跳过"
     status: completed
   - id: p0-rollback
     content: "P0.2: 新增 user-config-rollback.ts；apply 成功末 commit；失败 restore；修 applyRemoteUserConfig catch"
@@ -81,7 +81,7 @@ sequenceDiagram
 | 5 | Models | `setModelConfig(provider, model, baseUrl, profileName)` |
 | 6 | Soul / User / Memory | `writeSoul`、`writeUserProfile`；memory 文本若 PRD 为整文件则评估是否需新增 `writeMemoryFile` 或复用 `addMemoryEntry`（仅当 bootstrap 提供全文） |
 | 7 | Toolsets / Platforms | `setToolsetEnabled`、`setPlatformEnabled` |
-| 8 | AI-OS env | 现有 `saveAiOsEnvConfig` + `writeAiOsEnvFile` |
+| 8 | Portal env | 现有 `saveAiOsEnvConfig` + `writeAiOsEnvFile` |
 | 9 | Runtime | `reconcileAiOsRuntime` → 条件 `startAiOs` |
 | 10 | Gateway | `restartGateway(activeProfile)` |
 | 11 | Commit | `writeLocalBootstrapConfig` + `writeBootstrapState` |

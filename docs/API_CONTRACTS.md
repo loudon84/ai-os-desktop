@@ -58,4 +58,19 @@ Renderer guards by `streamingOwnerRef` + `abortChat` on profile switch (**team_v
 
 ---
 
+## ShellView / MainPage workspace ids (Portal rename)
+
+Renderer、Main、持久化状态统一使用下列标识（**不是** IPC channel 名）：
+
+| 概念 | 当前值 | 说明 |
+|------|--------|------|
+| 静态 workspace / `View` | `portal` | 顶栏 Tab、默认首页；原 `aios-home` 已由 `main-page-state-migrate` 映射 |
+| ShellView `layerId` / `ShellViewKind` | `portal` | `WebContentsHost`、`shellView.*`、`portal-view-coordinator` |
+| Electron session 分区 | `persist:aios-home` | **未改名**（保留 NextAuth cookies）；TS 常量 `PORTAL_PARTITION` |
+| 登录配置 URL 字段 | `aiosHomeUrl` | Auth / Endpoint 契约不变 |
+
+Preload：`window.shellView` 的 `layerId` 传 `"portal"`。Main 懒创建见 `shell-view-ipc.ts` → `ensurePortalView()` → `refreshPortalView()`。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

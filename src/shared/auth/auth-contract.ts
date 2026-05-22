@@ -6,7 +6,7 @@ export interface AuthEndpointConfig {
 
 export interface LoginInput {
   endpointConfig: AuthEndpointConfig;
-  /** AI-OS Auth API expects a valid email address */
+  /** Portal Auth API expects a valid email address */
   email: string;
   password: string;
 }

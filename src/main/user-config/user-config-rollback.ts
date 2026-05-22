@@ -1,5 +1,5 @@
 import type { ConnectionConfig } from "../config";
-import { getConnectionConfig, setConnectionConfig } from "../config";
+import { getFullConnectionConfig, setConnectionConfig } from "../config";
 import type {
   BootstrapState,
   DesktopBootstrapConfig,
@@ -26,7 +26,7 @@ export function captureApplySnapshot(): ApplySnapshot {
   return {
     localConfig: readLocalBootstrapConfig(),
     bootstrapState: readBootstrapState(),
-    connection: getConnectionConfig(),
+    connection: getFullConnectionConfig(),
   };
 }
 

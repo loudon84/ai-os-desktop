@@ -26,7 +26,7 @@ export function RuntimeStatusBar({
   loading = false,
   className = "",
 }: RuntimeStatusBarProps): React.JSX.Element {
-  const { t } = useTranslation("aiosHome");
+  const { t } = useTranslation("portal");
   const barClass = `flex items-center gap-4 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 text-xs ${className}`.trim();
 
   if (services.length === 0) {

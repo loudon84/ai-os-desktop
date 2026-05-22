@@ -31,7 +31,7 @@
 * Tools
 * Skills
 * Gateway
-* AI-OS 页面入口
+* Portal 页面入口
 * Web Operator
 * 企业部署安装
 * Windows 10+ 一键安装 / 更新
@@ -109,7 +109,7 @@ skipModelSetup = true
 问题：
 
 * `createWindow()` 承担窗口创建、事件绑定、preload、URL 加载、window IPC 绑定。
-* 后续 AI-OS View、Web Operator View、Updater、SSH Tunnel、Profile Runtime 初始化都在 `index.ts` 聚合。
+* 后续 Portal View、Web Operator View、Updater、SSH Tunnel、Profile Runtime 初始化都在 `index.ts` 聚合。
 * 壳层能力无法独立测试。
 * 多 View、Overlay、Modal、Dropdown 后续扩展会继续堆积到主进程入口。
 
@@ -304,7 +304,7 @@ Electron Main Process
 | Mattermost Desktop 模式                        | SMC AI Copilot 落地                                                                    |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `MainWindow` 独立管理窗口                          | `MainWindowController` 管理 BrowserWindow                                              |
-| `MattermostWebContentsView` 管理单个 server view | `ManagedWebContentsView` 管理 AI-OS / Web Operator / Profile Page                      |
+| `MattermostWebContentsView` 管理单个 server view | `ManagedWebContentsView` 管理 Portal / Web Operator / Profile Page                      |
 | `ViewManager` 管理多 View                       | `ShellViewManager` 管理 active workspace                                               |
 | Modal 用独立 WebContentsView + queue            | `ModalViewManager` 管理安装确认、模型配置、诊断、危险操作确认                                             |
 | Dropdown 用独立 WebContentsView + bounds        | `DropdownViewManager` 管理 profile switcher、downloads、gateway 状态                       |
@@ -437,7 +437,7 @@ src/main/shell/types.ts
 
 ### 目标
 
-把 AI-OS、Web Operator、Profile 页面统一纳入多 View 管理。
+把 Portal、Web Operator、Profile 页面统一纳入多 View 管理。
 
 ### 新增文件
 
@@ -477,7 +477,7 @@ export type ShellViewKind =
 ### 与现有代码关系
 
 当前 `BrowserViewManager` 只维护单个 `WebContentsView`，支持 create/navigate/destroy/updateBounds。
-当前 `AiOsWebContentsController` 也单独维护 AI-OS 的 `WebContentsView`。
+当前 `AiOsWebContentsController` 也单独维护 Portal 的 `WebContentsView`。
 
 升级后：
 

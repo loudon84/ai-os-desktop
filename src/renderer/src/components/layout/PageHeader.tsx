@@ -11,7 +11,7 @@ export interface PageHeaderProps {
 
 function resolveHeaderTitle(view: View, t: (key: string) => string): string {
   if (view === "workspaces") {
-    return "AI-OS";
+    return "Portal";
   }
   const key = resolveViewTitleKey(view);
   const translated = t(key);

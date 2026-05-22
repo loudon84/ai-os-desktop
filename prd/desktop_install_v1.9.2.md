@@ -258,7 +258,7 @@ export function AIOSHomeScreen({
       setServices(snapshot.services);
       setStatusError(null);
     } catch (err) {
-      console.warn("[AIOSHome] Failed to refresh AI-OS runtime snapshot:", err);
+      console.warn("[AIOSHome] Failed to refresh Portal runtime snapshot:", err);
       setStatusError((err as Error).message);
     } finally {
       setLoading(false);
@@ -500,7 +500,7 @@ aios:view:set-bounds
 
 ## 验收步骤
 
-### 1. 确认 AI-OS 前端可访问
+### 1. 确认 Portal 前端可访问
 
 在 Windows PowerShell 执行：
 
@@ -551,7 +551,7 @@ No handler registered for 'aios:get-runtime-snapshot'
 
 ### 5. 页面显示结果
 
-进入应用主页后，左侧菜单选中 `AI-OS Home`，中间区域应由 Electron `WebContentsView` 真实显示：
+进入应用主页后，左侧菜单选中 `Portal Home`，中间区域应由 Electron `WebContentsView` 真实显示：
 
 ```txt
 http://127.0.0.1:3000/zh
@@ -579,4 +579,4 @@ src/main/shell/shell-view-ipc.ts
   - 默认真实加载 http://127.0.0.1:3000/zh
 ```
 
-执行以上 P0 修复后，`WorkspaceOutlet` 的 `aios-home` 条件挂载链路会打通，AI-OS 页面由 `WebContentsView` 真实承载，不再被 Hermes Gateway / Backend 的 runtime ready 状态误阻断。
+执行以上 P0 修复后，`WorkspaceOutlet` 的 `aios-home` 条件挂载链路会打通，Portal 页面由 `WebContentsView` 真实承载，不再被 Hermes Gateway / Backend 的 runtime ready 状态误阻断。

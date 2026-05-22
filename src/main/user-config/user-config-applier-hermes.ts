@@ -5,6 +5,7 @@
 import { join } from "path";
 import {
   getConnectionConfig,
+  getFullConnectionConfig,
   readEnv,
   setConfigValue,
   setConnectionConfig,
@@ -38,7 +39,7 @@ function resolveApiKey(
   conn: DesktopBootstrapConfig["hermes"]["connection"],
   activeProfileKey: string | undefined,
 ): string {
-  const existing = getConnectionConfig().apiKey;
+  const existing = getFullConnectionConfig().apiKey;
 
   if (conn.apiKeyRef) {
     const fromEnv = readEnvValue(conn.apiKeyRef, activeProfileKey);
@@ -57,7 +58,7 @@ function buildConnectionConfig(
   activeProfileKey: string | undefined,
 ): ConnectionConfig {
   const conn = remote.hermes.connection;
-  const current = getConnectionConfig();
+  const current = getFullConnectionConfig();
 
   return {
     mode: conn.mode,

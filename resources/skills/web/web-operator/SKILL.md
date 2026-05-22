@@ -2,7 +2,7 @@
 
 ## Overview
 
-This skill enables Hermes to operate external web pages through the AI-OS Desktop Web Operator. All browser actions are executed in the Electron Main Process via the local Tool Bridge server.
+This skill enables Hermes to operate external web pages through the Portal Desktop Web Operator. All browser actions are executed in the Electron Main Process via the local Tool Bridge server.
 
 ## Tool Bridge Address
 

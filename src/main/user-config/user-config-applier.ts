@@ -47,7 +47,7 @@ export async function applyUserConfig(
       try {
         await startAiOs(mainWindow);
       } catch (err) {
-        console.warn("[user-config] autoStart AI-OS failed:", err);
+        console.warn("[user-config] autoStart Portal failed:", err);
       }
     }
 

@@ -6,7 +6,7 @@ import {
 import { getDefaultAuthEndpointConfig } from "../../shared/auth/auth-url";
 
 /**
- * Resolve AI-OS Home URL for WebContentsView load.
+ * Resolve Portal Home URL for WebContentsView load.
  * Priority: login endpoint config (auth-endpoint-config.json) → applied bootstrap cache → default.
  * Endpoint must win before bootstrap re-apply so a new login URL is not masked by stale bootstrap-config.json.
  */

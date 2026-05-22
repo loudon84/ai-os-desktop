@@ -21,6 +21,15 @@ export interface ConnectionConfig {
   ssh: SshConnectionConfig;
 }
 
+/** Renderer-safe connection snapshot (no raw API key). */
+export interface PublicConnectionConfig {
+  mode: "local" | "remote" | "ssh";
+  remoteUrl: string;
+  hasApiKey: boolean;
+  apiKeyLength: number;
+  ssh: SshConnectionConfig;
+}
+
 // Lazy getter — avoids circular dependency with installer.ts
 // (HERMES_HOME may not be assigned yet when this module first loads)
 function desktopConfigFile(): string {
@@ -44,7 +53,7 @@ function writeDesktopConfig(data: Record<string, unknown>): void {
   writeFileSync(desktopConfigFile(), JSON.stringify(data, null, 2), "utf-8");
 }
 
-export function getConnectionConfig(): ConnectionConfig {
+function readFullConnectionConfig(): ConnectionConfig {
   const data = readDesktopConfig();
   const ssh = (data.sshConfig as Partial<SshConnectionConfig>) ?? {};
   return {
@@ -60,6 +69,24 @@ export function getConnectionConfig(): ConnectionConfig {
       localPort: (ssh.localPort as number) || 18642,
     },
   };
+}
+
+/** IPC / Renderer: mask metadata only, never the stored key. */
+export function getConnectionConfig(): PublicConnectionConfig {
+  const full = readFullConnectionConfig();
+  const len = full.apiKey.length;
+  return {
+    mode: full.mode,
+    remoteUrl: full.remoteUrl,
+    hasApiKey: len > 0,
+    apiKeyLength: len,
+    ssh: full.ssh,
+  };
+}
+
+/** Main-process callers that need the stored remote API key. */
+export function getFullConnectionConfig(): ConnectionConfig {
+  return readFullConnectionConfig();
 }
 
 export function setConnectionConfig(config: ConnectionConfig): void {

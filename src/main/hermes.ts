@@ -11,7 +11,7 @@ import {
   HERMES_SCRIPT,
   getEnhancedPath,
 } from "./installer";
-import { getModelConfig, readEnv, getConnectionConfig } from "./config";
+import { getModelConfig, readEnv, getConnectionConfig, getFullConnectionConfig } from "./config";
 import { getSshTunnelUrl, isSshTunnelActive, isSshTunnelHealthy, startSshTunnel } from "./ssh-tunnel";
 import { stripAnsi } from "./utils";
 
@@ -53,8 +53,9 @@ export function getRemoteAuthHeader(): Record<string, string> {
     if (_sshRemoteApiKey) return { Authorization: `Bearer ${_sshRemoteApiKey}` };
     return {};
   }
-  if (conn.mode === "remote" && conn.apiKey) {
-    return { Authorization: `Bearer ${conn.apiKey}` };
+  if (conn.mode === "remote" && conn.hasApiKey) {
+    const apiKey = getFullConnectionConfig().apiKey;
+    if (apiKey) return { Authorization: `Bearer ${apiKey}` };
   }
   return {};
 }

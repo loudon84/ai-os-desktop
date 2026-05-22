@@ -19,7 +19,7 @@ export function unbindShellViewManager(): void {
 }
 
 /** Pick load URL: exact configured path first; fallbacks only when it is unreachable. */
-export async function resolveAiosHomeLoadUrl(): Promise<string> {
+export async function resolvePortalLoadUrl(): Promise<string> {
   const configured = resolveAiosHomeUrl();
   const primaryStatus = await fetchHttpStatus(configured);
   if (primaryStatus !== null && primaryStatus >= 200 && primaryStatus < 400) {
@@ -40,7 +40,7 @@ export async function resolveAiosHomeLoadUrl(): Promise<string> {
 function readVisibleBounds(
   svm: ShellViewManager,
 ): { active: boolean; bounds: ShellViewBounds | null } {
-  const existing = svm.getView("aios-home");
+  const existing = svm.getView("portal");
   if (!existing) {
     return { active: false, bounds: null };
   }
@@ -51,7 +51,7 @@ function readVisibleBounds(
   }
 
   // After deactivateView bounds are 0×0; restore from last Renderer setBounds.
-  const last = svm.getLastActivationBounds("aios-home");
+  const last = svm.getLastActivationBounds("portal");
   if (last) {
     return { active: true, bounds: last };
   }
@@ -59,24 +59,24 @@ function readVisibleBounds(
   return { active: false, bounds: null };
 }
 
-function finishAiosHomeVisibility(
+function finishPortalVisibility(
   svm: ShellViewManager,
   preserve: { active: boolean; bounds: ShellViewBounds | null },
 ): void {
   if (preserve.active && preserve.bounds) {
-    svm.activateView("aios-home", preserve.bounds);
+    svm.activateView("portal", preserve.bounds);
     return;
   }
 
   // Bootstrap / pre-layout: keep hidden until Renderer WebContentsHost setBounds.
-  svm.deactivateView("aios-home");
+  svm.deactivateView("portal");
 }
 
 /**
- * Ensures aios-home WebContentsView exists and loads the current resolved URL.
+ * Ensures portal WebContentsView exists and loads the current resolved URL.
  * Updates token injection policy before load.
  */
-export async function refreshAiosHomeView(): Promise<void> {
+export async function refreshPortalView(): Promise<void> {
   const svm = shellViewManagerRef;
   if (!svm) {
     return;
@@ -86,15 +86,15 @@ export async function refreshAiosHomeView(): Promise<void> {
 
   await beforeLoadAiosHome();
   const configuredUrl = resolveAiosHomeUrl();
-  const initialLoadUrl = await resolveAiosHomeLoadUrl();
-  const existing = svm.getView("aios-home");
+  const initialLoadUrl = await resolvePortalLoadUrl();
+  const existing = svm.getView("portal");
 
   if (!existing) {
-    await svm.createView("aios-home", "aios-home", initialLoadUrl, {
+    await svm.createView("portal", "portal", initialLoadUrl, {
       layer: "content",
     });
-    console.log(`[aios-home-coordinator] Created aios-home view: ${initialLoadUrl}`);
-    finishAiosHomeVisibility(svm, preserve);
+    console.log(`[portal-coordinator] Created portal view: ${initialLoadUrl}`);
+    finishPortalVisibility(svm, preserve);
     return;
   }
 
@@ -112,15 +112,15 @@ export async function refreshAiosHomeView(): Promise<void> {
     try {
       await existing.load?.(initialLoadUrl);
       console.log(
-        `[aios-home-coordinator] Reloaded aios-home view: ${initialLoadUrl}`,
+        `[portal-coordinator] Reloaded portal view: ${initialLoadUrl}`,
       );
     } catch (err) {
       console.warn(
-        "[aios-home-coordinator] Failed to reload aios-home (keeping existing view):",
+        "[portal-coordinator] Failed to reload portal (keeping existing view):",
         err,
       );
     }
   }
 
-  finishAiosHomeVisibility(svm, preserve);
+  finishPortalVisibility(svm, preserve);
 }

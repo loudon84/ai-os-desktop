@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   externalBrowserPartition,
   WEB_OPERATOR_PARTITION,
-  AIOS_HOME_PARTITION,
+  PORTAL_PARTITION,
   SHELL_PARTITIONS,
 } from "../src/shared/shell/browser-partitions";
 
@@ -19,9 +19,9 @@ describe("externalBrowserPartition", () => {
 });
 
 describe("partition constants (V3.3)", () => {
-  it("exports canonical home and web-operator partitions", () => {
-    expect(AIOS_HOME_PARTITION).toBe("persist:aios-home");
+  it("exports canonical portal and web-operator partitions", () => {
+    expect(PORTAL_PARTITION).toBe("persist:aios-home");
     expect(WEB_OPERATOR_PARTITION).toBe("persist:web-operator");
-    expect(SHELL_PARTITIONS.AIOS_HOME).toBe("persist:aios-home");
+    expect(SHELL_PARTITIONS.PORTAL).toBe("persist:aios-home");
   });
 });

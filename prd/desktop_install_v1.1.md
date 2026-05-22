@@ -476,7 +476,7 @@ C. Gateway
 5. 重启 app 后能恢复 runtime 状态。
 
 D. Profile
-1. default 进入 AI-OS。
+1. default 进入 Portal。
 2. writer/coding/research 进入独立 workspace。
 3. 每个 profile 有独立 HERMES_HOME。
 4. 每个 profile 有独立 API_SERVER_KEY。

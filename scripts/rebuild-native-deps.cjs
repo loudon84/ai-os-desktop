@@ -15,36 +15,23 @@ if (!electronVersion) {
   process.exit(1)
 }
 
-let rebuildCli
-try {
-  rebuildCli = require.resolve('@electron/rebuild/lib/cli.js', { paths: [projectRoot] })
-} catch {
-  console.error('[rebuild-native-deps] @electron/rebuild is missing. Run: pnpm install')
-  process.exit(1)
-}
-
 const nativeModules = ['better-sqlite3', 'keytar']
 
 console.log(
-  `[rebuild-native-deps] Rebuilding ${nativeModules.join(', ')} for Electron ${electronVersion} (from source)...`,
+  `[rebuild-native-deps] Rebuilding ${nativeModules.join(', ')} for Electron ${electronVersion}...`,
 )
 
 const result = spawnSync(
-  process.execPath,
+  'npx',
   [
-    rebuildCli,
+    '@electron/rebuild',
     '-v',
     electronVersion,
     '-f',
-    '-m',
-    projectRoot,
     '-w',
     nativeModules.join(','),
-    '--build-from-source',
-    '-t',
-    'prod,dev',
   ],
-  { cwd: projectRoot, stdio: 'inherit' },
+  { cwd: projectRoot, stdio: 'inherit', shell: true },
 )
 
 if (result.status !== 0) {

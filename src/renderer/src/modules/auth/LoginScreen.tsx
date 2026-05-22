@@ -7,6 +7,7 @@ import { BootstrapScreen } from "./BootstrapScreen";
 import { ConfigDiffConfirmDrawer } from "./ConfigDiffConfirmDrawer";
 import { EndpointConfigPanel } from "./components/EndpointConfigPanel";
 import { LoginForm } from "./components/LoginForm";
+import { readLastLoginEmail, saveLastLoginEmail } from "./last-login-email";
 import "./styles/login.css";
 
 export interface LoginScreenProps {
@@ -18,7 +19,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
   const { setAuthState, setPendingBootstrapDiff, pendingBootstrapDiff, refreshAuth } =
     useAuth();
   const [endpoint, setEndpoint] = useState<AuthEndpointConfig>(getDefaultAuthEndpointConfig());
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(readLastLoginEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapping, setBootstrapping] = useState(false);
@@ -102,6 +103,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
         email,
         password,
       });
+      saveLastLoginEmail(email);
       setAuthState(state);
       await runBootstrap();
     } catch (err) {

@@ -102,7 +102,7 @@
 ### 职责
 
 - 渲染主导航菜单（`navItems`）
-- 渲染 AI-OS / Experts / Runtime 分组导航（基于 `profileEntries`）
+- 渲染 Portal / Experts / Runtime 分组导航（基于 `profileEntries`）
 - 渲染更新状态按钮与错误信息
 - 显示当前 profile/app 名称
 
@@ -114,7 +114,7 @@
 
 ### 行为规则
 
-- `profileEntries.length > 0` 时展示 AI-OS 分组区块
+- `profileEntries.length > 0` 时展示 Portal 分组区块
 - 专家工作区仅展示 `entryType === "specialist-workspace"`
 - `updateState` 非空时显示更新按钮；按状态文案分支：available/downloading/ready
 
@@ -131,7 +131,7 @@
 ### 标题解析策略
 
 - `profile-workspace:{id}` → `Profile: {id}`（无 id 则 fallback）
-- `aios-workspace` → `AI-OS`
+- `aios-workspace` → `Portal`
 - `profile-runtime` → `Profile Runtime`
 - 其余通过 `resolveViewTitleKey(view)` + i18n `t(key)`
 
@@ -281,7 +281,7 @@ Agent 在新增视图时需同时更新：
 - `useDesktopNavigation()`：view、profile、chat/session、导航动作
 - `useUpdateState()`：版本更新状态与更新动作
 - `useRemoteMode(view)`：远程模式判定
-- `useProfileEntries()`：AI-OS/Experts 入口数据
+- `useProfileEntries()`：Portal/Experts 入口数据
 
 流向关系：
 

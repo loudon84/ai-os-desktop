@@ -44,11 +44,11 @@ export function EndpointConfigPanel({
         />
       </div>
       <div className="login-field">
-        <label htmlFor="endpoint-aios-home-url" className="login-field-label">
+        <label htmlFor="endpoint-portal-url" className="login-field-label">
           {t("auth.aiosHomeUrl")}
         </label>
         <input
-          id="endpoint-aios-home-url"
+          id="endpoint-portal-url"
           type="url"
           className="login-field-input"
           value={value.aiosHomeUrl}

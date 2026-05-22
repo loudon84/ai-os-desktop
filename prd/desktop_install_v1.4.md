@@ -650,7 +650,7 @@ interface DesktopShellProps {
 ```text
 sidebar-brand
 NAV_ITEMS
-AI-OS group
+Portal group
 Experts group
 Runtime group
 update button
@@ -680,7 +680,7 @@ interface DesktopSidebarProps {
 ```text
 1. office 首次访问 lazy mount 标记
 2. profile-workspace:${profileId}
-3. AI-OS / Experts / Runtime 分组
+3. Portal / Experts / Runtime 分组
 4. update available/downloading/ready
 5. active item 样式
 ```

@@ -7,11 +7,11 @@ import type {
 } from "../../shared/shell/shell-view-contract";
 import { ShellViewChannels } from "../../shared/shell/shell-view-contract";
 import { BROWSER_PARTITION } from "../browser/browser-types";
-import { bindShellViewManager, refreshAiosHomeView } from "./aios-home-view-coordinator";
+import { bindShellViewManager, refreshPortalView } from "./portal-view-coordinator";
 
-async function ensureAiosHomeView(svm: ShellViewManager): Promise<void> {
+async function ensurePortalView(svm: ShellViewManager): Promise<void> {
   bindShellViewManager(svm);
-  await refreshAiosHomeView();
+  await refreshPortalView();
 }
 
 async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {
@@ -31,8 +31,8 @@ async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {
 }
 
 async function ensureKnownView(svm: ShellViewManager, layerId: string): Promise<void> {
-  if (layerId === "aios-home") {
-    await ensureAiosHomeView(svm);
+  if (layerId === "portal") {
+    await ensurePortalView(svm);
     return;
   }
 
@@ -172,7 +172,7 @@ export function registerShellViewIpc(svm: ShellViewManager): void {
       }
 
       // Lazy-create known shell layers (getState alone used to return null forever).
-      if (layerId === "aios-home" || layerId === "web-operator") {
+      if (layerId === "portal" || layerId === "web-operator") {
         await ensureKnownView(svm, layerId);
       }
 

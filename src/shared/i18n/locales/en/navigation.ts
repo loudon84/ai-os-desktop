@@ -1,6 +1,6 @@
 export default {
-  aiosHome: "Copilot",
-  aiosWorkspace: "AI-OS Workspace",
+  portal: "Copilot",
+  aiosWorkspace: "Portal Workspace",
   taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",
   office: "Office",

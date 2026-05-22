@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// AI-OS Runtime shared contract types
+// Portal Runtime shared contract types
 // Used across Main, Preload, and Renderer layers.
 // ---------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ export interface AiOsRuntimeStatus {
   overall: RuntimeServiceStatus;
 }
 
-/** Live health snapshot for AI-OS Home — always includes three core services. */
+/** Live health snapshot for Portal Home — always includes three core services. */
 export interface AiOsRuntimeSnapshot {
   services: RuntimeServiceRecord[];
   ready: boolean;

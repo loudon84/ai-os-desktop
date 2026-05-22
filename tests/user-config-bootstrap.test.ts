@@ -16,8 +16,8 @@ vi.mock("../src/main/auth/token-store", () => ({
   readStoredSession: mocks.readSession,
 }));
 
-vi.mock("../src/main/shell/aios-home-view-coordinator", () => ({
-  refreshAiosHomeView: mocks.refreshView,
+vi.mock("../src/main/shell/portal-view-coordinator", () => ({
+  refreshPortalView: mocks.refreshView,
 }));
 
 vi.mock("../src/main/user-config/user-config-client", () => ({

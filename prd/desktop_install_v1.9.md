@@ -1,6 +1,6 @@
 ## 结论
 
-当前 `ai-os-desktop` 的 AI-OS 页面无法稳定显示，核心不是 `WebContentsView` 本身失效，而是 **主进程启动顺序 + View 管理入口没有完成统一**。
+当前 `ai-os-desktop` 的 Portal 页面无法稳定显示，核心不是 `WebContentsView` 本身失效，而是 **主进程启动顺序 + View 管理入口没有完成统一**。
 
 当前代码已经有 `AiOsWebContentsController`、`AiOsWebAppHost`、bounds 上报能力，但还没有真正按 Mattermost Desktop 的方式形成统一的 `ShellViewManager`。Mattermost Desktop 的主进程结构是 `MainWindow + WebContentsManager` 分层管理，主窗口和 WebContents 视图管理是分离的，后续证书、重载、URL 加载等都通过 WebContentsManager 找回对应 View。([GitHub][1])
 
@@ -10,7 +10,7 @@
 
 ## 1. P0-1 未完成：`src/main/index.ts` 还没有进入 AppBootstrap
 
-当前 `src/main/index.ts` 仍然是巨型入口文件，直接在 `app.whenReady().then(...)` 中执行迁移、shim、菜单、IPC、窗口创建、Modal、Tray、WebOperator、AI-OS Controller 等逻辑。
+当前 `src/main/index.ts` 仍然是巨型入口文件，直接在 `app.whenReady().then(...)` 中执行迁移、shim、菜单、IPC、窗口创建、Modal、Tray、WebOperator、Portal Controller 等逻辑。
 
 本轮不应直接大拆 `index.ts`，否则会影响安装、更新、Tray、Profile Runtime、Web Operator 等现有逻辑。正确处理是：
 
@@ -48,7 +48,7 @@ setupShellMenu(() => mainWindow);
 
 ## 3. 直接阻断点：`registerAiosIpc(mainWindow)` 调用时 `mainWindow` 还是 null
 
-当前 `setupIPC()` 里注册 AI-OS Runtime IPC：
+当前 `setupIPC()` 里注册 Portal Runtime IPC：
 
 ```ts
 const { registerAiosIpc } = require("./aios/aios-ipc");
@@ -86,7 +86,7 @@ window.hermesAPI.getAiOsRuntimeSnapshot()
 
 如果 handler 没注册，catch 后 `ready=false`，页面只会停留在 RuntimeGuard，不会挂载 `AiOsWebAppHost`。
 
-这是当前 AI-OS 页面不显示的第一优先级问题。
+这是当前 Portal 页面不显示的第一优先级问题。
 
 ---
 
@@ -129,7 +129,7 @@ aios:view:destroy
 
 并创建 `WebContentsView` 加到 `mainWindow.contentView`。
 
-这能跑单个 AI-OS View，但不符合 Mattermost 壳层升级目标。后续如果再加 `profile-home`、`web-operator-page`、`external-web`，会继续堆多个 Controller。
+这能跑单个 Portal View，但不符合 Mattermost 壳层升级目标。后续如果再加 `profile-home`、`web-operator-page`、`external-web`，会继续堆多个 Controller。
 
 本轮应把它升级为统一：
 
@@ -147,7 +147,7 @@ ShellViewManager.activate("aios-home", bounds)
 
 不选择继续扩展 `AiOsWebContentsController`，原因：
 
-1. 它只能管理 AI-OS Home。
+1. 它只能管理 Portal Home。
 2. 后续 Profile 页面、Web Operator 页面、外部 Web 页面都会重复造 Controller。
 3. React Renderer 的 `WorkspaceOutlet` 只应该负责占位和 bounds 上报，不应该直接知道某个业务 View Controller。
 4. Mattermost Desktop 的壳层模式是 `MainWindow` 和 `WebContentsManager` 分离管理，不是每个页面各自写一个 Controller。([GitHub][1])
@@ -611,7 +611,7 @@ export function WebContentsHost({
 
 ---
 
-## P0-G：替换 AI-OS Home 的 WebContents 承载组件
+## P0-G：替换 Portal Home 的 WebContents 承载组件
 
 文件：
 
@@ -698,8 +698,8 @@ npm run dev
 5. Renderer 上报 workspace bounds
 6. Main Process 收到 shell:view:activate("aios-home", bounds)
 7. ShellViewManager 创建 WebContentsView
-8. AI-OS 页面显示在 workspace 区域
-9. 调整窗口大小后，AI-OS 页面跟随 workspace bounds
+8. Portal 页面显示在 workspace 区域
+9. 调整窗口大小后，Portal 页面跟随 workspace bounds
 10. 切换到 chat / memory / tools 后，aios-home WebContentsView 被 hide
 11. 切回 aios-home 后，WebContentsView 不重复创建、不重复 load
 ```

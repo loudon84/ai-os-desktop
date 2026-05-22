@@ -10,7 +10,7 @@ gateway:
 
 profiles:
   default:
-    displayName: "AI-OS 主控"
+    displayName: "Portal 主控"
     role: "主控调度专家"
     runtimeType: "hermes-local"
     enabled: true
@@ -20,7 +20,7 @@ profiles:
     entry:
       type: "aios-workspace"
       route: "aios"
-      title: "AI-OS"
+      title: "Portal"
       icon: "layout-dashboard"
     capabilities:
       - delegation

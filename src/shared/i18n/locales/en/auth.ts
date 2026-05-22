@@ -18,13 +18,13 @@ export default {
   account: "Account",
   brandTitle: "SMC Copilot",
   brandSubtitle:
-    "Sign in to your AI-OS Auth API (below). The desktop injects a Bearer token and syncs a portal session cookie so the embedded AI-OS Home tab skips /login. This is not Hermes Gateway login.",
+    "Sign in to your Portal Auth API (below). The desktop injects a Bearer token and syncs a portal session cookie so the embedded Portal Home tab skips /login. This is not Hermes Gateway login.",
   loginPurposeHint:
-    "Credentials are verified against AI-OS backend + Auth prefix—for the embedded portal (default http://127.0.0.1:3000), not for Hermes.",
-  endpointSection: "AI-OS endpoints",
-  backendUrl: "AI-OS backend URL",
+    "Credentials are verified against Portal backend + Auth prefix—for the embedded portal (default http://127.0.0.1:3000), not for Hermes.",
+  endpointSection: "Portal endpoints",
+  backendUrl: "Portal backend URL",
   authPrefix: "Auth API prefix",
-  aiosHomeUrl: "AI-OS Home URL",
+  aiosHomeUrl: "Portal Home URL",
   signingIn: "Signing in…",
   notSignedIn: "Not signed in",
 } as const;

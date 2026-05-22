@@ -67,8 +67,8 @@ export function initAiOsServices(): void {
 
   const seed: Array<{ id: AiOsServiceId; type: string; name: string; port: number | null; url: string | null }> = [
     { id: "hermes-gateway", type: "hermes-gateway", name: "Hermes Gateway", port: 8642, url: "http://127.0.0.1:8642" },
-    { id: "aios-backend", type: "aios-backend", name: "AI-OS Backend", port: config.backendPort, url: `http://127.0.0.1:${config.backendPort}` },
-    { id: "aios-frontend", type: "aios-frontend", name: "AI-OS Frontend", port: config.frontendPort, url: `http://127.0.0.1:${config.frontendPort}` },
+    { id: "aios-backend", type: "aios-backend", name: "Portal Backend", port: config.backendPort, url: `http://127.0.0.1:${config.backendPort}` },
+    { id: "aios-frontend", type: "aios-frontend", name: "Portal Frontend", port: config.frontendPort, url: `http://127.0.0.1:${config.frontendPort}` },
     {
       id: "copilot-serve",
       type: "copilot-serve",
@@ -109,7 +109,7 @@ export function getAiOsRuntimeStatus(): AiOsRuntimeStatus {
   };
 }
 
-// Dynamic service configuration based on AI-OS env config
+// Dynamic service configuration based on Portal env config
 // This allows ports to be customized via configuration
 function getSnapshotServiceDefs(): Array<{
   id: AiOsServiceId;
@@ -130,14 +130,14 @@ function getSnapshotServiceDefs(): Array<{
     },
     {
       id: "aios-backend",
-      displayName: "AI-OS Backend",
+      displayName: "Portal Backend",
       port: config.backendPort,
       baseUrl: `http://127.0.0.1:${config.backendPort}`,
       healthUrl: `http://127.0.0.1:${config.backendPort}/health`,
     },
     {
       id: "aios-frontend",
-      displayName: "AI-OS Portal (configured)",
+      displayName: "Portal Portal (configured)",
       port: parsePortalPort(resolveAiosHomeUrl(), config.frontendPort),
       baseUrl: resolveAiosHomeUrl(),
       // V3.3: health reflects login/bootstrap aiosHomeUrl, not only Desktop-spawned process
@@ -219,7 +219,7 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
 
 export async function startAiOs(mainWindow: BrowserWindow | null): Promise<AiOsRuntimeStatus> {
   if (!isAiOsInstalled()) {
-    throw new Error("AI-OS is not installed");
+    throw new Error("Portal is not installed");
   }
 
   const config = getAiOsEnvConfig();

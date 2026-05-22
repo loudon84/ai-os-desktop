@@ -1,6 +1,6 @@
 # SMC Copilot (`smc-ai-copilot`)
 
-**SMC Copilot** is an Electron-based **AI-OS Desktop** shell for [Hermes Agent](https://github.com/loudon84/ai-os-hermes). The repository codebase evolved from **hermes-desktop** (install/configure/chat for a single Hermes runtime) into a multi-profile copilot console with cross-profile orchestration and embedded web automation.
+**SMC Copilot** is an Electron-based **Portal Desktop** shell for [Hermes Agent](https://github.com/loudon84/ai-os-hermes). The repository codebase evolved from **hermes-desktop** (install/configure/chat for a single Hermes runtime) into a multi-profile copilot console with cross-profile orchestration and embedded web automation.
 
 | | |
 |---|---|
@@ -25,9 +25,9 @@ SMC Copilot is **not only** a Hermes Agent installer GUI. It is a desktop **cont
 
 1. **Deploys and operates** Hermes Agent (local install, enterprise pipeline, PyPI mirror, runtime bundle).
 2. **Runs multiple Profile Gateways** in parallel (default + specialist roles on ports 8642–8648).
-3. **Exposes dedicated entry points** per profile (AI-OS Workspace, Profile Workspaces, Runtime panel).
+3. **Exposes dedicated entry points** per profile (Portal Workspace, Profile Workspaces, Runtime panel).
 4. **Coordinates work across profiles** (delegation, skill sync, session context sharing).
-5. **Embeds external web apps** via Electron **WebContentsView** (Web Operator) so users and agents share the same browser surface inside AI-OS.
+5. **Embeds external web apps** via Electron **WebContentsView** (Web Operator) so users and agents share the same browser surface inside Portal.
 
 Hermes Agent remains the execution engine (tools, memory, gateways, learning loop). SMC Copilot owns the **desktop shell**, **process lifecycle**, **SQLite control plane**, and **unified UI**.
 
@@ -38,7 +38,7 @@ Hermes Agent remains the execution engine (tools, memory, gateways, learning loo
 | Phase | Focus | What changed |
 |---|---|---|
 | **V1.0 — hermes-desktop** | Single-runtime desktop | Guided install, provider setup, streaming chat, sessions, skills, memory, 16 messaging gateways, Claw3D Office |
-| **V1.1 — Multi Profile Runtime** | AI-OS Desktop | 7 profiles × independent Gateway; `profile-runtime.db` control plane; AI-OS Workspace + specialist Profile Workspaces; profile entries & layouts |
+| **V1.1 — Multi Profile Runtime** | Portal Desktop | 7 profiles × independent Gateway; `profile-runtime.db` control plane; Portal Workspace + specialist Profile Workspaces; profile entries & layouts |
 | **V1.2 — Runtime stability** | Operations | Crash detection, auto-restart, port conflict checks, startup timeout, gateway logs, app restart reconciliation |
 | **V1.2.1 — Enterprise Install** | One-click deploy | Deployment config + schema, runtime bundle (online/offline), 20-step preflight/install pipeline, Runtime Doctor, install lock/marker/log |
 | **V1.4 / V1.4.1 — Desktop shell** | Product hardening | Custom title bar / window IPC, NSIS precheck, local zip / Git agent source, PyPI mirror presets, `agent-deps-installer`, rebranded as **SMC Copilot** |
@@ -73,11 +73,11 @@ Hermes Agent remains the execution engine (tools, memory, gateways, learning loo
 
 Preload APIs: `window.profileRuntime`, `window.profileEntry`.
 
-### AI-OS workspaces & Web Operator
+### Portal workspaces & Web Operator
 
 | Surface | Route | Role |
 |---|---|---|
-| **AI-OS Workspace** | `/aios-workspace` | Default-profile command center: chat, multi-profile status, delegation entry, Web Operator launch |
+| **Portal Workspace** | `/aios-workspace` | Default-profile command center: chat, multi-profile status, delegation entry, Web Operator launch |
 | **Profile Workspace** | `/profile-workspace/:profileId` | Specialist workspace (isolated chat, skills, context, audit) |
 | **Profile Runtime** | `/profile-runtime` | Runtime ops & gateway logs |
 | **Web Operator** | `/web-operator` | Three-pane UI: Hermes task panel · **WebContentsView** viewport · status/audit panel |
@@ -129,7 +129,7 @@ splash → welcome → installing → setup → main (Layout)
 | Area | Screens |
 |---|---|
 | **Copilot** | Chat, Sessions, Agents, Models, Providers, Skills, Soul, Memory, Tools, Schedules, Gateway, Settings |
-| **AI-OS** | AI-OS Workspace, Profile Workspaces, Profile Runtime, Web Operator |
+| **Portal** | Portal Workspace, Profile Workspaces, Profile Runtime, Web Operator |
 | **Visual** | Office (Claw3D) |
 
 Chat path: Renderer → `hermesAPI.sendMessage` → Main `hermes.ts` → local SSE or CLI fallback (or remote HTTPS).
@@ -223,7 +223,7 @@ npm run build:linux
 
 ## Relationship to Hermes Agent
 
-SMC Copilot is the **desktop host**. [Hermes Agent](https://github.com/NousResearch/hermes-agent) provides agent behavior, tools, memory, and gateway integrations. The desktop app installs and configures Hermes, spawns Gateway processes per profile, and surfaces operations through a unified AI-OS UI.
+SMC Copilot is the **desktop host**. [Hermes Agent](https://github.com/NousResearch/hermes-agent) provides agent behavior, tools, memory, and gateway integrations. The desktop app installs and configures Hermes, spawns Gateway processes per profile, and surfaces operations through a unified Portal UI.
 
 ---
 

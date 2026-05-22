@@ -27,7 +27,7 @@ export function RuntimeGuard({
       await window.aiosRuntime?.startAiOs?.();
       await onStarted?.();
     } catch (err) {
-      console.error("[RuntimeGuard] Failed to start AI-OS runtime:", err);
+      console.error("[RuntimeGuard] Failed to start Portal runtime:", err);
     } finally {
       setStarting(false);
     }

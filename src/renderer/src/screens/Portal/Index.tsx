@@ -5,17 +5,17 @@ import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import type { View } from "../../types/desktop-shell";
 import type { RuntimeServiceRecord } from "../../../../shared/aios/aios-contract";
 
-export interface AIOSHomeScreenProps {
+export interface PortalScreenProps {
   onNavigate: (view: View) => void;
   onOpenRuntimeSettings?: () => void;
 }
 
-const AIOS_HOME_LAYER = "aios-home";
+const PORTAL_LAYER = "portal";
 
-export function AIOSHomeScreen({
+export function PortalScreen({
   onOpenRuntimeSettings,
-}: AIOSHomeScreenProps): React.JSX.Element {
-  const { t } = useTranslation("aiosHome");
+}: PortalScreenProps): React.JSX.Element {
+  const { t } = useTranslation("portal");
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function AIOSHomeScreen({
       setServices(snapshot.services);
       setStatusError(null);
     } catch (err) {
-      console.warn("[AIOSHome] Failed to refresh Portal runtime snapshot:", err);
+      console.warn("[Portal] Failed to refresh Portal runtime snapshot:", err);
       setStatusError((err as Error).message);
     } finally {
       setLoading(false);
@@ -45,8 +45,8 @@ export function AIOSHomeScreen({
 
   // Ensure Main Process WebContentsView exists (getState alone did not create it).
   useEffect(() => {
-    void window.shellView.getState(AIOS_HOME_LAYER).catch((err) => {
-      console.warn("[AIOSHome] Failed to ensure aios-home shell view:", err);
+    void window.shellView.getState(PORTAL_LAYER).catch((err) => {
+      console.warn("[Portal] Failed to ensure portal shell view:", err);
     });
   }, []);
 
@@ -109,7 +109,7 @@ export function AIOSHomeScreen({
         </div>
       ) : null}
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <WebContentsHost layerId={AIOS_HOME_LAYER} />
+        <WebContentsHost layerId={PORTAL_LAYER} />
       </div>
     </div>
   );

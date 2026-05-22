@@ -1,6 +1,6 @@
 /** Static workspace ids (V3.2 primary workspaces). */
 export type StaticWorkspaceId =
-  | "aios-home"
+  | "portal"
   | "workspaces"
   | "task-workbench"
   | "web-operator"

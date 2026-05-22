@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-**SMC Copilot**（包名 / 可执行文件：`smc-ai-copilot`）是基于 **Electron + React + TypeScript + TailwindCSS** 的 **AI-OS Desktop** 桌面壳：部署与运维 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)，并提供多 Profile 运行时、跨 Profile 编排与 WebContentsView（Web Operator）内嵌能力。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
+**SMC Copilot**（包名 / 可执行文件：`smc-ai-copilot`）是基于 **Electron + React + TypeScript + TailwindCSS** 的 **Portal Desktop** 桌面壳：部署与运维 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)，并提供多 Profile 运行时、跨 Profile 编排与 WebContentsView（Web Operator）内嵌能力。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
 
 本仓库代码由 **hermes-desktop**（单运行时安装/配置/聊天）演进而来；Hermes Agent 仍为执行引擎，SMC Copilot 负责桌面壳、进程生命周期、SQLite 控制面与统一 UI。
 
@@ -17,7 +17,7 @@
 
 **V1.0（hermes-desktop）**：单 Gateway 桌面 — 引导安装、提供商配置、流式聊天、会话/技能/记忆、消息 Gateway、Claw3D Office。
 
-V1.1 在 V1.0 基础上新增 **Multi Profile Gateway Runtime**，将单 Gateway 桌面应用升级为 AI-OS Desktop 多智能体运行时控制台。
+V1.1 在 V1.0 基础上新增 **Multi Profile Gateway Runtime**，将单 Gateway 桌面应用升级为 Portal Desktop 多智能体运行时控制台。
 
 V1.2 在 V1.1 基础上增强 **Runtime 稳定性**：Gateway 崩溃检测/自动重启、端口冲突检测、启动超时、App 重启后状态恢复、日志收集与查看。
 
@@ -48,7 +48,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **一级容器**：`MainPage` 替代 `DesktopShell` 成为主界面根布局；`Layout.tsx` 仍负责 hooks 编排（`useDesktopNavigation` / `useProfileEntries` / `useUpdateState`）
 - **顶栏**：`MainTopBar`（40px）统一承载 Profile 切换、工作区 Tabs、Gateway 运行态、`WindowControls`（Win/Linux）；全局 `PageHeader` 从主链路移除
 - **二级导航**：`DesktopSidebar`（232px）降为功能导航；`WorkspaceOutlet` / `StatusBar` / `ModalLayer` / `DrawerLayer` 保留
-- **工作区 Tabs**：`MainViewTabs` — AI-OS Home / AI-OS Workspace / Web Operator（可点击切换，首版无 DnD）
+- **工作区 Tabs**：`MainViewTabs` — Portal Home / Portal Workspace / Web Operator（可点击切换，首版无 DnD）
 - **布局常量**：`src/shared/shell/main-page-constants.ts`（顶栏 40、底栏 24、侧栏 232、默认窗口 1280×800、最小 900×600）
 - **主窗口尺寸**：`main-window-controller.ts` 引用上述常量（已有 `window-state` 持久化时仍优先用户历史尺寸）
 - **根布局 CSS**：`.app` 使用 `100dvh`；macOS 在 `screen === "main"` 时由 `MainTopBar` 承担拖拽，不再叠加全局 `drag-region`
@@ -103,20 +103,20 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 
 **V3.3.1（Auth Hotfix + 本地 Bootstrap）**：
 - **启动门控**：local / remote / ssh 统一 auth + bootstrap；`bootstrap-pending` → LoginScreen 自动 bootstrap
-- **AI-OS Auth**：HTTP `{ email, password }` → `POST /api/v1/auth/login`（默认 backend `:8000`）；**不是** Hermes Gateway 登录
+- **Portal Auth**：HTTP `{ email, password }` → `POST /api/v1/auth/login`（默认 backend `:8000`）；**不是** Hermes Gateway 登录
 - **Bootstrap 默认本地**：不请求 `GET /api/v1/desktop/bootstrap`；合成 `local-v1` 配置并 apply；远程拉取需 `HERMES_USE_REMOTE_USER_CONFIG=true`
 - **smcShell + startup IPC**：`window.smcShell.resolveStartupDecision()` ↔ `startup:resolve-decision` ↔ `startup-decision.ts`
-- **aios-home 嵌入时机**：coordinator create/reload 后 deactivate；主界面 `WebContentsHost` setBounds 后才显示
-- **Bootstrap apply**：同步 endpoint config + prepare `aios-home` URL（`user-config-applier.ts` / `aios-home-view-coordinator.ts`）
+- **portal 嵌入时机**：coordinator create/reload 后 deactivate；主界面 `WebContentsHost` setBounds 后才显示
+- **Bootstrap apply**：同步 endpoint config + prepare portal URL（`user-config-applier.ts` / `portal-view-coordinator.ts`）
 
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
 |---|---|---|
-| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**AI-OS Runtime**、**Migrations**、**SSH** | 需按任务范围 |
+| `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**Portal Runtime**、**Migrations**、**SSH** | 需按任务范围 |
 | `src/main/window/` | **V1.4.1** 窗口控制 IPC — minimize/maximize/close/is-maximized | 按需扩展 |
 | `src/main/enterprise/` | 企业安装、Doctor、installer-precheck-reader、agent-deps-installer、pip-mirror-config（31 个文件含 doctor/ 和 windows/ 子目录） | 按需扩展 |
-| `src/main/aios/` | **AI-OS Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
+| `src/main/aios/` | **Portal Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
 | `src/main/browser/` | Web Operator — **ShellBrowserViewAdapter** + BrowserController/SecurityGuard/AuditLogger/ToolBridge（`browser-view-manager.ts` legacy） | 按需扩展 |
@@ -124,7 +124,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |
 | `src/renderer/src/workspace/` | **V3.2** Workspace registry / tabs / `WorkspaceRenderer` 路由 | 顶栏 Tab 与 Outlet |
-| `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | AI-OS 登录 + Bearer 注入 |
+| `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |
 | `src/main/user-config/` | **V3.3** 本地 bootstrap apply / diff / applier | 登录后桌面配置落盘 |
 | `src/main/startup/` | **V3.3.1** `startup-decision.ts`、`startup-ipc.ts` | 启动门控（auth + bootstrap 前置） |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |

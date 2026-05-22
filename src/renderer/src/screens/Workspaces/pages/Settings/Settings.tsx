@@ -16,13 +16,7 @@ const TELEGRAM_COMMUNITY_URL = "https://t.me/hermes_agent_desktop";
 
 const LANGUAGE_NATIVE_NAMES: Record<AppLocale, string> = {
   en: "English",
-  es: "Español",
-  id: "Bahasa Indonesia",
-  ja: "日本語",
-  "pt-BR": "Português (BR)",
-  "pt-PT": "Português (PT)",
   "zh-CN": "简体中文",
-  "zh-TW": "繁體中文（台灣）",
 };
 
 // Build a mask string the same width as the stored API key so the

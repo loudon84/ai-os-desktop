@@ -7,7 +7,7 @@ export const SECONDARY_NAV_BY_WORKSPACE: Record<
   StaticWorkspaceId,
   WorkspaceSecondaryPanel[]
 > = {
-  "aios-home": [],
+  portal: [],
   workspaces: [],
   /** team_v1.5：三栏工作区自包含，侧栏不再切换子面板 */
   "task-workbench": [],

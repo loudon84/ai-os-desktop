@@ -14,7 +14,7 @@ describe("HttpAuthClient login payload", () => {
     vi.resetModules();
   });
 
-  it("posts email/password to AI-OS auth login", async () => {
+  it("posts email/password to Portal auth login", async () => {
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, string>;
       expect(body).toEqual({ email: "user@example.com", password: "secret" });

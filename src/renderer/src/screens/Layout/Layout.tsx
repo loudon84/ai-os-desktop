@@ -31,7 +31,7 @@ function isValidRestoredView(
   if (!view) return false;
 
   const known: View[] = [
-    "aios-home",
+    "portal",
     "workspaces",
     "task-workbench",
     "web-operator",
@@ -104,7 +104,7 @@ function Layout(): React.JSX.Element {
         if (isValidRestoredView(last, externalIds)) {
           navigation.navigateToView(last as View);
         } else {
-          navigation.navigateToView("aios-home");
+          navigation.navigateToView("portal");
         }
 
         if (
@@ -219,7 +219,7 @@ function Layout(): React.JSX.Element {
       if (typeof id === "string" && id.startsWith("external-browser:")) {
         void closeExternalTab(id as `external-browser:${string}`).then(() => {
           if (navigation.view === id) {
-            navigation.navigateToView("aios-home");
+            navigation.navigateToView("portal");
           }
         });
       }
@@ -263,7 +263,7 @@ function Layout(): React.JSX.Element {
     const active = navigation.view;
     if (typeof active === "string" && active.startsWith("external-browser:")) {
       void closeExternalTab(active as `external-browser:${string}`);
-      navigation.navigateToView("aios-home");
+      navigation.navigateToView("portal");
     }
   }, [navigation.view, closeExternalTab, navigation.navigateToView]);
 

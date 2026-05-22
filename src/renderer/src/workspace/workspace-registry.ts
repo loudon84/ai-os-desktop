@@ -2,13 +2,13 @@ import type { WorkspaceModule } from "../../../shared/workspace/workspace-contra
 
 export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
   {
-    id: "aios-home",
-    titleKey: "navigation.aiosHome",
+    id: "portal",
+    titleKey: "navigation.portal",
     kind: "webview",
     closeable: false,
     draggable: false,
     persistable: true,
-    shellLayerId: "aios-home",
+    shellLayerId: "portal",
     source: "system",
   },
   {

@@ -208,7 +208,7 @@ npm run lint
 | 1 | `npm run dev` 进入 main 屏无报错 |
 | 2 | `MainTopBar` 固定 40px，Windows `WindowControls` 可用 |
 | 3 | Sidebar 可切换 Chat/Sessions/Models/Skills/Gateway 等 |
-| 4 | 顶部 AI-OS / Workspace / Web Operator Tabs 跳转正确 |
+| 4 | 顶部 Portal / Workspace / Web Operator Tabs 跳转正确 |
 | 5 | `AIOSHomeScreen` 内 `WebContentsHost`（layer `aios-home`）无偏移、resize 后 bounds 正确 |
 | 6 | `StatusBar` 底部 24px |
 | 7 | 主内容区无双滚动条错位 |

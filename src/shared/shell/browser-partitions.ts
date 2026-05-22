@@ -1,14 +1,18 @@
 /** Canonical shell session partitions (V3.3). */
 export const SHELL_PARTITIONS = {
-  AIOS_HOME: "persist:aios-home",
+  /** Logical portal view; physical partition unchanged for NextAuth cookies. */
+  PORTAL: "persist:aios-home",
   WORKSPACES: "persist:workspaces",
   WEB_OPERATOR: "persist:web-operator",
   OFFICE: "persist:office",
   EXTERNAL_BROWSER_PREFIX: "persist:external-browser-",
 } as const;
 
-/** AI-OS home partition (token injection target). */
-export const AIOS_HOME_PARTITION = SHELL_PARTITIONS.AIOS_HOME;
+/** Portal embed partition (token injection target). */
+export const PORTAL_PARTITION = SHELL_PARTITIONS.PORTAL;
+
+/** @deprecated Use PORTAL_PARTITION */
+export const AIOS_HOME_PARTITION = PORTAL_PARTITION;
 
 /** Web Operator partition (no token injection). */
 export const WEB_OPERATOR_PARTITION = SHELL_PARTITIONS.WEB_OPERATOR;

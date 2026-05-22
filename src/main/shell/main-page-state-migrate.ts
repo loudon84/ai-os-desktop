@@ -10,6 +10,26 @@ const DEFAULT_V2: MainPagePersistedStateV2 = {
   externalTabs: [],
 };
 
+function migrateWorkspaceId(id: string | undefined): string | undefined {
+  if (id === "aios-home") return "portal";
+  return id;
+}
+
+function migrateWorkspaceIdList(ids: string[]): string[] {
+  return ids.map((id) => migrateWorkspaceId(id) ?? id);
+}
+
+function migrateWorkspaceSecondaryState(
+  state: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!state || typeof state !== "object") return {};
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(state)) {
+    next[migrateWorkspaceId(key) ?? key] = value;
+  }
+  return next;
+}
+
 export function migrateMainPageState(input: unknown): MainPagePersistedStateV2 {
   if (!input || typeof input !== "object") {
     return { ...DEFAULT_V2 };
@@ -32,9 +52,11 @@ function migrateV1ToV2(v1: Partial<MainPagePersistedStateV1>): MainPagePersisted
   return {
     version: 2,
     sidebarMode: v1.sidebarMode ?? "expanded",
-    workspaceOrder: Array.isArray(v1.tabOrder) ? v1.tabOrder : [],
+    workspaceOrder: migrateWorkspaceIdList(
+      Array.isArray(v1.tabOrder) ? v1.tabOrder : [],
+    ),
     externalTabs: Array.isArray(v1.externalTabs) ? v1.externalTabs : [],
-    lastActiveWorkspace: v1.lastActiveView,
+    lastActiveWorkspace: migrateWorkspaceId(v1.lastActiveView),
     workspaceSecondaryState: {},
   };
 }
@@ -43,13 +65,12 @@ function normalizeV2(raw: Partial<MainPagePersistedStateV2>): MainPagePersistedS
   return {
     version: 2,
     sidebarMode: raw.sidebarMode ?? "expanded",
-    workspaceOrder: Array.isArray(raw.workspaceOrder) ? raw.workspaceOrder : [],
+    workspaceOrder: migrateWorkspaceIdList(
+      Array.isArray(raw.workspaceOrder) ? raw.workspaceOrder : [],
+    ),
     externalTabs: Array.isArray(raw.externalTabs) ? raw.externalTabs : [],
-    lastActiveWorkspace: raw.lastActiveWorkspace,
+    lastActiveWorkspace: migrateWorkspaceId(raw.lastActiveWorkspace),
     lastSettingsDrawerPanel: raw.lastSettingsDrawerPanel,
-    workspaceSecondaryState:
-      raw.workspaceSecondaryState && typeof raw.workspaceSecondaryState === "object"
-        ? { ...raw.workspaceSecondaryState }
-        : {},
+    workspaceSecondaryState: migrateWorkspaceSecondaryState(raw.workspaceSecondaryState),
   };
 }

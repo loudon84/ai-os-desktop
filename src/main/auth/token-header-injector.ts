@@ -3,7 +3,7 @@ import { getCachedAccessToken } from "./token-store";
 import { shouldInjectTokenForUrl, TOKEN_INJECT_PARTITIONS } from "./token-inject-url";
 
 /**
- * Injects Authorization for aios-home partition only, on whitelisted origins.
+ * Injects Authorization for portal layer only (partition `persist:aios-home`), on whitelisted origins.
  * Does NOT attach to web-operator, external-browser, office, or workspaces.
  */
 export function installTokenHeaderInjector(): void {
@@ -27,7 +27,7 @@ export function installTokenHeaderInjector(): void {
     });
   }
 
-  console.log("[auth] Token header injector installed for aios-home partition");
+  console.log("[auth] Token header injector installed for portal partition (persist:aios-home)");
 }
 
 export async function beforeLoadAiosHome(): Promise<void> {

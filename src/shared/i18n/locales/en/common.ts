@@ -47,7 +47,7 @@ export default {
   copied: "Copied!",
   runtimeGuard: {
     title: "Hermes Agent Gateway Not Running",
-    description: "AI-OS Desktop relies on the local Hermes Gateway for model access, tool execution, and agent orchestration. Please start the Gateway or complete setup first.",
+    description: "Portal Desktop relies on the local Hermes Gateway for model access, tool execution, and agent orchestration. Please start the Gateway or complete setup first.",
     gatewayError: "The Gateway encountered an error. Check logs for details.",
     startGateway: "Start Hermes Gateway",
     openSetup: "Hermes Setup",

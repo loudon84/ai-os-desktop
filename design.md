@@ -912,7 +912,7 @@ export interface BrowserToolSchema {
 export const browserToolSchemas: BrowserToolSchema[] = [
   {
     name: "browser.open",
-    description: "Open an allowed external web page in AI-OS Desktop.",
+    description: "Open an allowed external web page in Portal Desktop.",
     input_schema: {
       type: "object",
       properties: {

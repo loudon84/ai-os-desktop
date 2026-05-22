@@ -6,7 +6,7 @@ import { resolveShellLayerId } from "../src/renderer/src/workspace/resolve-works
 describe("workspace registry", () => {
   it("registers static workspaces including office", () => {
     expect(STATIC_WORKSPACE_MODULES.map((m) => m.id)).toEqual([
-      "aios-home",
+      "portal",
       "workspaces",
       "task-workbench",
       "web-operator",
@@ -25,7 +25,7 @@ describe("workspace registry", () => {
   });
 
   it("resolveShellLayerId maps web layers", () => {
-    expect(resolveShellLayerId("aios-home")).toBe("aios-home");
+    expect(resolveShellLayerId("portal")).toBe("portal");
     expect(resolveShellLayerId("web-operator")).toBe("web-operator");
     expect(resolveShellLayerId("external-browser:abc" as never)).toBe(
       "external-browser:abc",

@@ -179,7 +179,7 @@ describe("ShellViewManager", () => {
       );
       await manager.createView(
         "view2",
-        "aios-home",
+        "portal",
         "https://example.com",
       );
 
@@ -205,7 +205,7 @@ describe("ShellViewManager", () => {
       );
       await manager.createView(
         "view2",
-        "aios-home",
+        "portal",
         "https://example.com",
       );
 

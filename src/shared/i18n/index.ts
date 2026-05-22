@@ -26,7 +26,7 @@ import soulEn from "./locales/en/soul";
 import memoryEn from "./locales/en/memory";
 import installEn from "./locales/en/install";
 import constantsEn from "./locales/en/constants";
-import aiosHomeEn from "./locales/en/aiosHome";
+import portalEn from "./locales/en/portal";
 import shellViewEn from "./locales/en/shellView";
 import authEn from "./locales/en/auth";
 import runtimeSettingsEn from "./locales/en/runtimeSettings";
@@ -51,7 +51,7 @@ import soulZh from "./locales/zh-CN/soul";
 import memoryZh from "./locales/zh-CN/memory";
 import installZh from "./locales/zh-CN/install";
 import constantsZh from "./locales/zh-CN/constants";
-import aiosHomeZh from "./locales/zh-CN/aiosHome";
+import portalZh from "./locales/zh-CN/portal";
 import shellViewZh from "./locales/zh-CN/shellView";
 import authZh from "./locales/zh-CN/auth";
 import runtimeSettingsZh from "./locales/zh-CN/runtimeSettings";
@@ -59,7 +59,7 @@ import workspacesZh from "./locales/zh-CN/workspaces";
 
 export const resources = {
   en: {
-    aiosHome: aiosHomeEn,
+    portal: portalEn,
     shellView: shellViewEn,
     translation: {
       common: commonEn,
@@ -88,7 +88,7 @@ export const resources = {
     },
   },
   "zh-CN": {
-    aiosHome: aiosHomeZh,
+    portal: portalZh,
     shellView: shellViewZh,
     translation: {
       common: commonZh,
@@ -136,7 +136,7 @@ void sharedI18n.init({
   fallbackLng: FALLBACK_LOCALE,
   supportedLngs: APP_LOCALES,
   defaultNS: "translation",
-  ns: ["translation", "aiosHome", "shellView"],
+  ns: ["translation", "portal", "shellView"],
   interpolation: {
     escapeValue: false,
   },

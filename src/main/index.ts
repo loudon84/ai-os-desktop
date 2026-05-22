@@ -77,6 +77,7 @@ import {
   getCredentialPool,
   setCredentialPool,
   getConnectionConfig,
+  getFullConnectionConfig,
   setConnectionConfig,
   getPlatformEnabled,
   setPlatformEnabled,
@@ -188,7 +189,7 @@ import { registerUserConfigIpc } from "./user-config/user-config-ipc";
 import { getAiOsEnvConfig } from "./aios/aios-config";
 import { ShellViewManager } from "./shell/views/shell-view-manager";
 import { registerShellViewIpc, destroyShellViews } from "./shell/shell-view-ipc";
-import { bindShellViewManager, unbindShellViewManager } from "./shell/aios-home-view-coordinator";
+import { bindShellViewManager, unbindShellViewManager } from "./shell/portal-view-coordinator";
 import { bindShellViewEventForwarder } from "./shell/shell-view-event-forwarder";
 import { registerMainPageStateIpc } from "./shell/main-page-state-ipc";
 import { buildAppMenu } from "./shell/shell-menu";
@@ -675,7 +676,7 @@ function setupIPC(): void {
         mode,
         remoteUrl,
         apiKey: apiKey || "",
-        ssh: getConnectionConfig().ssh, // preserve existing ssh config
+        ssh: getFullConnectionConfig().ssh, // preserve existing ssh config
       });
       return true;
     },
@@ -692,7 +693,7 @@ function setupIPC(): void {
       remotePort: number,
       localPort: number,
     ) => {
-      const current = getConnectionConfig();
+      const current = getFullConnectionConfig();
       setConnectionConfig({
         ...current,
         mode: "ssh",
@@ -1379,7 +1380,7 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers that require mainWindow (must be after createWindow)
   if (mainWindow) {
-    // AI-OS Runtime IPC
+    // Portal Runtime IPC
     try {
       registerAiosIpc(mainWindow);
       console.log("[AIOS] AIOS IPC handlers registered successfully");
@@ -1420,10 +1421,10 @@ app.whenReady().then(async () => {
       try {
         bindShellViewManager(shellViewManager);
         registerShellViewIpc(shellViewManager);
-        void import("./shell/aios-home-view-coordinator")
-          .then(({ refreshAiosHomeView }) => refreshAiosHomeView())
+        void import("./shell/portal-view-coordinator")
+          .then(({ refreshPortalView }) => refreshPortalView())
           .catch((err) => {
-            console.warn("[SHELL] Initial aios-home view setup failed:", err);
+            console.warn("[SHELL] Initial portal view setup failed:", err);
           });
         const unbindShellViewEvents = bindShellViewEventForwarder(mainWindow);
         mainWindow.on("closed", () => {
@@ -1438,7 +1439,7 @@ app.whenReady().then(async () => {
     }
 
     // Note: aios-home view is now lazy-loaded when Renderer requests it via shell:view:set-bounds
-    // This avoids startup errors when AI-OS frontend is not yet running
+    // This avoids startup errors when Portal frontend is not yet running
   }
 
   // Initialize ModalManager and DropdownManager (Phase 3)

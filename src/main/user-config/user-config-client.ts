@@ -23,7 +23,7 @@ function useMockUserConfig(): boolean {
   return false;
 }
 
-/** Opt-in when AI-OS backend implements GET /api/v1/desktop/bootstrap */
+/** Opt-in when Portal backend implements GET /api/v1/desktop/bootstrap */
 function useRemoteUserConfig(): boolean {
   return process.env.HERMES_USE_REMOTE_USER_CONFIG === "true";
 }
@@ -42,7 +42,7 @@ function buildMockConfig(versionSuffix: string): DesktopBootstrapConfig {
     },
     features: {
       aiosHome: true,
-      workspaces: true,
+      aiosWorkspace: true,
       webOperator: true,
       office: true,
       hermesRuntimeDrawer: true,
@@ -92,7 +92,7 @@ function buildLocalBootstrapConfig(session: StoredAuthSession): DesktopBootstrap
     },
     features: {
       aiosHome: true,
-      workspaces: true,
+      aiosWorkspace: true,
       webOperator: true,
       office: true,
       hermesRuntimeDrawer: true,

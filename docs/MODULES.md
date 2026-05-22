@@ -227,48 +227,48 @@
 
 ---
 
-## AI-OS Runtime 模块 (src/main/aios/)
+## Portal Runtime 模块 (src/main/aios/)
 
-### aios-config.ts — AI-OS 配置
+### aios-config.ts — Portal 配置
 
-- **职责**: AI-OS 运行时配置管理（安装路径、端口、API 端点等）
+- **职责**: Portal 运行时配置管理（安装路径、端口、API 端点等）
 
-### aios-doctor.ts — AI-OS Doctor
+### aios-doctor.ts — Portal Doctor
 
-- **职责**: AI-OS 运行时健康诊断
+- **职责**: Portal 运行时健康诊断
 
-### aios-health.ts — AI-OS 健康检查
+### aios-health.ts — Portal 健康检查
 
-- **职责**: AI-OS 服务健康状态检查
+- **职责**: Portal 服务健康状态检查
 
-### aios-ipc.ts — AI-OS IPC 注册
+### aios-ipc.ts — Portal IPC 注册
 
-- **职责**: 注册 AI-OS 相关 IPC handler（14 个通道）
+- **职责**: 注册 Portal 相关 IPC handler（14 个通道）
 - **IPC Channels**: aios:get-runtime-status, aios:install, aios:start, aios:stop, aios:restart, aios:view:load-home, aios:view:reload, aios:view:set-bounds, aios:get-logs, aios:doctor, aios:reconcile, aios:check-ports, aios:get-runtime-snapshot, aios:view:destroy, aios:view:hide
 
-### aios-paths.ts — AI-OS 路径
+### aios-paths.ts — Portal 路径
 
-- **职责**: AI-OS 安装与数据路径解析
+- **职责**: Portal 安装与数据路径解析
 
-### aios-port-check.ts — AI-OS 端口检查
+### aios-port-check.ts — Portal 端口检查
 
-- **职责**: AI-OS 端口可用性检测与冲突解决
+- **职责**: Portal 端口可用性检测与冲突解决
 
-### aios-process.ts — AI-OS 进程管理
+### aios-process.ts — Portal 进程管理
 
-- **职责**: AI-OS 子进程 spawn/kill 管理
+- **职责**: Portal 子进程 spawn/kill 管理
 
-### aios-reconciler.ts — AI-OS 协调器
+### aios-reconciler.ts — Portal 协调器
 
-- **职责**: App 重启后 AI-OS 运行时状态恢复
+- **职责**: App 重启后 Portal 运行时状态恢复
 
-### aios-runtime-supervisor.ts — AI-OS 运行时监管
+### aios-runtime-supervisor.ts — Portal 运行时监管
 
-- **职责**: AI-OS 运行时健康监管与自动重启
+- **职责**: Portal 运行时健康监管与自动重启
 
-### aios-webcontents-controller.ts — AI-OS WebContents 控制
+### aios-webcontents-controller.ts — Portal WebContents 控制
 
-- **职责**: AI-OS BrowserView/WebContentsView 生命周期管理
+- **职责**: Portal BrowserView/WebContentsView 生命周期管理
 - **V1.9 状态**: **@deprecated** — 由 `ShellViewManager` 统一接管 View 管理，此控制器停用
 
 ### shell/shell-view-ipc.ts — V1.9 + V2.1 ShellView IPC 注册
@@ -514,7 +514,7 @@
 
 ### browser/ — Web Operator 模块
 
-基于 `hermes-desktop` 二开，扩展为 **AI-OS Desktop Web Operator**。V2.2 起浏览器视口统一经 **ShellViewManager**（`ShellBrowserViewAdapter`），`BrowserViewManager` 文件保留为 legacy。
+基于 `hermes-desktop` 二开，扩展为 **Portal Desktop Web Operator**。V2.2 起浏览器视口统一经 **ShellViewManager**（`ShellBrowserViewAdapter`），`BrowserViewManager` 文件保留为 legacy。
 
 #### browser-types.ts — 内部类型定义
 
@@ -610,7 +610,7 @@
 - **核心方法**: `open()`, `back()`, `forward()`, `reload()`, `getState()`, `screenshot()`, `click()`, `type()`, `extractTable()`, `getAuditLog()`, `confirmAction()`, `rejectAction()`, `updateBounds()`
 - **事件订阅**: `onPendingAction()`, `onAuditUpdate()`, **`onOpened()`（V2.2）**
 
-### aios-api.ts — AI-OS Runtime Preload API
+### aios-api.ts — Portal Runtime Preload API
 
 - **职责**: 封装 aios:* IPC 为 `window.aiosRuntime` API
 - **方法**: getRuntimeStatus, installAiOs, startAiOs, stopAiOs, restartAiOs, openAiOsHome, reloadAiOsHome, setAiOsViewBounds, getAiOsLogs, runDoctor, reconcile, checkPorts
@@ -691,8 +691,8 @@
 | Settings | screens/Settings/Settings.tsx | 主题/语言/连接/更新/备份/诊断 |
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
-| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
-| **Workspaces** | **screens/Workspaces/index.tsx** | **V3.6.2** 三栏工作台入口；`AIOSWorkspaceScreen` 仅为 legacy wrapper |
+| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **Portal 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
+| **Workspaces** | **screens/Workspaces/index.tsx** | **V3.6.2** 三栏工作台入口（`WorkspacesScreen` → `WorkspacesShell`） |
 | **WorkspacesShell** | **screens/Workspaces/panels/WorkspacesShell.tsx** | 顶栏 `WorkspaceStatusCards` + 左 `WorkspacesSidebar`（可折叠）+ 中 `registry/workspace-pages` + 右 `WorkspaceRightPanel`（Inspector 四 tab） |
 | **WorkspacesSidebar** | **screens/Workspaces/components/WorkspacesSidebar.tsx** | 8 项导航（232px，lucide-react 图标，active 高亮） |
 | **ChatPanel** | **screens/Workspaces/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
@@ -734,11 +734,11 @@
 | RemoteNotice | components/RemoteNotice.tsx | 远程模式提示横幅 |
 | Versions | components/Versions.tsx | 版本信息展示 |
 | HermesLogo | components/common/HermesLogo.tsx | Logo 组件 |
-| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | **@deprecated V1.9** AI-OS Web 应用宿主，由 WebContentsHost 替换 |
+| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | **@deprecated V1.9** Portal Web 应用宿主，由 WebContentsHost 替换 |
 | WebContentsHost | components/shell/WebContentsHost.tsx | **V1.9** 通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级） |
 | PipMirrorFields | components/install/PipMirrorFields.tsx | V1.4.1 PyPI 镜像选择字段 |
 | InstallWizard | components/install-wizard/install-wizard.tsx | 安装向导组件 |
-| RuntimeGuard | components/runtime/RuntimeGuard.tsx | **V3.2.1** AI-OS Home 未就绪时：启动 Gateway +「打开设置」（`openSettingsDrawer("runtime")`） |
+| RuntimeGuard | components/runtime/RuntimeGuard.tsx | **V3.2.1** Portal Home 未就绪时：启动 Gateway +「打开设置」（`openSettingsDrawer("runtime")`） |
 | ProfileSwitcherDropdown | components/dropdowns/ProfileSwitcherDropdown.tsx | Profile 切换；**V3.2.1** `manageSettings` / `createProfile` i18n |
 | RuntimeStatusBar | components/runtime/RuntimeStatusBar.tsx | 运行时状态栏 |
 
@@ -813,11 +813,11 @@ Layout → MainPage → MainTopBar + DesktopSidebar + WorkspaceOutlet + StatusBa
 | migration-contract.ts | 迁移契约类型 |
 | runtime-state-contract.ts | 运行时状态契约类型 |
 
-### aios/ — AI-OS 契约
+### aios/ — Portal 契约
 
 | 文件 | 职责 |
 |---|---|
-| aios-contract.ts | AI-OS 运行时 API 契约与类型定义 |
+| aios-contract.ts | Portal 运行时 API 契约与类型定义 |
 
 ### browser/ — Web Operator 契约
 

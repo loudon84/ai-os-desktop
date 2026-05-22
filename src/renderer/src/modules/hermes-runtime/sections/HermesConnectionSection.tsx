@@ -32,7 +32,7 @@ export function HermesConnectionSection(): React.JSX.Element {
       await window.hermesAPI.setConnectionConfig(
         config.mode,
         config.remoteUrl ?? "",
-        config.apiKey,
+        undefined,
       );
       setError(null);
     } catch (err) {

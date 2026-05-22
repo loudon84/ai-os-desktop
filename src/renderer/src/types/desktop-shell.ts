@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 export type View =
-  | "aios-home"
+  | "portal"
   | "workspaces"
   | "task-workbench"
   | "web-operator"
@@ -17,7 +17,7 @@ export interface NavItem {
 export type UpdateState = "available" | "downloading" | "ready" | null;
 
 export const VIEW_TITLE_KEYS: Partial<Record<View, string>> = {
-  "aios-home": "navigation.aiosHome",
+  portal: "navigation.portal",
   workspaces: "navigation.workspaces",
   "task-workbench": "navigation.taskWorkbench",
   "web-operator": "navigation.webOperator",
@@ -28,5 +28,5 @@ export function resolveViewTitleKey(view: View): string {
   if (typeof view === "string" && view.startsWith("external-browser:")) {
     return "navigation.externalBrowser";
   }
-  return VIEW_TITLE_KEYS[view] ?? "navigation.aiosHome";
+  return VIEW_TITLE_KEYS[view] ?? "navigation.portal";
 }

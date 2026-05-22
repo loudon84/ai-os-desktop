@@ -16,7 +16,7 @@ alwaysApply: true
 
 ## 1. Product Identity
 
-This project is Hermes Desktop / AI-OS Desktop.
+This project is Hermes Desktop / Portal Desktop.
 
 It is an Electron desktop shell for operating, configuring, observing, and extending a local or remote Python-based `hermes-agent`.
 
@@ -98,7 +98,7 @@ Use these domain names consistently.
 ### App / Shell
 
 - `Hermes Desktop`
-- `AI-OS Desktop`
+- `Portal Desktop`
 - `Desktop Shell`
 - `Desktop Runtime`
 - `Desktop Control Plane`
@@ -122,7 +122,7 @@ Use these domain names consistently.
 
 ### Workspace
 
-- `AI-OS Home`
+- `Portal Home`
 - `Profile Workspace`
 - `Runtime Center`
 - `Web Operator`
@@ -410,7 +410,7 @@ Expected capabilities:
 
 When implementing multi-profile runtime:
 
-- keep `default` as AI-OS control entry
+- keep `default` as Portal control entry
 - keep specialist profiles as separate workspaces
 - do not merge profile `state.db`
 - do not share profile memory by default

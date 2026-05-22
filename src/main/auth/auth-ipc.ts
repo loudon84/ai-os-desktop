@@ -8,7 +8,7 @@ import {
   writeAuthEndpointConfig,
 } from "./auth-endpoint-config-store";
 import { updateTokenInjectionPolicy } from "./token-injection-policy";
-import { refreshAiosHomeView } from "../shell/aios-home-view-coordinator";
+import { refreshPortalView } from "../shell/portal-view-coordinator";
 import {
   clearPortalSession,
   signInPortalWithCredentials,
@@ -39,7 +39,7 @@ export function registerAuthIpc(): void {
     const stored = writeAuthEndpointConfig(config);
     const session = await readStoredSession();
     updateTokenInjectionPolicy(stored, Boolean(session?.accessToken));
-    await refreshAiosHomeView();
+    await refreshPortalView();
     return {
       backendUrl: stored.backendUrl,
       authPrefix: stored.authPrefix,
@@ -56,7 +56,7 @@ export function registerAuthIpc(): void {
     await writeStoredSession(session);
     updateTokenInjectionPolicy(endpoint, true);
     await signInPortalWithCredentials(endpoint.aiosHomeUrl, input.email, input.password);
-    await refreshAiosHomeView();
+    await refreshPortalView();
     return toPublicState(session, endpoint);
   });
 

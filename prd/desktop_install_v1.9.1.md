@@ -1,13 +1,13 @@
 ## 结论
 
-当前不是 `pnpm run dev` 编译链路问题，而是 **AI-OS WebContentsView 的生命周期与 Renderer 路由状态没有对齐**。
+当前不是 `pnpm run dev` 编译链路问题，而是 **Portal WebContentsView 的生命周期与 Renderer 路由状态没有对齐**。
 
 必须按以下方向修：
 
 1. `aios-home` 不再应用启动时提前创建，改为 **Renderer 上报 bounds 后懒加载创建**。
 2. `WebContentsHost` 不再先 `activate()`，只通过 `setBounds()` 激活，避免 WebContentsView 以全窗口覆盖菜单区。
 3. `WorkspaceOutlet` 中 `aios-home` 不要长期 `display:none` 挂载，否则 native WebContentsView 不会被 React CSS 隐藏。
-4. `RuntimeGuard` 不能只启动 Hermes Gateway，必须启动完整 AI-OS Runtime。
+4. `RuntimeGuard` 不能只启动 Hermes Gateway，必须启动完整 Portal Runtime。
 5. 原生菜单不是没创建，而是当前窗口配置为 frameless + `autoHideMenuBar: true`，Windows 下不会作为可视菜单显示。
 
 ---
@@ -72,7 +72,7 @@ React DOM 被隐藏，不代表 Electron native `WebContentsView` 被隐藏。
 
 ---
 
-### 4. AI-OS View 启动时提前 create，容易加载失败后不恢复
+### 4. Portal View 启动时提前 create，容易加载失败后不恢复
 
 当前启动时直接创建：
 
@@ -88,7 +88,7 @@ await shellViewManager.createView("aios-home", "aios-home", aiosHomeUrl, {
 
 ```text
 Electron 启动
- -> AI-OS Frontend 3000/zh 还没启动
+ -> Portal Frontend 3000/zh 还没启动
  -> WebContentsView loadURL 失败
  -> view 对象可能已存在，但页面是 error / blank
  -> 后续 Runtime ready 后没有强制 reload
@@ -96,7 +96,7 @@ Electron 启动
 
 ---
 
-### 5. RuntimeGuard 只启动 Hermes Gateway，不启动 AI-OS Backend / Frontend
+### 5. RuntimeGuard 只启动 Hermes Gateway，不启动 Portal Backend / Frontend
 
 当前 `RuntimeGuard` 点击按钮只执行：
 
@@ -107,7 +107,7 @@ await window.hermesAPI.startGateway();
 代码位置：
 
 但 `AIOSHomeScreen` 的 ready 条件依赖 `hermes-gateway + aios-backend + aios-frontend` 全部 running。
-所以只启动 gateway，AI-OS 页面仍然不会显示。
+所以只启动 gateway，Portal 页面仍然不会显示。
 
 ---
 
@@ -118,7 +118,7 @@ await window.hermesAPI.startGateway();
 ```text
 进入 aios-home
  -> AIOSHomeScreen 检测 runtime snapshot
- -> 未 ready：RuntimeGuard 启动 gateway + AI-OS backend + AI-OS frontend
+ -> 未 ready：RuntimeGuard 启动 gateway + Portal backend + Portal frontend
  -> ready：WebContentsHost 上报真实 bounds
  -> shell-view-ipc 懒创建 / reload aios-home WebContentsView
  -> ShellViewManager 只按 bounds 显示 WebContentsView
@@ -142,7 +142,7 @@ src/main/index.ts
 删除以下代码块：
 
 ```ts
-// Initialize AI-OS View via ShellViewManager (V1.9: AiOsWebContentsController deprecated)
+// Initialize Portal View via ShellViewManager (V1.9: AiOsWebContentsController deprecated)
 if (shellViewManager) {
   try {
     const envConfig = getAiOsEnvConfig();
@@ -153,7 +153,7 @@ if (shellViewManager) {
       });
       console.log(`[SHELL] aios-home view created with URL: ${aiosHomeUrl}`);
     } else {
-      console.warn("[SHELL] AI-OS env config invalid, aios-home view not created");
+      console.warn("[SHELL] Portal env config invalid, aios-home view not created");
     }
   } catch (err) {
     console.error("[SHELL] Failed to create aios-home view:", err);
@@ -428,7 +428,7 @@ src/renderer/src/components/layout/WorkspaceOutlet.tsx
 
 ---
 
-## P0-5：RuntimeGuard 启动完整 AI-OS Runtime
+## P0-5：RuntimeGuard 启动完整 Portal Runtime
 
 ### 文件
 
@@ -466,7 +466,7 @@ const handleStartRuntime = useCallback(async () => {
     await window.aiosRuntime.startAiOs();
     await onStarted?.();
   } catch (err) {
-    console.error("[RuntimeGuard] Failed to start AI-OS runtime:", err);
+    console.error("[RuntimeGuard] Failed to start Portal runtime:", err);
   } finally {
     setStarting(false);
   }
@@ -513,7 +513,7 @@ src/renderer/src/screens/AIOSHome/AIOSHomeScreen.tsx
 
 ---
 
-## P0-7：AI-OS Runtime Snapshot 不要硬编码 3000 / 8000
+## P0-7：Portal Runtime Snapshot 不要硬编码 3000 / 8000
 
 ### 文件
 
@@ -555,14 +555,14 @@ function getSnapshotServiceDefs(): Array<{
     },
     {
       id: "aios-backend",
-      displayName: "AI-OS Backend",
+      displayName: "Portal Backend",
       port: config.backendPort,
       baseUrl: `http://127.0.0.1:${config.backendPort}`,
       healthUrl: `http://127.0.0.1:${config.backendPort}/health`,
     },
     {
       id: "aios-frontend",
-      displayName: "AI-OS Frontend",
+      displayName: "Portal Frontend",
       port: config.frontendPort,
       baseUrl: `http://127.0.0.1:${config.frontendPort}`,
       healthUrl: `http://127.0.0.1:${config.frontendPort}/zh`,
@@ -686,7 +686,7 @@ Failed to create aios-home view
 
 ---
 
-## 2. AI-OS 显示验收
+## 2. Portal 显示验收
 
 操作：
 
@@ -694,13 +694,13 @@ Failed to create aios-home view
 启动 smc-ai-copilot
 进入 aios-home
 若 runtime 未启动，点击 RuntimeGuard 按钮
-等待 Hermes Gateway / AI-OS Backend / AI-OS Frontend running
+等待 Hermes Gateway / Portal Backend / Portal Frontend running
 ```
 
 期望：
 
 ```text
-AI-OS 页面通过 WebContentsView 显示在工作区
+Portal 页面通过 WebContentsView 显示在工作区
 不覆盖左侧菜单
 不覆盖 header
 ```
@@ -722,7 +722,7 @@ AI-OS 页面通过 WebContentsView 显示在工作区
 期望：
 
 ```text
-切出 aios-home 后，AI-OS WebContentsView 隐藏
+切出 aios-home 后，Portal WebContentsView 隐藏
 其它 React 页面可正常点击
 左侧菜单不被透明 native view 覆盖
 切回 aios-home 后，WebContentsView 重新按 bounds 显示
@@ -741,8 +741,8 @@ smc-ai-copilot 安装 / 更新完成
  -> 跳过 hermes-agent 安装
  -> 跳过大模型配置
  -> 进入应用主页
- -> AI-OS Runtime 未运行时由 RuntimeGuard 启动 runtime
- -> Runtime ready 后显示 AI-OS WebContentsView
+ -> Portal Runtime 未运行时由 RuntimeGuard 启动 runtime
+ -> Runtime ready 后显示 Portal WebContentsView
 ```
 
 ---

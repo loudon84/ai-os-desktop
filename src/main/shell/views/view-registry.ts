@@ -3,14 +3,14 @@ import type {
   ViewRegistryEntry,
 } from "../../../shared/shell/view-contract";
 import {
-  AIOS_HOME_PARTITION,
+  PORTAL_PARTITION,
   WEB_OPERATOR_PARTITION,
 } from "../../../shared/shell/browser-partitions";
 
 /**
  * ShellView session partition strategy (V3.2.1):
  *
- * - aios-home: persist:aios-home (+ token header injection on whitelisted origins)
+ * - portal: persist:aios-home (+ token header injection on whitelisted origins)
  * - web-operator: persist:web-operator (no token injection)
  * - external-browser:*: persist:external-browser-{uuid} per tab (required at create; no token)
  */
@@ -46,10 +46,10 @@ export class ViewRegistry {
       defaultPreload: undefined,
     });
 
-    this.register("aios-home", {
-      kind: "aios-home",
+    this.register("portal", {
+      kind: "portal",
       defaultLayer: "content",
-      defaultPartition: AIOS_HOME_PARTITION,
+      defaultPartition: PORTAL_PARTITION,
       defaultSandbox: true,
       defaultContextIsolation: true,
       defaultPreload: undefined,

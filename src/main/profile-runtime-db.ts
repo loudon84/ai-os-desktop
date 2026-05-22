@@ -744,7 +744,7 @@ export function deleteSharedContext(id: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Runtime Services CRUD (v1.5 AI-OS tables)
+// Runtime Services CRUD (v1.5 Portal tables)
 // ---------------------------------------------------------------------------
 
 export function upsertRuntimeService(record: RuntimeServiceRecord): RuntimeServiceRecord {

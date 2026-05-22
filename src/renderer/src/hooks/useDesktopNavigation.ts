@@ -11,7 +11,7 @@ export interface UseDesktopNavigationResult {
 }
 
 export function useDesktopNavigation(): UseDesktopNavigationResult {
-  const [view, setView] = useState<View>("aios-home");
+  const [view, setView] = useState<View>("portal");
   const [activeProfile, setActiveProfile] = useState("default");
   const [officeVisited, setOfficeVisited] = useState(false);
 

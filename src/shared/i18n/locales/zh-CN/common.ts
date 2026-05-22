@@ -47,7 +47,7 @@ export default {
   copied: "已复制！",
   runtimeGuard: {
     title: "Hermes Agent Gateway 未运行",
-    description: "AI-OS Desktop 依赖本地 Hermes Gateway 提供模型、工具与 Agent 调度能力。请先启动 Gateway，或进入 Hermes Agent 设置面板完成配置。",
+    description: "Portal Desktop 依赖本地 Hermes Gateway 提供模型、工具与 Agent 调度能力。请先启动 Gateway，或进入 Hermes Agent 设置面板完成配置。",
     gatewayError: "Gateway 遇到错误，请查看日志了解详情。",
     startGateway: "启动 Hermes Gateway",
     openSetup: "Hermes 设置",

@@ -53,15 +53,15 @@ async function checkPnpmInstalled(): Promise<DoctorCheckResult> {
 
 async function checkAiOsSourceInstalled(): Promise<DoctorCheckResult> {
   if (!isAiOsInstalled()) {
-    return { name: "AI-OS Source", status: "error", message: "ai-os-full source not found" };
+    return { name: "Portal Source", status: "error", message: "ai-os-full source not found" };
   }
   const paths = getAiOsPaths();
   const hasBackend = existsSync(paths.backendDir);
   const hasFrontend = existsSync(paths.frontendDir);
   if (!hasBackend || !hasFrontend) {
-    return { name: "AI-OS Source", status: "warning", message: "Source found but backend/frontend dirs missing", detail: `backend: ${hasBackend}, frontend: ${hasFrontend}` };
+    return { name: "Portal Source", status: "warning", message: "Source found but backend/frontend dirs missing", detail: `backend: ${hasBackend}, frontend: ${hasFrontend}` };
   }
-  return { name: "AI-OS Source", status: "pass", message: `Installed at ${paths.aiosRoot}` };
+  return { name: "Portal Source", status: "pass", message: `Installed at ${paths.aiosRoot}` };
 }
 
 async function checkPortAvailability(): Promise<DoctorCheckResult> {

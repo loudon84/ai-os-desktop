@@ -1,7 +1,7 @@
 import Office from "../../screens/Office/Office";
 import { WebOperatorScreen } from "../../screens/WebOperator/WebOperatorScreen";
 import { WorkspacesScreen } from "../../screens/Workspaces";
-import { AIOSHomeScreen } from "../../screens/AIOSHome/AIOSHomeScreen";
+import { PortalScreen } from "../../screens/Portal/Index";
 import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { View } from "../../types/desktop-shell";
@@ -54,9 +54,9 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
   switch (module.kind) {
     case "webview":
       return (
-        <ReactWorkspace active={workspaceId === "aios-home"}>
+        <ReactWorkspace active={workspaceId === "portal"}>
           <WorkspaceShell>
-            <AIOSHomeScreen
+            <PortalScreen
               onNavigate={onNavigate}
               onOpenRuntimeSettings={onOpenRuntimeSettings}
             />

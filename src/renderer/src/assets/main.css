@@ -4486,6 +4486,13 @@ body {
   margin-bottom: 6px;
 }
 
+.models-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .models-card-name {
   font-size: 14px;
   font-weight: 600;

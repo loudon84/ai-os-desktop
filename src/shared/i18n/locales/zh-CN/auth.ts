@@ -18,13 +18,13 @@ export default {
   account: "账户",
   brandTitle: "SMC Copilot",
   brandSubtitle:
-    "在下方填写 AI-OS 后端与 Auth API 前缀并完成验证。登录成功后会将令牌注入 AI-OS Home，并同步门户会话 Cookie，避免内嵌页再次进入 /login。此登录不是 Hermes Gateway 登录。",
+    "在下方填写 Portal 后端与 Auth API 前缀并完成验证。登录成功后会将令牌注入 Portal Home，并同步门户会话 Cookie，避免内嵌页再次进入 /login。此登录不是 Hermes Gateway 登录。",
   loginPurposeHint:
-    "账号密码发往你配置的 AI-OS Auth，用于内嵌门户页，不是发往 Hermes 网关。",
-  endpointSection: "AI-OS 端点",
-  backendUrl: "AI-OS 后端 URL",
+    "账号密码发往你配置的 Portal Auth，用于内嵌门户页，不是发往 Hermes 网关。",
+  endpointSection: "Portal 端点",
+  backendUrl: "Portal 后端 URL",
   authPrefix: "Auth API 前缀",
-  aiosHomeUrl: "AI-OS Home URL",
+  aiosHomeUrl: "Portal Home URL",
   signingIn: "正在登录…",
   notSignedIn: "未登录",
 } as const;

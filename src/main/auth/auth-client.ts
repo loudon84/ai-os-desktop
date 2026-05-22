@@ -14,7 +14,7 @@ export interface AuthClient {
   logout(endpointConfig: AuthEndpointConfig, accessToken: string): Promise<void>;
 }
 
-/** Only Vitests/debug pipelines explicitly set `HERMES_USE_MOCK_AUTH=true`; Desktop Login otherwise always uses HTTP against your configured AI-OS backend + authPrefix. */
+/** Only Vitests/debug pipelines explicitly set `HERMES_USE_MOCK_AUTH=true`; Desktop Login otherwise always uses HTTP against your configured Portal backend + authPrefix. */
 function useMockAuth(): boolean {
   return process.env.HERMES_USE_MOCK_AUTH === "true";
 }
