@@ -443,7 +443,7 @@
 ### enterprise-installer.ts — 企业安装流水线
 
 - **职责**: 20 步有序安装流水线编排 + IPC handler 注册 + 进度推送
-- **流水线**: checkEnterpriseInstall → loadDeploymentConfig → acquireInstallLock → runPreflight → resolveRuntimeBundle → installHermesAgentSource → createOrReuseSharedVenv → installPythonDependencies → provisionDefaultHermesHome → bootstrapProfiles → installBundledSkills → applyPolicy → writeInstallMarker → openAIOSWorkspace
+- **流水线**: checkEnterpriseInstall → loadDeploymentConfig → acquireInstallLock → runPreflight → resolveRuntimeBundle → installHermesAgentSource → createOrReuseSharedVenv → installPythonDependencies → provisionDefaultHermesHome → bootstrapProfiles → installBundledSkills → applyPolicy → writeInstallMarker → openWorkspaces
 - **IPC Channels**: enterprise:get-deployment-config, validate-deployment-config, preflight, install, install-cancel, update, repair, rollback, get-install-marker, get-install-log, open-log-dir, run-doctor, export-doctor-report, get-migration-status, get-installer-precheck, get-runtime-state
 - **核心方法**: executeEnterpriseInstallPipeline(mainWindow, input?), setupEnterpriseInstallIPC(mainWindow)
 
@@ -692,10 +692,11 @@
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
 | **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
-| **AIOSWorkspace** | **screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx** | **V3.2** 工作台壳；`AIOSWorkspaceShell` 二级 panel（Chat/Sessions/Agents） |
-| **AIOSWorkspaceShell** | **screens/AIOSWorkspace/panels/AIOSWorkspaceShell.tsx** | **V3.2** 按 `activePanel` 切换 `ChatPanel` / `SessionsPanel` / `AgentsPanel` |
-| **ChatPanel** | **screens/AIOSWorkspace/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
-| **SessionsPanel** | **screens/AIOSWorkspace/panels/SessionsPanel.tsx** | **V3.2** 会话列表/搜索（`listCachedSessions` / `searchSessions`） |
+| **Workspaces** | **screens/Workspaces/WorkspacesScreen.tsx** | **V3.2→V5.0** 工作台壳；`WorkspacesShell` 三区域布局（ProfileSwitcher + Sidebar 8 项导航 + 主内容） |
+| **WorkspacesShell** | **screens/Workspaces/panels/WorkspacesShell.tsx** | Sidebar 导航 + React.lazy 按需加载子页面（chat/sessions/skills/tools/memory/providers/models/settings） |
+| **WorkspacesSidebar** | **screens/Workspaces/components/WorkspacesSidebar.tsx** | 8 项导航（232px，lucide-react 图标，active 高亮） |
+| **ChatPanel** | **screens/Workspaces/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
+| **pages/\*** | **screens/Workspaces/pages/\*/** | 从 hermes-desktop 克隆的子页面（Chat/Sessions/Skills/Tools/Memory/Providers/Models/Settings） |
 | **SettingsDrawer** | **screens/SettingsDrawer/SettingsDrawer.tsx** | **V3.2** 统一设置抽屉（Account / Runtime / Profiles / Config sync） |
 | **HermesRuntimePanel** | **screens/SettingsDrawer/HermesRuntimePanel.tsx** | **V3.2** Runtime 运维唯一 UI（Gateway / Profile Runtime） |
 | **ProfileWorkspace** | **screens/ProfileWorkspace/ProfileWorkspaceScreen.tsx** | **V1.1 specialist 独立工作台（独立 chat/skills/context/audit）** |

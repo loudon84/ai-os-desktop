@@ -80,8 +80,8 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 
 **V3.2（MainPage Workspace Module Host，PRD `prd/v3.2_module_mainpage.md`）**：
 - **Workspace registry**：`src/shared/workspace/` + `src/renderer/src/workspace/`；`WorkspaceRenderer` 驱动 `WorkspaceOutlet`
-- **顶栏 4 固定 Tab**：`aios-home` / `aios-workspace` / `web-operator` / `office`；`external-browser:{uuid}` 动态 Tab
-- **Sidebar 二级 panel**：`workspace-secondary-nav.ts`；`aios-workspace` → Chat / Sessions / Agents panels
+- **顶栏 4 固定 Tab**：`aios-home` / `workspaces` / `web-operator` / `office`；`external-browser:{uuid}` 动态 Tab
+- **Sidebar 二级 panel**：`workspace-secondary-nav.ts`；`workspaces` → 自含 Sidebar 8 项导航（chat/sessions/skills/tools/memory/providers/models/settings）
 - **统一 Settings Drawer**：`screens/SettingsDrawer/`（Account / Runtime / Profiles / Config sync）；不切换 Workspace
 - **MainPage 状态 V2**：`workspaceOrder`、`workspaceSecondaryState`、`migrateMainPageState`
 - **Token 注入**：`token-header-injector` → `persist:aios-home` 分区（V3.3 origin 白名单）
