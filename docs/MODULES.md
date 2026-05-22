@@ -661,9 +661,9 @@
 | Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
 | Install | screens/Install/Install.tsx | 安装流程+进度（含 AgentSourceSelect） |
 | Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
-| Layout | screens/Layout/Layout.tsx | **V2.2** 编排：`useExternalBrowserTabs`、`tabOrder`、`aiosBrowser.onOpened`、Tab reload/close |
-| **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + Sidebar 槽 + Outlet + StatusBar + Modal/Drawer |
-| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.2** 顶栏：Sidebar、Tabs、**「+」新 external tab**、Reload/Close、`WindowControls` |
+| Layout | screens/Layout/Layout.tsx | **V2.2** 编排：`useExternalBrowserTabs`、`tabOrder`、`secondaryPanel` 状态；**不** import `DesktopSidebar` |
+| **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + 条件 `DesktopSidebar` + Outlet + StatusBar + Modal/Drawer |
+| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.2** 顶栏：侧栏切换（仅 web-operator/office）、Tabs、external tab、Reload/Close、`WindowControls` |
 | **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1+** `buildMainWorkspaceTabs` / `isWorkspaceTabView`（含 external） |
 | **tab-order.ts** | **screens/MainPage/tab-order.ts** | **V3.2.1** `sortTabsByOrder` / `isDraggableTabId`；`FIXED_TAB_IDS` 由 registry `!draggable` 导出 |
 | **useExternalBrowserTabs.ts** | **screens/MainPage/useExternalBrowserTabs.ts** | **V3.2.1** external tab CRUD；`shellView.create` 传 `partition: externalBrowserPartition(id)` |
@@ -707,6 +707,7 @@
 |---|---|---|
 | workspace-registry | `workspace/workspace-registry.ts` | 4 静态 Workspace 元数据（`kind` / `draggable` / `shellLayerId`）；`web-operator`/`office` **不可拖** |
 | workspace-tabs | `workspace/workspace-tabs.ts` | `buildWorkspaceTabs`；`isWorkspaceTabView` 复用 `isStaticWorkspaceId` |
+| has-global-secondary-nav | `workspace/has-global-secondary-nav.ts` | `hasGlobalSecondaryNav(view)`：是否渲染全局 `DesktopSidebar` |
 | resolve-workspace | `workspace/resolve-workspace.ts` | View → Shell layerId |
 | WorkspaceRenderer | `components/workspace/WorkspaceRenderer.tsx` | **V3.2.1** `switch (module.kind)`；external → `WebViewWorkspace` |
 
@@ -746,7 +747,7 @@
 
 | 组件 | 文件 | 职责 |
 |---|---|---|
-| DesktopSidebar | components/layout/DesktopSidebar.tsx | **V2.1** 二级导航；`mode: expanded \| rail \| hidden`（rail 仅 icon） |
+| DesktopSidebar | components/layout/DesktopSidebar.tsx | **V2.1** 全局二级导航（web-operator/office）；由 **MainPage** 条件挂载，非 Layout |
 | WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | **V3.2** 委托 `WorkspaceRenderer`（按 `view` + `secondaryPanel` 渲染 Workspace） |
 | WindowControls | components/layout/WindowControls.tsx | Win/Linux 窗口按钮；**V2.0** 主界面挂于 `MainTopBar`；调用 `hermesAPI.windowControls`；macOS 返回 null |
 | StatusBar | components/layout/StatusBar.tsx | 底栏 24px：profile、连接模式、更新状态 |
@@ -758,7 +759,7 @@
 **V2.0 主界面组合关系**（PRD `prd/v2.0_mainpage.md`）：
 
 ```
-Layout → MainPage → MainTopBar + DesktopSidebar + WorkspaceOutlet + StatusBar
+Layout → MainPage（props）→ MainTopBar + [DesktopSidebar 若 hasGlobalSecondaryNav] + WorkspaceOutlet + StatusBar
 ```
 
 ### hooks/ — V1.4 从 Layout 抽离（V2.0 仍由 Layout 调用）

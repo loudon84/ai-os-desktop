@@ -88,7 +88,7 @@ Var PreviousAppVersion
 
   ; Deploy copilot-serve script (team_v1.7)
   SetOutPath "$INSTDIR\runtime"
-  File "build\scripts\deploy-copilot-serve.ps1"
+  File "${BUILD_RESOURCES_DIR}\scripts\deploy-copilot-serve.ps1"
 
   ; Run precheck and write installer-precheck.json + install log
   DetailPrint "Running environment precheck..."

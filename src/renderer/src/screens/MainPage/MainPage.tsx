@@ -1,15 +1,16 @@
 import "./main-page.css";
 import type { ShellViewSnapshot } from "../../../../shared/shell/shell-view-contract";
 import type { ProfileEntrySummary } from "../../../../shared/profile-runtime/profile-runtime-contract";
-import type { View } from "../../types/desktop-shell";
+import type { UpdateState, View } from "../../types/desktop-shell";
 import type { ExternalBrowserTab, SidebarMode } from "./main-page-types";
 import type { SettingsDrawerPanel } from "../SettingsDrawer/settings-drawer-types";
+import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
 import { MainTopBar } from "./MainTopBar";
 import { MainPageDebugPanel } from "./MainPageDebugPanel";
 import type { KeepAliveEntry } from "../../components/layout/useKeepAliveRegistry";
+import { hasGlobalSecondaryNav } from "../../workspace/has-global-secondary-nav";
 
 export interface MainPageProps {
-  sidebar: React.ReactNode;
   outlet: React.ReactNode;
   statusBar?: React.ReactNode;
   modalLayer?: React.ReactNode;
@@ -39,10 +40,16 @@ export interface MainPageProps {
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
   onOpenSettingsDrawer: (panel?: SettingsDrawerPanel) => void;
+  secondaryPanel?: string;
+  onSecondaryPanelChange?: (panel: string) => void;
+  updateState: UpdateState;
+  updateError: string | null;
+  updateVersion: string | null;
+  downloadPercent: number;
+  onUpdate: () => Promise<void>;
 }
 
 export function MainPage({
-  sidebar,
   outlet,
   statusBar,
   modalLayer,
@@ -72,9 +79,21 @@ export function MainPage({
   onForwardActiveTab,
   onCloseActiveTab,
   onOpenSettingsDrawer,
+  secondaryPanel,
+  onSecondaryPanelChange,
+  updateState,
+  updateError,
+  updateVersion,
+  downloadPercent,
+  onUpdate,
 }: MainPageProps): React.JSX.Element {
+  const globalSecondaryNav = hasGlobalSecondaryNav(activeView);
+  const showGlobalSidebar = globalSecondaryNav && sidebarMode !== "hidden";
+
   return (
-    <div className={`MainPage layout MainPage--sidebar-${sidebarMode}`}>
+    <div
+      className={`MainPage layout MainPage--sidebar-${sidebarMode}${showGlobalSidebar ? "" : " MainPage--no-global-sidebar"}`}
+    >
       <MainTopBar
         activeProfile={activeProfile}
         activeView={activeView}
@@ -100,11 +119,23 @@ export function MainPage({
         onForwardActiveTab={onForwardActiveTab}
         onCloseActiveTab={onCloseActiveTab}
         onOpenSettingsDrawer={onOpenSettingsDrawer}
+        showSidebarToggle={globalSecondaryNav}
       />
-
       <div className="MainPage__body">
-        {sidebarMode !== "hidden" ? (
-          <aside className="MainPage__sidebar">{sidebar}</aside>
+        {showGlobalSidebar ? (
+          <aside className="MainPage__sidebar">
+            <DesktopSidebar
+              mode={sidebarMode}
+              workspaceId={activeView}
+              secondaryPanel={secondaryPanel}
+              onSecondaryPanelChange={onSecondaryPanelChange}
+              updateState={updateState}
+              updateError={updateError}
+              updateVersion={updateVersion}
+              downloadPercent={downloadPercent}
+              onUpdate={onUpdate}
+            />
+          </aside>
         ) : null}
         <main className="MainPage__content">{outlet}</main>
       </div>

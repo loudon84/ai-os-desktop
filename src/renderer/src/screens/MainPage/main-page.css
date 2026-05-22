@@ -260,7 +260,8 @@
   flex: 0 0 56px;
 }
 
-.MainPage--sidebar-hidden .MainPage__content {
+.MainPage--sidebar-hidden .MainPage__content,
+.MainPage--no-global-sidebar .MainPage__content {
   flex: 1;
 }
 

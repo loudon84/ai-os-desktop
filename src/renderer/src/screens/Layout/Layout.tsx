@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { DesktopSidebar } from "../../components/layout/DesktopSidebar";
 import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
 import { StatusBar } from "../../components/layout/StatusBar";
 import { useKeepAliveRegistry } from "../../components/layout/useKeepAliveRegistry";
@@ -312,19 +311,13 @@ function Layout(): React.JSX.Element {
       onForwardActiveTab={handleForwardActiveTab}
       onCloseActiveTab={handleCloseActiveTab}
       onOpenSettingsDrawer={openSettingsDrawer}
-      sidebar={
-        <DesktopSidebar
-          mode={sidebarMode}
-          workspaceId={navigation.view}
-          secondaryPanel={secondaryPanel}
-          onSecondaryPanelChange={handleSecondaryPanelChange}
-          updateState={updateState}
-          updateError={updateError}
-          updateVersion={updateVersion}
-          downloadPercent={downloadPercent}
-          onUpdate={handleUpdate}
-        />
-      }
+      secondaryPanel={secondaryPanel}
+      onSecondaryPanelChange={handleSecondaryPanelChange}
+      updateState={updateState}
+      updateError={updateError}
+      updateVersion={updateVersion}
+      downloadPercent={downloadPercent}
+      onUpdate={handleUpdate}
       outlet={
         <WorkspaceOutlet
           view={navigation.view}

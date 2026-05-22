@@ -46,6 +46,7 @@ interface MainTopBarProps {
   onForwardActiveTab: () => void;
   onCloseActiveTab: () => void;
   onOpenSettingsDrawer: (panel?: SettingsDrawerPanel) => void;
+  showSidebarToggle?: boolean;
 }
 
 function nextSidebarMode(mode: SidebarMode): SidebarMode {
@@ -86,6 +87,7 @@ export function MainTopBar({
   onForwardActiveTab,
   onCloseActiveTab,
   onOpenSettingsDrawer,
+  showSidebarToggle = true,
 }: MainTopBarProps): React.JSX.Element {
   const SidebarIcon = sidebarMode === "hidden" ? PanelLeftOpen : PanelLeftClose;
   const [newTabOpen, setNewTabOpen] = useState(false);
@@ -122,15 +124,17 @@ export function MainTopBar({
 
   return (
     <header className="MainTopBar app-drag-region">
-      <button
-        type="button"
-        className="MainTopBar__menu no-drag"
-        aria-label="Toggle sidebar"
-        title={`Sidebar: ${sidebarMode}`}
-        onClick={() => onSidebarModeChange(nextSidebarMode(sidebarMode))}
-      >
-        <SidebarIcon size={16} />
-      </button>
+      {showSidebarToggle ? (
+        <button
+          type="button"
+          className="MainTopBar__menu no-drag"
+          aria-label="Toggle sidebar"
+          title={`Sidebar: ${sidebarMode}`}
+          onClick={() => onSidebarModeChange(nextSidebarMode(sidebarMode))}
+        >
+          <SidebarIcon size={16} />
+        </button>
+      ) : null}
 
       <MainProfileSwitch
         activeProfile={activeProfile}

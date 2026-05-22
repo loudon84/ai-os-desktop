@@ -85,13 +85,14 @@ splash → login → welcome → installing → setup → main (Layout)
 - `useStartupGate` 调用 `window.smcShell.resolveStartupDecision()` → IPC `startup:resolve-decision` → `startup-decision.ts`
 - 登录成功 + 本地 bootstrap apply 完成后 `recheck()` 重新解析路由（可能进入 `main` / `setup` / `welcome`，取决于 Hermes 安装与模型配置）
 
-**主界面壳层（V2.0）** — `Layout.tsx` 编排 hooks，渲染 `MainPage`：
+**主界面壳层（V2.0）** — `Layout.tsx` 编排状态与 `WorkspaceOutlet`；`MainPage` 自持壳层 UI：
 
 ```
+Layout → MainPage（数据 props：secondaryPanel、update、outlet、StatusBar…）
 MainPage
-  ├─ MainTopBar        ← Profile、Gateway 状态、工作区 Tabs、WindowControls
-  ├─ DesktopSidebar    ← 二级功能导航（232px）
-  ├─ WorkspaceOutlet   ← 下方各 Screen
+  ├─ MainTopBar        ← Profile、Gateway、Tabs、WindowControls；侧栏按钮仅 web-operator/office
+  ├─ DesktopSidebar    ← 条件渲染：有全局二级导航时（非 portal/workspaces）
+  ├─ WorkspaceOutlet ← 各 Screen
   ├─ StatusBar
   └─ ModalLayer / DrawerLayer
 ```
