@@ -10,7 +10,7 @@ import { useChatActions } from "./hooks/useChatActions";
 import { useModelConfig } from "./hooks/useModelConfig";
 import { useFastMode } from "./hooks/useFastMode";
 import { useLocalCommands } from "./hooks/useLocalCommands";
-import { useI18n } from "../../../../../components/useI18n";
+import { useI18n } from "../../../../components/useI18n";
 import type { ChatMessage, UsageState } from "./types";
 
 export type { ChatMessage } from "./types";

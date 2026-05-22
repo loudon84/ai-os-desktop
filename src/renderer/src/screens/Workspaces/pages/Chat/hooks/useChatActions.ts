@@ -67,7 +67,7 @@ export function useChatActions({
   );
 
   const sendToAgent = useCallback(
-    async (text: string, attachments?: Attachment[]): Promise<void> => {
+    async (text: string, _attachments?: Attachment[]): Promise<void> => {
       try {
         await window.hermesAPI.sendMessage(
           text,
@@ -77,7 +77,6 @@ export function useChatActions({
             role: m.role,
             content: m.content,
           })),
-          attachments,
         );
       } catch {
         // onChatError IPC already surfaces this to the user

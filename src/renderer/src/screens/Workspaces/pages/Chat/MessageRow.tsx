@@ -1,8 +1,8 @@
 import { memo, useState } from "react";
 import { Bot } from "lucide-react";
-import { AgentMarkdown } from "../../../../../components/AgentMarkdown";
-import { AttachmentChip } from "../../../../../components/AttachmentChip";
-import { useI18n } from "../../../../../components/useI18n";
+import { AgentMarkdown } from "../../../../components/AgentMarkdown";
+import { AttachmentChip } from "../../../../components/AttachmentChip";
+import { useI18n } from "../../../../components/useI18n";
 import type { Attachment, ChatMessage } from "./types";
 
 export const APPROVAL_RE =

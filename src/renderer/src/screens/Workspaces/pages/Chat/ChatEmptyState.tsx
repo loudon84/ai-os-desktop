@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Search, Clock, Mail, Code, ChartLine, Bell, Bot } from "lucide-react";
-import { useI18n } from "../../../../../components/useI18n";
+import { useI18n } from "../../../../components/useI18n";
 
 interface Suggestion {
   i18nKey: string;
