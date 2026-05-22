@@ -1,5 +1,29 @@
 export default {
   noProfile: "未选择 Profile",
+  nav: {
+    chat: "对话",
+    sessions: "会话",
+    skills: "技能",
+    tools: "工具",
+    memory: "记忆",
+    providers: "提供商",
+    models: "模型",
+    settings: "设置",
+  },
+  sidebar: {
+    collapse: "收起侧栏",
+    expand: "展开侧栏",
+  },
+  inspector: {
+    expand: "展开检查器",
+    collapse: "收起检查器",
+  },
+  statusCards: {
+    settings: "设置",
+    gitPull: "拉取",
+    gitPush: "推送",
+    gitDisabled: "Git 同步尚未接通",
+  },
   tabs: {
     workspace: "工作区",
     skills: "技能",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useI18n } from "../../../components/useI18n";
+import { useI18n } from "../../../../../components/useI18n";
 import { SLASH_COMMANDS } from "../slashCommands";
 import type { UsageState } from "../types";
 

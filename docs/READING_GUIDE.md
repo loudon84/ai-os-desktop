@@ -149,7 +149,7 @@
 
 1. `src/renderer/src/screens/AIOSHome/AIOSHomeScreen.tsx` — AI-OS 首页
 2. `src/renderer/src/components/shell/WebContentsHost.tsx` — 嵌入视口 bounds / show
-3. `src/renderer/src/screens/AIOSWorkspace/AIOSWorkspaceScreen.tsx` — AI-OS 工作台
+3. `src/renderer/src/screens/Workspaces/index.tsx` + `panels/WorkspacesShell.tsx` — Workspaces 三栏工作台（`AIOSWorkspaceScreen` 仅为 legacy wrapper）
 4. `src/preload/aios-api.ts` — Preload API
 5. `src/main/aios/aios-ipc.ts` — IPC handler
 6. `src/main/aios/aios-runtime-supervisor.ts` — 运行时监管

@@ -96,6 +96,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
             profile={activeProfile}
             activePanel={secondaryPanel}
             onPanelChange={onSecondaryPanelChange}
+            onOpenRuntimeSettings={onOpenRuntimeSettings}
           />
         </ReactWorkspace>
       );

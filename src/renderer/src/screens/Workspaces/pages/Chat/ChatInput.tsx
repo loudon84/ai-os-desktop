@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Send, Square as Stop, Slash, Paperclip } from "lucide-react";
 import { isImeComposing } from "./keyboard";
-import { useI18n } from "../../components/useI18n";
+import { useI18n } from "../../../../../components/useI18n";
 import { SLASH_COMMANDS, type SlashCommand } from "./slashCommands";
 import { useInputHistory } from "./hooks/useInputHistory";
 import {
@@ -17,8 +17,8 @@ import {
   filesFromClipboard,
   type AttachmentError,
 } from "./attachmentUtils";
-import { AttachmentChip } from "../../components/AttachmentChip";
-import type { Attachment } from "../../../../shared/attachments";
+import { AttachmentChip } from "../../../../../components/AttachmentChip";
+import type { Attachment } from "../../../../../../shared/attachments";
 
 export interface ChatInputHandle {
   setText(text: string): void;

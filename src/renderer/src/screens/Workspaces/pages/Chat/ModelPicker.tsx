@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useI18n } from "../../components/useI18n";
+import { useI18n } from "../../../../../components/useI18n";
 import type { ModelGroup } from "./types";
 
 interface ModelPickerProps {

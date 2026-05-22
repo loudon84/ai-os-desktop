@@ -1,25 +1,12 @@
-import React, { lazy, Suspense, useState, type ComponentType } from "react";
+import React, { Suspense, useState } from "react";
 import { LAYOUT, type NavItemKey } from "../constants";
-import { ProfileSwitcher } from "../components/ProfileSwitcher";
+import { WorkspaceStatusCards } from "../components/WorkspaceStatusCards";
 import { WorkspacesSidebar } from "../components/WorkspacesSidebar";
+import { WorkspaceRightPanel } from "../components/WorkspaceRightPanel";
+import { WorkspaceRightPanelRail } from "../components/WorkspaceRightPanelRail";
 import { WorkspacesProvider, useWorkspaces } from "../context/WorkspacesContext";
 import { useActiveProfile } from "../hooks/useActiveProfile";
-import { ChatPanel } from "./ChatPanel";
-
-interface PageComponentProps {
-  [key: string]: unknown;
-}
-
-const PAGE_COMPONENTS: Record<NavItemKey, ComponentType<PageComponentProps>> = {
-  chat: ChatPanel as ComponentType<PageComponentProps>,
-  sessions: lazy(() => import("../pages/Sessions/Sessions")),
-  skills: lazy(() => import("../pages/Skills/Skills")),
-  tools: lazy(() => import("../pages/Tools/Tools")),
-  memory: lazy(() => import("../pages/Memory/Memory")),
-  providers: lazy(() => import("../pages/Providers/Providers")),
-  models: lazy(() => import("../pages/Models/Models")),
-  settings: lazy(() => import("../pages/Settings/Settings")),
-};
+import { WORKSPACE_PAGE_REGISTRY } from "../registry/workspace-pages";
 
 function PageSkeleton(): React.JSX.Element {
   return (
@@ -29,7 +16,13 @@ function PageSkeleton(): React.JSX.Element {
   );
 }
 
-function PageErrorFallback({ error, onRetry }: { error: unknown; onRetry: () => void }): React.JSX.Element {
+function PageErrorFallback({
+  error,
+  onRetry,
+}: {
+  error: unknown;
+  onRetry: () => void;
+}): React.JSX.Element {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-500">
       <p className="text-sm text-red-400">
@@ -48,21 +41,23 @@ function PageErrorFallback({ error, onRetry }: { error: unknown; onRetry: () => 
 
 function PageLoader({ pageKey }: { pageKey: NavItemKey }): React.JSX.Element {
   const [retryKey, setRetryKey] = useState(0);
-  const PageComponent = PAGE_COMPONENTS[pageKey];
+  const PageComponent = WORKSPACE_PAGE_REGISTRY[pageKey];
 
   return (
-    <ErrorBoundary
+    <PageErrorBoundary
       key={`${pageKey}-${retryKey}`}
-      fallback={(error) => <PageErrorFallback error={error} onRetry={() => setRetryKey((k) => k + 1)} />}
+      fallback={(error) => (
+        <PageErrorFallback error={error} onRetry={() => setRetryKey((k) => k + 1)} />
+      )}
     >
       <Suspense fallback={<PageSkeleton />}>
         <PageComponent />
       </Suspense>
-    </ErrorBoundary>
+    </PageErrorBoundary>
   );
 }
 
-class ErrorBoundary extends React.Component<
+class PageErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback: (error: unknown) => React.ReactNode },
   { error: unknown }
 > {
@@ -82,29 +77,44 @@ class ErrorBoundary extends React.Component<
 
 export interface WorkspacesShellProps {
   profile?: string;
-  activePanel?: string;
+  initialNavItem?: string;
+  onNavItemChange?: (key: NavItemKey) => void;
+  onOpenSettings?: () => void;
 }
 
-function WorkspacesShellInner(): React.JSX.Element {
-  const { activeNavItem, setActiveNavItem } = useWorkspaces();
+function WorkspacesShellInner({ onOpenSettings }: { onOpenSettings?: () => void }): React.JSX.Element {
+  const { activeNavItem, leftPanelCollapsed, rightPanelCollapsed } = useWorkspaces();
   const { loading, error } = useActiveProfile();
+
+  const leftCol = leftPanelCollapsed
+    ? `${LAYOUT.sidebarCollapsedWidthPx}px`
+    : `${LAYOUT.sidebarWidthPx}px`;
+  const rightCol = rightPanelCollapsed
+    ? `${LAYOUT.rightPanelCollapsedWidthPx}px`
+    : `${LAYOUT.rightPanelWidthPx}px`;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-gray-800 bg-gray-950">
-      <header className="flex shrink-0 items-center border-b border-gray-800 px-4 py-2">
-        <ProfileSwitcher />
-        {loading ? <span className="ml-2 text-xs text-gray-500">Loading…</span> : null}
-        {error ? <span className="ml-2 text-xs text-red-400">{error}</span> : null}
-      </header>
+      <WorkspaceStatusCards onOpenSettings={onOpenSettings} />
+      {loading ? (
+        <p className="shrink-0 px-3 py-0.5 text-xs text-gray-500">Loading profiles…</p>
+      ) : null}
+      {error ? <p className="shrink-0 px-3 py-0.5 text-xs text-red-400">{error}</p> : null}
 
-      <div className="flex min-h-0 flex-1">
-        <WorkspacesSidebar activeKey={activeNavItem} onNavigate={setActiveNavItem} />
+      <div
+        className="grid min-h-0 flex-1 overflow-hidden"
+        style={{
+          gridTemplateColumns: `${leftCol} minmax(0, 1fr) ${rightCol}`,
+        }}
+      >
+        <WorkspacesSidebar activeKey={activeNavItem} collapsed={leftPanelCollapsed} />
         <main
-          className="flex min-w-0 flex-1 flex-col"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background"
           style={{ minWidth: LAYOUT.centerMinWidthPx }}
         >
           <PageLoader pageKey={activeNavItem} />
         </main>
+        {rightPanelCollapsed ? <WorkspaceRightPanelRail /> : <WorkspaceRightPanel />}
       </div>
     </div>
   );
@@ -112,10 +122,17 @@ function WorkspacesShellInner(): React.JSX.Element {
 
 export function WorkspacesShell({
   profile,
+  initialNavItem,
+  onNavItemChange,
+  onOpenSettings,
 }: WorkspacesShellProps): React.JSX.Element {
   return (
-    <WorkspacesProvider initialProfileId={profile}>
-      <WorkspacesShellInner />
+    <WorkspacesProvider
+      initialProfileId={profile}
+      initialNavItem={initialNavItem}
+      onNavItemChange={onNavItemChange}
+    >
+      <WorkspacesShellInner onOpenSettings={onOpenSettings} />
     </WorkspacesProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash, Refresh } from "../../assets/icons";
-import { useI18n } from "../../components/useI18n";
+import { Plus, Trash2, RefreshCw } from "lucide-react";
+import { useI18n } from "../../../../components/useI18n";
 import { Check, ExternalLink } from "lucide-react";
 
 interface MemoryEntry {
@@ -205,7 +205,7 @@ function Memory({ profile }: { profile?: string }): React.JSX.Element {
           <p className="memory-subtitle">{t("memory.subtitle")}</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={loadData}>
-          <Refresh size={13} />
+          <RefreshCw size={13} />
         </button>
       </div>
 
@@ -398,7 +398,7 @@ function Memory({ profile }: { profile?: string }): React.JSX.Element {
                           className="btn-ghost memory-entry-btn"
                           onClick={() => setConfirmDelete(entry.index)}
                         >
-                          <Trash size={13} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>

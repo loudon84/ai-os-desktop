@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, X, Download, Trash, Refresh } from "../../assets/icons";
-import { AgentMarkdown } from "../../components/AgentMarkdown";
-import { useI18n } from "../../components/useI18n";
+import { Search, X, Download, Trash2, RefreshCw } from "lucide-react";
+import { AgentMarkdown } from "../../../../components/AgentMarkdown";
+import { useI18n } from "../../../../components/useI18n";
 
 interface InstalledSkill {
   name: string;
@@ -162,7 +162,7 @@ function Skills({ profile }: SkillsProps): React.JSX.Element {
                     t("skills.removing")
                   ) : (
                     <>
-                      <Trash size={13} />
+                      <Trash2 size={13} />
                       {t("skills.uninstall")}
                     </>
                   )}
@@ -188,7 +188,7 @@ function Skills({ profile }: SkillsProps): React.JSX.Element {
           <p className="skills-subtitle">{t("skills.subtitle")}</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={loadAll}>
-          <Refresh size={14} />
+          <RefreshCw size={14} />
           {t("skills.refresh")}
         </button>
       </div>

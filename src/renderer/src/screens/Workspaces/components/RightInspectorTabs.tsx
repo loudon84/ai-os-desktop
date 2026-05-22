@@ -29,6 +29,11 @@ export function RightInspectorTabs(): React.JSX.Element {
         type="button"
         className="ml-auto text-xs text-gray-500 hover:text-gray-300"
         onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
+        title={
+          rightPanelCollapsed
+            ? t("workspaces.inspector.expand", { defaultValue: "Expand inspector" })
+            : t("workspaces.inspector.collapse", { defaultValue: "Collapse inspector" })
+        }
       >
         {rightPanelCollapsed ? "»" : "«"}
       </button>

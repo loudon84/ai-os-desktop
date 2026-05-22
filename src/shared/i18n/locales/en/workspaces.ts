@@ -1,5 +1,29 @@
 export default {
   noProfile: "No profile selected",
+  nav: {
+    chat: "Chat",
+    sessions: "Sessions",
+    skills: "Skills",
+    tools: "Tools",
+    memory: "Memory",
+    providers: "Providers",
+    models: "Models",
+    settings: "Settings",
+  },
+  sidebar: {
+    collapse: "Collapse sidebar",
+    expand: "Expand sidebar",
+  },
+  inspector: {
+    expand: "Expand inspector",
+    collapse: "Collapse inspector",
+  },
+  statusCards: {
+    settings: "Settings",
+    gitPull: "Pull",
+    gitPush: "Push",
+    gitDisabled: "Git sync not connected yet",
+  },
   tabs: {
     workspace: "Workspace",
     skills: "Skills",

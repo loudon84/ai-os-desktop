@@ -1,8 +1,8 @@
 import { memo, useState } from "react";
-import icon from "../../assets/icon.png";
-import { AgentMarkdown } from "../../components/AgentMarkdown";
-import { AttachmentChip } from "../../components/AttachmentChip";
-import { useI18n } from "../../components/useI18n";
+import { Bot } from "lucide-react";
+import { AgentMarkdown } from "../../../../../components/AgentMarkdown";
+import { AttachmentChip } from "../../../../../components/AttachmentChip";
+import { useI18n } from "../../../../../components/useI18n";
 import type { Attachment, ChatMessage } from "./types";
 
 export const APPROVAL_RE =
@@ -15,7 +15,7 @@ export const HermesAvatar = memo(function HermesAvatar({
 }): React.JSX.Element {
   return (
     <div className="chat-avatar chat-avatar-agent">
-      <img src={icon} width={size} height={size} alt="" />
+      <Bot size={size} strokeWidth={1.5} />
     </div>
   );
 });

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { SETTINGS_SECTIONS, PROVIDERS } from "../../constants";
-import { useI18n } from "../../components/useI18n";
-import BrandLogo from "../../components/common/BrandLogo";
-import { useDiscoveredModels } from "../../hooks/useDiscoveredModels";
+import { SETTINGS_SECTIONS, PROVIDERS } from "../../../../constants";
+import { useI18n } from "../../../../components/useI18n";
+import BrandLogo from "../../../../components/common/BrandLogo";
+import { useDiscoveredModels } from "../../../../hooks/useDiscoveredModels";
 
 function Providers({
   profile,

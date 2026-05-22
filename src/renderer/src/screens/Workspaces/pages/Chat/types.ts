@@ -1,9 +1,9 @@
 export type {
   Attachment,
   AttachmentKind,
-} from "../../../../shared/attachments";
+} from "../../../../../../shared/attachments";
 
-import type { Attachment } from "../../../../shared/attachments";
+import type { Attachment } from "../../../../../../shared/attachments";
 
 export interface ChatMessage {
   id: string;

@@ -9,7 +9,8 @@ describe("buildMainWorkspaceTabs", () => {
     const tabs = buildMainWorkspaceTabs();
     expect(tabs.map((t) => t.id)).toEqual([
       "aios-home",
-      "aios-workspace",
+      "workspaces",
+      "task-workbench",
       "web-operator",
       "office",
     ]);
@@ -22,7 +23,8 @@ describe("buildMainWorkspaceTabs", () => {
 describe("isWorkspaceTabView", () => {
   it("recognizes V3.2 workspace tab views", () => {
     expect(isWorkspaceTabView("aios-home")).toBe(true);
-    expect(isWorkspaceTabView("aios-workspace")).toBe(true);
+    expect(isWorkspaceTabView("workspaces")).toBe(true);
+    expect(isWorkspaceTabView("task-workbench")).toBe(true);
     expect(isWorkspaceTabView("web-operator")).toBe(true);
     expect(isWorkspaceTabView("office")).toBe(true);
     expect(isWorkspaceTabView("external-browser:abc")).toBe(true);

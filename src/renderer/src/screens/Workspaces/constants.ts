@@ -56,6 +56,7 @@ export const STORAGE_KEYS = {
   activeProfileId: "workspaces.activeProfileId",
   activeRightTab: "workspaces.activeRightTab",
   collapsedRightPanel: "workspaces.collapsedRightPanel",
+  collapsedLeftPanel: "workspaces.collapsedLeftPanel",
   activeNavItem: "workspaces.activeNavItem",
 } as const;
 
@@ -85,6 +86,9 @@ export const SIDEBAR_NAV_ITEMS: ReadonlyArray<{
 ] as const;
 
 export const LAYOUT = {
-  sidebarWidthPx: 232,
+  sidebarWidthPx: 220,
+  sidebarCollapsedWidthPx: 48,
+  rightPanelWidthPx: 340,
+  rightPanelCollapsedWidthPx: 48,
   centerMinWidthPx: 520,
 } as const;

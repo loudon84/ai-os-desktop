@@ -4,10 +4,11 @@ import { buildWorkspaceTabs } from "../src/renderer/src/workspace/workspace-tabs
 import { resolveShellLayerId } from "../src/renderer/src/workspace/resolve-workspace";
 
 describe("workspace registry", () => {
-  it("registers four static workspaces including office", () => {
+  it("registers static workspaces including office", () => {
     expect(STATIC_WORKSPACE_MODULES.map((m) => m.id)).toEqual([
       "aios-home",
-      "aios-workspace",
+      "workspaces",
+      "task-workbench",
       "web-operator",
       "office",
     ]);

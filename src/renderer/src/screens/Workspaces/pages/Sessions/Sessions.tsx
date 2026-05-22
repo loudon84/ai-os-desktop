@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
-import { Plus, Search, X, ChatBubble } from "../../assets/icons";
-import { useI18n } from "../../components/useI18n";
+import { Plus, Search, X, MessageCircle } from "lucide-react";
+import { useI18n } from "../../../../components/useI18n";
 
 interface CachedSession {
   id: string;
@@ -305,7 +305,7 @@ function Sessions({
         )
       ) : sessions.length === 0 ? (
         <div className="sessions-empty">
-          <ChatBubble size={32} className="sessions-empty-icon" />
+          <MessageCircle size={32} className="sessions-empty-icon" />
           <p className="sessions-empty-text">{t("sessions.empty")}</p>
           <p className="sessions-empty-hint">{t("sessions.emptyHint")}</p>
         </div>

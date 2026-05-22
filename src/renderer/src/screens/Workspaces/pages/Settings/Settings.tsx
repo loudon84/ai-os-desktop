@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useTheme } from "../../components/ThemeProvider";
-import { THEME_OPTIONS } from "../../constants";
-import { useI18n } from "../../components/useI18n";
-import { APP_LOCALES, type AppLocale } from "../../../../shared/i18n";
+import { useTheme } from "../../../../components/ThemeProvider";
+import { THEME_OPTIONS } from "../../../../constants";
+import { useI18n } from "../../../../components/useI18n";
+import { APP_LOCALES, type AppLocale } from "../../../../../../shared/i18n";
 import {
   Check,
   ChevronDown,

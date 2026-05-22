@@ -692,8 +692,8 @@
 | **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
 | **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
 | **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **AI-OS 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
-| **Workspaces** | **screens/Workspaces/WorkspacesScreen.tsx** | **V3.2→V5.0** 工作台壳；`WorkspacesShell` 三区域布局（ProfileSwitcher + Sidebar 8 项导航 + 主内容） |
-| **WorkspacesShell** | **screens/Workspaces/panels/WorkspacesShell.tsx** | Sidebar 导航 + React.lazy 按需加载子页面（chat/sessions/skills/tools/memory/providers/models/settings） |
+| **Workspaces** | **screens/Workspaces/index.tsx** | **V3.6.2** 三栏工作台入口；`AIOSWorkspaceScreen` 仅为 legacy wrapper |
+| **WorkspacesShell** | **screens/Workspaces/panels/WorkspacesShell.tsx** | 顶栏 `WorkspaceStatusCards` + 左 `WorkspacesSidebar`（可折叠）+ 中 `registry/workspace-pages` + 右 `WorkspaceRightPanel`（Inspector 四 tab） |
 | **WorkspacesSidebar** | **screens/Workspaces/components/WorkspacesSidebar.tsx** | 8 项导航（232px，lucide-react 图标，active 高亮） |
 | **ChatPanel** | **screens/Workspaces/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
 | **pages/\*** | **screens/Workspaces/pages/\*/** | 从 hermes-desktop 克隆的子页面（Chat/Sessions/Skills/Tools/Memory/Providers/Models/Settings） |

@@ -19,6 +19,7 @@ export interface WorkspacesContextValue {
   activeSessionId: string | null;
   activeRightTab: RightInspectorTab;
   rightPanelCollapsed: boolean;
+  leftPanelCollapsed: boolean;
   activeNavItem: NavItemKey;
   profiles: AIOSProfile[];
   setProfiles: Dispatch<SetStateAction<AIOSProfile[]>>;
@@ -26,6 +27,7 @@ export interface WorkspacesContextValue {
   setActiveSessionId: (id: string | null) => void;
   setActiveRightTab: (tab: RightInspectorTab) => void;
   setRightPanelCollapsed: (collapsed: boolean) => void;
+  setLeftPanelCollapsed: (collapsed: boolean) => void;
   setActiveNavItem: (key: NavItemKey) => void;
   activeProfile: AIOSProfile | null;
   sessionsRefreshNonce: number;
@@ -57,14 +59,34 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
+function normalizeNavItem(value: string | undefined): NavItemKey {
+  if (
+    value === "chat" ||
+    value === "sessions" ||
+    value === "skills" ||
+    value === "tools" ||
+    value === "memory" ||
+    value === "providers" ||
+    value === "models" ||
+    value === "settings"
+  ) {
+    return value;
+  }
+  return "chat";
+}
+
 export interface WorkspacesProviderProps {
   children: ReactNode;
   initialProfileId?: string;
+  initialNavItem?: string;
+  onNavItemChange?: (key: NavItemKey) => void;
 }
 
 export function WorkspacesProvider({
   children,
   initialProfileId,
+  initialNavItem,
+  onNavItemChange,
 }: WorkspacesProviderProps): React.JSX.Element {
   const [profiles, setProfiles] = useState<AIOSProfile[]>([]);
   const [activeProfileId, setActiveProfileIdState] = useState<string | null>(() => {
@@ -81,17 +103,17 @@ export function WorkspacesProvider({
   const [rightPanelCollapsed, setRightPanelCollapsedState] = useState(() => {
     return readStorage(STORAGE_KEYS.collapsedRightPanel) === "true";
   });
+  const [leftPanelCollapsed, setLeftPanelCollapsedState] = useState(() => {
+    return readStorage(STORAGE_KEYS.collapsedLeftPanel) === "true";
+  });
   const [sessionsRefreshNonce, setSessionsRefreshNonce] = useState(0);
   const [sessionsKeyword, setSessionsKeyword] = useState("");
   const [activeNavItem, setActiveNavItemState] = useState<NavItemKey>(() => {
-    const saved = readStorage(STORAGE_KEYS.activeNavItem);
-    if (
-      saved === "chat" || saved === "sessions" || saved === "skills" || saved === "tools" ||
-      saved === "memory" || saved === "providers" || saved === "models" || saved === "settings"
-    ) {
-      return saved;
+    if (initialNavItem) {
+      return normalizeNavItem(initialNavItem);
     }
-    return "chat";
+    const saved = readStorage(STORAGE_KEYS.activeNavItem);
+    return normalizeNavItem(saved ?? undefined);
   });
 
   const refreshSessions = useCallback(() => {
@@ -119,10 +141,19 @@ export function WorkspacesProvider({
     writeStorage(STORAGE_KEYS.collapsedRightPanel, String(collapsed));
   }, []);
 
-  const setActiveNavItem = useCallback((key: NavItemKey) => {
-    setActiveNavItemState(key);
-    writeStorage(STORAGE_KEYS.activeNavItem, key);
+  const setLeftPanelCollapsed = useCallback((collapsed: boolean) => {
+    setLeftPanelCollapsedState(collapsed);
+    writeStorage(STORAGE_KEYS.collapsedLeftPanel, String(collapsed));
   }, []);
+
+  const setActiveNavItem = useCallback(
+    (key: NavItemKey) => {
+      setActiveNavItemState(key);
+      writeStorage(STORAGE_KEYS.activeNavItem, key);
+      onNavItemChange?.(key);
+    },
+    [onNavItemChange],
+  );
 
   const activeProfile = useMemo(
     () => profiles.find((p) => p.id === activeProfileId) ?? null,
@@ -135,6 +166,7 @@ export function WorkspacesProvider({
       activeSessionId,
       activeRightTab,
       rightPanelCollapsed,
+      leftPanelCollapsed,
       activeNavItem,
       profiles,
       setProfiles,
@@ -142,6 +174,7 @@ export function WorkspacesProvider({
       setActiveSessionId,
       setActiveRightTab,
       setRightPanelCollapsed,
+      setLeftPanelCollapsed,
       setActiveNavItem,
       activeProfile,
       sessionsRefreshNonce,
@@ -162,6 +195,7 @@ export function WorkspacesProvider({
       activeNavItem,
       profiles,
       rightPanelCollapsed,
+      leftPanelCollapsed,
       runtime,
       sessionsHandle.deleteSession,
       sessionsHandle.loading,
@@ -173,6 +207,7 @@ export function WorkspacesProvider({
       setActiveProfileId,
       setActiveRightTab,
       setRightPanelCollapsed,
+      setLeftPanelCollapsed,
       setActiveNavItem,
     ],
   );

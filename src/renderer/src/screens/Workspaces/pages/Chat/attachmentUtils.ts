@@ -5,7 +5,7 @@ import {
   MAX_TEXT_BYTES,
   isImageMime,
   isTextFile,
-} from "../../../../shared/attachments";
+} from "../../../../../../shared/attachments";
 
 export interface AttachmentError {
   code:

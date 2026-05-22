@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useI18n } from "../../components/useI18n";
+import { useI18n } from "../../../../components/useI18n";
 
 interface ToolsetInfo {
   key: string;

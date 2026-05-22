@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash, Search, X } from "../../assets/icons";
-import { PROVIDERS } from "../../constants";
-import { useI18n } from "../../components/useI18n";
-import BrandLogo from "../../components/common/BrandLogo";
+import { Plus, Trash2, Search, X } from "lucide-react";
+import { PROVIDERS } from "../../../../constants";
+import { useI18n } from "../../../../components/useI18n";
+import BrandLogo from "../../../../components/common/BrandLogo";
 import { detectProviderFromUrl } from "./detect-provider";
-import { useDiscoveredModels } from "../../hooks/useDiscoveredModels";
+import { useDiscoveredModels } from "../../../../hooks/useDiscoveredModels";
 
 interface SavedModel {
   id: string;
@@ -308,7 +308,7 @@ function Models({ visible }: ModelsProps = {}): React.JSX.Element {
                     }}
                     title={t("models.deleteModelTitle")}
                   >
-                    <Trash size={14} />
+                    <Trash2 size={14} />
                   </button>
                 )}
               </div>

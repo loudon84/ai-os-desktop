@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PROVIDERS } from "../../../constants";
-import { useI18n } from "../../../components/useI18n";
+import { PROVIDERS } from "../../../../../constants";
+import { useI18n } from "../../../../../components/useI18n";
 import type { ModelGroup } from "../types";
 
 interface UseModelConfigResult {
