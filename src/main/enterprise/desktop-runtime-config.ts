@@ -31,6 +31,10 @@ export interface DesktopRuntimeConfig {
   agentDir: string;
   hermesHome: string;
   addToPath: boolean;
+  /** team_v1.7: copilot-serve runtime directory */
+  copilotServeDir?: string;
+  copilotServeDeployScript?: string;
+  copilotServePort?: number;
   agentSource?: AgentSourceConfig;
   pipMirror?: PipMirrorConfig;
 }
@@ -91,6 +95,9 @@ export function createDefaultRuntimeConfig(
     agentDir: loc.agentDir,
     hermesHome: join(homedir(), ".hermes"),
     addToPath: true,
+    copilotServeDir: join(loc.runtimeRoot, "copilot-serve"),
+    copilotServeDeployScript: join(loc.runtimeRoot, "deploy-copilot-serve.ps1"),
+    copilotServePort: 8765,
     agentSource,
     pipMirror,
   };
@@ -110,6 +117,14 @@ export function mergeRuntimeConfig(
     agentSource: partial.agentSource ?? existing?.agentSource ?? defaults.agentSource,
     pipMirror: partial.pipMirror ?? existing?.pipMirror ?? defaults.pipMirror,
     hermesHome: partial.hermesHome ?? existing?.hermesHome ?? defaults.hermesHome,
+    copilotServeDir:
+      partial.copilotServeDir ?? existing?.copilotServeDir ?? defaults.copilotServeDir,
+    copilotServeDeployScript:
+      partial.copilotServeDeployScript ??
+      existing?.copilotServeDeployScript ??
+      defaults.copilotServeDeployScript,
+    copilotServePort:
+      partial.copilotServePort ?? existing?.copilotServePort ?? defaults.copilotServePort,
   };
 
   writeRuntimeConfig(merged);

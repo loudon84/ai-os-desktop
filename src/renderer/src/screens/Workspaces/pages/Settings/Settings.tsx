@@ -11,6 +11,7 @@ import {
   FileText,
   Send,
 } from "lucide-react";
+import { CopilotServeRuntimeSection } from "../../../../modules/hermes-runtime/sections/CopilotServeRuntimeSection";
 
 const TELEGRAM_COMMUNITY_URL = "https://t.me/hermes_agent_desktop";
 
@@ -533,6 +534,8 @@ function Settings({ profile }: { profile?: string }): React.JSX.Element {
           )}
         </div>
       </div>
+
+      <CopilotServeRuntimeSection />
 
       <div className="settings-section">
         <div className="settings-section-title">Community</div>

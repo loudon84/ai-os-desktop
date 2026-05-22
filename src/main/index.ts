@@ -181,7 +181,11 @@ import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
 import { registerAiosIpc } from "./aios/aios-ipc";
-import { registerCopilotServeIpc } from "./copilot-serve/copilot-serve-ipc";
+import { mergeRuntimeConfig } from "./enterprise/desktop-runtime-config";
+import {
+  autoStartCopilotServeIfReady,
+  registerCopilotServeIpc,
+} from "./copilot-serve/copilot-serve-ipc";
 import { registerAuthIpc } from "./auth/auth-ipc";
 import { installTokenHeaderInjector } from "./auth/token-header-injector";
 import { setupStartupIPC } from "./startup/startup-ipc";
@@ -1389,8 +1393,16 @@ app.whenReady().then(async () => {
     }
 
     try {
+      mergeRuntimeConfig({});
       registerCopilotServeIpc(() => mainWindow);
       console.log("[COPILOT-SERVE] IPC handlers registered");
+      void autoStartCopilotServeIfReady()
+        .then((status) => {
+          console.log("[COPILOT-SERVE] auto-start status:", status.status);
+        })
+        .catch((err) => {
+          console.warn("[COPILOT-SERVE] auto-start skipped:", err);
+        });
     } catch (err) {
       console.error("[COPILOT-SERVE] Failed to register IPC:", err);
     }

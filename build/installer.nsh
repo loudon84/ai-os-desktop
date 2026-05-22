@@ -83,6 +83,12 @@ Var PreviousAppVersion
   CreateDirectory "$INSTDIR\runtime\logs"
   CreateDirectory "$INSTDIR\runtime\cache"
   CreateDirectory "$INSTDIR\runtime\downloads"
+  CreateDirectory "$INSTDIR\runtime\copilot-serve"
+  CreateDirectory "$INSTDIR\runtime\copilot-serve-cache"
+
+  ; Deploy copilot-serve script (team_v1.7)
+  SetOutPath "$INSTDIR\runtime"
+  File "build\scripts\deploy-copilot-serve.ps1"
 
   ; Run precheck and write installer-precheck.json + install log
   DetailPrint "Running environment precheck..."
@@ -119,6 +125,9 @@ Var PreviousAppVersion
     FileWrite $2 '  "runtimeRoot": "$INSTDIR\\runtime",$\r$\n'
     FileWrite $2 '  "binDir": "$INSTDIR\\bin",$\r$\n'
     FileWrite $2 '  "agentDir": "$INSTDIR\\runtime\\hermes-agent",$\r$\n'
+    FileWrite $2 '  "copilotServeDir": "$INSTDIR\\runtime\\copilot-serve",$\r$\n'
+    FileWrite $2 '  "copilotServeDeployScript": "$INSTDIR\\runtime\\deploy-copilot-serve.ps1",$\r$\n'
+    FileWrite $2 '  "copilotServePort": 8765,$\r$\n'
     FileWrite $2 '  "legacyAppIds": ["com.nousresearch.hermes"]$\r$\n'
     FileWrite $2 '}$\r$\n'
     FileClose $2

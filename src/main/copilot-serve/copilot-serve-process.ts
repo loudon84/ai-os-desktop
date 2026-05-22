@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import { ChildProcess, spawn } from "child_process";
+import { existsSync } from "fs";
 import { mkdirSync } from "fs";
+import { join } from "path";
 import { dirname } from "path";
 import type {
   CopilotServeConnection,
@@ -9,15 +11,84 @@ import type {
 } from "../../shared/copilot-serve/copilot-serve-contract";
 import { checkCopilotServeHealth } from "./copilot-serve-health";
 import { appendCopilotServeLog, readCopilotServeLogs } from "./copilot-serve-logs";
-import { getCopilotServePaths } from "./copilot-serve-paths";
+import {
+  getCopilotServePaths,
+  resolveCopilotServeRuntimeDir,
+} from "./copilot-serve-paths";
+import { runCopilotServePreflight } from "./copilot-serve-preflight";
+import { setCopilotServeManagedPid } from "./copilot-serve-runtime-state";
 
 let child: ChildProcess | null = null;
 let desktopToken = "";
 let lastError: string | null = null;
 let processStatus: CopilotServeProcessStatus = "stopped";
 
-function resolvePythonExecutable(): string {
-  return process.env.COPILOT_SERVE_PYTHON?.trim() || "python";
+function resolvePythonExecutable(serveRoot: string): string {
+  const fromEnv = process.env.COPILOT_SERVE_PYTHON?.trim();
+  if (fromEnv && existsSync(fromEnv)) {
+    return fromEnv;
+  }
+
+  const venvCandidates =
+    process.platform === "win32"
+      ? [join(serveRoot, ".venv", "Scripts", "python.exe")]
+      : [
+          join(serveRoot, ".venv", "bin", "python"),
+          join(serveRoot, ".venv", "bin", "python3"),
+        ];
+
+  for (const candidate of venvCandidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (process.platform === "win32") {
+    return "py";
+  }
+
+  return "python";
+}
+
+function buildUvicornArgs(paths: NonNullable<ReturnType<typeof getCopilotServePaths>>): {
+  python: string;
+  args: string[];
+} {
+  const python = resolvePythonExecutable(paths.serveRoot);
+  const portArg = String(paths.port);
+
+  if (python === "py") {
+    return {
+      python: "py",
+      args: [
+        "-3.12",
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--app-dir",
+        "src",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        portArg,
+      ],
+    };
+  }
+
+  return {
+    python,
+    args: [
+      "-m",
+      "uvicorn",
+      "main:app",
+      "--app-dir",
+      "src",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      portArg,
+    ],
+  };
 }
 
 function buildStatus(paths: NonNullable<ReturnType<typeof getCopilotServePaths>>): CopilotServeStatus {
@@ -44,12 +115,17 @@ export function getCopilotServeConnection(): CopilotServeConnection | null {
 export function getCopilotServeStatus(): CopilotServeStatus {
   const paths = getCopilotServePaths();
   if (!paths) {
+    const runtimeDir = resolveCopilotServeRuntimeDir();
+    const deployed =
+      Boolean(runtimeDir) && existsSync(join(runtimeDir!, "pyproject.toml"));
     return {
-      status: "error",
+      status: deployed ? "stopped" : "missing",
       pid: null,
       port: 8765,
       baseUrl: "http://127.0.0.1:8765",
-      lastError: "copilot-serve root not found (set COPILOT_SERVE_ROOT)",
+      lastError: deployed
+        ? null
+        : "copilot-serve not deployed (install via Settings → Copilot Serve)",
       logPath: "",
     };
   }
@@ -59,9 +135,16 @@ export function getCopilotServeStatus(): CopilotServeStatus {
 export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
   const paths = getCopilotServePaths();
   if (!paths) {
-    processStatus = "error";
+    processStatus = "missing";
     lastError = "copilot-serve root not found";
     return getCopilotServeStatus();
+  }
+
+  const preflight = await runCopilotServePreflight();
+  if (!preflight.ready) {
+    processStatus = "error";
+    lastError = "preflight failed: deploy copilot-serve before start";
+    return buildStatus(paths);
   }
 
   if (child && !child.killed) {
@@ -78,18 +161,7 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
   mkdirSync(dirname(paths.sqlitePath), { recursive: true });
   mkdirSync(dirname(paths.logPath), { recursive: true });
 
-  const python = resolvePythonExecutable();
-  const args = [
-    "-m",
-    "uvicorn",
-    "main:app",
-    "--app-dir",
-    "src",
-    "--host",
-    "127.0.0.1",
-    "--port",
-    String(paths.port),
-  ];
+  const { python, args } = buildUvicornArgs(paths);
 
   child = spawn(python, args, {
     cwd: paths.serveRoot,
@@ -98,10 +170,13 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
       SQLITE_PATH: paths.sqlitePath,
       COPILOT_DESKTOP_TOKEN: desktopToken,
       COPILOT_REQUIRE_TOKEN: "true",
+      COPILOT_SERVE_ROOT: paths.serveRoot,
+      COPILOT_SERVE_PYTHON: python === "py" ? "" : python,
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
+  setCopilotServeManagedPid(child.pid ?? null);
 
   child.stdout?.on("data", (chunk: Buffer) => {
     appendCopilotServeLog(chunk.toString().trimEnd());
@@ -121,6 +196,7 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
       }
     }
     child = null;
+    setCopilotServeManagedPid(null);
   });
 
   const healthUrl = `${buildStatus(paths).baseUrl}/api/v1/health`;
@@ -150,6 +226,7 @@ export function stopCopilotServeProcess(): CopilotServeStatus {
     }
   }
   child = null;
+  setCopilotServeManagedPid(null);
   processStatus = "stopped";
   return getCopilotServeStatus();
 }
@@ -161,4 +238,13 @@ export async function restartCopilotServeProcess(): Promise<CopilotServeStatus> 
 
 export function getCopilotServeLogs(options?: { tailLines?: number }): string {
   return readCopilotServeLogs(options);
+}
+
+/** team_v1.7: auto-start when deployment preflight passes */
+export async function autoStartCopilotServeIfReady(): Promise<CopilotServeStatus> {
+  const preflight = await runCopilotServePreflight();
+  if (!preflight.ready) {
+    return getCopilotServeStatus();
+  }
+  return startCopilotServeProcess();
 }

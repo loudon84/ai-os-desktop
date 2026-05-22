@@ -10,6 +10,7 @@ Var _precheckGit
 Var _precheckPython
 Var _precheckUv
 Var _precheckPort
+Var _precheckPort8765
 Var _precheckWinVer
 Var _precheckVcrt
 
@@ -71,6 +72,9 @@ Var _precheckVcrt
   ; Port 8642
   !insertmacro CheckPortAvailable "8642" $_precheckPort
 
+  ; Port 8765 (copilot-serve)
+  !insertmacro CheckPortAvailable "8765" $_precheckPort8765
+
   ; Determine overall result
   Var /GLOBAL _precheckResult
   StrCpy $_precheckResult "pass"
@@ -78,6 +82,7 @@ Var _precheckVcrt
   ${OrIf} $_precheckPython == "missing"
   ${OrIf} $_precheckUv == "missing"
   ${OrIf} $_precheckPort == "occupied"
+  ${OrIf} $_precheckPort8765 == "occupied"
     StrCpy $_precheckResult "warning"
   ${EndIf}
   ${If} $_precheckVcrt == "missing"
@@ -95,6 +100,7 @@ Var _precheckVcrt
   !insertmacro WriteJsonField $9 "python" "$_precheckPython"
   !insertmacro WriteJsonField $9 "uv" "$_precheckUv"
   !insertmacro WriteJsonField $9 "port8642" "$_precheckPort"
+  !insertmacro WriteJsonField $9 "port8765" "$_precheckPort8765"
   !insertmacro WriteJsonField $9 "installDir" "${INSTDIR_PATH}"
   !insertmacro WriteJsonField $9 "runtimeRoot" "${INSTDIR_PATH}\runtime"
   !insertmacro WriteJsonField $9 "binDir" "${INSTDIR_PATH}\bin"
@@ -106,7 +112,7 @@ Var _precheckVcrt
   CreateDirectory "${INSTDIR_PATH}\runtime\logs"
   FileOpen $8 "${INSTDIR_PATH}\runtime\logs\nsis-install.log" a
   FileSeek $8 0 END
-  FileWrite $8 "[precheck] vcRuntime=$_precheckVcrt git=$_precheckGit python=$_precheckPython uv=$_precheckUv port8642=$_precheckPort result=$_precheckResult$\r$\n"
+  FileWrite $8 "[precheck] vcRuntime=$_precheckVcrt git=$_precheckGit python=$_precheckPython uv=$_precheckUv port8642=$_precheckPort port8765=$_precheckPort8765 result=$_precheckResult$\r$\n"
   FileClose $8
 !macroend
 
