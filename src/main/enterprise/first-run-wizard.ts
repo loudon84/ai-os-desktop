@@ -3,7 +3,8 @@ import { join } from "node:path";
 
 import { resolveInstallLocation } from "./windows/install-location-resolver";
 import { resolveRuntimeState } from "./runtime-state-resolver";
-import { ensureShims, updateHermesShim } from "./shim-manager";
+import { ensureShims } from "./shim-manager";
+import { refreshAllRuntimePathCaches } from "../runtime/refresh-runtime-paths";
 import {
   writeRuntimeConfig,
   mergeRuntimeConfig,
@@ -96,6 +97,7 @@ export function registerFirstRunWizardIPC(): void {
     async (_event, sourceConfig: UserSourceConfig, options?: { force?: boolean }) => {
       const runtimeState = resolveRuntimeState();
       if (!options?.force && runtimeState.runtimeReady) {
+        refreshAllRuntimePathCaches();
         ensureShims();
         mergeRuntimeConfig(createDefaultRuntimeConfig());
         const loc = resolveInstallLocation();
@@ -141,8 +143,8 @@ export function registerFirstRunWizardIPC(): void {
         currentState = { ...currentState, stage: "verifying" };
         broadcastState(wizardWindow);
 
-        const loc = resolveInstallLocation();
-        updateHermesShim(loc.binDir, loc.agentDir);
+        refreshAllRuntimePathCaches();
+        ensureShims();
 
         const runtimeConfig = createDefaultRuntimeConfig(
           sourceConfig as AgentSourceConfig,

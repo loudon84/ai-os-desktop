@@ -6,9 +6,9 @@ import http from "http";
 import https from "https";
 import {
   HERMES_HOME,
-  HERMES_REPO,
-  HERMES_PYTHON,
-  HERMES_SCRIPT,
+  getHermesPython,
+  getHermesRepo,
+  getHermesScript,
   getEnhancedPath,
 } from "./installer";
 import { getModelConfig, readEnv, getConnectionConfig, getFullConnectionConfig } from "./config";
@@ -531,8 +531,8 @@ function sendMessageViaCli(
     delete env.OPENROUTER_BASE_URL;
   }
 
-  const proc = spawn(HERMES_SCRIPT, args, {
-    cwd: HERMES_REPO,
+  const proc = spawn(getHermesScript(), args, {
+    cwd: getHermesRepo(),
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -725,8 +725,8 @@ export function startGateway(profile?: string): boolean {
     }
   }
 
-  gatewayProcess = spawn(HERMES_SCRIPT, ["gateway"], {
-    cwd: HERMES_REPO,
+  gatewayProcess = spawn(getHermesScript(), ["gateway"], {
+    cwd: getHermesRepo(),
     env: gatewayEnv,
     stdio: "ignore",
     detached: true,

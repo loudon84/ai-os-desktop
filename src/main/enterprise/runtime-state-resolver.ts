@@ -7,6 +7,7 @@ import type { RuntimeState } from "../../shared/enterprise/runtime-state-contrac
 import type { DesktopRuntimeState } from "../../shared/enterprise/migration-contract";
 import { resolveInstallLocation } from "./windows/install-location-resolver";
 import { resolveRuntimePaths } from "./windows/path-resolver";
+import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
 import { readRuntimeConfig } from "./desktop-runtime-config";
 import { existsInstallMarker } from "./install-marker";
 import { isModelConfigured } from "./model-config-status";
@@ -88,11 +89,12 @@ function detectUpdateMode(runtimeRoot: string): boolean {
 export function resolveRuntimeState(): RuntimeState {
   const loc = resolveInstallLocation();
   const paths = resolveRuntimePaths();
-  const agentPath = loc.agentDir;
+  const runtimePaths = resolveCopilotRuntimePaths();
+  const agentPath = loc.hermesSourceRoot;
 
   const agentSourceExists =
     existsSync(agentPath) && hasProjectFiles(agentPath);
-  const venvExists = existsSync(join(agentPath, "venv"));
+  const venvExists = existsSync(runtimePaths.hermesVenv);
   const hermesCliExists = existsSync(paths.hermesScript);
   const modelConfigured = isModelConfigured();
   const runtimeReady =

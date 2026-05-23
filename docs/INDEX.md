@@ -109,6 +109,13 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **portal 嵌入时机**：coordinator create/reload 后 deactivate；主界面 `WebContentsHost` setBounds 后才显示
 - **Bootstrap apply**：同步 endpoint config + prepare portal URL（`user-config-applier.ts` / `portal-view-coordinator.ts`）
 
+**V5.3（安装与部署目录结构）**：
+- **Runtime 命名**：`runtime/hermes`、`runtime/serve`、`runtime/portal`（替代 `hermes-agent` / `copilot-serve` / `ai-os-full`）
+- **分层布局**：源码在 `{runtime}/src`，venv 在 `{runtime}/venv`（Hermes/Serve）；Portal 在 `runtime/portal/src`
+- **统一契约**：`src/main/runtime/runtime-paths.ts` — `resolveCopilotRuntimePaths()` + `buildCopilotRuntimeEnv()`
+- **bin shim**：`hermes.cmd` / `serve.cmd` / `portal.cmd`（`shim-manager.ts`）
+- **向后兼容**：`desktop-runtime.json` 读取时自动迁移旧路径字段
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -116,6 +123,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**Portal Runtime**、**Migrations**、**SSH** | 需按任务范围 |
 | `src/main/window/` | **V1.4.1** 窗口控制 IPC — minimize/maximize/close/is-maximized | 按需扩展 |
 | `src/main/enterprise/` | 企业安装、Doctor、installer-precheck-reader、agent-deps-installer、pip-mirror-config（31 个文件含 doctor/ 和 windows/ 子目录） | 按需扩展 |
+| `src/main/runtime/` | **V5.3** 三 runtime 路径契约（hermes/serve/portal）+ 标准环境变量 | 改安装目录时必读 |
 | `src/main/aios/` | **Portal Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |

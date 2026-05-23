@@ -13,6 +13,8 @@ import {
   resolveCopilotServeDeployScript,
   resolveCopilotServeRoot,
 } from "./copilot-serve-paths";
+import { refreshAllRuntimePathCaches } from "../runtime/refresh-runtime-paths";
+import { ensureShims } from "../enterprise/shim-manager";
 
 export type DeployProgressHandler = (event: CopilotServeDeployProgressEvent) => void;
 
@@ -92,10 +94,12 @@ export function runCopilotServeDeploy(
       const log = chunks.join("");
       if (code === 0) {
         const serveRoot =
-          resolveCopilotServeRoot() ?? join(loc.runtimeRoot, "copilot-serve");
+          resolveCopilotServeRoot() ?? join(loc.runtimeRoot, "serve", "src");
         if (existsSync(join(serveRoot, "pyproject.toml"))) {
           applyCopilotServeEnvFromDisk(serveRoot, getCopilotServePort());
         }
+        refreshAllRuntimePathCaches();
+        ensureShims();
       }
       resolve({
         success: code === 0,

@@ -34,7 +34,14 @@ export interface DesktopInstallLocation {
   installDir: string;
   runtimeRoot: string;
   binDir: string;
+  /** @deprecated use hermesRuntimeRoot — kept for backward compat */
   agentDir: string;
+  hermesRuntimeRoot: string;
+  hermesSourceRoot: string;
+  serveRuntimeRoot: string;
+  serveSourceRoot: string;
+  portalRuntimeRoot: string;
+  portalSourceRoot: string;
   source: PathResolutionSource;
 }
 
@@ -100,11 +107,22 @@ function locationFromInstallDir(
   installDir: string,
   source: PathResolutionSource,
 ): DesktopInstallLocation {
+  const runtimeRoot = join(installDir, "runtime");
+  const hermesRuntimeRoot = join(runtimeRoot, "hermes");
+  const serveRuntimeRoot = join(runtimeRoot, "serve");
+  const portalRuntimeRoot = join(runtimeRoot, "portal");
+
   return {
     installDir,
-    runtimeRoot: join(installDir, "runtime"),
+    runtimeRoot,
     binDir: join(installDir, "bin"),
-    agentDir: join(installDir, "runtime", "hermes-agent"),
+    agentDir: hermesRuntimeRoot,
+    hermesRuntimeRoot,
+    hermesSourceRoot: join(hermesRuntimeRoot, "src"),
+    serveRuntimeRoot,
+    serveSourceRoot: join(serveRuntimeRoot, "src"),
+    portalRuntimeRoot,
+    portalSourceRoot: join(portalRuntimeRoot, "src"),
     source,
   };
 }

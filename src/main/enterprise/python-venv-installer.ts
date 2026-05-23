@@ -1,13 +1,10 @@
+import { execSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
-import { homedir } from "node:os";
 
-import type {
-  DeploymentConfig,
-} from "../../shared/enterprise/enterprise-schema";
-
-import { getDesktopAgentDir } from "./windows/path-resolver";
+import type { DeploymentConfig } from "../../shared/enterprise/enterprise-schema";
+import { createPythonVenv } from "./python-venv-creator";
+import { getDesktopAgentDir, getDesktopAgentRuntimeDir } from "./windows/path-resolver";
 import { resolveInstallLocation } from "./windows/install-location-resolver";
 import {
   discoverWheelhouseDirs,
@@ -27,8 +24,8 @@ export interface VenvResult {
 export function createOrReuseSharedVenv(
   config: DeploymentConfig,
 ): VenvResult {
-  const agentDir = getDesktopAgentDir();
-  const venvPath = join(agentDir, "venv");
+  const runtimeDir = getDesktopAgentRuntimeDir();
+  const venvPath = join(runtimeDir, "venv");
   const runtimeRoot = resolveInstallLocation().runtimeRoot;
 
   const isWindows = process.platform === "win32";
@@ -40,27 +37,35 @@ export function createOrReuseSharedVenv(
       execSync(`"${pythonExe}" -c "import sys; print(sys.version)"`, { encoding: "utf-8", timeout: 5000 });
       return { ok: true, venvPath, pythonPath: pythonExe, pipPath: pipExe, isNewVenv: false };
     } catch {
+      /* recreate below */
     }
   }
 
-  let pythonCmd = "python";
   if (config.runtime.useBundledPython) {
     const bundledPython = join(runtimeRoot, "python", isWindows ? "python.exe" : "bin/python3");
     if (existsSync(bundledPython)) {
-      pythonCmd = bundledPython;
+      mkdirSync(venvPath, { recursive: true });
+      try {
+        execSync(`"${bundledPython}" -m venv "${venvPath}"`, { encoding: "utf-8", timeout: 30000 });
+      } catch (err) {
+        return {
+          ok: false,
+          errorCode: "E_VENV_CREATE_FAILED",
+          message: `venv 创建失败: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
     }
   }
 
-  mkdirSync(venvPath, { recursive: true });
-
-  try {
-    execSync(`"${pythonCmd}" -m venv "${venvPath}"`, { encoding: "utf-8", timeout: 30000 });
-  } catch (err) {
-    return {
-      ok: false,
-      errorCode: "E_VENV_CREATE_FAILED",
-      message: `venv 创建失败: ${err instanceof Error ? err.message : String(err)}`,
-    };
+  if (!existsSync(pythonExe)) {
+    const result = createPythonVenv(venvPath);
+    if (!result.ok) {
+      return {
+        ok: false,
+        errorCode: result.errorCode,
+        message: result.message,
+      };
+    }
   }
 
   if (!existsSync(pythonExe)) {

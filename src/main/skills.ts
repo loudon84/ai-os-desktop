@@ -4,9 +4,9 @@ import { join } from "path";
 import { homedir } from "os";
 import {
   HERMES_HOME,
-  HERMES_PYTHON,
-  HERMES_SCRIPT,
-  HERMES_REPO,
+  getHermesPython,
+  getHermesScript,
+  getHermesRepo,
   getEnhancedPath,
 } from "./installer";
 import { profileHome } from "./utils";
@@ -136,10 +136,10 @@ export function getSkillContent(skillPath: string): string {
 export function searchSkills(query: string): SkillSearchResult[] {
   try {
     const output = execFileSync(
-      HERMES_PYTHON,
-      [HERMES_SCRIPT, "skills", "browse", "--query", query, "--json"],
+      getHermesPython(),
+      [getHermesScript(), "skills", "browse", "--query", query, "--json"],
       {
-        cwd: HERMES_REPO,
+        cwd: getHermesRepo(),
         env: {
           ...process.env,
           PATH: getEnhancedPath(),
@@ -181,7 +181,7 @@ export function searchSkills(query: string): SkillSearchResult[] {
  * List bundled skills from the hermes-agent repo.
  */
 export function listBundledSkills(): SkillSearchResult[] {
-  const bundledDir = join(HERMES_REPO, "skills");
+  const bundledDir = join(getHermesRepo(), "skills");
   if (!existsSync(bundledDir)) return [];
 
   const skills: SkillSearchResult[] = [];
@@ -238,13 +238,13 @@ export function installSkill(
   profile?: string,
 ): { success: boolean; error?: string } {
   try {
-    const args = [HERMES_SCRIPT, "skills", "install", identifier, "--yes"];
+    const args = [getHermesScript(), "skills", "install", identifier, "--yes"];
     if (profile && profile !== "default") {
       args.splice(1, 0, "-p", profile);
     }
 
-    execFileSync(HERMES_PYTHON, args, {
-      cwd: HERMES_REPO,
+    execFileSync(getHermesPython(), args, {
+      cwd: getHermesRepo(),
       env: {
         ...process.env,
         PATH: getEnhancedPath(),
@@ -267,13 +267,13 @@ export function uninstallSkill(
   profile?: string,
 ): { success: boolean; error?: string } {
   try {
-    const args = [HERMES_SCRIPT, "skills", "uninstall", name];
+    const args = [getHermesScript(), "skills", "uninstall", name];
     if (profile && profile !== "default") {
       args.splice(1, 0, "-p", profile);
     }
 
-    execFileSync(HERMES_PYTHON, args, {
-      cwd: HERMES_REPO,
+    execFileSync(getHermesPython(), args, {
+      cwd: getHermesRepo(),
       env: {
         ...process.env,
         PATH: getEnhancedPath(),

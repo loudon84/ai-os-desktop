@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveInstallLocation } from "./windows/install-location-resolver";
+import { getCopilotServePort } from "../copilot-serve/copilot-serve-paths";
+import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
+import { findPnpm } from "../utils/pnpm-resolver";
 
 const CRLF = "\r\n";
 
@@ -24,24 +26,103 @@ export function createPlaceholderHermesShim(binDir: string): void {
   writeCmdFile(join(binDir, "hermes.cmd"), content);
 }
 
-export function updateHermesShim(binDir: string, agentDir: string): void {
-  const hermesExe = join(agentDir, "venv", "Scripts", "hermes.exe");
-  const content = `@echo off${CRLF}set HERMES_HOME=%USERPROFILE%\\.hermes${CRLF}"${hermesExe}" %*${CRLF}`;
+export function createPlaceholderServeShim(binDir: string): void {
+  const content = `@echo off${CRLF}echo Copilot Serve is not yet installed. Please launch SMC Copilot to complete setup.${CRLF}`;
+  writeCmdFile(join(binDir, "serve.cmd"), content);
+}
+
+export function createPlaceholderPortalShim(binDir: string): void {
+  const content = `@echo off${CRLF}echo Portal is not yet installed. Please launch SMC Copilot to complete setup.${CRLF}`;
+  writeCmdFile(join(binDir, "portal.cmd"), content);
+}
+
+export function updateHermesShim(
+  binDir: string,
+  installRoot: string,
+  paths: ReturnType<typeof resolveCopilotRuntimePaths>,
+): void {
+  const content = [
+    "@echo off",
+    `set COPILOT_INSTALL_ROOT=${installRoot}`,
+    `set COPILOT_RUNTIME_ROOT=${paths.runtimeRoot}`,
+    `set HERMES_RUNTIME_ROOT=${paths.hermesRuntimeRoot}`,
+    `set HERMES_SOURCE_ROOT=${paths.hermesSourceRoot}`,
+    `set HERMES_VENV=${paths.hermesVenv}`,
+    `set HERMES_PYTHON=${paths.hermesPython}`,
+    "set HERMES_HOME_ROOT=%USERPROFILE%\\.hermes",
+    "set HERMES_HOME=%USERPROFILE%\\.hermes",
+    `"${paths.hermesExe}" %*`,
+    "",
+  ].join(CRLF);
   writeCmdFile(join(binDir, "hermes.cmd"), content);
 }
 
-export function ensureShims(): void {
-  const loc = resolveInstallLocation();
+export function updateServeShim(
+  binDir: string,
+  installRoot: string,
+  paths: ReturnType<typeof resolveCopilotRuntimePaths>,
+): void {
+  const port = getCopilotServePort();
+  const content = [
+    "@echo off",
+    `set COPILOT_INSTALL_ROOT=${installRoot}`,
+    `set COPILOT_RUNTIME_ROOT=${paths.runtimeRoot}`,
+    `set COPILOT_SERVE_RUNTIME_ROOT=${paths.serveRuntimeRoot}`,
+    `set COPILOT_SERVE_ROOT=${paths.serveSourceRoot}`,
+    `set COPILOT_SERVE_VENV=${paths.serveVenv}`,
+    `set COPILOT_SERVE_PYTHON=${paths.servePython}`,
+    `set COPILOT_SERVE_PORT=${port}`,
+    `"${paths.servePython}" -m uvicorn main:app --app-dir src --host 127.0.0.1 --port ${port} %*`,
+    "",
+  ].join(CRLF);
+  writeCmdFile(join(binDir, "serve.cmd"), content);
+}
 
-  if (!existsSync(loc.binDir)) {
-    mkdirSync(loc.binDir, { recursive: true });
+export function updatePortalShim(
+  binDir: string,
+  installRoot: string,
+  paths: ReturnType<typeof resolveCopilotRuntimePaths>,
+): void {
+  const pnpm = findPnpm();
+  const content = [
+    "@echo off",
+    `set COPILOT_INSTALL_ROOT=${installRoot}`,
+    `set COPILOT_RUNTIME_ROOT=${paths.runtimeRoot}`,
+    `set COPILOT_PORTAL_RUNTIME_ROOT=${paths.portalRuntimeRoot}`,
+    `set COPILOT_PORTAL_ROOT=${paths.portalSourceRoot}`,
+    "set COPILOT_PORTAL_URL=http://127.0.0.1:3000",
+    "set COPILOT_PORTAL_PORT=3000",
+    `cd /d "${paths.portalSourceRoot}"`,
+    `"${pnpm}" --filter @portal/web start %*`,
+    "",
+  ].join(CRLF);
+  writeCmdFile(join(binDir, "portal.cmd"), content);
+}
+
+export function ensureShims(): void {
+  const paths = resolveCopilotRuntimePaths();
+
+  if (!existsSync(paths.binDir)) {
+    mkdirSync(paths.binDir, { recursive: true });
   }
 
-  createDesktopShim(loc.binDir, loc.installDir);
+  createDesktopShim(paths.binDir, paths.installRoot);
 
-  if (existsSync(join(loc.agentDir, "venv", "Scripts", "hermes.exe"))) {
-    updateHermesShim(loc.binDir, loc.agentDir);
+  if (existsSync(paths.hermesExe)) {
+    updateHermesShim(paths.binDir, paths.installRoot, paths);
   } else {
-    createPlaceholderHermesShim(loc.binDir);
+    createPlaceholderHermesShim(paths.binDir);
+  }
+
+  if (existsSync(paths.servePython) && existsSync(join(paths.serveSourceRoot, "pyproject.toml"))) {
+    updateServeShim(paths.binDir, paths.installRoot, paths);
+  } else {
+    createPlaceholderServeShim(paths.binDir);
+  }
+
+  if (existsSync(join(paths.portalSourceRoot, "package.json"))) {
+    updatePortalShim(paths.binDir, paths.installRoot, paths);
+  } else {
+    createPlaceholderPortalShim(paths.binDir);
   }
 }

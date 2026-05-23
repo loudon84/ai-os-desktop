@@ -7,9 +7,9 @@ import { getConnectionConfig } from "./config";
 import { stripAnsi } from "./utils";
 import { setupAskpass, AskpassHandle } from "./askpass";
 import {
-  resolveRuntimePaths,
   getEnhancedPath as getEnhancedPathCrossPlatform,
   getDesktopAgentDir,
+  getDesktopAgentRuntimeDir,
 } from "./enterprise/windows/path-resolver";
 import { installHermesAgentFromUserSource, type UserSourceConfig } from "./enterprise/hermes-agent-source-installer";
 import { ensureShims } from "./enterprise/shim-manager";
@@ -28,17 +28,41 @@ import {
   mergeRuntimeConfig,
   createDefaultRuntimeConfig,
 } from "./enterprise/desktop-runtime-config";
+import { createPythonVenv } from "./enterprise/python-venv-creator";
+import { getInstallerPaths, invalidateInstallerPathCache } from "./installer-path-cache";
+import { buildCopilotRuntimeEnv } from "./runtime/runtime-paths";
+import { refreshAllRuntimePathCaches } from "./runtime/refresh-runtime-paths";
 
-const _resolved = resolveRuntimePaths();
+export { invalidateInstallerPathCache };
 
-export const HERMES_HOME = _resolved.hermesHome;
-export const HERMES_REPO = _resolved.hermesRepo;
-export const HERMES_VENV = _resolved.hermesVenv;
-export const HERMES_PYTHON = _resolved.hermesPython;
-export const HERMES_SCRIPT = _resolved.hermesScript;
-export const HERMES_ENV_FILE = _resolved.hermesEnvFile;
-export const HERMES_CONFIG_FILE = _resolved.hermesConfigFile;
-export const HERMES_AUTH_FILE = _resolved.hermesAuthFile;
+const _hermesHome = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+export const HERMES_HOME = _hermesHome;
+export const HERMES_ENV_FILE = join(_hermesHome, ".env");
+export const HERMES_CONFIG_FILE = join(_hermesHome, "config.yaml");
+export const HERMES_AUTH_FILE = join(_hermesHome, "auth.json");
+
+export function getHermesRepo(): string {
+  return getInstallerPaths().hermesRepo;
+}
+export function getHermesVenv(): string {
+  return getInstallerPaths().hermesVenv;
+}
+export function getHermesPython(): string {
+  return getInstallerPaths().hermesPython;
+}
+export function getHermesScript(): string {
+  return getInstallerPaths().hermesScript;
+}
+
+function hermesExecEnv(extra?: Record<string, string>): NodeJS.ProcessEnv {
+  return buildCopilotRuntimeEnv({
+    ...process.env,
+    PATH: getEnhancedPath(),
+    HOME: homedir(),
+    HERMES_HOME,
+    ...extra,
+  });
+}
 
 export interface InstallStatus {
   installed: boolean;
@@ -120,22 +144,17 @@ let _verifyCache: { ok: boolean; ts: number } | null = null;
 const VERIFY_TTL_MS = 5 * 60 * 1000;
 
 export async function verifyInstall(): Promise<boolean> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) return false;
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) return false;
   if (_verifyCache && Date.now() - _verifyCache.ts < VERIFY_TTL_MS) {
     return _verifyCache.ok;
   }
   return new Promise((resolve) => {
     execFile(
-      HERMES_SCRIPT,
+      getHermesScript(),
       ["--version"],
       {
-        cwd: HERMES_REPO,
-        env: {
-          ...process.env,
-          PATH: getEnhancedPath(),
-          HOME: homedir(),
-          HERMES_HOME,
-        },
+        cwd: getHermesRepo(),
+        env: hermesExecEnv(),
         timeout: 15000,
       },
       (error) => {
@@ -153,7 +172,7 @@ let _versionFetching = false;
 
 export async function getHermesVersion(): Promise<string | null> {
   if (_cachedVersion !== null) return _cachedVersion;
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) return null;
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) return null;
   if (_versionFetching) {
     // Wait for in-flight fetch
     return new Promise((resolve) => {
@@ -168,16 +187,11 @@ export async function getHermesVersion(): Promise<string | null> {
   _versionFetching = true;
   return new Promise((resolve) => {
     execFile(
-      HERMES_SCRIPT,
+      getHermesScript(),
       ["--version"],
       {
-        cwd: HERMES_REPO,
-        env: {
-          ...process.env,
-          PATH: getEnhancedPath(),
-          HOME: homedir(),
-          HERMES_HOME,
-        },
+        cwd: getHermesRepo(),
+        env: hermesExecEnv(),
         timeout: 15000,
       },
       (error, stdout) => {
@@ -198,18 +212,13 @@ export function clearVersionCache(): void {
 }
 
 export function runHermesDoctor(): string {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     return "Hermes is not installed.";
   }
   try {
-    const output = execSync(`"${HERMES_SCRIPT}" doctor`, {
-      cwd: HERMES_REPO,
-      env: {
-        ...process.env,
-        PATH: getEnhancedPath(),
-        HOME: homedir(),
-        HERMES_HOME,
-      },
+    const output = execSync(`"${getHermesScript()}" doctor`, {
+      cwd: getHermesRepo(),
+      env: hermesExecEnv(),
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 30000,
     });
@@ -235,7 +244,7 @@ export function checkOpenClawExists(): { found: boolean; path: string | null } {
 export async function runClawMigrate(
   onProgress: (progress: InstallProgress) => void,
 ): Promise<void> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     throw new Error("Hermes is not installed.");
   }
 
@@ -261,15 +270,9 @@ export async function runClawMigrate(
   return new Promise((resolve, reject) => {
     const args = ["claw", "migrate", "--preset", "full"];
 
-    const proc = spawn(HERMES_SCRIPT, args, {
-      cwd: HERMES_REPO,
-      env: {
-        ...process.env,
-        PATH: getEnhancedPath(),
-        HOME: homedir(),
-        HERMES_HOME,
-        TERM: "dumb",
-      },
+    const proc = spawn(getHermesScript(), args, {
+      cwd: getHermesRepo(),
+      env: hermesExecEnv({ TERM: "dumb" }),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -299,7 +302,7 @@ export async function runClawMigrate(
 export async function runHermesUpdate(
   onProgress: (progress: InstallProgress) => void,
 ): Promise<void> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     throw new Error("Hermes is not installed. Please install it first.");
   }
 
@@ -318,15 +321,9 @@ export async function runHermesUpdate(
   emit("Running hermes update...\n");
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(HERMES_SCRIPT, ["update"], {
-      cwd: HERMES_REPO,
-      env: {
-        ...process.env,
-        PATH: getEnhancedPath(),
-        HOME: homedir(),
-        HERMES_HOME,
-        TERM: "dumb",
-      },
+    const proc = spawn(getHermesScript(), ["update"], {
+      cwd: getHermesRepo(),
+      env: hermesExecEnv({ TERM: "dumb" }),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -493,7 +490,7 @@ export async function runInstall(
           // The install script can exit non-zero due to benign issues
           // (e.g. git stash pop failure on already-clean repo).
           // If Hermes is actually installed and working, treat as success.
-          if (existsSync(HERMES_PYTHON) && existsSync(HERMES_SCRIPT)) {
+          if (existsSync(getHermesPython()) && existsSync(getHermesScript())) {
             emit(
               "\nInstall script exited with warnings, but Hermes is installed successfully.\n",
             );
@@ -533,6 +530,7 @@ export async function runInstallWithSource(
 
   const state = resolveRuntimeState();
   if (!options?.force && state.runtimeReady) {
+    refreshAllRuntimePathCaches();
     ensureShims();
     mergeRuntimeConfig(createDefaultRuntimeConfig());
     emit(4, "运行时已就绪", "跳过 hermes-agent 重装，已刷新 shim 与运行时配置");
@@ -551,15 +549,14 @@ export async function runInstallWithSource(
 
   emit(2, "创建 Python venv", "初始化虚拟环境...");
   const agentDir = getDesktopAgentDir();
-  const venvDir = join(agentDir, "venv");
+  const runtimeDir = getDesktopAgentRuntimeDir();
+  const venvDir = join(runtimeDir, "venv");
   const isWindows = process.platform === "win32";
-  try {
-    if (!existsSync(venvDir)) {
-      const pythonCmd = isWindows ? "python" : "python3";
-      execSync(`${pythonCmd} -m venv "${venvDir}"`, { encoding: "utf-8", timeout: 60000 });
+  if (!existsSync(venvDir)) {
+    const venvResult = createPythonVenv(venvDir);
+    if (!venvResult.ok) {
+      throw new Error(venvResult.message || "venv 创建失败");
     }
-  } catch (err) {
-    throw new Error(`venv 创建失败: ${(err as Error).message}`);
   }
 
   const pipMirror = resolvePipMirrorConfig({
@@ -587,7 +584,7 @@ export async function runInstallWithSource(
     throw new Error((err as Error).message);
   }
 
-  emit(4, "安装完成", `hermes-agent → ${agentDir}`);
+  emit(4, "安装完成", `hermes → ${agentDir}`);
 
   if (!existsSync(HERMES_HOME)) {
     mkdirSync(HERMES_HOME, { recursive: true });
@@ -612,6 +609,8 @@ export async function runInstallWithSource(
       pipMirror,
     ),
   );
+  refreshAllRuntimePathCaches();
+  clearVersionCache();
 }
 
 // ────────────────────────────────────────────────────
@@ -621,7 +620,7 @@ export async function runInstallWithSource(
 export async function runHermesBackup(
   profile?: string,
 ): Promise<{ success: boolean; path?: string; error?: string }> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     return { success: false, error: "Hermes is not installed." };
   }
   const args = ["backup"];
@@ -629,17 +628,11 @@ export async function runHermesBackup(
 
   return new Promise((resolve) => {
     execFile(
-      HERMES_SCRIPT,
+      getHermesScript(),
       args,
       {
-        cwd: HERMES_REPO,
-        env: {
-          ...process.env,
-          PATH: getEnhancedPath(),
-          HOME: homedir(),
-          HERMES_HOME,
-          TERM: "dumb",
-        },
+        cwd: getHermesRepo(),
+        env: hermesExecEnv({ TERM: "dumb" }),
         timeout: 120000,
       },
       (error, stdout, stderr) => {
@@ -668,7 +661,7 @@ export async function runHermesImport(
   archivePath: string,
   profile?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     return { success: false, error: "Hermes is not installed." };
   }
   const args = ["import", archivePath];
@@ -676,17 +669,11 @@ export async function runHermesImport(
 
   return new Promise((resolve) => {
     execFile(
-      HERMES_SCRIPT,
+      getHermesScript(),
       args,
       {
-        cwd: HERMES_REPO,
-        env: {
-          ...process.env,
-          PATH: getEnhancedPath(),
-          HOME: homedir(),
-          HERMES_HOME,
-          TERM: "dumb",
-        },
+        cwd: getHermesRepo(),
+        env: hermesExecEnv({ TERM: "dumb" }),
         timeout: 120000,
       },
       (error, _stdout, stderr) => {
@@ -708,22 +695,16 @@ export async function runHermesImport(
 // ────────────────────────────────────────────────────
 
 export function runHermesDump(): Promise<string> {
-  if (!existsSync(HERMES_PYTHON) || !existsSync(HERMES_SCRIPT)) {
+  if (!existsSync(getHermesPython()) || !existsSync(getHermesScript())) {
     return Promise.resolve("Hermes is not installed.");
   }
   return new Promise((resolve) => {
     execFile(
-      HERMES_SCRIPT,
+      getHermesScript(),
       ["dump"],
       {
-        cwd: HERMES_REPO,
-        env: {
-          ...process.env,
-          PATH: getEnhancedPath(),
-          HOME: homedir(),
-          HERMES_HOME,
-          TERM: "dumb",
-        },
+        cwd: getHermesRepo(),
+        env: hermesExecEnv({ TERM: "dumb" }),
         timeout: 30000,
       },
       (error, stdout, stderr) => {
@@ -756,7 +737,7 @@ export interface MemoryProviderInfo {
 export function discoverMemoryProviders(
   profile?: string,
 ): MemoryProviderInfo[] {
-  const pluginsDir = join(HERMES_REPO, "plugins", "memory");
+  const pluginsDir = join(getHermesRepo(), "plugins", "memory");
   if (!existsSync(pluginsDir)) return [];
 
   const activeProvider = getActiveMemoryProvider(profile);

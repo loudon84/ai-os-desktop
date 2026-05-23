@@ -39,6 +39,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `src/main/` | 主进程：IPC、Gateway、配置、SQLite、Enterprise Install | 新 IPC、后端逻辑 |
 | `src/main/browser/` | Web Operator（BrowserView、安全、审计、Tool Server） | 浏览器自动化 |
 | `src/main/enterprise/` | 企业安装、本地 zip/git 源、**agent-deps-installer**、**pip-mirror-config** | 安装/预检/Doctor/依赖 |
+| `src/main/runtime/` | **V5.3** `runtime-paths.ts` — hermes/serve/portal 统一路径契约 + `buildCopilotRuntimeEnv` | 改安装目录结构 / 运行时路径 |
 | `src/main/window/` | V1.4.1 窗口 IPC（`registerWindowIpc`） | 标题栏按钮 |
 | `src/main/shell/` | **main-window-controller.ts**（默认 1280×800）、ShellView、菜单、`portal-view-coordinator` | 主窗口尺寸、壳层 IPC |
 | `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |
@@ -227,7 +228,17 @@ Renderer Install 屏
   → 20 步流水线：预检 → Bundle → Agent → Venv → Hermes Home → Profile Bootstrap → Marker
 ```
 
-安装目录（Windows）：`%LOCALAPPDATA%\Programs\SMC Copilot\` 或注册表解析的 `$INSTDIR`（`runtime/hermes-agent/venv/logs`）。  
+安装目录（Windows）：`%LOCALAPPDATA%\Programs\SMC Copilot\` 或注册表解析的 `$INSTDIR`。**V5.3** 标准 runtime 布局：
+
+```text
+$INSTDIR/runtime/hermes/{src,venv,logs}
+$INSTDIR/runtime/serve/{src,venv,.env,logs}
+$INSTDIR/runtime/portal/{src,node_modules,.env.local,logs}
+$INSTDIR/bin/{hermes,serve,portal,smc-copilot}.cmd
+```
+
+旧目录名（`hermes-agent` / `copilot-serve` / `ai-os-full`）仅用于**读取 fallback**与**一次性 schema v4 磁盘迁移**（`004-v53-runtime-layout.ts`）；canonical 布局为上式。
+
 用户数据：`%USERPROFILE%\.hermes\`。
 
 安全：仅 `127.0.0.1`、不写 HKLM/系统 PATH、Token 不落盘、Bundle 必须 SHA-256。
@@ -250,7 +261,7 @@ AgentSourceSelect / install-wizard
 
 **环境变量（可选，覆盖 UI）**：`HERMES_PIP_INDEX_URL`、`HERMES_PIP_TRUSTED_HOST`（或 `PIP_INDEX_URL` / `PIP_TRUSTED_HOST`）。
 
-**离线 wheel**：`$INSTDIR/runtime/wheels/` 或 `hermes-agent/wheels/`（`--offline` / `--find-links`）。
+**离线 wheel**：`$INSTDIR/runtime/wheels/` 或 `runtime/hermes/src/wheels/`（`--offline` / `--find-links`）。
 
 ### 窗口控制（V1.4.1 + V2.0）
 
@@ -387,6 +398,7 @@ npm run lint         # ESLint
 | 改 Auth / 登录 / Bootstrap | `LoginScreen.tsx` → `desktopAuth` / `desktopUserConfig` → `auth-client.ts` / `user-config-client.ts` / `startup-decision.ts` |
 | 改启动门控 / splash→login | `useStartupGate.ts` → `shell-api.ts` → `startup-ipc.ts` → `startup-decision.ts` |
 | 改 Settings / Runtime 入口 | `SettingsDrawer.tsx` + `server/ServerPanel.tsx` + `general/GeneralPanel.tsx` + `Layout.openSettingsDrawer`；Workspaces 侧栏已无 `settings` 页 |
+| 改安装 / runtime 路径（V5.3） | `runtime/runtime-paths.ts` → `enterprise/windows/install-location-resolver.ts` / `path-resolver.ts` → `shim-manager.ts` / `copilot-serve-paths.ts` / `aios-paths.ts` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/navigation.ts`（二级侧栏 + openSettings） |
 
 ## 版本特性索引
@@ -410,6 +422,7 @@ npm run lint         # ESLint
 | **V3.2.1** | 三分区、per-tab external partition、token 端口可配置、Runtime 入口收敛、kind 分发、registry Tab 规则 | `browser-partitions.ts`, `token-inject-url.ts`, `view-registry.ts`, `RuntimeGuard.tsx`, `MainViewTabs.tsx` |
 | **V3.6.2** | **team_v1.6.2** Workspaces 三栏 hotfix：Status Cards、左右折叠、静态 page registry、修复 lazy 页 icons | `WorkspacesShell`, `WorkspaceStatusCards`, `WorkspaceRightPanel`, `registry/workspace-pages.tsx` |
 | **V3.6.3** | SettingsDrawer `server`/`general` 面板；Workspaces 移除 settings 页；顶栏 `ServersEntry` | `SettingsDrawer/server/`, `SettingsDrawer/general/`, `MainPage/ServersEntry.tsx` |
+| **V5.3** | 安装 runtime 目录重命名：`hermes` / `serve` / `portal`；`src`+`venv` 分层；统一 `runtime-paths.ts`；`bin/*.cmd` shim | `runtime/runtime-paths.ts`, `enterprise/windows/*`, `shim-manager.ts`, `copilot-serve-paths.ts`, `aios-paths.ts` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

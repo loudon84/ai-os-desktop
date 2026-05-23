@@ -7,6 +7,7 @@ import {
   resolveCopilotServeDeployScript,
   resolveCopilotServeRoot,
   resolveCopilotServeRuntimeDir,
+  resolveCopilotServeVenvPython,
 } from "./copilot-serve-paths";
 import type {
   CopilotServePreflightResult,
@@ -119,21 +120,17 @@ export async function runCopilotServePreflight(): Promise<CopilotServePreflightR
     detail: serveRoot ?? runtimeDir,
   });
 
-  const venvPython =
-    serveRoot && process.platform === "win32"
-      ? join(serveRoot, ".venv", "Scripts", "python.exe")
-      : serveRoot
-        ? join(serveRoot, ".venv", "bin", "python")
-        : "";
-  const hasVenv = venvPython ? existsSync(venvPython) : false;
+  const venvPython = resolveCopilotServeVenvPython();
+  const hasVenv = Boolean(venvPython);
   checks.push({
     id: "venv",
-    label: ".venv Python",
+    label: "serve venv Python",
     status: hasVenv ? "pass" : "fail",
     detail: hasVenv ? venvPython : null,
   });
 
-  const envPath = serveRoot ? join(serveRoot, ".env") : "";
+  const serveRuntime = resolveCopilotServeRuntimeDir();
+  const envPath = serveRuntime ? join(serveRuntime, ".env") : "";
   checks.push({
     id: "env",
     label: ".env",
@@ -152,7 +149,7 @@ export async function runCopilotServePreflight(): Promise<CopilotServePreflightR
   const deployScript = resolveCopilotServeDeployScript();
   checks.push({
     id: "deployScript",
-    label: "deploy-copilot-serve.ps1",
+    label: "deploy-serve-runtime.ps1",
     status: deployScript ? "pass" : "warn",
     detail: deployScript,
   });

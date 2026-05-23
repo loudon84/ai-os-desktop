@@ -12,7 +12,7 @@ import { join, parse } from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
-import { getDesktopAgentDir } from "./windows/path-resolver";
+import { getDesktopAgentDir, getDesktopAgentRuntimeDir } from "./windows/path-resolver";
 import {
   validateGitUrl,
   validateGitBranch,
@@ -165,6 +165,7 @@ export async function installHermesAgentFromUserSource(
   onProgress?: AgentProgressCallback,
 ): Promise<AgentInstallResult> {
   const agentTargetPath = getDesktopAgentDir();
+  const runtimeDir = getDesktopAgentRuntimeDir();
 
   if (existsSync(agentTargetPath) && hasProjectFiles(agentTargetPath)) {
     onProgress?.({
@@ -181,6 +182,7 @@ export async function installHermesAgentFromUserSource(
       /* partial cleanup */
     }
   }
+  mkdirSync(runtimeDir, { recursive: true });
   mkdirSync(agentTargetPath, { recursive: true });
 
   switch (userConfig.sourceType) {

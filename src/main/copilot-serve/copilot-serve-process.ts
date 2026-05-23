@@ -14,7 +14,10 @@ import { appendCopilotServeLog, readCopilotServeLogs } from "./copilot-serve-log
 import {
   getCopilotServePaths,
   resolveCopilotServeRuntimeDir,
+  resolveCopilotServeRoot,
+  resolveCopilotServeVenvPython,
 } from "./copilot-serve-paths";
+import { buildCopilotRuntimeEnv } from "../runtime/runtime-paths";
 import { runCopilotServePreflight } from "./copilot-serve-preflight";
 import { setCopilotServeManagedPid } from "./copilot-serve-runtime-state";
 
@@ -23,24 +26,15 @@ let desktopToken = "";
 let lastError: string | null = null;
 let processStatus: CopilotServeProcessStatus = "stopped";
 
-function resolvePythonExecutable(serveRoot: string): string {
+function resolvePythonExecutable(_serveRoot: string): string {
   const fromEnv = process.env.COPILOT_SERVE_PYTHON?.trim();
   if (fromEnv && existsSync(fromEnv)) {
     return fromEnv;
   }
 
-  const venvCandidates =
-    process.platform === "win32"
-      ? [join(serveRoot, ".venv", "Scripts", "python.exe")]
-      : [
-          join(serveRoot, ".venv", "bin", "python"),
-          join(serveRoot, ".venv", "bin", "python3"),
-        ];
-
-  for (const candidate of venvCandidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
+  const venvPython = resolveCopilotServeVenvPython();
+  if (venvPython) {
+    return venvPython;
   }
 
   if (process.platform === "win32") {
@@ -115,9 +109,10 @@ export function getCopilotServeConnection(): CopilotServeConnection | null {
 export function getCopilotServeStatus(): CopilotServeStatus {
   const paths = getCopilotServePaths();
   if (!paths) {
+    const serveRoot = resolveCopilotServeRoot();
     const runtimeDir = resolveCopilotServeRuntimeDir();
     const deployed =
-      Boolean(runtimeDir) && existsSync(join(runtimeDir!, "pyproject.toml"));
+      Boolean(serveRoot) && existsSync(join(serveRoot!, "pyproject.toml"));
     return {
       status: deployed ? "stopped" : "missing",
       pid: null,
@@ -165,14 +160,14 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
 
   child = spawn(python, args, {
     cwd: paths.serveRoot,
-    env: {
+    env: buildCopilotRuntimeEnv({
       ...process.env,
       SQLITE_PATH: paths.sqlitePath,
       COPILOT_DESKTOP_TOKEN: desktopToken,
       COPILOT_REQUIRE_TOKEN: "true",
       COPILOT_SERVE_ROOT: paths.serveRoot,
       COPILOT_SERVE_PYTHON: python === "py" ? "" : python,
-    },
+    }),
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });

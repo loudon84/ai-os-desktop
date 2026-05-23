@@ -10,6 +10,8 @@ import { join } from "node:path";
 import type { DesktopInstallLocation } from "../enterprise/windows/install-location-resolver";
 import { readLegacyInstallLocations } from "../enterprise/windows/install-location-resolver";
 
+const VENV_DIR_NAMES = new Set(["venv", ".venv"]);
+
 function appendMigrationLog(runtimeRoot: string, message: string): void {
   const logDir = join(runtimeRoot, "logs");
   mkdirSync(logDir, { recursive: true });
@@ -31,24 +33,42 @@ function hasAgentPayload(dir: string): boolean {
   }
 }
 
-function copyLegacyAgent(sourceAgentDir: string, targetAgentDir: string): void {
-  mkdirSync(targetAgentDir, { recursive: true });
-  cpSync(sourceAgentDir, targetAgentDir, { recursive: true, force: false });
+function copyLegacyAgentSource(sourceAgentDir: string, targetSourceDir: string): void {
+  mkdirSync(targetSourceDir, { recursive: true });
+  for (const entry of readdirSync(sourceAgentDir)) {
+    if (VENV_DIR_NAMES.has(entry)) continue;
+    cpSync(join(sourceAgentDir, entry), join(targetSourceDir, entry), {
+      recursive: true,
+      force: false,
+    });
+  }
+}
+
+function copyLegacyVenv(sourceAgentDir: string, targetVenvDir: string): void {
+  if (existsSync(targetVenvDir)) return;
+  for (const venvName of VENV_DIR_NAMES) {
+    const legacyVenv = join(sourceAgentDir, venvName);
+    if (!existsSync(legacyVenv)) continue;
+    mkdirSync(join(targetVenvDir, ".."), { recursive: true });
+    cpSync(legacyVenv, targetVenvDir, { recursive: true, force: false });
+    return;
+  }
 }
 
 /**
- * PRD §10.1 — copy legacy runtime/hermes-agent only when the new agent dir is empty.
+ * PRD §10.1 — copy legacy runtime/hermes-agent only when the new source dir is empty.
  */
 export function migrateLegacyHermesRuntime(
   location: DesktopInstallLocation,
 ): string[] {
   const warnings: string[] = [];
-  const newAgentDir = location.agentDir;
+  const newSourceDir = location.hermesSourceRoot;
+  const newVenvDir = join(location.hermesRuntimeRoot, "venv");
 
-  if (hasAgentPayload(newAgentDir)) {
+  if (hasAgentPayload(newSourceDir)) {
     appendMigrationLog(
       location.runtimeRoot,
-      "skip legacy agent copy: target agent dir already populated",
+      "skip legacy agent copy: target source dir already populated",
     );
     return warnings;
   }
@@ -68,7 +88,8 @@ export function migrateLegacyHermesRuntime(
           location.runtimeRoot,
           `copying legacy agent from ${legacyAgentDir} (${legacy.source})`,
         );
-        copyLegacyAgent(legacyAgentDir, newAgentDir);
+        copyLegacyAgentSource(legacyAgentDir, newSourceDir);
+        copyLegacyVenv(legacyAgentDir, newVenvDir);
         appendMigrationLog(location.runtimeRoot, "legacy agent copy completed");
         return warnings;
       } catch (err) {

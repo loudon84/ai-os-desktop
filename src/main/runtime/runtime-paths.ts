@@ -1,0 +1,241 @@
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { existsSync, readdirSync } from "node:fs";
+import { resolveInstallLocation } from "../enterprise/windows/install-location-resolver";
+
+const isWindows = process.platform === "win32";
+
+export interface CopilotRuntimePaths {
+  installRoot: string;
+  runtimeRoot: string;
+  downloadsRoot: string;
+  binDir: string;
+
+  hermesRuntimeRoot: string;
+  hermesSourceRoot: string;
+  hermesVenv: string;
+  hermesPython: string;
+  hermesExe: string;
+
+  serveRuntimeRoot: string;
+  serveSourceRoot: string;
+  serveVenv: string;
+  servePython: string;
+
+  portalRuntimeRoot: string;
+  portalSourceRoot: string;
+  portalNodeModules: string;
+}
+
+let _cachedPaths: CopilotRuntimePaths | null = null;
+
+function pythonBin(): string {
+  return isWindows ? join("Scripts", "python.exe") : join("bin", "python");
+}
+
+function hermesExeBin(): string {
+  return isWindows ? join("Scripts", "hermes.exe") : join("bin", "hermes");
+}
+
+function hasPythonProject(dir: string): boolean {
+  if (!existsSync(dir)) return false;
+  try {
+    return readdirSync(dir).some(
+      (e) => e === "pyproject.toml" || e === "setup.py" || e === "hermes",
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveHermesLayout(runtimeRoot: string): {
+  hermesRuntimeRoot: string;
+  hermesSourceRoot: string;
+  hermesVenv: string;
+} {
+  const hermesRuntimeRoot = join(runtimeRoot, "hermes");
+  const standardSource = join(hermesRuntimeRoot, "src");
+  const standardVenv = join(hermesRuntimeRoot, "venv");
+  const legacyAgent = join(runtimeRoot, "hermes-agent");
+
+  if (hasPythonProject(standardSource)) {
+    return {
+      hermesRuntimeRoot,
+      hermesSourceRoot: standardSource,
+      hermesVenv: existsSync(standardVenv)
+        ? standardVenv
+        : existsSync(join(legacyAgent, "venv"))
+          ? join(legacyAgent, "venv")
+          : existsSync(join(legacyAgent, ".venv"))
+            ? join(legacyAgent, ".venv")
+            : standardVenv,
+    };
+  }
+
+  if (hasPythonProject(legacyAgent)) {
+    const legacyVenv = existsSync(join(legacyAgent, "venv"))
+      ? join(legacyAgent, "venv")
+      : existsSync(join(legacyAgent, ".venv"))
+        ? join(legacyAgent, ".venv")
+        : standardVenv;
+    return {
+      hermesRuntimeRoot,
+      hermesSourceRoot: legacyAgent,
+      hermesVenv: legacyVenv,
+    };
+  }
+
+  if (hasPythonProject(hermesRuntimeRoot)) {
+    return {
+      hermesRuntimeRoot,
+      hermesSourceRoot: hermesRuntimeRoot,
+      hermesVenv: existsSync(standardVenv) ? standardVenv : join(hermesRuntimeRoot, "venv"),
+    };
+  }
+
+  return {
+    hermesRuntimeRoot,
+    hermesSourceRoot: standardSource,
+    hermesVenv: standardVenv,
+  };
+}
+
+function resolveServeLayout(runtimeRoot: string): {
+  serveRuntimeRoot: string;
+  serveSourceRoot: string;
+  serveVenv: string;
+} {
+  const serveRuntimeRoot = join(runtimeRoot, "serve");
+  const standardSource = join(serveRuntimeRoot, "src");
+  const standardVenv = join(serveRuntimeRoot, "venv");
+  const legacyServe = join(runtimeRoot, "copilot-serve");
+
+  if (hasPythonProject(standardSource)) {
+    return {
+      serveRuntimeRoot,
+      serveSourceRoot: standardSource,
+      serveVenv: existsSync(standardVenv)
+        ? standardVenv
+        : existsSync(join(legacyServe, "venv"))
+          ? join(legacyServe, "venv")
+          : existsSync(join(legacyServe, ".venv"))
+            ? join(legacyServe, ".venv")
+            : standardVenv,
+    };
+  }
+
+  if (hasPythonProject(legacyServe)) {
+    const legacyVenv = existsSync(join(legacyServe, "venv"))
+      ? join(legacyServe, "venv")
+      : existsSync(join(legacyServe, ".venv"))
+        ? join(legacyServe, ".venv")
+        : standardVenv;
+    return {
+      serveRuntimeRoot,
+      serveSourceRoot: legacyServe,
+      serveVenv: legacyVenv,
+    };
+  }
+
+  return {
+    serveRuntimeRoot,
+    serveSourceRoot: standardSource,
+    serveVenv: standardVenv,
+  };
+}
+
+function resolvePortalSourceRoot(
+  portalRuntimeRoot: string,
+  runtimeRoot: string,
+): string {
+  const standardSource = join(portalRuntimeRoot, "src");
+  if (existsSync(join(standardSource, "package.json"))) {
+    return standardSource;
+  }
+  if (existsSync(join(portalRuntimeRoot, "package.json"))) {
+    return portalRuntimeRoot;
+  }
+  const legacyRoot = join(runtimeRoot, "ai-os-full");
+  if (existsSync(join(legacyRoot, "package.json"))) {
+    return legacyRoot;
+  }
+  return standardSource;
+}
+
+/** ver5.3 standard layout under `<installDir>/runtime`. */
+export function resolveCopilotRuntimePaths(): CopilotRuntimePaths {
+  if (_cachedPaths) return _cachedPaths;
+
+  const loc = resolveInstallLocation();
+  const installRoot = loc.installDir;
+  const runtimeRoot = loc.runtimeRoot;
+
+  const hermes = resolveHermesLayout(runtimeRoot);
+  const serve = resolveServeLayout(runtimeRoot);
+  const portalRuntimeRoot = join(runtimeRoot, "portal");
+  const portalSourceRoot = resolvePortalSourceRoot(portalRuntimeRoot, runtimeRoot);
+  const portalNodeModules = existsSync(join(portalRuntimeRoot, "node_modules"))
+    ? join(portalRuntimeRoot, "node_modules")
+    : join(portalSourceRoot, "node_modules");
+
+  _cachedPaths = {
+    installRoot,
+    runtimeRoot,
+    downloadsRoot: join(installRoot, "downloads"),
+    binDir: loc.binDir,
+
+    hermesRuntimeRoot: hermes.hermesRuntimeRoot,
+    hermesSourceRoot: hermes.hermesSourceRoot,
+    hermesVenv: hermes.hermesVenv,
+    hermesPython: join(hermes.hermesVenv, pythonBin()),
+    hermesExe: join(hermes.hermesVenv, hermesExeBin()),
+
+    serveRuntimeRoot: serve.serveRuntimeRoot,
+    serveSourceRoot: serve.serveSourceRoot,
+    serveVenv: serve.serveVenv,
+    servePython: join(serve.serveVenv, pythonBin()),
+
+    portalRuntimeRoot,
+    portalSourceRoot,
+    portalNodeModules,
+  };
+
+  return _cachedPaths;
+}
+
+export function clearCopilotRuntimePathCache(): void {
+  _cachedPaths = null;
+}
+
+/** PRD §3 — env vars injected when spawning Hermes / Serve / Portal processes. */
+export function buildCopilotRuntimeEnv(
+  base: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const paths = resolveCopilotRuntimePaths();
+  const hermesHome = base.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+
+  return {
+    ...base,
+    COPILOT_INSTALL_ROOT: paths.installRoot,
+    COPILOT_RUNTIME_ROOT: paths.runtimeRoot,
+    COPILOT_DOWNLOADS_ROOT: paths.downloadsRoot,
+
+    HERMES_RUNTIME_ROOT: paths.hermesRuntimeRoot,
+    HERMES_SOURCE_ROOT: paths.hermesSourceRoot,
+    HERMES_VENV: paths.hermesVenv,
+    HERMES_PYTHON: paths.hermesPython,
+    HERMES_HOME_ROOT: hermesHome,
+    HERMES_HOME: hermesHome,
+
+    COPILOT_SERVE_RUNTIME_ROOT: paths.serveRuntimeRoot,
+    COPILOT_SERVE_ROOT: paths.serveSourceRoot,
+    COPILOT_SERVE_VENV: paths.serveVenv,
+    COPILOT_SERVE_PYTHON: paths.servePython,
+    COPILOT_SERVE_PORT: base.COPILOT_SERVE_PORT ?? "8765",
+
+    COPILOT_PORTAL_RUNTIME_ROOT: paths.portalRuntimeRoot,
+    COPILOT_PORTAL_ROOT: paths.portalSourceRoot,
+    COPILOT_PORTAL_URL: base.COPILOT_PORTAL_URL ?? "http://127.0.0.1:3000",
+    COPILOT_PORTAL_PORT: base.COPILOT_PORTAL_PORT ?? "3000",
+  };
+}

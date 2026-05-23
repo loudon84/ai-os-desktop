@@ -1,7 +1,8 @@
 import { spawn, type ChildProcess } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { HERMES_HOME, HERMES_REPO, HERMES_PYTHON, HERMES_SCRIPT } from "./installer";
+import { HERMES_HOME, getHermesPython, getHermesRepo, getHermesScript } from "./installer";
+import { buildCopilotRuntimeEnv } from "./runtime/runtime-paths";
 import type { RuntimeAdapter } from "./runtime-adapter";
 import type { ProfileGatewayState } from "../shared/profile-runtime/profile-runtime-contract";
 import {
@@ -50,7 +51,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
   async validate(profileId: string): Promise<void> {
     const profile = getProfile(profileId);
     if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
-    if (!existsSync(HERMES_REPO)) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", "hermes-agent not found");
+    if (!existsSync(getHermesRepo())) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", "hermes-agent not found");
   },
 
   async deploy(profileId: string): Promise<void> {
@@ -95,7 +96,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       // Config injection failure is non-fatal
     }
 
-    const env = { ...process.env } as Record<string, string>;
+    const env = buildCopilotRuntimeEnv({ ...process.env }) as Record<string, string>;
     const envFile = join(home, ".env");
     if (existsSync(envFile)) {
       const envContent = readFileSync(envFile, "utf-8");
@@ -116,8 +117,8 @@ export const hermesLocalAdapter: RuntimeAdapter = {
     env.HERMES_GATEWAY_HOST = instance.host;
     env.HERMES_GATEWAY_PORT = String(instance.port);
 
-    const proc = spawn(HERMES_SCRIPT, ["gateway"], {
-      cwd: HERMES_REPO,
+    const proc = spawn(getHermesScript(), ["gateway"], {
+      cwd: getHermesRepo(),
       env,
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,

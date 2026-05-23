@@ -1,23 +1,15 @@
 import { ChildProcess, spawn } from "child_process";
-import { existsSync } from "fs";
-import { join } from "path";
 import { getAiOsPaths } from "./aios-paths";
 import { readAiOsEnvFile } from "./aios-config";
+import { buildCopilotRuntimeEnv } from "../runtime/runtime-paths";
+import { findPnpm } from "../utils/pnpm-resolver";
 import type { AiOsServiceId } from "../../shared/aios/aios-contract";
 
 const processes = new Map<AiOsServiceId, ChildProcess>();
 
-function findPnpm(): string {
-  if (process.platform === "win32") {
-    const npxPath = join(process.env.APPDATA ?? "", "npm", "pnpm.cmd");
-    if (existsSync(npxPath)) return npxPath;
-  }
-  return "pnpm";
-}
-
 function buildEnv(): NodeJS.ProcessEnv {
   const envVars = readAiOsEnvFile();
-  return { ...process.env, ...envVars };
+  return buildCopilotRuntimeEnv({ ...process.env, ...envVars });
 }
 
 export interface SpawnResult {

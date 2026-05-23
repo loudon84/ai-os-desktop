@@ -5,8 +5,9 @@ import { promises as fs } from "fs";
 import { existsSync } from "fs";
 import {
   HERMES_HOME,
-  HERMES_PYTHON,
-  HERMES_SCRIPT,
+  getHermesPython,
+  getHermesScript,
+  getHermesRepo,
   getEnhancedPath,
 } from "./installer";
 
@@ -189,8 +190,8 @@ export function createProfile(
     const args = clone
       ? ["profile", "create", name, "--clone"]
       : ["profile", "create", name];
-    execFileSync(HERMES_PYTHON, [HERMES_SCRIPT, ...args], {
-      cwd: join(HERMES_HOME, "hermes-agent"),
+    execFileSync(getHermesPython(), [getHermesScript(), ...args], {
+      cwd: getHermesRepo(),
       env: {
         ...process.env,
         PATH: getEnhancedPath(),
@@ -216,10 +217,10 @@ export function deleteProfile(name: string): {
     return { success: false, error: "Cannot delete the default profile" };
   try {
     execFileSync(
-      HERMES_PYTHON,
-      [HERMES_SCRIPT, "profile", "delete", name, "--yes"],
+      getHermesPython(),
+      [getHermesScript(), "profile", "delete", name, "--yes"],
       {
-        cwd: join(HERMES_HOME, "hermes-agent"),
+        cwd: getHermesRepo(),
         env: {
           ...process.env,
           PATH: getEnhancedPath(),
@@ -240,8 +241,8 @@ export function deleteProfile(name: string): {
 
 export function setActiveProfile(name: string): void {
   try {
-    execFileSync(HERMES_PYTHON, [HERMES_SCRIPT, "profile", "use", name], {
-      cwd: join(HERMES_HOME, "hermes-agent"),
+    execFileSync(getHermesPython(), [getHermesScript(), "profile", "use", name], {
+      cwd: getHermesRepo(),
       env: {
         ...process.env,
         PATH: getEnhancedPath(),

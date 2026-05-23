@@ -10,8 +10,9 @@ import { resolveInstallLocation } from "../enterprise/windows/install-location-r
 import { migrateInstallLocation } from "./001-install-location";
 import { migrateRuntimeLayout } from "./002-runtime-layout";
 import { migrateWebOperatorConfig } from "./003-web-operator-config";
+import { migrateV53RuntimeLayout } from "./004-v53-runtime-layout";
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 let lastMigrationStatus: MigrationStatus = {
   schemaVersion: 0,
@@ -58,7 +59,7 @@ export function runDesktopMigrations(): MigrationStatus {
     state.schemaVersion = 2;
   }
 
-  if (state.schemaVersion < CURRENT_SCHEMA_VERSION) {
+  if (state.schemaVersion < 3) {
     try {
       migrateWebOperatorConfig();
     } catch (err) {
@@ -68,6 +69,11 @@ export function runDesktopMigrations(): MigrationStatus {
         }`,
       );
     }
+    state.schemaVersion = 3;
+  }
+
+  if (state.schemaVersion < CURRENT_SCHEMA_VERSION) {
+    warnings.push(...migrateV53RuntimeLayout(location));
     state.schemaVersion = CURRENT_SCHEMA_VERSION;
   }
 

@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolveInstallLocation } from "./install-location-resolver";
+import { resolveCopilotRuntimePaths } from "../../runtime/runtime-paths";
 
 const isWindows = process.platform === "win32";
 
@@ -41,7 +42,7 @@ export function getWindowsPaths(): WindowsPaths | null {
     desktopControlDir: loc.runtimeRoot,
     desktopLogsDir: join(loc.runtimeRoot, "logs"),
     desktopCacheDir: join(loc.runtimeRoot, "cache"),
-    desktopDownloadsDir: join(loc.runtimeRoot, "downloads"),
+    desktopDownloadsDir: join(loc.installDir, "downloads"),
     desktopRuntimeDbDir: join(loc.runtimeRoot, "runtime-db"),
     hermesInfrastructureDir: join(localAppData, "hermes"),
     hermesCmdPath: join(loc.binDir, "hermes.cmd"),
@@ -49,10 +50,18 @@ export function getWindowsPaths(): WindowsPaths | null {
   };
 }
 
+/** Hermes runtime root: `runtime/hermes` (Windows) or `~/.hermes/hermes-agent` (POSIX dev). */
+export function getDesktopAgentRuntimeDir(): string {
+  if (isWindows) {
+    return resolveInstallLocation().hermesRuntimeRoot;
+  }
+  return join(homedir(), ".hermes", "hermes-agent");
+}
+
+/** Hermes source root: `runtime/hermes/src`. */
 export function getDesktopAgentDir(): string {
   if (isWindows) {
-    const loc = resolveInstallLocation();
-    return loc.agentDir;
+    return resolveInstallLocation().hermesSourceRoot;
   }
   return join(homedir(), ".hermes", "hermes-agent");
 }
@@ -60,15 +69,25 @@ export function getDesktopAgentDir(): string {
 export function resolveRuntimePaths(): ResolvedRuntimePaths {
   const hermesHome =
     process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+
+  if (isWindows) {
+    const paths = resolveCopilotRuntimePaths();
+    return {
+      hermesHome,
+      hermesRepo: paths.hermesSourceRoot,
+      hermesVenv: paths.hermesVenv,
+      hermesPython: paths.hermesPython,
+      hermesScript: paths.hermesExe,
+      hermesEnvFile: join(hermesHome, ".env"),
+      hermesConfigFile: join(hermesHome, "config.yaml"),
+      hermesAuthFile: join(hermesHome, "auth.json"),
+    };
+  }
+
   const hermesRepo = getDesktopAgentDir();
   const hermesVenv = join(hermesRepo, "venv");
-
-  const pythonBin = isWindows
-    ? join("Scripts", "python.exe")
-    : join("bin", "python");
-  const scriptBin = isWindows
-    ? join("Scripts", "hermes.exe")
-    : join("bin", "hermes");
+  const pythonBin = join("bin", "python");
+  const scriptBin = join("bin", "hermes");
 
   return {
     hermesHome,
@@ -85,13 +104,15 @@ export function resolveRuntimePaths(): ResolvedRuntimePaths {
 export function getEnhancedPathWin32(): string {
   if (!isWindows) return process.env.PATH || "";
 
-  const loc = resolveInstallLocation();
+  const paths = resolveCopilotRuntimePaths();
   const localAppData =
     process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
   const extra = [
-    loc.binDir,
-    join(loc.agentDir, "venv", "Scripts"),
-    loc.agentDir,
+    paths.binDir,
+    join(paths.hermesVenv, "Scripts"),
+    paths.hermesSourceRoot,
+    join(localAppData, "Programs", "Python", "Python312"),
+    join(localAppData, "Programs", "Python", "Python312", "Scripts"),
     join(localAppData, "Programs", "Python", "Python311"),
     join(localAppData, "Programs", "Python", "Python311", "Scripts"),
   ];

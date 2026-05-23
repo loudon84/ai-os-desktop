@@ -1,6 +1,6 @@
 import { join } from "path";
 import { existsSync } from "fs";
-import { resolveInstallLocation } from "../enterprise/windows/install-location-resolver";
+import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
 
 let _cachedPaths: AiOsPaths | null = null;
 
@@ -13,21 +13,39 @@ export interface AiOsPaths {
   dataDir: string;
 }
 
+function resolvePortalMonorepoRoot(): string {
+  const paths = resolveCopilotRuntimePaths();
+  const portalSource = paths.portalSourceRoot;
+  const portalRuntime = paths.portalRuntimeRoot;
+
+  if (existsSync(join(portalSource, "package.json"))) {
+    return portalSource;
+  }
+  if (existsSync(join(portalRuntime, "package.json"))) {
+    return portalRuntime;
+  }
+
+  const legacyRoot = join(paths.runtimeRoot, "ai-os-full");
+  if (existsSync(join(legacyRoot, "package.json"))) {
+    return legacyRoot;
+  }
+
+  return portalSource;
+}
+
 export function getAiOsPaths(): AiOsPaths {
   if (_cachedPaths) return _cachedPaths;
 
-  const location = resolveInstallLocation();
-  const runtimeRoot = location.runtimeRoot;
-
-  const aiosRoot = join(runtimeRoot, "ai-os-full");
-  const logsDir = join(runtimeRoot, "logs");
-  const dataDir = join(runtimeRoot, "data");
+  const paths = resolveCopilotRuntimePaths();
+  const aiosRoot = resolvePortalMonorepoRoot();
+  const logsDir = join(paths.portalRuntimeRoot, "logs");
+  const dataDir = join(paths.runtimeRoot, "data");
 
   _cachedPaths = {
     aiosRoot,
     backendDir: join(aiosRoot, "backend"),
     frontendDir: join(aiosRoot, "frontend"),
-    envFilePath: join(aiosRoot, ".env.desktop.local"),
+    envFilePath: join(paths.portalRuntimeRoot, ".env.local"),
     logsDir,
     dataDir,
   };
