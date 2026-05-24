@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { ThemeProvider } from "./components/ThemeProvider";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Welcome from "./screens/Welcome/Welcome";
@@ -9,6 +9,7 @@ import { AuthProvider } from "./modules/auth/AuthProvider";
 import { LoginScreen } from "./modules/auth/LoginScreen";
 import SplashScreen from "./screens/SplashScreen/SplashScreen";
 import { useStartupGate } from "./hooks/useStartupGate";
+import { hideAllContentShellLayers } from "./hooks/useShellLayerVisibility";
 
 function App(): React.JSX.Element {
   const { screen, installError, setInstallError, navigateTo, recheck } = useStartupGate();
@@ -44,6 +45,11 @@ function App(): React.JSX.Element {
   function handleRecheck(): void {
     recheck();
   }
+
+  useEffect(() => {
+    if (screen === "main") return;
+    hideAllContentShellLayers();
+  }, [screen]);
 
   function renderScreen(): React.JSX.Element {
     switch (screen) {

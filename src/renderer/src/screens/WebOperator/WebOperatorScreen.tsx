@@ -10,10 +10,12 @@ import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
 export interface WebOperatorScreenProps {
   focusedPanel?: string;
   onFocusedPanelChange?: (panel: string) => void;
+  enabled?: boolean;
 }
 
 export function WebOperatorScreen({
   focusedPanel = "browser-state",
+  enabled = true,
 }: WebOperatorScreenProps): React.JSX.Element {
   const stateRef = useRef<HTMLDivElement>(null);
   const screenshotRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,7 @@ export function WebOperatorScreen({
         <WebContentsHost
           layerId={WEB_OPERATOR_LAYER_ID}
           className="web-operator-layout__viewport"
+          enabled={enabled}
         />
       </div>
 

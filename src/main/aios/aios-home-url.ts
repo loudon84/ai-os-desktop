@@ -45,3 +45,20 @@ export function resolveAiosBackendUrl(): string {
   }
   return getDefaultAuthEndpointConfig().backendUrl;
 }
+
+/** Remote Portal backend health probe URL (Desktop does not spawn backend locally). */
+export function resolveAiosBackendHealthUrl(): string {
+  const base = resolveAiosBackendUrl().replace(/\/+$/, "");
+  return `${base}/health`;
+}
+
+export function parseBackendPortFromUrl(backendUrl: string, fallback = 8000): number {
+  try {
+    const parsed = new URL(backendUrl);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    const match = backendUrl.match(/:(\d+)/);
+    return match ? Number(match[1]) : fallback;
+  }
+}

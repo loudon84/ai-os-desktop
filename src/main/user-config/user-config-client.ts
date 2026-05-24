@@ -108,7 +108,7 @@ function buildLocalBootstrapConfig(session: StoredAuthSession): DesktopBootstrap
       authPrefix: endpoint.authPrefix,
       aiosHomeUrl: endpoint.aiosHomeUrl,
       frontendUrl: endpoint.aiosHomeUrl,
-      autoStart: false,
+      autoStart: true,
     },
   });
 }

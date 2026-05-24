@@ -8,4 +8,13 @@ export default {
   portalUnreachable:
     "Configured Portal Home URL is not reachable: {{url}}. Start your local frontend (e.g. pnpm dev) or check the login endpoint.",
   openRuntimeSettings: "Runtime settings",
+  portalRuntimeTitle: "Portal runtime",
+  portalRuntimeHint:
+    "Portal Backend (:8000) and Frontend (:3000) are separate from Hermes Gateway. The desktop can start them when the Portal monorepo is available; you can also run pnpm dev at the repo root. PostgreSQL is required (default 127.0.0.1:55432).",
+  portalRuntimeApiMissing: "aiosRuntime API is unavailable (preload not loaded)",
+  startPortal: "Start Portal",
+  startingPortal: "Starting…",
+  stopPortal: "Stop",
+  restartPortal: "Restart",
+  portalDoctor: "Doctor",
 } as const;

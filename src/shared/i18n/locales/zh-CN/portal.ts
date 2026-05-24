@@ -8,4 +8,13 @@ export default {
   portalUnreachable:
     "无法访问登录配置的 Portal Home URL：{{url}}。请先启动本地 frontend（如 pnpm dev）或检查登录端点。",
   openRuntimeSettings: "运行时设置",
+  portalRuntimeTitle: "Portal 运行时",
+  portalRuntimeHint:
+    "Portal Backend（:8000）与 Frontend（:3000）独立于 Hermes Gateway。桌面可托管启动；开发时也可在 monorepo 根目录执行 pnpm dev。需 PostgreSQL（默认 127.0.0.1:55432）。",
+  portalRuntimeApiMissing: "aiosRuntime API 不可用（preload 未加载）",
+  startPortal: "启动 Portal",
+  startingPortal: "启动中…",
+  stopPortal: "停止",
+  restartPortal: "重启",
+  portalDoctor: "诊断",
 } as const;

@@ -19,6 +19,8 @@ import { getCopilotServeManagedPid } from "./copilot-serve-runtime-state";
 
 export type { CopilotServePreflightResult };
 
+const PYTHON312_PATTERN = /3\.12(?:\.\d+)?/;
+
 function runCommand(cmd: string, args: string[]): { ok: boolean; output: string } {
   try {
     const output = execFileSync(cmd, args, {
@@ -94,6 +96,47 @@ function checkTool(id: string, label: string, cmd: string, args: string[]): Pref
   };
 }
 
+/** Windows: py -3.12 常未注册；PATH 上的 python/python3.12 也应视为通过。 */
+function checkPython312(): PreflightCheckItem {
+  const candidates: Array<{ cmd: string; args: string[]; label: string }> =
+    process.platform === "win32"
+      ? [
+          { cmd: "python", args: ["--version"], label: "python" },
+          { cmd: "python3.12", args: ["--version"], label: "python3.12" },
+          { cmd: "py", args: ["-3.12", "--version"], label: "py -3.12" },
+          { cmd: "python3", args: ["--version"], label: "python3" },
+        ]
+      : [
+          { cmd: "python3.12", args: ["--version"], label: "python3.12" },
+          { cmd: "python3", args: ["--version"], label: "python3" },
+        ];
+
+  const attempts: string[] = [];
+  for (const c of candidates) {
+    const result = runCommand(c.cmd, c.args);
+    if (result.ok && PYTHON312_PATTERN.test(result.output)) {
+      return {
+        id: "python312",
+        label: "Python 3.12",
+        status: "pass",
+        detail: `${c.label}: ${result.output}`,
+      };
+    }
+    attempts.push(
+      result.ok
+        ? `${c.label}: ${result.output} (not 3.12)`
+        : `${c.label}: ${result.output}`,
+    );
+  }
+
+  return {
+    id: "python312",
+    label: "Python 3.12",
+    status: "fail",
+    detail: attempts.join("; "),
+  };
+}
+
 export async function runCopilotServePreflight(): Promise<CopilotServePreflightResult> {
   const checks: PreflightCheckItem[] = [];
   const serveRoot = resolveCopilotServeRoot();
@@ -102,11 +145,7 @@ export async function runCopilotServePreflight(): Promise<CopilotServePreflightR
 
   checks.push(checkTool("git", "Git", "git", ["--version"]));
 
-  const py312 =
-    process.platform === "win32"
-      ? checkTool("python312", "Python 3.12", "py", ["-3.12", "--version"])
-      : checkTool("python312", "Python 3.12", "python3.12", ["--version"]);
-  checks.push(py312);
+  checks.push(checkPython312());
 
   checks.push(checkTool("uv", "uv", "uv", ["--version"]));
 

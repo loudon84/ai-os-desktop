@@ -246,6 +246,17 @@ LoginScreen
 
 **环境变量**（见 `docs/API_CONTRACTS.md`）：`HERMES_USE_MOCK_AUTH`、`HERMES_USE_MOCK_USER_CONFIG`、`HERMES_USE_REMOTE_USER_CONFIG`。
 
+### Portal 运行时（Desktop 本地仅启 Frontend）
+
+| 能力 | 说明 |
+|------|------|
+| Backend | **不在桌面端本地 spawn**；`startAiOs()` 仅探测 `resolveAiosBackendUrl()` 的 `/health`，状态为 `running` / `degraded` |
+| Frontend | 本地 `pnpm --filter @portal/web start`（默认 `:3000`）；`.env.local` 中 `NEXT_PUBLIC_API_URL` 指向远程 backend |
+| 停止 | `stopAiOs()` / 退出时仅终止 frontend 进程，不 kill 远程 backend |
+| 配置来源 | Login Endpoint / bootstrap 的 `backendUrl`（默认 `http://127.0.0.1:8000`，可为远程） |
+
+实现：`src/main/aios/aios-runtime-supervisor.ts`、`aios-home-url.ts`、`aios-config.ts`。
+
 ## 核心模块
 
 ### 1. Window Manager (C4)

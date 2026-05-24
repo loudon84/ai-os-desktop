@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { BrowserWindow } from "electron";
-import { isAiOsInstalled, getAiOsPaths } from "./aios-paths";
+import { isAiOsInstalled } from "./aios-paths";
 import { writeAiOsEnvFile, getAiOsEnvConfig } from "./aios-config";
-import { resolveAiosHomeUrl } from "./aios-home-url";
-import { spawnBackend, spawnFrontend, runDbMigrate, killProcess, killAllProcesses, getProcess } from "./aios-process";
+import { resolveAiosHomeUrl, resolveAiosBackendUrl, resolveAiosBackendHealthUrl, parseBackendPortFromUrl } from "./aios-home-url";
+import { spawnFrontend, killProcess, killAllProcesses, getProcess } from "./aios-process";
 import { checkPortalHealth, checkServiceHealth, waitForHealth } from "./aios-health";
 import {
   upsertRuntimeService,
@@ -64,10 +64,12 @@ export function initAiOsServices(): void {
   const config = getAiOsEnvConfig();
 
   const copilotServePort = Number(process.env.COPILOT_SERVE_PORT ?? "8765");
+  const backendUrl = resolveAiosBackendUrl();
+  const backendPort = parseBackendPortFromUrl(backendUrl, config.backendPort);
 
   const seed: Array<{ id: AiOsServiceId; type: string; name: string; port: number | null; url: string | null }> = [
     { id: "hermes-gateway", type: "hermes-gateway", name: "Hermes Gateway", port: 8642, url: "http://127.0.0.1:8642" },
-    { id: "aios-backend", type: "aios-backend", name: "Portal Backend", port: config.backendPort, url: `http://127.0.0.1:${config.backendPort}` },
+    { id: "aios-backend", type: "aios-backend", name: "Portal Backend (remote)", port: backendPort, url: backendUrl },
     { id: "aios-frontend", type: "aios-frontend", name: "Portal Frontend", port: config.frontendPort, url: `http://127.0.0.1:${config.frontendPort}` },
     {
       id: "copilot-serve",
@@ -119,6 +121,8 @@ function getSnapshotServiceDefs(): Array<{
   healthUrl: string;
 }> {
   const config = getAiOsEnvConfig();
+  const backendUrl = resolveAiosBackendUrl();
+  const backendHealthUrl = resolveAiosBackendHealthUrl();
 
   return [
     {
@@ -130,10 +134,10 @@ function getSnapshotServiceDefs(): Array<{
     },
     {
       id: "aios-backend",
-      displayName: "Portal Backend",
-      port: config.backendPort,
-      baseUrl: `http://127.0.0.1:${config.backendPort}`,
-      healthUrl: `http://127.0.0.1:${config.backendPort}/health`,
+      displayName: "Portal Backend (remote)",
+      port: parseBackendPortFromUrl(backendUrl, config.backendPort),
+      baseUrl: backendUrl,
+      healthUrl: backendHealthUrl,
     },
     {
       id: "aios-frontend",
@@ -166,10 +170,12 @@ function parsePortalPort(homeUrl: string, fallbackPort: number): number {
 }
 
 function resolveSnapshotServiceStatus(
+  serviceId: AiOsServiceId,
   healthy: boolean,
   dbRecord: ReturnType<typeof getRuntimeService>,
 ): RuntimeServiceStatus {
   if (healthy) return "running";
+  if (serviceId === "aios-backend") return "degraded";
   if (dbRecord?.status === "error") return "error";
   return "stopped";
 }
@@ -186,7 +192,7 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
         def.id === "aios-frontend"
           ? await checkPortalHealth(def.healthUrl)
           : await checkServiceHealth(def.healthUrl);
-      const status = resolveSnapshotServiceStatus(healthy, dbRecord);
+      const status = resolveSnapshotServiceStatus(def.id, healthy, dbRecord);
 
       return {
         service_id: def.id,
@@ -207,7 +213,9 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
     }),
   );
 
-  const ready = services.every((s) => s.status === "running");
+  const ready = services.some(
+    (s) => s.service_id === "aios-frontend" && s.status === "running",
+  );
   const webAppUrl = resolveAiosHomeUrl();
 
   return {
@@ -217,6 +225,40 @@ export async function getAiOsRuntimeSnapshot(): Promise<AiOsRuntimeSnapshot> {
   };
 }
 
+async function probeRemoteBackend(
+  mainWindow: BrowserWindow | null,
+): Promise<void> {
+  const backendUrl = resolveAiosBackendUrl();
+  const healthUrl = resolveAiosBackendHealthUrl();
+  const prev = getRuntimeService("aios-backend");
+  const prevStatus = (prev?.status ?? "stopped") as RuntimeServiceStatus;
+
+  setStatus("aios-backend", "starting");
+  emitStatusChange(mainWindow, "aios-backend", prevStatus, "starting", "Remote health probe");
+  logEvent("aios-backend", "remote-probe", `Probing ${healthUrl}`);
+
+  const healthy = await checkServiceHealth(healthUrl);
+  if (healthy) {
+    setStatus("aios-backend", "running", {
+      pid: null,
+      url: backendUrl,
+      last_health_at: new Date().toISOString(),
+      last_error: null,
+    });
+    emitStatusChange(mainWindow, "aios-backend", "starting", "running");
+    logEvent("aios-backend", "remote-healthy", "Remote backend is reachable");
+    return;
+  }
+
+  setStatus("aios-backend", "degraded", {
+    pid: null,
+    url: backendUrl,
+    last_error: `Remote backend not reachable at ${healthUrl}`,
+  });
+  emitStatusChange(mainWindow, "aios-backend", "starting", "degraded", "Remote backend unreachable");
+  logEvent("aios-backend", "remote-unreachable", `Remote backend not reachable at ${healthUrl}`, "warn");
+}
+
 export async function startAiOs(mainWindow: BrowserWindow | null): Promise<AiOsRuntimeStatus> {
   if (!isAiOsInstalled()) {
     throw new Error("Portal is not installed");
@@ -224,49 +266,14 @@ export async function startAiOs(mainWindow: BrowserWindow | null): Promise<AiOsR
 
   const config = getAiOsEnvConfig();
 
-  // 1. Write .env
+  // 1. Write .env (frontend uses remote backend URL — no local backend spawn)
   writeAiOsEnvFile();
-  logEvent("aios-backend", "env-written", "Generated .env.desktop.local");
+  logEvent("aios-backend", "env-written", "Generated portal env for local frontend + remote backend");
 
-  // 2. Run DB migration
-  setStatus("aios-backend", "starting");
-  emitStatusChange(mainWindow, "aios-backend", "stopped", "starting", "DB migration");
-  logEvent("aios-backend", "db-migrate-start", "Running database migration");
+  // 2. Remote backend — probe only, never spawn locally
+  await probeRemoteBackend(mainWindow);
 
-  const migrateResult = await runDbMigrate();
-  if (!migrateResult.ok) {
-    const errMsg = `DB migration failed: ${migrateResult.error}`;
-    setStatus("aios-backend", "error", { last_error: errMsg });
-    emitStatusChange(mainWindow, "aios-backend", "starting", "error", errMsg);
-    logEvent("aios-backend", "db-migrate-failed", errMsg, "error");
-    return getAiOsRuntimeStatus();
-  }
-  logEvent("aios-backend", "db-migrate-done", "Migration completed");
-
-  // 3. Start backend
-  const backendResult = spawnBackend();
-  setStatus("aios-backend", "starting", {
-    pid: backendResult.pid,
-    started_at: new Date().toISOString(),
-  });
-  logEvent("aios-backend", "process-started", `PID: ${backendResult.pid}`);
-
-  setupProcessExitHandler("aios-backend", mainWindow);
-
-  const backendUrl = `http://127.0.0.1:${config.backendPort}/health`;
-  const backendHealthy = await waitForHealth(backendUrl, 60_000);
-  if (!backendHealthy) {
-    setStatus("aios-backend", "error", { last_error: "Backend health check timed out" });
-    emitStatusChange(mainWindow, "aios-backend", "starting", "error", "Health timeout");
-    logEvent("aios-backend", "health-timeout", "Backend did not become healthy within 60s", "error");
-    return getAiOsRuntimeStatus();
-  }
-
-  setStatus("aios-backend", "running", { last_health_at: new Date().toISOString() });
-  emitStatusChange(mainWindow, "aios-backend", "starting", "running");
-  logEvent("aios-backend", "running", "Backend is healthy");
-
-  // 4. Start frontend
+  // 3. Start frontend
   setStatus("aios-frontend", "starting");
   emitStatusChange(mainWindow, "aios-frontend", "stopped", "starting");
 
@@ -301,7 +308,7 @@ export async function startAiOs(mainWindow: BrowserWindow | null): Promise<AiOsR
 export async function stopAiOs(mainWindow: BrowserWindow | null): Promise<AiOsRuntimeStatus> {
   stopSupervision();
 
-  for (const id of ["aios-frontend", "aios-backend"] as AiOsServiceId[]) {
+  for (const id of ["aios-frontend"] as AiOsServiceId[]) {
     const prev = getRuntimeService(id);
     if (prev && (prev.status === "running" || prev.status === "starting")) {
       setStatus(id, "stopping");
@@ -344,21 +351,38 @@ function startSupervision(mainWindow: BrowserWindow | null): void {
   supervisionTimer = setInterval(async () => {
     const config = getAiOsEnvConfig();
 
-    for (const [id, url] of [
-      ["aios-backend", `http://127.0.0.1:${config.backendPort}/health`],
-      ["aios-frontend", `http://127.0.0.1:${config.frontendPort}`],
-    ] as [AiOsServiceId, string][]) {
-      const svc = getRuntimeService(id);
-      if (!svc || svc.status !== "running") continue;
-
-      const healthy = await checkServiceHealth(url);
-      if (healthy) {
-        updateRuntimeServiceStatus(id, "running", { last_health_at: new Date().toISOString() });
-      } else {
-        setStatus(id, "degraded", { last_error: "Health check failed" });
-        emitStatusChange(mainWindow, id, "running", "degraded", "Health check failed");
-        logEvent(id, "health-failed", "Health check failed", "warn");
+    const backendHealthy = await checkServiceHealth(resolveAiosBackendHealthUrl());
+    const backendSvc = getRuntimeService("aios-backend");
+    if (backendSvc) {
+      const nextStatus: RuntimeServiceStatus = backendHealthy ? "running" : "degraded";
+      if (backendSvc.status !== nextStatus) {
+        setStatus("aios-backend", nextStatus, {
+          pid: null,
+          url: resolveAiosBackendUrl(),
+          last_health_at: backendHealthy ? new Date().toISOString() : backendSvc.last_health_at,
+          last_error: backendHealthy ? null : "Remote backend health check failed",
+        });
+        emitStatusChange(mainWindow, "aios-backend", backendSvc.status as RuntimeServiceStatus, nextStatus);
+      } else if (backendHealthy) {
+        updateRuntimeServiceStatus("aios-backend", "running", {
+          last_health_at: new Date().toISOString(),
+        });
       }
+    }
+
+    const frontendUrl = `http://127.0.0.1:${config.frontendPort}`;
+    const frontendSvc = getRuntimeService("aios-frontend");
+    if (!frontendSvc || frontendSvc.status !== "running") return;
+
+    const frontendHealthy = await checkServiceHealth(frontendUrl);
+    if (frontendHealthy) {
+      updateRuntimeServiceStatus("aios-frontend", "running", {
+        last_health_at: new Date().toISOString(),
+      });
+    } else {
+      setStatus("aios-frontend", "degraded", { last_error: "Health check failed" });
+      emitStatusChange(mainWindow, "aios-frontend", "running", "degraded", "Health check failed");
+      logEvent("aios-frontend", "health-failed", "Health check failed", "warn");
     }
   }, SUPERVISION_INTERVAL_MS);
 }
@@ -374,7 +398,7 @@ export function onBeforeQuit(): void {
   stopSupervision();
   killAllProcesses();
 
-  for (const id of ["aios-backend", "aios-frontend"] as AiOsServiceId[]) {
+  for (const id of ["aios-frontend"] as AiOsServiceId[]) {
     const svc = getRuntimeService(id);
     if (svc && svc.status === "running") {
       setStatus(id, "stopped", { stopped_at: new Date().toISOString(), pid: null });

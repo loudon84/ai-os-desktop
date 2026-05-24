@@ -8,6 +8,8 @@ import {
 export interface WebContentsHostProps {
   layerId: string;
   className?: string;
+  /** When false, skip setBounds and hide the native layer (KeepAlive / tab switch). */
+  enabled?: boolean;
 }
 
 function waitFrame(): Promise<void> {
@@ -19,6 +21,7 @@ function waitFrame(): Promise<void> {
 export function WebContentsHost({
   layerId,
   className,
+  enabled = true,
 }: WebContentsHostProps): React.JSX.Element {
   const outerRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -35,14 +38,23 @@ export function WebContentsHost({
     );
   }, []);
 
+  const hideLayer = useCallback(async (): Promise<void> => {
+    if (!hiddenRef.current) {
+      await window.shellView.hide(layerId).catch(() => {});
+      hiddenRef.current = true;
+    }
+  }, [layerId]);
+
   const syncBounds = useCallback(async (): Promise<boolean> => {
+    if (!enabled) {
+      await hideLayer();
+      return false;
+    }
+
     const bounds = readBounds();
 
     if (!bounds || bounds.width < 1 || bounds.height < 1) {
-      if (!hiddenRef.current) {
-        await window.shellView.hide(layerId).catch(() => {});
-        hiddenRef.current = true;
-      }
+      await hideLayer();
       return false;
     }
 
@@ -56,7 +68,7 @@ export function WebContentsHost({
       setError(true);
       return false;
     }
-  }, [readBounds, layerId]);
+  }, [enabled, hideLayer, readBounds, layerId]);
 
   const syncBoundsWithRetry = useCallback(async (): Promise<void> => {
     if (await syncBounds()) return;
@@ -68,6 +80,10 @@ export function WebContentsHost({
   }, [syncBounds]);
 
   useLayoutEffect(() => {
+    if (!enabled) {
+      void hideLayer();
+      return;
+    }
     void syncBoundsWithRetry();
     const retryTimers = [100, 300, 600].map((ms) =>
       setTimeout(() => {
@@ -77,7 +93,7 @@ export function WebContentsHost({
     return () => {
       for (const timer of retryTimers) clearTimeout(timer);
     };
-  }, [layerId, syncBoundsWithRetry]);
+  }, [enabled, hideLayer, layerId, syncBoundsWithRetry]);
 
   useEffect(() => {
     let disposed = false;
@@ -105,8 +121,11 @@ export function WebContentsHost({
     const intersectionObserver = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry?.isIntersecting && entry.intersectionRatio > 0) {
+        if (!entry) return;
+        if (entry.isIntersecting && entry.intersectionRatio > 0) {
           void syncBoundsWithRetry();
+        } else {
+          void hideLayer();
         }
       },
       { threshold: [0, 0.01, 0.1, 1] },
@@ -124,7 +143,7 @@ export function WebContentsHost({
       hiddenRef.current = true;
       void window.shellView.hide(layerId).catch(() => {});
     };
-  }, [layerId, syncBoundsWithRetry]);
+  }, [hideLayer, layerId, syncBoundsWithRetry]);
 
   if (error) {
     return (

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, type ChildProcess, type SpawnOptions } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { HERMES_HOME, getHermesPython, getHermesRepo, getHermesScript } from "./installer";
@@ -16,6 +16,25 @@ import { startCollecting, stopCollecting } from "./gateway-log-collector";
 const HEALTH_TIMEOUT_MS = 1500;
 
 const gatewayProcesses = new Map<string, ChildProcess>();
+
+/** team_v1.8: Windows 下隐藏 Hermes gateway 控制台窗口 */
+export function buildHermesGatewaySpawnOptions(
+  env: Record<string, string>,
+  cwd: string,
+): SpawnOptions {
+  return {
+    cwd,
+    env: {
+      ...env,
+      PYTHONUNBUFFERED: "1",
+      PYTHONIOENCODING: "utf-8",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
+    windowsHide: process.platform === "win32",
+    shell: false,
+  };
+}
 
 function profileHome(name?: string): string {
   if (!name || name === "default") return HERMES_HOME;
@@ -51,7 +70,15 @@ export const hermesLocalAdapter: RuntimeAdapter = {
   async validate(profileId: string): Promise<void> {
     const profile = getProfile(profileId);
     if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
-    if (!existsSync(getHermesRepo())) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", "hermes-agent not found");
+    if (!existsSync(getHermesRepo())) {
+      throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", "hermes-agent source not found");
+    }
+    if (!existsSync(getHermesScript())) {
+      throw new ProfileRuntimeError(
+        "PROFILE_RUNTIME_NOT_DEPLOYED",
+        `Hermes CLI not found at ${getHermesScript()}. Complete agent install in Settings.`,
+      );
+    }
   },
 
   async deploy(profileId: string): Promise<void> {
@@ -117,17 +144,30 @@ export const hermesLocalAdapter: RuntimeAdapter = {
     env.HERMES_GATEWAY_HOST = instance.host;
     env.HERMES_GATEWAY_PORT = String(instance.port);
 
-    const proc = spawn(getHermesScript(), ["gateway"], {
-      cwd: getHermesRepo(),
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
-    });
+    const hermesScript = getHermesScript();
+    const hermesRepo = getHermesRepo();
+    if (!existsSync(hermesScript)) {
+      throw new ProfileRuntimeError(
+        "PROFILE_RUNTIME_NOT_DEPLOYED",
+        `Hermes CLI not found at ${hermesScript}`,
+      );
+    }
+
+    const proc = spawn(
+      hermesScript,
+      ["gateway"],
+      buildHermesGatewaySpawnOptions(env, hermesRepo),
+    );
     proc.unref();
 
     gatewayProcesses.set(profileId, proc);
 
     startCollecting(profileId, proc);
+
+    let spawnErrorMessage: string | null = null;
+    proc.on("error", (err) => {
+      spawnErrorMessage = err.message;
+    });
 
     proc.on("exit", (code, signal) => {
       gatewayProcesses.delete(profileId);
@@ -145,10 +185,24 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       }
     });
 
+    await new Promise((r) => setTimeout(r, 500));
+    if (spawnErrorMessage) {
+      updateRuntimeStatus(profileId, "failed", { lastError: spawnErrorMessage });
+      throw new ProfileRuntimeError("PROFILE_RUNTIME_START_FAILED", spawnErrorMessage);
+    }
+    if (proc.exitCode !== null) {
+      const msg = `Gateway exited immediately (code ${proc.exitCode})`;
+      updateRuntimeStatus(profileId, "failed", { lastError: msg });
+      throw new ProfileRuntimeError("PROFILE_RUNTIME_START_FAILED", msg);
+    }
+
     const healthy = await waitForHealth(instance.host, instance.port);
     if (!healthy) {
-      updateRuntimeStatus(profileId, "failed", { lastError: "Health check timeout after start" });
-      throw new ProfileRuntimeError("PROFILE_GATEWAY_HEALTH_TIMEOUT");
+      const detail = spawnErrorMessage
+        ? spawnErrorMessage
+        : `no response on http://${instance.host}:${instance.port}/health`;
+      updateRuntimeStatus(profileId, "failed", { lastError: `Health check timeout: ${detail}` });
+      throw new ProfileRuntimeError("PROFILE_GATEWAY_HEALTH_TIMEOUT", detail);
     }
 
     updateRuntimeStatus(profileId, "running", {

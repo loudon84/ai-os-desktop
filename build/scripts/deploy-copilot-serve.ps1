@@ -20,6 +20,63 @@ function Assert-LastExit([string]$Step) {
     }
 }
 
+# git/uv 常把进度写到 stderr；在 Stop 模式下会误报为失败，仅以 $LASTEXITCODE 为准。
+function Invoke-DeployNative([string]$Step, [scriptblock]$Command) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Command 2>&1 | ForEach-Object {
+            $text = if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { "$_" }
+            if ($text) { Write-DeployLog $text }
+        }
+        Assert-LastExit $Step
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
+function Invoke-DeployNativeRetry([string]$Step, [int]$MaxAttempts, [scriptblock]$Command) {
+    $attempt = 0
+    $lastError = $null
+    while ($attempt -lt $MaxAttempts) {
+        $attempt++
+        try {
+            if ($attempt -gt 1) {
+                Write-DeployLog "$Step retry $attempt/$MaxAttempts..."
+                Start-Sleep -Seconds ([Math]::Min(15, 3 * $attempt))
+            }
+            Invoke-DeployNative $Step $Command
+            return
+        } catch {
+            $lastError = $_
+            Write-DeployLog "$Step attempt $attempt failed: $_"
+        }
+    }
+    throw $lastError
+}
+
+function Remove-ServeRootTree {
+    if (Test-Path $ServeRoot) {
+        Write-DeployLog "Removing $ServeRoot for fresh clone"
+        Remove-Item -Recurse -Force $ServeRoot -ErrorAction Stop
+    }
+}
+
+function Clone-ServeRepoFresh {
+    $parent = Split-Path $ServeRoot -Parent
+    if (-not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    Write-DeployLog "git clone $RepoUrl (branch $Branch) -> $ServeRoot"
+    Invoke-DeployNativeRetry "git clone" 3 {
+        git -c http.postBuffer=524288000 `
+            -c http.lowSpeedLimit=0 `
+            -c http.lowSpeedTime=999999 `
+            -c http.version=HTTP/1.1 `
+            clone --branch $Branch --depth 1 --single-branch $RepoUrl $ServeRoot
+    }
+}
+
 function Write-DeployLog([string]$Message) {
     $line = "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
     Write-Host $line
@@ -43,8 +100,10 @@ function Test-Git {
 
 function Get-Python312 {
     $candidates = @(
+        @{ Cmd = "python"; Args = @() },
+        @{ Cmd = "python3.12"; Args = @() },
         @{ Cmd = "py"; Args = @("-3.12") },
-        @{ Cmd = "python"; Args = @() }
+        @{ Cmd = "python3"; Args = @() }
     )
     foreach ($c in $candidates) {
         try {
@@ -68,27 +127,41 @@ function Ensure-Uv {
 }
 
 function Sync-Repo {
-    New-Item -ItemType Directory -Path $ServeRoot -Force | Out-Null
-    if (Test-Path (Join-Path $ServeRoot ".git")) {
-        Write-DeployLog "git pull in $ServeRoot"
+    $pyproject = Join-Path $ServeRoot "pyproject.toml"
+    $gitDir = Join-Path $ServeRoot ".git"
+    $repoComplete = (Test-Path $pyproject) -and (Test-Path $gitDir)
+
+    if ($Force -or -not $repoComplete) {
+        Remove-ServeRootTree
+        Clone-ServeRepoFresh
+    } else {
+        Write-DeployLog "git update in $ServeRoot (shallow fetch)"
+        $updateFailed = $false
         Push-Location $ServeRoot
         try {
-            & git fetch origin $Branch 2>&1 | ForEach-Object { Write-DeployLog $_ }
-            & git checkout $Branch 2>&1 | ForEach-Object { Write-DeployLog $_ }
-            & git pull origin $Branch 2>&1 | ForEach-Object { Write-DeployLog $_ }
+            Invoke-DeployNativeRetry "git fetch" 3 {
+                git -c http.postBuffer=524288000 `
+                    -c http.lowSpeedLimit=0 `
+                    -c http.lowSpeedTime=999999 `
+                    -c http.version=HTTP/1.1 `
+                    fetch --depth 1 origin $Branch
+            }
+            Invoke-DeployNative "git checkout" { git checkout -f $Branch }
+            Invoke-DeployNative "git reset" { git reset --hard "origin/$Branch" }
+        } catch {
+            Write-DeployLog "git update failed ($_), re-cloning fresh..."
+            $updateFailed = $true
         } finally {
             Pop-Location
         }
-    } else {
-        if ($Force -and (Test-Path $ServeRoot) -and ((Get-ChildItem $ServeRoot -Force | Measure-Object).Count -gt 0)) {
-            Write-DeployLog "Force: clearing $ServeRoot"
-            Remove-Item -Recurse -Force (Join-Path $ServeRoot "*") -ErrorAction SilentlyContinue
+        if ($updateFailed) {
+            Remove-ServeRootTree
+            Clone-ServeRepoFresh
         }
-        Write-DeployLog "git clone $RepoUrl -> $ServeRoot"
-        & git clone --branch $Branch --depth 1 $RepoUrl $ServeRoot 2>&1 | ForEach-Object { Write-DeployLog $_ }
     }
-    if (-not (Test-Path (Join-Path $ServeRoot "pyproject.toml"))) {
-        throw "pyproject.toml missing after clone"
+
+    if (-not (Test-Path $pyproject)) {
+        throw "pyproject.toml missing after sync (network or branch '$Branch' unavailable?)"
     }
 }
 
@@ -155,18 +228,15 @@ try {
         }
         if (-not (Test-Path ".venv\Scripts\python.exe")) {
             Write-DeployLog "uv venv --python 3.12"
-            & uv venv --python 3.12 2>&1 | ForEach-Object { Write-DeployLog $_ }
-            Assert-LastExit "uv venv"
+            Invoke-DeployNative "uv venv" { uv venv --python 3.12 }
         }
         Write-DeployLog "uv sync --extra service"
-        & uv sync --extra service 2>&1 | ForEach-Object { Write-DeployLog $_ }
-        Assert-LastExit "uv sync --extra service"
+        Invoke-DeployNative "uv sync --extra service" { uv sync --extra service }
 
         Write-ServeEnv
 
         Write-DeployLog "alembic upgrade head"
-        & uv run alembic upgrade head 2>&1 | ForEach-Object { Write-DeployLog $_ }
-        Assert-LastExit "alembic upgrade head"
+        Invoke-DeployNative "alembic upgrade head" { uv run alembic upgrade head }
     } finally {
         Pop-Location
     }

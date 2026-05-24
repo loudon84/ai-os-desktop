@@ -4,6 +4,7 @@ import { isAiOsInstalled, getAiOsPaths } from "./aios-paths";
 import { getAiOsEnvConfig } from "./aios-config";
 import { isPortAvailable } from "./aios-port-check";
 import { checkServiceHealth } from "./aios-health";
+import { resolveAiosBackendHealthUrl, resolveAiosBackendUrl } from "./aios-home-url";
 
 export type DoctorCheckStatus = "pass" | "warning" | "error" | "skipped";
 
@@ -66,39 +67,32 @@ async function checkAiOsSourceInstalled(): Promise<DoctorCheckResult> {
 
 async function checkPortAvailability(): Promise<DoctorCheckResult> {
   const config = getAiOsEnvConfig();
-  const ports = [config.backendPort, config.frontendPort];
-  const conflicts: number[] = [];
+  const port = config.frontendPort;
 
-  for (const port of ports) {
-    if (!(await isPortAvailable(port))) {
-      conflicts.push(port);
-    }
+  if (!(await isPortAvailable(port))) {
+    return {
+      name: "Port Availability",
+      status: "warning",
+      message: `Frontend port ${port} in use`,
+      detail: "Port may be occupied by a running Portal frontend or another application",
+    };
   }
-
-  if (conflicts.length > 0) {
-    return { name: "Port Availability", status: "warning", message: `Ports in use: ${conflicts.join(", ")}`, detail: "These ports may be occupied by running services or other applications" };
-  }
-  return { name: "Port Availability", status: "pass", message: `Ports ${ports.join(", ")} available` };
+  return { name: "Port Availability", status: "pass", message: `Frontend port ${port} available` };
 }
 
-async function checkPostgresConnection(): Promise<DoctorCheckResult> {
-  const config = getAiOsEnvConfig();
-  if (!config.databaseUrl) {
-    return { name: "PostgreSQL", status: "warning", message: "DATABASE_URL not configured" };
+async function checkRemoteBackend(): Promise<DoctorCheckResult> {
+  const backendUrl = resolveAiosBackendUrl();
+  const healthUrl = resolveAiosBackendHealthUrl();
+  const healthy = await checkServiceHealth(healthUrl);
+  if (healthy) {
+    return { name: "Portal Backend (remote)", status: "pass", message: `Reachable at ${backendUrl}` };
   }
-
-  try {
-    const url = new URL(config.databaseUrl);
-    const host = url.hostname;
-    const port = parseInt(url.port || "5432", 10);
-    const available = !(await isPortAvailable(port, host));
-    if (available) {
-      return { name: "PostgreSQL", status: "pass", message: `PostgreSQL reachable at ${host}:${port}` };
-    }
-    return { name: "PostgreSQL", status: "error", message: `PostgreSQL not reachable at ${host}:${port}` };
-  } catch {
-    return { name: "PostgreSQL", status: "error", message: "Invalid DATABASE_URL format" };
-  }
+  return {
+    name: "Portal Backend (remote)",
+    status: "warning",
+    message: `Not reachable at ${healthUrl}`,
+    detail: "Configure backend URL in login endpoint settings; Desktop does not start backend locally",
+  };
 }
 
 async function checkGatewayHealth(): Promise<DoctorCheckResult> {
@@ -116,7 +110,7 @@ export async function runAiOsDoctor(): Promise<AiOsDoctorReport> {
     checkPnpmInstalled(),
     checkAiOsSourceInstalled(),
     checkPortAvailability(),
-    checkPostgresConnection(),
+    checkRemoteBackend(),
     checkGatewayHealth(),
   ]);
 

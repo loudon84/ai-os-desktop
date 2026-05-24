@@ -1,5 +1,6 @@
-import { join } from "path";
+import { join, dirname } from "path";
 import { existsSync } from "fs";
+import { app } from "electron";
 import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
 
 let _cachedPaths: AiOsPaths | null = null;
@@ -13,24 +14,59 @@ export interface AiOsPaths {
   dataDir: string;
 }
 
-function resolvePortalMonorepoRoot(): string {
+function isPortalMonorepoRoot(dir: string): boolean {
+  if (!dir) return false;
+  return (
+    existsSync(join(dir, "package.json")) &&
+    existsSync(join(dir, "backend")) &&
+    existsSync(join(dir, "frontend"))
+  );
+}
+
+function portalMonorepoCandidates(): string[] {
   const paths = resolveCopilotRuntimePaths();
-  const portalSource = paths.portalSourceRoot;
-  const portalRuntime = paths.portalRuntimeRoot;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const add = (raw: string | undefined): void => {
+    if (!raw) return;
+    const normalized = raw.trim();
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    out.push(normalized);
+  };
 
-  if (existsSync(join(portalSource, "package.json"))) {
-    return portalSource;
-  }
-  if (existsSync(join(portalRuntime, "package.json"))) {
-    return portalRuntime;
+  add(process.env.COPILOT_PORTAL_ROOT);
+
+  try {
+    const appPath = app.getAppPath();
+    add(appPath);
+    add(dirname(appPath));
+    add(join(appPath, ".."));
+    add(join(appPath, "../.."));
+  } catch {
+    /* app not ready */
   }
 
-  const legacyRoot = join(paths.runtimeRoot, "ai-os-full");
-  if (existsSync(join(legacyRoot, "package.json"))) {
-    return legacyRoot;
+  // out/main → copilot-desktop → smc-coworker-full (portal monorepo parent)
+  add(join(__dirname, "../.."));
+  add(join(__dirname, "../../.."));
+
+  add(paths.portalSourceRoot);
+  add(paths.portalRuntimeRoot);
+  add(join(paths.runtimeRoot, "ai-os-full"));
+
+  return out;
+}
+
+function resolvePortalMonorepoRoot(): string {
+  for (const candidate of portalMonorepoCandidates()) {
+    if (isPortalMonorepoRoot(candidate)) {
+      return candidate;
+    }
   }
 
-  return portalSource;
+  const paths = resolveCopilotRuntimePaths();
+  return paths.portalSourceRoot;
 }
 
 export function getAiOsPaths(): AiOsPaths {
@@ -54,8 +90,7 @@ export function getAiOsPaths(): AiOsPaths {
 }
 
 export function isAiOsInstalled(): boolean {
-  const paths = getAiOsPaths();
-  return existsSync(paths.aiosRoot) && existsSync(join(paths.aiosRoot, "package.json"));
+  return isPortalMonorepoRoot(getAiOsPaths().aiosRoot);
 }
 
 export function clearPathCache(): void {

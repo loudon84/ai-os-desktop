@@ -399,6 +399,11 @@ function setupIPC(): void {
       const win = BrowserWindow.getFocusedWindow();
       return win ? win.isMaximized() : false;
     });
+
+    ipcMain.handle("app:quit", () => {
+      isQuitting = true;
+      app.quit();
+    });
     
     console.log("[SETUP] Window control handlers registered directly");
   } catch (err) {
@@ -1387,9 +1392,9 @@ app.whenReady().then(async () => {
     // Portal Runtime IPC
     try {
       registerAiosIpc(mainWindow);
-      console.log("[AIOS] AIOS IPC handlers registered successfully");
+      console.log("[AIOS] IPC handlers registered successfully");
     } catch (err) {
-      console.error("[AIOS] Failed to register AIOS IPC:", err);
+      console.error("[AIOS] Failed to register IPC:", err);
     }
 
     try {

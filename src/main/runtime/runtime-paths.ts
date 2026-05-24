@@ -48,6 +48,41 @@ function hasPythonProject(dir: string): boolean {
   }
 }
 
+function resolveHermesVenvDir(agentRoot: string): string | null {
+  for (const venvName of ["venv", ".venv"]) {
+    const venv = join(agentRoot, venvName);
+    if (
+      existsSync(join(venv, pythonBin())) &&
+      existsSync(join(venv, hermesExeBin()))
+    ) {
+      return venv;
+    }
+  }
+  return null;
+}
+
+/** Legacy Hermes Desktop installs outside the current `$INSTDIR/runtime`. */
+function externalLegacyHermesAgentRoots(): string[] {
+  const localAppData =
+    process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  return [
+    join(localAppData, "HermesDesktop", "hermes-agent"),
+    join(localAppData, "Programs", "HermesDesktop", "hermes-agent"),
+    join(localAppData, "Programs", "Hermes Agent", "hermes-agent"),
+    join(localAppData, "AIOS-Hermes", "hermes-agent"),
+    join(homedir(), ".hermes", "hermes-agent"),
+  ];
+}
+
+function hermesLayoutHasCli(layout: {
+  hermesVenv: string;
+}): boolean {
+  return (
+    existsSync(join(layout.hermesVenv, pythonBin())) &&
+    existsSync(join(layout.hermesVenv, hermesExeBin()))
+  );
+}
+
 function resolveHermesLayout(runtimeRoot: string): {
   hermesRuntimeRoot: string;
   hermesSourceRoot: string;
@@ -58,8 +93,14 @@ function resolveHermesLayout(runtimeRoot: string): {
   const standardVenv = join(hermesRuntimeRoot, "venv");
   const legacyAgent = join(runtimeRoot, "hermes-agent");
 
+  let layout: {
+    hermesRuntimeRoot: string;
+    hermesSourceRoot: string;
+    hermesVenv: string;
+  };
+
   if (hasPythonProject(standardSource)) {
-    return {
+    layout = {
       hermesRuntimeRoot,
       hermesSourceRoot: standardSource,
       hermesVenv: existsSync(standardVenv)
@@ -70,34 +111,47 @@ function resolveHermesLayout(runtimeRoot: string): {
             ? join(legacyAgent, ".venv")
             : standardVenv,
     };
-  }
-
-  if (hasPythonProject(legacyAgent)) {
+  } else if (hasPythonProject(legacyAgent)) {
     const legacyVenv = existsSync(join(legacyAgent, "venv"))
       ? join(legacyAgent, "venv")
       : existsSync(join(legacyAgent, ".venv"))
         ? join(legacyAgent, ".venv")
         : standardVenv;
-    return {
+    layout = {
       hermesRuntimeRoot,
       hermesSourceRoot: legacyAgent,
       hermesVenv: legacyVenv,
     };
-  }
-
-  if (hasPythonProject(hermesRuntimeRoot)) {
-    return {
+  } else if (hasPythonProject(hermesRuntimeRoot)) {
+    layout = {
       hermesRuntimeRoot,
       hermesSourceRoot: hermesRuntimeRoot,
       hermesVenv: existsSync(standardVenv) ? standardVenv : join(hermesRuntimeRoot, "venv"),
     };
+  } else {
+    layout = {
+      hermesRuntimeRoot,
+      hermesSourceRoot: standardSource,
+      hermesVenv: standardVenv,
+    };
   }
 
-  return {
-    hermesRuntimeRoot,
-    hermesSourceRoot: standardSource,
-    hermesVenv: standardVenv,
-  };
+  if (hermesLayoutHasCli(layout)) {
+    return layout;
+  }
+
+  for (const agentRoot of externalLegacyHermesAgentRoots()) {
+    if (!hasPythonProject(agentRoot)) continue;
+    const venv = resolveHermesVenvDir(agentRoot);
+    if (!venv) continue;
+    return {
+      hermesRuntimeRoot,
+      hermesSourceRoot: agentRoot,
+      hermesVenv: venv,
+    };
+  }
+
+  return layout;
 }
 
 function resolveServeLayout(runtimeRoot: string): {

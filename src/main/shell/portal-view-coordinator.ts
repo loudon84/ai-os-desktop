@@ -50,12 +50,6 @@ function readVisibleBounds(
     return { active: true, bounds };
   }
 
-  // After deactivateView bounds are 0×0; restore from last Renderer setBounds.
-  const last = svm.getLastActivationBounds("portal");
-  if (last) {
-    return { active: true, bounds: last };
-  }
-
   return { active: false, bounds: null };
 }
 

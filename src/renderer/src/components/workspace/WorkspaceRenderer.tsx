@@ -42,7 +42,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
   if (typeof workspaceId === "string" && workspaceId.startsWith("external-browser:")) {
     return (
       <WorkspaceShell>
-        <WebViewWorkspace layerId={workspaceId} />
+        <WebViewWorkspace layerId={workspaceId} enabled />
       </WorkspaceShell>
     );
   }
@@ -58,6 +58,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
         <ReactWorkspace active={workspaceId === "portal"}>
           <WorkspaceShell>
             <PortalScreen
+              enabled={workspaceId === "portal"}
               onNavigate={onNavigate}
               onOpenRuntimeSettings={() => onOpenSettingsDrawer?.("runtime")}
             />
@@ -68,6 +69,7 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
       return (
         <CompositeWorkspace active={workspaceId === "web-operator"}>
           <WebOperatorScreen
+            enabled={workspaceId === "web-operator"}
             focusedPanel={secondaryPanel}
             onFocusedPanelChange={onSecondaryPanelChange}
           />

@@ -1,6 +1,7 @@
 import { getRuntimeService, updateRuntimeServiceStatus, listRuntimeServices } from "../profile-runtime-db";
 import { checkServiceHealth } from "./aios-health";
 import { isPortAvailable } from "./aios-port-check";
+import { resolveAiosBackendHealthUrl, resolveAiosBackendUrl } from "./aios-home-url";
 import type { AiOsServiceId, RuntimeServiceStatus } from "../../shared/aios/aios-contract";
 
 export interface ReconcileCorrection {
@@ -21,6 +22,26 @@ export async function reconcileAiOsRuntime(): Promise<AiOsReconcileResult> {
   for (const svc of services) {
     const serviceId = svc.service_id as AiOsServiceId;
     const prevStatus = svc.status as RuntimeServiceStatus;
+
+    if (serviceId === "aios-backend") {
+      const healthy = await checkServiceHealth(resolveAiosBackendHealthUrl());
+      const nextStatus: RuntimeServiceStatus = healthy ? "running" : "degraded";
+      updateRuntimeServiceStatus(serviceId, nextStatus, {
+        pid: null,
+        url: resolveAiosBackendUrl(),
+        last_health_at: healthy ? new Date().toISOString() : svc.last_health_at,
+        last_error: healthy ? null : "Remote backend health check failed",
+      });
+      if (prevStatus !== nextStatus) {
+        corrections.push({
+          serviceId,
+          previousStatus: prevStatus,
+          correctedStatus: nextStatus,
+          reason: healthy ? "Remote backend is reachable" : "Remote backend unreachable",
+        });
+      }
+      continue;
+    }
 
     if (prevStatus === "running" || prevStatus === "starting") {
       if (!svc.port) continue;
