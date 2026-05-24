@@ -27,4 +27,5 @@ export default {
   aiosHomeUrl: "Portal Home URL",
   signingIn: "Signing in…",
   notSignedIn: "Not signed in",
+  exitApp: "Exit",
 } as const;

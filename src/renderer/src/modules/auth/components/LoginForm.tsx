@@ -11,6 +11,7 @@ export interface LoginFormProps {
   error: string | null;
   busy: boolean;
   disabled?: boolean;
+  onExit?: () => void;
 }
 
 function isValidEmail(value: string): boolean {
@@ -26,6 +27,7 @@ export function LoginForm({
   error,
   busy,
   disabled,
+  onExit,
 }: LoginFormProps): React.JSX.Element {
   const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
@@ -109,6 +111,12 @@ export function LoginForm({
         {busy ? <Loader2 className="login-submit-spinner" aria-hidden /> : null}
         {busy ? t("auth.signingIn") : t("auth.login")}
       </button>
+
+      {onExit ? (
+        <button type="button" disabled={formDisabled} className="login-exit-btn" onClick={onExit}>
+          {t("auth.exitApp")}
+        </button>
+      ) : null}
     </form>
   );
 }

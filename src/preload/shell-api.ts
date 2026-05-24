@@ -40,4 +40,9 @@ export const shellApi = {
    */
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("open-external", url),
+
+  /**
+   * 退出应用（绕过「关闭到托盘」）
+   */
+  quitApp: (): Promise<void> => ipcRenderer.invoke("app:quit"),
 };

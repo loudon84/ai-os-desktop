@@ -25,6 +25,7 @@ import type { MainPagePersistedState } from "../../../../shared/shell/main-page-
 import { defaultSecondaryPanel } from "../../../../shared/workspace/workspace-secondary-nav";
 import { isStaticWorkspaceId } from "../../workspace/workspace-registry";
 import type { StaticWorkspaceId } from "../../../../shared/workspace/workspace-contract";
+import { useShellLayerVisibility } from "../../hooks/useShellLayerVisibility";
 
 function isValidRestoredView(
   view: string | undefined,
@@ -86,6 +87,12 @@ function Layout(): React.JSX.Element {
   const draggableTabIds = useMemo(
     () => externalTabs.map((t) => t.id as string),
     [externalTabs],
+  );
+
+  useShellLayerVisibility(
+    navigation.view,
+    draggableTabIds,
+    hydrated,
   );
 
   useEffect(() => {

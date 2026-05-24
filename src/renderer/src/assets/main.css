@@ -4296,7 +4296,7 @@ body {
    SCROLLBAR
    ======================================================================== */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 3px;
 }
 
 ::-webkit-scrollbar-track {
@@ -4305,7 +4305,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 3px;
+  border-radius: 1px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -4952,4 +4952,9 @@ body {
 ::selection {
   background: var(--selection);
   color: var(--text-primary);
+}
+
+
+body {
+  margin: 0px!important;
 }

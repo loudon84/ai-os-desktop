@@ -597,6 +597,11 @@ interface SmcShellAPI {
    * 打开外部链接
    */
   openExternal: (url: string) => Promise<void>;
+
+  /**
+   * 退出应用（绕过「关闭到托盘」）
+   */
+  quitApp: () => Promise<void>;
 }
 
 interface ShellViewBoundsIPC {

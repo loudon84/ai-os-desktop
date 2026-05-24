@@ -8,6 +8,7 @@ import { ConfigDiffConfirmDrawer } from "./ConfigDiffConfirmDrawer";
 import { EndpointConfigPanel } from "./components/EndpointConfigPanel";
 import { LoginForm } from "./components/LoginForm";
 import { readLastLoginEmail, saveLastLoginEmail } from "./last-login-email";
+import { hideAllContentShellLayers } from "../../hooks/useShellLayerVisibility";
 import "./styles/login.css";
 
 export interface LoginScreenProps {
@@ -113,26 +114,36 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
     }
   };
 
-  if (loadingState || bootstrapping || awaitingConfigConfirm) {
+  const handleExit = (): void => {
+    void window.smcShell.quitApp();
+  };
+
+  useEffect(() => {
+    hideAllContentShellLayers();
+  }, []);
+
+  useEffect(() => {
+    if (loadingState || bootstrapping || awaitingConfigConfirm) {
+      hideAllContentShellLayers();
+    }
+  }, [loadingState, bootstrapping, awaitingConfigConfirm]);
+
+  if (loadingState || bootstrapping) {
+    return <BootstrapScreen state={bootstrapping ? "bootstrapping" : "checking-session"} />;
+  }
+
+  if (awaitingConfigConfirm) {
     return (
-      <>
-        <BootstrapScreen
-          state={
-            bootstrapping
-              ? "bootstrapping"
-              : awaitingConfigConfirm
-                ? "awaiting-config-confirm"
-                : "checking-session"
-          }
-        />
+      <div className="login-screen">
         <ConfigDiffConfirmDrawer
-          open={awaitingConfigConfirm}
+          open
+          variant="login"
           result={pendingBootstrapDiff}
           preventBackdropDismiss
           onClose={() => setPendingBootstrapDiff(null)}
           onApplied={() => void handleConfigApplied()}
         />
-      </>
+      </div>
     );
   }
 
@@ -158,6 +169,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
           onSubmit={(e) => void handleSubmit(e)}
           error={error}
           busy={bootstrapping}
+          onExit={handleExit}
         />
       </div>
     </div>
