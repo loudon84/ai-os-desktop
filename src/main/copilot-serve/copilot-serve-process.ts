@@ -165,6 +165,9 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
       SQLITE_PATH: paths.sqlitePath,
       COPILOT_DESKTOP_TOKEN: desktopToken,
       COPILOT_REQUIRE_TOKEN: "true",
+      CORS_ALLOW_ORIGINS:
+        process.env.CORS_ALLOW_ORIGINS ??
+        "http://127.0.0.1,http://localhost,http://localhost:5173,http://127.0.0.1:5173",
       COPILOT_SERVE_ROOT: paths.serveRoot,
       COPILOT_SERVE_PYTHON: python === "py" ? "" : python,
     }),
