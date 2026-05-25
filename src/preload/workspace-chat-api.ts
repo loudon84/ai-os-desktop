@@ -1,9 +1,10 @@
-import { ipcRenderer } from "electron";
+import { ipcRenderer, webUtils } from "electron";
 import type {
   ChatModelListResponse,
   ProfileChatModelConfig,
   ResolvedProfile,
   SetProfileChatModelConfigPayload,
+  UploadWorkspaceAttachmentBuffer,
   UploadWorkspaceAttachmentsPayload,
   UploadWorkspaceAttachmentsResponse,
   WorkspaceChatChunkEvent,
@@ -40,6 +41,53 @@ export const workspaceChatApi = {
     payload: UploadWorkspaceAttachmentsPayload,
   ): Promise<UploadWorkspaceAttachmentsResponse> {
     return ipcRenderer.invoke("workspace-chat:upload-attachments", payload);
+  },
+
+  async uploadDroppedAttachments(
+    payload: UploadWorkspaceAttachmentsPayload,
+    files: FileList,
+  ): Promise<UploadWorkspaceAttachmentsResponse> {
+    if (files.length === 0) {
+      return { attachments: [] };
+    }
+    const file_paths: string[] = [];
+    const buffers: UploadWorkspaceAttachmentBuffer[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files.item(i);
+      if (!file) continue;
+      try {
+        file_paths.push(webUtils.getPathForFile(file));
+      } catch {
+        const data = await file.arrayBuffer();
+        buffers.push({
+          name: file.name,
+          mime_type: file.type || "application/octet-stream",
+          data: Array.from(new Uint8Array(data)),
+        });
+      }
+    }
+    if (buffers.length > 0) {
+      const fromBuffers = await ipcRenderer.invoke("workspace-chat:upload-attachment-buffers", {
+        profile_id: payload.profile_id,
+        workspace_id: payload.workspace_id,
+        session_id: payload.session_id,
+        files: buffers,
+      });
+      if (file_paths.length === 0) {
+        return fromBuffers as UploadWorkspaceAttachmentsResponse;
+      }
+      const fromPaths = await ipcRenderer.invoke("workspace-chat:upload-attachments", {
+        ...payload,
+        file_paths,
+      });
+      const merged = fromPaths as UploadWorkspaceAttachmentsResponse;
+      const bufRes = fromBuffers as UploadWorkspaceAttachmentsResponse;
+      return { attachments: [...merged.attachments, ...bufRes.attachments] };
+    }
+    return ipcRenderer.invoke("workspace-chat:upload-attachments", {
+      ...payload,
+      file_paths,
+    });
   },
 
   removeAttachment(workspaceId: string, attachmentId: string): Promise<{ ok: true }> {

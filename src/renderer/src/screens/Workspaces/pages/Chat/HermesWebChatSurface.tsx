@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useI18n } from "../../../../components/useI18n";
+import { useWorkspaces } from "../../context/WorkspacesContext";
 import { useHermesWebChat } from "./hooks/useHermesWebChat";
 import { ChatScrollArea } from "./ChatScrollArea";
 import { ComposerBar } from "./ComposerBar";
@@ -7,6 +8,7 @@ import { StatusToast } from "./StatusToast";
 
 export function HermesWebChatSurface(): React.JSX.Element {
   const { t } = useI18n();
+  const { setActiveNavItem } = useWorkspaces();
   const chat = useHermesWebChat();
   const {
     profiles,
@@ -33,7 +35,8 @@ export function HermesWebChatSurface(): React.JSX.Element {
     !activeProfileId || !canChat || !profileInstalled || resolving || Boolean(resolveError);
 
   const statusMessage =
-    resolving
+    stream.historyLoadError ??
+    (resolving
       ? t("workspaces.chat.resolvingProfile", { defaultValue: "Resolving profile…" })
       : resolveError
         ? resolveError
@@ -41,7 +44,19 @@ export function HermesWebChatSurface(): React.JSX.Element {
           ? t("workspaces.chat.notDeployed", {
               defaultValue: "Profile is not deployed on this machine.",
             })
-          : "";
+          : "");
+
+  const handleDropFiles = useCallback(
+    (files: FileList) => {
+      if (disabled || files.length === 0) return;
+      void attachments.uploadFiles(files);
+    },
+    [attachments, disabled],
+  );
+
+  const handleViewSessions = useCallback(() => {
+    setActiveNavItem("sessions");
+  }, [setActiveNavItem]);
 
   const handleSend = useCallback(() => {
     const text = composer.text.trim();
@@ -80,6 +95,7 @@ export function HermesWebChatSurface(): React.JSX.Element {
         lastUsage={stream.lastUsage}
         onApprove={stream.dismissApproval}
         onReject={() => void stream.cancel()}
+        onRetry={() => void stream.retryLast()}
       />
       <ComposerBar
         profiles={profiles}
@@ -121,6 +137,8 @@ export function HermesWebChatSurface(): React.JSX.Element {
         showStartProfile={Boolean(activeProfileId && profileInstalled && !profileRunning)}
         onStartProfile={() => void runtime.start()}
         onRestartProfile={() => void runtime.restart()}
+        onDropFiles={handleDropFiles}
+        onViewSessions={handleViewSessions}
       />
     </div>
   );

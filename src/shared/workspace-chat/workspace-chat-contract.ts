@@ -60,6 +60,20 @@ export type UploadWorkspaceAttachmentsPayload = {
   file_paths?: string[];
 };
 
+/** Renderer drag-drop fallback when OS file path is unavailable. */
+export type UploadWorkspaceAttachmentBuffer = {
+  name: string;
+  mime_type?: string;
+  data: number[];
+};
+
+export type UploadWorkspaceAttachmentBuffersPayload = {
+  profile_id: string;
+  workspace_id: string;
+  session_id: string;
+  files: UploadWorkspaceAttachmentBuffer[];
+};
+
 export type UploadWorkspaceAttachmentsResponse = {
   attachments: ChatAttachmentMeta[];
 };

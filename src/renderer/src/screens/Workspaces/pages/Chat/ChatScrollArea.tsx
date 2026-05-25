@@ -26,6 +26,7 @@ export function ChatScrollArea({
   lastUsage,
   onApprove,
   onReject,
+  onRetry,
 }: {
   messages: AIOSMessage[];
   streamingContent: string;
@@ -36,6 +37,7 @@ export function ChatScrollArea({
   lastUsage?: WorkspaceChatUsageEvent | null;
   onApprove?: () => void;
   onReject?: () => void;
+  onRetry?: () => void;
 }): React.JSX.Element {
   const { t } = useI18n();
   const { containerRef, bottomRef } = useAutoScroll([
@@ -110,7 +112,9 @@ export function ChatScrollArea({
           <AgentMarkdown>{streamingContent}</AgentMarkdown>
         </div>
       ) : null}
-      {lastError ? <ErrorCard message={lastError} details={lastErrorDetails} /> : null}
+      {lastError ? (
+        <ErrorCard message={lastError} details={lastErrorDetails} onRetry={onRetry} />
+      ) : null}
       {lastUsage ? <UsageRow usage={lastUsage} /> : null}
       <div ref={bottomRef} />
     </div>

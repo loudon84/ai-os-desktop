@@ -35,6 +35,27 @@ function abortStream(profileId: string | null, sessionId: string): void {
   void window.workspaceChat.abort({ profile_id: profileId, session_id: sessionId });
 }
 
+function formatHistoryLoadError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  try {
+    const body = JSON.parse(raw) as {
+      error?: { code?: string; message?: string };
+      detail?: string | { msg?: string };
+    };
+    const code = body.error?.code;
+    const msg =
+      body.error?.message ??
+      (typeof body.detail === "string"
+        ? body.detail
+        : body.detail && typeof body.detail === "object" && "msg" in body.detail
+          ? String(body.detail.msg)
+          : raw);
+    return code ? `[${code}] ${msg}` : msg;
+  } catch {
+    return raw;
+  }
+}
+
 export function useChatStream(input: {
   profileId: string | null;
   workspaceId: string | null;
@@ -50,6 +71,7 @@ export function useChatStream(input: {
   lastError: string | null;
   lastErrorDetails: Record<string, unknown> | null;
   lastUsage: WorkspaceChatUsageEvent | null;
+  historyLoadError: string | null;
   send: (text: string, attachmentIds: string[]) => Promise<void>;
   cancel: () => Promise<void>;
   dismissApproval: () => void;
@@ -66,6 +88,7 @@ export function useChatStream(input: {
     null,
   );
   const [lastUsage, setLastUsage] = useState<WorkspaceChatUsageEvent | null>(null);
+  const [historyLoadError, setHistoryLoadError] = useState<string | null>(null);
 
   const scopeRef = useRef<StreamScope | null>(null);
   const activeStreamRef = useRef<string | null>(null);
@@ -217,8 +240,10 @@ export function useChatStream(input: {
     async (sid: string) => {
       if (!isPersistedSessionId(sid) || !input.profileId) {
         setMessages([]);
+        setHistoryLoadError(null);
         return;
       }
+      setHistoryLoadError(null);
       try {
         const config = await ensureCopilotServeConfig();
         const body = await copilotServeFetch<WorkspaceChatSessionMessagesResponse>(
@@ -235,8 +260,9 @@ export function useChatStream(input: {
           })),
         );
         sessionRef.current = sid;
-      } catch {
+      } catch (err) {
         setMessages([]);
+        setHistoryLoadError(formatHistoryLoadError(err));
       }
     },
     [input.profileId],
@@ -349,6 +375,7 @@ export function useChatStream(input: {
     setLastError(null);
     setLastErrorDetails(null);
     setLastUsage(null);
+    setHistoryLoadError(null);
   }, []);
 
   return {
@@ -359,6 +386,7 @@ export function useChatStream(input: {
     lastError,
     lastErrorDetails,
     lastUsage,
+    historyLoadError,
     send,
     cancel,
     dismissApproval,

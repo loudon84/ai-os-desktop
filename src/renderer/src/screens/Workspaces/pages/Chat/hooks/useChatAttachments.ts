@@ -8,6 +8,7 @@ export function useChatAttachments(
 ): {
   attachments: ChatAttachmentMeta[];
   upload: () => Promise<void>;
+  uploadFiles: (files: FileList) => Promise<void>;
   remove: (id: string) => Promise<void>;
   clear: () => void;
 } {
@@ -32,9 +33,25 @@ export function useChatAttachments(
     [workspaceId],
   );
 
+  const uploadFiles = useCallback(
+    async (files: FileList) => {
+      if (!profileId || !workspaceId || files.length === 0) return;
+      const res = await window.workspaceChat.uploadDroppedAttachments(
+        {
+          profile_id: profileId,
+          workspace_id: workspaceId,
+          session_id: sessionId,
+        },
+        files,
+      );
+      setAttachments((prev) => [...prev, ...res.attachments]);
+    },
+    [profileId, workspaceId, sessionId],
+  );
+
   const clear = useCallback(() => setAttachments([]), []);
 
-  return { attachments, upload, remove, clear };
+  return { attachments, upload, uploadFiles, remove, clear };
 }
 
 export type UseChatAttachmentsReturn = ReturnType<typeof useChatAttachments>;

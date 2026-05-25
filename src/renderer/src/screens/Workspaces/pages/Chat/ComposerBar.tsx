@@ -1,4 +1,4 @@
-import { Send, Square } from "lucide-react";
+import { Mic, Send, Square } from "lucide-react";
 import { useI18n } from "../../../../components/useI18n";
 import type { ChatAttachmentMeta } from "../../../../../../shared/workspace-chat/workspace-chat-contract";
 import type { ChatRunState } from "../../types";
@@ -39,6 +39,7 @@ export function ComposerBar({
   onCancel,
   onNewConversation,
   onClear,
+  onViewSessions,
   showPresetRequired,
   showStartProfile,
   showRestartUnhealthy,
@@ -78,6 +79,7 @@ export function ComposerBar({
   onCancel: () => void;
   onNewConversation: () => void;
   onClear: () => void;
+  onViewSessions?: () => void;
   showPresetRequired?: boolean;
   showStartProfile?: boolean;
   showRestartUnhealthy?: boolean;
@@ -174,7 +176,20 @@ export function ComposerBar({
           onSaveDefault={onSaveDefaultModel}
         />
         <AttachmentMenu disabled={disabled} onUpload={() => void onUploadAttachment()} />
-        <MoreActionsMenu onNewConversation={onNewConversation} onClear={onClear} />
+        <button
+          type="button"
+          className="workspaces-action-button is-icon"
+          disabled
+          title={t("workspaces.chat.voiceComingSoon", { defaultValue: "Voice (coming soon)" })}
+          aria-label={t("workspaces.chat.voiceComingSoon", { defaultValue: "Voice (coming soon)" })}
+        >
+          <Mic size={16} />
+        </button>
+        <MoreActionsMenu
+          onNewConversation={onNewConversation}
+          onClear={onClear}
+          onViewSessions={onViewSessions}
+        />
         <div className="workspaces-webchat-toolbar-spacer" />
         {busy ? (
           <button type="button" className="workspaces-webchat-stop" onClick={onCancel}>

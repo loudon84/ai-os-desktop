@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ipcMain, type BrowserWindow } from "electron";
 import type {
   SetProfileChatModelConfigPayload,
+  UploadWorkspaceAttachmentBuffersPayload,
   UploadWorkspaceAttachmentsPayload,
   WorkspaceChatSendPayload,
 } from "../../shared/workspace-chat/workspace-chat-contract";
@@ -11,7 +12,10 @@ import {
   removeChatAttachment,
   setChatModelConfig,
 } from "./workspace-chat-client";
-import { pickAndUploadAttachments } from "./workspace-attachment-staging";
+import {
+  pickAndUploadAttachments,
+  uploadAttachmentsFromBuffers,
+} from "./workspace-attachment-staging";
 import { resolveWorkspaceProfile } from "./workspace-profile-resolver";
 import {
   abortWorkspaceChatStream,
@@ -42,6 +46,13 @@ export function registerWorkspaceChatIpc(getWindow: () => BrowserWindow | null):
     "workspace-chat:upload-attachments",
     async (_event, payload: UploadWorkspaceAttachmentsPayload) => {
       return pickAndUploadAttachments(payload);
+    },
+  );
+
+  ipcMain.handle(
+    "workspace-chat:upload-attachment-buffers",
+    async (_event, payload: UploadWorkspaceAttachmentBuffersPayload) => {
+      return uploadAttachmentsFromBuffers(payload);
     },
   );
 
