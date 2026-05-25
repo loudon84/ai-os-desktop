@@ -37,12 +37,17 @@ function abortStream(profileId: string | null, sessionId: string): void {
 
 function formatHistoryLoadError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
+  const code =
+    err instanceof Error && "code" in err && typeof err.code === "string" ? err.code : undefined;
+  if (code) {
+    return `[${code}] ${raw}`;
+  }
   try {
     const body = JSON.parse(raw) as {
       error?: { code?: string; message?: string };
       detail?: string | { msg?: string };
     };
-    const code = body.error?.code;
+    const parsedCode = body.error?.code;
     const msg =
       body.error?.message ??
       (typeof body.detail === "string"
@@ -50,7 +55,7 @@ function formatHistoryLoadError(err: unknown): string {
         : body.detail && typeof body.detail === "object" && "msg" in body.detail
           ? String(body.detail.msg)
           : raw);
-    return code ? `[${code}] ${msg}` : msg;
+    return parsedCode ? `[${parsedCode}] ${msg}` : msg;
   } catch {
     return raw;
   }

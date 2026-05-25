@@ -19,9 +19,17 @@ export async function copilotServeFetch<T>(
   if (!res.ok) {
     const text = await res.text();
     let message = text || `HTTP ${res.status}`;
+    let code: string | undefined;
     try {
-      const body = JSON.parse(text) as { message?: string; detail?: string | { msg?: string } };
-      if (typeof body.detail === "string") {
+      const body = JSON.parse(text) as {
+        message?: string;
+        detail?: string | { msg?: string };
+        error?: { code?: string; message?: string };
+      };
+      code = body.error?.code;
+      if (body.error?.message) {
+        message = body.error.message;
+      } else if (typeof body.detail === "string") {
         message = body.detail;
       } else if (body.detail && typeof body.detail === "object" && "msg" in body.detail) {
         message = String(body.detail.msg);
@@ -31,7 +39,9 @@ export async function copilotServeFetch<T>(
     } catch {
       /* keep raw text */
     }
-    throw new Error(message);
+    const err = new Error(message) as Error & { code?: string };
+    if (code) err.code = code;
+    throw err;
   }
   if (res.status === 204) {
     return undefined as T;
