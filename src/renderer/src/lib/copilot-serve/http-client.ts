@@ -18,7 +18,20 @@ export async function copilotServeFetch<T>(
   const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    let message = text || `HTTP ${res.status}`;
+    try {
+      const body = JSON.parse(text) as { message?: string; detail?: string | { msg?: string } };
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      } else if (body.detail && typeof body.detail === "object" && "msg" in body.detail) {
+        message = String(body.detail.msg);
+      } else if (body.message) {
+        message = body.message;
+      }
+    } catch {
+      /* keep raw text */
+    }
+    throw new Error(message);
   }
   if (res.status === 204) {
     return undefined as T;

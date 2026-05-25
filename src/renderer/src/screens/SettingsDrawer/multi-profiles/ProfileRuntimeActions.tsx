@@ -1,5 +1,13 @@
 import { useState } from "react";
 import type { ProfileSummary } from "../../../../../shared/profile-runtime/profile-runtime-contract";
+import type { CopilotServeHttpConfig } from "../../../lib/copilot-serve/http-client";
+import {
+  restartServeProfile,
+  startAllServeProfiles,
+  startServeProfile,
+  stopAllServeProfiles,
+  stopServeProfile,
+} from "../../../lib/copilot-serve/profile-client";
 import { useI18n } from "../../../components/useI18n";
 
 export interface ProfileRuntimeActionsProps {
@@ -7,6 +15,9 @@ export interface ProfileRuntimeActionsProps {
   selectedProfileId: string | null;
   onSelectProfile: (id: string) => void;
   onActionComplete: () => void;
+  httpConfig: CopilotServeHttpConfig | null;
+  serveLoading: boolean;
+  serveError: string | null;
 }
 
 export function ProfileRuntimeActions({
@@ -14,12 +25,21 @@ export function ProfileRuntimeActions({
   selectedProfileId,
   onSelectProfile,
   onActionComplete,
+  httpConfig,
+  serveLoading,
+  serveError,
 }: ProfileRuntimeActionsProps): React.JSX.Element {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const controlsDisabled = busy || serveLoading || !httpConfig;
+
   const runAction = async (fn: () => Promise<unknown>): Promise<void> => {
+    if (!httpConfig) {
+      setActionError(serveError ?? t("runtimeSettings.multiProfilesServeUnavailable"));
+      return;
+    }
     setBusy(true);
     setActionError(null);
     try {
@@ -43,6 +63,9 @@ export function ProfileRuntimeActions({
       <h3 className="settings-drawer-section-title">
         {t("runtimeSettings.multiProfilesRuntimeTitle")}
       </h3>
+      {serveError && !httpConfig ? (
+        <p className="settings-drawer-text-error">{serveError}</p>
+      ) : null}
       <ul className="settings-drawer-list">
         {sortedProfiles.length === 0 ? (
           <li className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesEmpty")}</li>
@@ -69,9 +92,9 @@ export function ProfileRuntimeActions({
         <button
           type="button"
           className="settings-drawer-btn-ghost"
-          disabled={busy || !selectedProfileId}
+          disabled={controlsDisabled || !selectedProfileId}
           onClick={() =>
-            void runAction(() => window.profileRuntime.startProfile(selectedProfileId!))
+            void runAction(() => startServeProfile(httpConfig!, selectedProfileId!))
           }
         >
           {t("runtimeSettings.multiProfilesStart")}
@@ -79,9 +102,9 @@ export function ProfileRuntimeActions({
         <button
           type="button"
           className="settings-drawer-btn-ghost"
-          disabled={busy || !selectedProfileId}
+          disabled={controlsDisabled || !selectedProfileId}
           onClick={() =>
-            void runAction(() => window.profileRuntime.stopProfile(selectedProfileId!))
+            void runAction(() => stopServeProfile(httpConfig!, selectedProfileId!))
           }
         >
           {t("runtimeSettings.multiProfilesStop")}
@@ -89,9 +112,9 @@ export function ProfileRuntimeActions({
         <button
           type="button"
           className="settings-drawer-btn-ghost"
-          disabled={busy || !selectedProfileId}
+          disabled={controlsDisabled || !selectedProfileId}
           onClick={() =>
-            void runAction(() => window.profileRuntime.restartProfile(selectedProfileId!))
+            void runAction(() => restartServeProfile(httpConfig!, selectedProfileId!))
           }
         >
           {t("runtimeSettings.multiProfilesRestart")}
@@ -99,16 +122,16 @@ export function ProfileRuntimeActions({
         <button
           type="button"
           className="settings-drawer-btn-ghost"
-          disabled={busy}
-          onClick={() => void runAction(() => window.profileRuntime.startAllProfiles())}
+          disabled={controlsDisabled}
+          onClick={() => void runAction(() => startAllServeProfiles(httpConfig!))}
         >
           {t("runtimeSettings.multiProfilesStartAll")}
         </button>
         <button
           type="button"
           className="settings-drawer-btn-ghost"
-          disabled={busy}
-          onClick={() => void runAction(() => window.profileRuntime.stopAllProfiles())}
+          disabled={controlsDisabled}
+          onClick={() => void runAction(() => stopAllServeProfiles(httpConfig!))}
         >
           {t("runtimeSettings.multiProfilesStopAll")}
         </button>

@@ -59,4 +59,5 @@ export default {
   multiProfilesExisting: "Already exists (enable overwrite): {{names}}",
   multiProfilesRecheckPorts: "Recheck ports",
   multiProfilesRoleSyncLogs: "Role library sync",
+  multiProfilesServeUnavailable: "Local copilot-serve (:8765) is not ready. Start smc-copilot-serve from the Service section.",
 } as const;

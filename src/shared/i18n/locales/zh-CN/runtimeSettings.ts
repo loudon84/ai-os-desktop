@@ -59,4 +59,5 @@ export default {
   multiProfilesExisting: "已存在（需勾选覆盖）：{{names}}",
   multiProfilesRecheckPorts: "重新检查端口",
   multiProfilesRoleSyncLogs: "角色库同步",
+  multiProfilesServeUnavailable: "本地 copilot-serve（:8765）未就绪，无法管理 Gateway。请在「服务」页启动 smc-copilot-serve。",
 } as const;

@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AuditEventRecord } from "../../../../../shared/profile-runtime/profile-runtime-contract";
 import type { GatewayLogEntry } from "../../../../../shared/profile-runtime/profile-runtime-contract";
+import type { CopilotServeHttpConfig } from "../../../lib/copilot-serve/http-client";
+import {
+  getServeGatewayLogs,
+  listServeProfileEvents,
+} from "../../../lib/copilot-serve/profile-client";
 import { useI18n } from "../../../components/useI18n";
 
 export interface ProfileLogViewerProps {
   profileId: string | null;
+  httpConfig: CopilotServeHttpConfig | null;
 }
 
 function formatAuditLine(e: AuditEventRecord): string {
   const scope = e.profile_id ? "" : "[global] ";
-  return `${e.created_at} ${scope}${e.event_type}/${e.action} ${e.status}`;
+  const err = e.error_message ? ` — ${e.error_message}` : "";
+  return `${e.created_at} ${scope}${e.event_type}/${e.action} ${e.status}${err}`;
 }
 
-export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JSX.Element {
+export function ProfileLogViewer({
+  profileId,
+  httpConfig,
+}: ProfileLogViewerProps): React.JSX.Element {
   const { t } = useI18n();
   const [gatewayLogs, setGatewayLogs] = useState<GatewayLogEntry[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEventRecord[]>([]);
@@ -29,27 +39,18 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
       const syncOnly = roleLibraryAudits.filter((e) => e.action === "sync_role_library");
       setRoleSyncEvents(syncOnly);
 
-      if (!profileId) {
+      if (!profileId || !httpConfig) {
         setGatewayLogs([]);
         setAuditEvents([]);
         return;
       }
 
       const [logs, audits] = await Promise.all([
-        window.profileRuntime.getGatewayLogs(profileId, { limit: 80 }),
-        window.profileRuntime.listAuditEvents({
-          profileId,
-          limit: 40,
-        }),
+        getServeGatewayLogs(httpConfig, profileId, 80),
+        listServeProfileEvents(httpConfig, profileId, 40),
       ]);
       setGatewayLogs(logs);
-      setAuditEvents(
-        audits.filter(
-          (e) =>
-            e.event_type === "profile_role" ||
-            e.event_type === "profile_runtime",
-        ),
-      );
+      setAuditEvents(audits);
     } catch {
       setGatewayLogs([]);
       setAuditEvents([]);
@@ -57,7 +58,7 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
     } finally {
       setLoading(false);
     }
-  }, [profileId]);
+  }, [profileId, httpConfig]);
 
   useEffect(() => {
     void loadLogs();
@@ -72,7 +73,7 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
         <button
           type="button"
           className="settings-drawer-link-btn"
-          disabled={loading}
+          disabled={loading || !httpConfig}
           onClick={() => void loadLogs()}
         >
           {t("runtimeSettings.multiProfilesRefreshLogs")}
@@ -90,6 +91,8 @@ export function ProfileLogViewer({ profileId }: ProfileLogViewerProps): React.JS
 
       {!profileId ? (
         <p className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesSelectProfile")}</p>
+      ) : !httpConfig ? (
+        <p className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesServeUnavailable")}</p>
       ) : (
         <>
           <p className="settings-drawer-log-label">

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { approve, listPendingApprovals, reject } from "../../lib/copilot-serve/approval-client";
-import type { CopilotServeHttpConfig } from "../../lib/copilot-serve/http-client";
 import {
   bindProfile,
   cancelTask,
@@ -12,45 +11,8 @@ import {
 } from "../../lib/copilot-serve/task-client";
 import { pullTeamTasks } from "../../lib/copilot-serve/team-task-client";
 import type { ApprovalRecord, LocalTask, TaskEventRecord, TaskWorkbenchSummary } from "../../lib/copilot-serve/types";
+import { useCopilotHttpConfig } from "../../lib/copilot-serve/use-copilot-http-config";
 import { subscribeSse, type SseMessage } from "../../lib/copilot-serve/workbench-stream";
-
-function useCopilotHttpConfig(): {
-  config: CopilotServeHttpConfig | null;
-  loading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
-} {
-  const [config, setConfig] = useState<CopilotServeHttpConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let status = await window.copilotServe.getStatus();
-      if (status.status !== "running") {
-        status = await window.copilotServe.start();
-      }
-      const connection = await window.copilotServe.getConnection();
-      if (!connection) {
-        throw new Error(status.lastError ?? "copilot-serve not connected");
-      }
-      setConfig({ baseUrl: connection.baseUrl, token: connection.token });
-    } catch (err) {
-      setConfig(null);
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  return { config, loading, error, refresh };
-}
 
 export function TaskWorkbenchScreen(): React.JSX.Element {
   const { config, loading, error, refresh } = useCopilotHttpConfig();
