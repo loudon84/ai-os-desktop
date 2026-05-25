@@ -2,7 +2,7 @@ import { useI18n } from "../../../components/useI18n";
 import { useWorkspaces } from "../context/WorkspacesContext";
 import type { RightInspectorTab } from "../types";
 
-const TABS: RightInspectorTab[] = ["workspace", "skills", "memory", "runtime"];
+const TABS: RightInspectorTab[] = ["workspace", "runtime"];
 
 export function RightInspectorTabs(): React.JSX.Element {
   const { t } = useI18n();

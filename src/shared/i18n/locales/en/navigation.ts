@@ -1,5 +1,5 @@
 export default {
-  portal: "Copilot",
+  portal: "Portal",
   workspaces: "Agent Workspace",
   taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",

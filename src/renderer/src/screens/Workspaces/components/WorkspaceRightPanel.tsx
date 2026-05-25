@@ -14,11 +14,11 @@ function RightPanelBody({ tab }: { tab: RightInspectorTab }): React.JSX.Element 
     case "skills":
       return <SkillsPanel />;
     case "memory":
-      return <MemoryPanel />;
+      return <MemoryPanel />;   
     case "runtime":
       return <RuntimePanel />;
     default:
-      return <RuntimePanel />;
+      return <WorkspacePanel />;
   }
 }
 

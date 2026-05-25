@@ -20,7 +20,7 @@ export const HERMES_RUNTIME_IMPLEMENTED_SECTIONS = [
   "overview",
   "install",
   "gateway",
-  "connection",
+  // "connection",
   "doctor",
   "logs",
 ] as const satisfies readonly HermesRuntimeSection[];

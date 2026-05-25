@@ -1,5 +1,5 @@
 export default {
-  portal: "应用 首页",
+  portal: "Portal",
   workspaces: "智能体工作区",
   taskWorkbench: "任务工作台",
   webOperator: "Web 操作",

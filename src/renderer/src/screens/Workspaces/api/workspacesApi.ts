@@ -1,5 +1,10 @@
 import type { ProfileGatewayState, ProfileSummary } from "../../../../../shared/profile-runtime/profile-runtime-contract";
-import { EXPERT_PROFILE_BY_ID, type ExpertProfileId } from "../constants";
+import {
+  EXPERT_PROFILE_BY_ID,
+  EXPERT_PROFILE_BY_ROUTE_KEY,
+  EXPERT_PROFILE_LOOKUP_KEYS,
+  type ExpertProfileId,
+} from "../constants";
 import { resumeSessionIdForApi } from "./sessionUtils";
 import type {
   AIOSMemoryFile,
@@ -34,7 +39,8 @@ function mapRuntimeStatus(status: string): ProfileRuntimeStatus {
 function toAIOSProfile(summary: ProfileSummary): AIOSProfile {
   const expert =
     EXPERT_PROFILE_BY_ID[summary.name as ExpertProfileId] ??
-    EXPERT_PROFILE_BY_ID[summary.id as ExpertProfileId];
+    EXPERT_PROFILE_BY_ID[summary.id as ExpertProfileId] ??
+    EXPERT_PROFILE_BY_ROUTE_KEY[summary.name as keyof typeof EXPERT_PROFILE_BY_ROUTE_KEY];
   const status = mapRuntimeStatus(summary.runtime_status);
   return {
     id: summary.id,
@@ -58,9 +64,10 @@ function profileNameForApi(profileId: string, profile?: AIOSProfile | null): str
 export const workspacesApi = {
   async listProfiles(): Promise<AIOSProfile[]> {
     const rows = await window.profileRuntime.listProfiles();
-    const expertNames = new Set(Object.keys(EXPERT_PROFILE_BY_ID));
     return rows
-      .filter((p) => expertNames.has(p.name) || expertNames.has(p.id))
+      .filter(
+        (p) => EXPERT_PROFILE_LOOKUP_KEYS.has(p.name) || EXPERT_PROFILE_LOOKUP_KEYS.has(p.id),
+      )
       .map(toAIOSProfile)
       .sort((a, b) => a.gatewayPort - b.gatewayPort);
   },

@@ -1,5 +1,11 @@
 import type { ProfileGatewayState, ProfileSummary } from "../../../../../shared/profile-runtime/profile-runtime-contract";
-import { EXPERT_PROFILE_ENTRIES, EXPERT_PROFILE_BY_ID, type ExpertProfileId } from "../constants";
+import {
+  EXPERT_PROFILE_ENTRIES,
+  EXPERT_PROFILE_BY_ID,
+  EXPERT_PROFILE_BY_ROUTE_KEY,
+  EXPERT_PROFILE_LOOKUP_KEYS,
+  type ExpertProfileId,
+} from "../constants";
 import type { AIOSProfile, ProfileRuntimeStatus } from "../types";
 
 function mapRuntimeStatus(status: string): ProfileRuntimeStatus {
@@ -28,10 +34,16 @@ function mapGatewayStatus(status: string): ProfileRuntimeStatus {
   return "stopped";
 }
 
-export function profileSummaryToAIOSProfile(summary: ProfileSummary): AIOSProfile {
-  const expert =
+function resolveExpertMeta(summary: ProfileSummary) {
+  return (
     EXPERT_PROFILE_BY_ID[summary.name as ExpertProfileId] ??
-    EXPERT_PROFILE_BY_ID[summary.id as ExpertProfileId];
+    EXPERT_PROFILE_BY_ID[summary.id as ExpertProfileId] ??
+    EXPERT_PROFILE_BY_ROUTE_KEY[summary.name as keyof typeof EXPERT_PROFILE_BY_ROUTE_KEY]
+  );
+}
+
+export function profileSummaryToAIOSProfile(summary: ProfileSummary): AIOSProfile {
+  const expert = resolveExpertMeta(summary);
   const status = mapRuntimeStatus(summary.runtime_status);
   return {
     id: summary.id,
@@ -51,7 +63,7 @@ export function profileSummaryToAIOSProfile(summary: ProfileSummary): AIOSProfil
 function placeholderProfile(entry: (typeof EXPERT_PROFILE_ENTRIES)[number]): AIOSProfile {
   return {
     id: entry.id,
-    name: entry.id,
+    name: entry.routeKey,
     roleName: entry.roleName,
     displayName: entry.displayName,
     gatewayPort: entry.gatewayPort,
@@ -62,7 +74,7 @@ function placeholderProfile(entry: (typeof EXPERT_PROFILE_ENTRIES)[number]): AIO
 }
 
 /**
- * 始终以 6 个专家 preset 为骨架，合并 DB 与 runtime 状态。
+ * 以 EXPERT_PROFILE_ENTRIES 为骨架，合并 DB 与 runtime 状态。
  */
 export function mergeExpertProfiles(
   dbProfiles: AIOSProfile[],
@@ -76,11 +88,12 @@ export function mergeExpertProfiles(
   const runtimeByProfileId = new Map(runtimeStates.map((s) => [s.profileId, s]));
 
   return EXPERT_PROFILE_ENTRIES.map((entry) => {
-    const fromDb = byName.get(entry.id);
+    const fromDb = byName.get(entry.id) ?? byName.get(entry.routeKey);
     if (!fromDb) {
       const rt = runtimeStates.find(
         (s) =>
           s.profileId === entry.id ||
+          s.profileId === entry.routeKey ||
           s.port === entry.gatewayPort,
       );
       if (rt) {
@@ -116,8 +129,7 @@ export function mergeExpertProfiles(
 
 export async function fetchDbExpertProfiles(): Promise<AIOSProfile[]> {
   const rows = await window.profileRuntime.listProfiles();
-  const expertNames = new Set(Object.keys(EXPERT_PROFILE_BY_ID));
   return rows
-    .filter((p) => expertNames.has(p.name) || expertNames.has(p.id))
+    .filter((p) => EXPERT_PROFILE_LOOKUP_KEYS.has(p.name) || EXPERT_PROFILE_LOOKUP_KEYS.has(p.id))
     .map((s) => profileSummaryToAIOSProfile(s));
 }

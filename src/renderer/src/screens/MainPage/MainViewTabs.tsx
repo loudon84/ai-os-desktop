@@ -209,6 +209,10 @@ export function MainViewTabs({
 
   const renderLabel = (tab: TabItem): string => {
     const metadata = metadataById[String(tab.id)];
+    // Portal tab: keep registry/i18n label; do not mirror embedded page document.title
+    if (tab.id === "portal" && tab.titleKey) {
+      return t(tab.titleKey);
+    }
     if (metadata?.title) return metadata.title;
     if (tab.titleKey) return t(tab.titleKey);
     return tab.title ?? String(tab.id);
