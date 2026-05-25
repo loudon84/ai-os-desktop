@@ -36,7 +36,7 @@ export function WorkspaceStatusCards({
           );
         })}
       </div>
-
+      {/*
       <div className="workspaces-status-actions">
         <button
           type="button"
@@ -70,6 +70,7 @@ export function WorkspaceStatusCards({
           {t("workspaces.statusCards.gitPush", { defaultValue: "Push" })}
         </button>
       </div>
+      */}
     </header>
   );
 }

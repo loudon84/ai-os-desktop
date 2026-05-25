@@ -1,24 +1,7 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { workspacesApi } from "../api/workspacesApi";
 import type { AIOSProfile, ProfileRuntimeStatus } from "../types";
-
-function mapGatewayStatus(status: string): ProfileRuntimeStatus {
-  switch (status) {
-    case "running":
-      return "running";
-    case "starting":
-      return "starting";
-    case "failed":
-    case "error":
-      return "error";
-    case "stopping":
-      return "stopping";
-    case "stopped":
-      return "stopped";
-    default:
-      return "stopped";
-  }
-}
+import { applyRuntimeStatesToProfiles } from "./syncWorkspacesProfileRuntime";
 
 export type ProfileRuntimeHandle = {
   status: ProfileRuntimeStatus;
@@ -33,7 +16,10 @@ export type ProfileRuntimeHandle = {
   refresh: () => Promise<void>;
 };
 
-/** Single runtime poll per AIOS Workspace shell — call only from WorkspacesProvider. */
+/**
+ * Runtime sync for Workspaces status cards — event-driven, no interval poll.
+ * Initial profile list comes from useActiveProfile; this hook keeps runtime fields fresh.
+ */
 export function useProfileRuntime(
   profileId: string | null,
   profiles: AIOSProfile[],
@@ -42,45 +28,49 @@ export function useProfileRuntime(
   const profile = profiles.find((p) => p.id === profileId) ?? null;
   const [actionLoading, setActionLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const profilesRef = useRef(profiles);
+  profilesRef.current = profiles;
 
   const refresh = useCallback(async () => {
-    if (!profileId) return;
+    const prev = profilesRef.current;
+    if (prev.length === 0) return;
+
     try {
-      const states = await workspacesApi.getRuntimeStatus();
-      const state = states.find((s) => s.profileId === profileId);
-      if (!state) return;
-
-      const status = mapGatewayStatus(state.status);
-      let healthy = false;
-      if (status === "running") {
-        const probe = await workspacesApi.probeProfileHealth(profileId);
-        healthy = probe.healthy;
+      const { profiles: next, activeLastError } = await applyRuntimeStatesToProfiles(prev, {
+        probeProfileId: profileId,
+      });
+      setProfiles(next);
+      if (profileId) {
+        setLastError(activeLastError);
       }
-
-      setProfiles((prev) =>
-        prev.map((p) =>
-          p.id === profileId
-            ? {
-                ...p,
-                status,
-                healthy,
-                gatewayPort: state.port,
-                pid: state.pid,
-              }
-            : p,
-        ),
-      );
-      setLastError(state.lastError);
     } catch (err) {
       setLastError(String(err));
     }
   }, [profileId, setProfiles]);
 
   useEffect(() => {
+    if (profiles.length === 0) return;
     void refresh();
-    const interval = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(interval);
-  }, [profileId, refresh]);
+  }, [profileId, profiles.length, refresh]);
+
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+
+    const onRuntimeChange = (): void => {
+      void refresh();
+    };
+
+    if (window.copilotServe?.onStatusChanged) {
+      unsubs.push(window.copilotServe.onStatusChanged(onRuntimeChange));
+    }
+    unsubs.push(window.profileRuntime.onRuntimeStatusChanged(onRuntimeChange));
+
+    return () => {
+      for (const unsub of unsubs) {
+        unsub();
+      }
+    };
+  }, [refresh]);
 
   const runAction = useCallback(
     async (fn: () => Promise<unknown>) => {

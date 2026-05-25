@@ -118,11 +118,28 @@ export const workspacesApi = {
     return probeServeProfileHealth(config, profileId);
   },
 
-  /** Gateway 生命周期由 copilot-serve 管理；依赖轮询 refresh，不再订阅 Main IPC。 */
+  /** copilot-serve 进程 + profile-runtime 网关状态变更时回调。 */
   onRuntimeStatusChanged(
-    _callback: Parameters<typeof window.profileRuntime.onRuntimeStatusChanged>[0],
+    callback: Parameters<typeof window.profileRuntime.onRuntimeStatusChanged>[0],
   ): () => void {
-    return () => {};
+    const unsubs: Array<() => void> = [];
+    const notify = (): void => {
+      callback({
+        profileId: "",
+        previousStatus: "stopped",
+        newStatus: "stopped",
+        timestamp: new Date().toISOString(),
+      });
+    };
+    if (window.copilotServe?.onStatusChanged) {
+      unsubs.push(window.copilotServe.onStatusChanged(notify));
+    }
+    unsubs.push(window.profileRuntime.onRuntimeStatusChanged(callback));
+    return () => {
+      for (const unsub of unsubs) {
+        unsub();
+      }
+    };
   },
 
   async getGatewayLogs(
