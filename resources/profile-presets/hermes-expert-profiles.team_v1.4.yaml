@@ -14,6 +14,22 @@ roleLibrary:
   localDir: "agency-agents-zh"
 
 profiles:
+  default:
+    displayName: "智能助手"
+    roleName: "智能助手"
+    description: "Portal 主控 Gateway（~/.hermes，端口 8642）"
+    runtimeType: "hermes-local"
+    enabled: true
+    autoStart: true
+    port: 8642
+    entry:
+      type: "workspaces"
+      route: "aios"
+      title: "智能助手"
+      icon: "layout-dashboard"
+    capabilities:
+      - gateway-supervisor
+
   writer-9601:
     displayName: "Writer"
     role: "specialist"

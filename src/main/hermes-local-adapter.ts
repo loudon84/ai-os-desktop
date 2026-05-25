@@ -1,8 +1,10 @@
-import { spawn, type ChildProcess, type SpawnOptions } from "child_process";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { execFileSync, spawn, type ChildProcess, type SpawnOptions } from "child_process";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { homedir } from "os";
 import { join } from "path";
-import { HERMES_HOME, getHermesPython, getHermesRepo, getHermesScript } from "./installer";
+import { HERMES_HOME, getEnhancedPath, getHermesRepo, getHermesScript } from "./installer";
 import { buildCopilotRuntimeEnv } from "./runtime/runtime-paths";
+import { probeGatewayHealth } from "./gateway-health";
 import type { RuntimeAdapter } from "./runtime-adapter";
 import type { ProfileGatewayState } from "../shared/profile-runtime/profile-runtime-contract";
 import {
@@ -12,8 +14,6 @@ import {
 } from "./profile-runtime-db";
 import { ProfileRuntimeError } from "../shared/profile-runtime/profile-runtime-errors";
 import { startCollecting, stopCollecting } from "./gateway-log-collector";
-
-const HEALTH_TIMEOUT_MS = 1500;
 
 const gatewayProcesses = new Map<string, ChildProcess>();
 
@@ -41,25 +41,119 @@ function profileHome(name?: string): string {
   return join(HERMES_HOME, "profiles", name);
 }
 
-async function checkHealth(host: string, port: number): Promise<boolean> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+/** Desktop Gateway must bind loopback; strip api_server.extra LAN overrides from config.yaml. */
+function injectApiServerConfig(configContent: string, host: string, port: number): string {
+  let content = configContent.replace(
+    /\n\s+extra:\s*\n\s+host:\s*[^\n]+\n\s+port:\s*\d+\n/g,
+    "\n",
+  );
+
+  const apiServerBlock = `platforms:\n  api_server:\n    host: "${host}"\n    port: ${port}\n    enabled: true\n`;
+  if (content.includes("api_server:")) {
+    content = content.replace(
+      /platforms:\s*\n\s*api_server:\s*\n(\s*host:.*\n)?(\s*port:.*\n)?(\s*enabled:.*\n)?/,
+      `platforms:\n  api_server:\n    host: "${host}"\n    port: ${port}\n    enabled: true\n`,
+    );
+  } else {
+    content += `\n${apiServerBlock}`;
+  }
+  return content;
+}
+
+function clearGatewayPidFile(home: string): void {
+  const pidPath = join(home, "gateway.pid");
+  if (existsSync(pidPath)) {
+    try {
+      unlinkSync(pidPath);
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
   try {
-    const res = await fetch(`http://${host}:${port}/health`, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
+    process.kill(pid, 0);
+    return true;
   } catch {
-    clearTimeout(timer);
     return false;
+  }
+}
+
+/** Stop gateway when PID file exists but /health is down (stale or broken bind). */
+async function stopStaleGatewayIfNeeded(home: string, host: string, port: number): Promise<void> {
+  if (await probeGatewayHealth(host, port)) return;
+
+  const pid = readGatewayPid(home);
+  if (pid === null) return;
+  if (!isProcessAlive(pid)) {
+    clearGatewayPidFile(home);
+    return;
+  }
+
+  const hermesScript = getHermesScript();
+  if (!existsSync(hermesScript)) return;
+
+  try {
+    execFileSync(hermesScript, ["gateway", "stop"], {
+      env: {
+        ...buildCopilotRuntimeEnv({ ...process.env }),
+        HERMES_HOME: home,
+        API_SERVER_ENABLED: "true",
+      },
+      timeout: 15_000,
+      windowsHide: true,
+    });
+  } catch {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      /* already dead */
+    }
+    clearGatewayPidFile(home);
+  }
+}
+
+function readGatewayPid(home: string): number | null {
+  const pidPath = join(home, "gateway.pid");
+  if (!existsSync(pidPath)) return null;
+  try {
+    const raw = readFileSync(pidPath, "utf-8").trim();
+    const parsed = raw.startsWith("{") ? JSON.parse(raw).pid : parseInt(raw, 10);
+    return typeof parsed === "number" && !Number.isNaN(parsed) ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
 async function waitForHealth(host: string, port: number, maxRetries = 30): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
-    if (await checkHealth(host, port)) return true;
+    if (await probeGatewayHealth(host, port)) return true;
     await new Promise((r) => setTimeout(r, 1000));
   }
   return false;
+}
+
+function adoptRunningGateway(
+  profileId: string,
+  profileName: string,
+  instance: NonNullable<ReturnType<typeof getRuntimeInstance>>,
+): ProfileGatewayState {
+  const home = profileHome(profileName);
+  const pid = readGatewayPid(home);
+  updateRuntimeStatus(profileId, "running", {
+    pid,
+    startedAt: new Date().toISOString(),
+    lastError: undefined,
+  });
+  return {
+    profileId,
+    status: "running",
+    port: instance.port,
+    pid,
+    baseUrl: instance.base_url,
+    lastError: null,
+  };
 }
 
 export const hermesLocalAdapter: RuntimeAdapter = {
@@ -100,6 +194,10 @@ export const hermesLocalAdapter: RuntimeAdapter = {
 
     updateRuntimeStatus(profileId, "starting");
 
+    if (await probeGatewayHealth(instance.host, instance.port)) {
+      return adoptRunningGateway(profileId, profile.name, instance);
+    }
+
     const home = profileHome(profile.name);
     const configPath = join(home, "config.yaml");
 
@@ -108,20 +206,13 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       if (existsSync(configPath)) {
         configContent = readFileSync(configPath, "utf-8");
       }
-
-      const apiServerBlock = `\nplatforms:\n  api_server:\n    host: "${instance.host}"\n    port: ${instance.port}\n`;
-      if (configContent.includes("api_server:")) {
-        configContent = configContent.replace(
-          /platforms:\s*\n\s*api_server:\s*\n(\s*host:.*\n)?(\s*port:.*\n)?/,
-          `platforms:\n  api_server:\n    host: "${instance.host}"\n    port: ${instance.port}\n`,
-        );
-      } else {
-        configContent += apiServerBlock;
-      }
+      configContent = injectApiServerConfig(configContent, instance.host, instance.port);
       writeFileSync(configPath, configContent, "utf-8");
     } catch {
       // Config injection failure is non-fatal
     }
+
+    await stopStaleGatewayIfNeeded(home, instance.host, instance.port);
 
     const env = buildCopilotRuntimeEnv({ ...process.env }) as Record<string, string>;
     const envFile = join(home, ".env");
@@ -138,11 +229,14 @@ export const hermesLocalAdapter: RuntimeAdapter = {
       }
     }
 
+    env.HOME = homedir();
+    env.PATH = getEnhancedPath();
     env.HERMES_HOME = home;
     env.HERMES_PROFILE = profile.name;
     env.HERMES_PROFILE_HOME = home;
     env.HERMES_GATEWAY_HOST = instance.host;
     env.HERMES_GATEWAY_PORT = String(instance.port);
+    env.API_SERVER_ENABLED = "true";
 
     const hermesScript = getHermesScript();
     const hermesRepo = getHermesRepo();
@@ -155,7 +249,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
 
     const proc = spawn(
       hermesScript,
-      ["gateway"],
+      ["gateway", "run", "--replace"],
       buildHermesGatewaySpawnOptions(env, hermesRepo),
     );
     proc.unref();
@@ -200,7 +294,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
     if (!healthy) {
       const detail = spawnErrorMessage
         ? spawnErrorMessage
-        : `no response on http://${instance.host}:${instance.port}/health`;
+        : `no response on http://${instance.host}:${instance.port}/health. Check ~/.hermes/config.yaml: api_server must bind 127.0.0.1 (remove extra.host LAN override) and see ~/.hermes/logs/gateway.log`;
       updateRuntimeStatus(profileId, "failed", { lastError: `Health check timeout: ${detail}` });
       throw new ProfileRuntimeError("PROFILE_GATEWAY_HEALTH_TIMEOUT", detail);
     }
@@ -273,7 +367,7 @@ export const hermesLocalAdapter: RuntimeAdapter = {
     const instance = getRuntimeInstance(profileId);
     if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
 
-    const healthy = await checkHealth(instance.host, instance.port);
+    const healthy = await probeGatewayHealth(instance.host, instance.port);
     const status = healthy ? "running" : "stopped";
     updateRuntimeStatus(profileId, status, {
       lastHealthCheckAt: new Date().toISOString(),

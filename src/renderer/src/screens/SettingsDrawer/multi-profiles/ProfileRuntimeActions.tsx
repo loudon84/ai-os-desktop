@@ -32,7 +32,11 @@ export function ProfileRuntimeActions({
     }
   };
 
-  const expertProfiles = profiles.filter((p) => p.name !== "default");
+  const sortedProfiles = [...profiles].sort((a, b) => {
+    if (a.name === "default") return -1;
+    if (b.name === "default") return 1;
+    return a.sort_order - b.sort_order;
+  });
 
   return (
     <section className="settings-drawer-section">
@@ -40,10 +44,10 @@ export function ProfileRuntimeActions({
         {t("runtimeSettings.multiProfilesRuntimeTitle")}
       </h3>
       <ul className="settings-drawer-list">
-        {expertProfiles.length === 0 ? (
+        {sortedProfiles.length === 0 ? (
           <li className="settings-drawer-text-muted">{t("runtimeSettings.multiProfilesEmpty")}</li>
         ) : (
-          expertProfiles.map((p) => (
+          sortedProfiles.map((p) => (
             <li key={p.id} className="settings-drawer-list-item">
               <button
                 type="button"

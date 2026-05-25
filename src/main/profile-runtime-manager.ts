@@ -3,6 +3,7 @@ import {
   initProfileRuntimeDb,
   closeProfileRuntimeDb,
   getProfile,
+  getProfileByName,
   listProfiles,
   getRuntimeInstance,
   listRuntimeInstances,
@@ -11,6 +12,7 @@ import {
   generateId,
   getCapabilities,
 } from "./profile-runtime-db";
+import { ensureDefaultControllerProfile } from "./profile-runtime-default";
 import { hermesLocalAdapter } from "./hermes-local-adapter";
 import { reconcile } from "./runtime-reconciler";
 import { getPluginRegistry } from "./plugin-registry";
@@ -36,8 +38,23 @@ function canTransition(from: ProfileRuntimeStatus, to: ProfileRuntimeStatus): bo
   return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+const LEGACY_PROFILE_ID_ALIASES: Record<string, string> = {
+  "default-8642": "default",
+};
+
+/** Resolve UI/localStorage id or profile name to canonical DB profile id. */
+export function resolveProfileId(idOrName: string): string {
+  const normalized = LEGACY_PROFILE_ID_ALIASES[idOrName] ?? idOrName;
+  const byId = getProfile(normalized);
+  if (byId) return byId.id;
+  const byName = getProfileByName(normalized);
+  if (byName) return byName.id;
+  return normalized;
+}
+
 export function initializeProfileRuntime(): void {
   initProfileRuntimeDb();
+  ensureDefaultControllerProfile();
   const registry = getPluginRegistry();
 
   registry.registerAdapter(hermesLocalAdapter);
@@ -86,9 +103,10 @@ function setStartupTimeout(profileId: string, instance: NonNullable<ReturnType<t
   startupTimeoutTimers.set(profileId, timer);
 }
 
-export async function startProfile(profileId: string): Promise<ProfileGatewayState> {
+export async function startProfile(profileIdOrName: string): Promise<ProfileGatewayState> {
+  const profileId = resolveProfileId(profileIdOrName);
   const profile = getProfile(profileId);
-  if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+  if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileIdOrName);
 
   const instance = getRuntimeInstance(profileId);
   if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
@@ -103,10 +121,13 @@ export async function startProfile(profileId: string): Promise<ProfileGatewaySta
 
   const portBusy = await isPortOccupied(instance.port);
   if (portBusy) {
-    updateRuntimeStatus(profileId, "failed", {
-      lastError: `Port ${instance.port} is already in use`,
-    });
-    throw new ProfileRuntimeError("PROFILE_PORT_CONFLICT", `Port ${instance.port} is occupied`);
+    const alreadyHealthy = await probeGatewayHealth(instance.host, instance.port);
+    if (!alreadyHealthy) {
+      updateRuntimeStatus(profileId, "failed", {
+        lastError: `Port ${instance.port} is already in use`,
+      });
+      throw new ProfileRuntimeError("PROFILE_PORT_CONFLICT", `Port ${instance.port} is occupied`);
+    }
   }
 
   try {
@@ -158,9 +179,10 @@ export async function startProfile(profileId: string): Promise<ProfileGatewaySta
   }
 }
 
-export async function stopProfile(profileId: string): Promise<ProfileGatewayState> {
+export async function stopProfile(profileIdOrName: string): Promise<ProfileGatewayState> {
+  const profileId = resolveProfileId(profileIdOrName);
   const profile = getProfile(profileId);
-  if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileId);
+  if (!profile) throw new ProfileRuntimeError("PROFILE_NOT_FOUND", profileIdOrName);
 
   const instance = getRuntimeInstance(profileId);
   if (!instance) throw new ProfileRuntimeError("PROFILE_RUNTIME_NOT_DEPLOYED", profileId);
@@ -288,7 +310,8 @@ export function listProfileSummaries(): ProfileSummary[] {
   });
 }
 
-export function getProfileSummary(profileId: string): ProfileSummary | null {
+export function getProfileSummary(profileIdOrName: string): ProfileSummary | null {
+  const profileId = resolveProfileId(profileIdOrName);
   const profile = getProfile(profileId);
   if (!profile) return null;
   const instance = getRuntimeInstance(profileId);
@@ -316,7 +339,8 @@ export function getRuntimeStatus(): ProfileGatewayState[] {
 }
 
 /** Read-only /health probe; does not update runtime instance status. */
-export async function probeProfileHealth(profileId: string): Promise<boolean> {
+export async function probeProfileHealth(profileIdOrName: string): Promise<boolean> {
+  const profileId = resolveProfileId(profileIdOrName);
   const instance = getRuntimeInstance(profileId);
   if (!instance || instance.status !== "running") {
     return false;

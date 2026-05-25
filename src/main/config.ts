@@ -237,6 +237,42 @@ export function setConfigValue(
   safeWriteFile(configFile, content);
 }
 
+function readYamlScalar(content: string, keys: string[]): string {
+  for (const key of keys) {
+    const root = content.match(
+      new RegExp(`^\\s*${escapeRegex(key)}:\\s*["']?([^"'\\n#]+)["']?`, "m"),
+    );
+    if (root?.[1]) return root[1].trim();
+    const nested = content.match(
+      new RegExp(`^\\s+${escapeRegex(key)}:\\s*["']?([^"'\\n#]+)["']?`, "m"),
+    );
+    if (nested?.[1]) return nested[1].trim();
+  }
+  return "";
+}
+
+function ensureHermesConfigFile(configFile: string, home: string): void {
+  if (existsSync(configFile)) return;
+  if (!existsSync(home)) {
+    mkdirSync(home, { recursive: true });
+  }
+  const template = `provider: "auto"
+default: ""
+base_url: ""
+
+platforms:
+  api_server:
+    host: "127.0.0.1"
+    port: 8642
+
+smart_model_routing:
+  enabled: false
+
+streaming: true
+`;
+  safeWriteFile(configFile, template);
+}
+
 export function getModelConfig(profile?: string): {
   provider: string;
   model: string;
@@ -252,14 +288,14 @@ export function getModelConfig(profile?: string): {
 
   const content = readFileSync(configFile, "utf-8");
 
-  const providerMatch = content.match(/^\s*provider:\s*["']?([^"'\n#]+)["']?/m);
-  const modelMatch = content.match(/^\s*default:\s*["']?([^"'\n#]+)["']?/m);
-  const baseUrlMatch = content.match(/^\s*base_url:\s*["']?([^"'\n#]+)["']?/m);
+  const provider = readYamlScalar(content, ["provider", "default_provider"]);
+  const model = readYamlScalar(content, ["default", "default_model"]);
+  const baseUrl = readYamlScalar(content, ["base_url"]);
 
   const result = {
-    provider: providerMatch ? providerMatch[1].trim() : defaults.provider,
-    model: modelMatch ? modelMatch[1].trim() : defaults.model,
-    baseUrl: baseUrlMatch ? baseUrlMatch[1].trim() : defaults.baseUrl,
+    provider: provider || defaults.provider,
+    model: model || defaults.model,
+    baseUrl: baseUrl || defaults.baseUrl,
   };
 
   setCache(cacheKey, result);
@@ -273,24 +309,30 @@ export function setModelConfig(
   profile?: string,
 ): void {
   invalidateCache(`mc:${profile || "default"}`);
-  const { configFile } = profilePaths(profile);
-  if (!existsSync(configFile)) return;
+  const paths = profilePaths(profile);
+  ensureHermesConfigFile(paths.configFile, paths.home);
 
-  let content = readFileSync(configFile, "utf-8");
+  let content = readFileSync(paths.configFile, "utf-8");
 
   const providerRegex = /^(\s*provider:\s*)["']?[^"'\n#]*["']?/m;
   if (providerRegex.test(content)) {
     content = content.replace(providerRegex, `$1"${provider}"`);
+  } else {
+    content = `provider: "${provider}"\n${content}`;
   }
 
   const modelRegex = /^(\s*default:\s*)["']?[^"'\n#]*["']?/m;
   if (modelRegex.test(content)) {
     content = content.replace(modelRegex, `$1"${model}"`);
+  } else {
+    content = content.replace(/^(\s*provider:.*\n)/m, `$1default: "${model}"\n`);
   }
 
   const baseUrlRegex = /^(\s*base_url:\s*)["']?[^"'\n#]*["']?/m;
   if (baseUrlRegex.test(content)) {
     content = content.replace(baseUrlRegex, `$1"${baseUrl}"`);
+  } else if (baseUrl) {
+    content = content.replace(/^(\s*default:.*\n)/m, `$1base_url: "${baseUrl}"\n`);
   }
 
   // Disable smart_model_routing
@@ -312,7 +354,7 @@ export function setModelConfig(
     content = content.replace(streamingRegex, "$1true");
   }
 
-  safeWriteFile(configFile, content);
+  safeWriteFile(paths.configFile, content);
 }
 
 export function getHermesHome(profile?: string): string {

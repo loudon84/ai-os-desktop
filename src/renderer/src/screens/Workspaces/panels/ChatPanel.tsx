@@ -47,7 +47,9 @@ export function ChatPanel(): React.JSX.Element {
     }
   }, [activeSessionId, activeProfileId, loadSessionHistory, clearMessages]);
 
-  const profileInstalled = activeProfile?.installed !== false;
+  const isDefaultProfile =
+    activeProfile?.name === "default" || activeProfileId === "default";
+  const profileInstalled = isDefaultProfile || activeProfile?.installed !== false;
 
   return (
     <div className="workspaces-panel-root is-chat">

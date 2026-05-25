@@ -1,11 +1,14 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { homedir } from "os";
 import { randomUUID } from "crypto";
-import { HERMES_HOME } from "./installer";
 import { safeWriteFile } from "./utils";
 import DEFAULT_MODELS from "./default-models";
 
-const MODELS_FILE = join(HERMES_HOME, "models.json");
+function modelsFilePath(): string {
+  const home = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+  return join(home, "models.json");
+}
 
 export interface SavedModel {
   id: string;
@@ -18,15 +21,16 @@ export interface SavedModel {
 
 function readModels(): SavedModel[] {
   try {
-    if (!existsSync(MODELS_FILE)) return [];
-    return JSON.parse(readFileSync(MODELS_FILE, "utf-8"));
+    const path = modelsFilePath();
+    if (!existsSync(path)) return [];
+    return JSON.parse(readFileSync(path, "utf-8"));
   } catch {
     return [];
   }
 }
 
 function writeModels(models: SavedModel[]): void {
-  safeWriteFile(MODELS_FILE, JSON.stringify(models, null, 2));
+  safeWriteFile(modelsFilePath(), JSON.stringify(models, null, 2));
 }
 
 function seedDefaults(): SavedModel[] {
@@ -43,7 +47,7 @@ function seedDefaults(): SavedModel[] {
 }
 
 export function listModels(): SavedModel[] {
-  if (!existsSync(MODELS_FILE)) {
+  if (!existsSync(modelsFilePath())) {
     return seedDefaults();
   }
   return readModels();

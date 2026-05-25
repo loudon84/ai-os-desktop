@@ -26,7 +26,9 @@ export function MultiProfilesPanel(): React.JSX.Element {
       setProfiles(profileList);
       setRoleSpecs(specs);
       if (!selectedProfileId && profileList.length > 0) {
-        setSelectedProfileId(profileList[0].id);
+        const preferred =
+          profileList.find((p) => p.name === "default") ?? profileList[0];
+        setSelectedProfileId(preferred.id);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

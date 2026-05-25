@@ -67,6 +67,16 @@ function Setup({ onComplete }: { onComplete: () => void }): React.JSX.Element {
         configBaseUrl,
       );
 
+      const modelLabel =
+        configModel.trim() ||
+        t("setup.localProviderLabel", { defaultValue: "Local model" });
+      await window.hermesAPI.addModel(
+        modelLabel,
+        configProvider,
+        configModel,
+        configBaseUrl,
+      );
+
       onComplete();
     } catch {
       setError(t("setup.saveFailed"));

@@ -1,6 +1,21 @@
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { getModelConfig } from "../config";
 import { resolveRuntimePaths } from "./windows/path-resolver";
+
+/** Avoid importing models.ts (top-level HERMES_HOME) — breaks installer init order. */
+function hasSavedModelsInFile(): boolean {
+  const home = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
+  const modelsPath = join(home, "models.json");
+  if (!existsSync(modelsPath)) return false;
+  try {
+    const parsed = JSON.parse(readFileSync(modelsPath, "utf-8")) as unknown;
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 export function hasHermesAuthCredential(provider: string): boolean {
   const { hermesAuthFile } = resolveRuntimePaths();
@@ -27,6 +42,12 @@ export function isModelConfigured(): boolean {
   try {
     const mc = getModelConfig();
     const localProviders = ["custom", "lmstudio", "ollama", "vllm", "llamacpp"];
+    if (localProviders.includes(mc.provider) && mc.baseUrl.trim()) {
+      return true;
+    }
+    if (mc.model.trim()) {
+      return true;
+    }
     if (
       localProviders.includes(mc.provider) ||
       hasHermesAuthCredential(mc.provider)
@@ -35,6 +56,10 @@ export function isModelConfigured(): boolean {
     }
   } catch {
     /* ignore */
+  }
+
+  if (hasSavedModelsInFile()) {
+    return true;
   }
 
   if (!existsSync(hermesEnvFile)) return false;

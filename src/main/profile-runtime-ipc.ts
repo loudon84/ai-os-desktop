@@ -17,6 +17,7 @@ import {
   getProfileSummary,
   getRuntimeStatus,
   probeProfileHealth,
+  resolveProfileId,
 } from "./profile-runtime-manager";
 import {
   listSkills,
@@ -83,7 +84,7 @@ export function setupProfileRuntimeIPC(): void {
   });
 
   ipcMain.handle("profile-runtime:probeHealth", async (_event, profileId: string) => {
-    const healthy = await probeProfileHealth(profileId);
+    const healthy = await probeProfileHealth(resolveProfileId(profileId));
     return { healthy };
   });
 
@@ -92,7 +93,7 @@ export function setupProfileRuntimeIPC(): void {
   });
 
   ipcMain.handle("profile-runtime:listProfileSkills", async (_event, profileId: string) => {
-    return listSkills(profileId).map((s) => ({
+    return listSkills(resolveProfileId(profileId)).map((s) => ({
       id: s.id,
       profileId: s.profile_id,
       skillPath: s.skill_path,
@@ -108,7 +109,8 @@ export function setupProfileRuntimeIPC(): void {
   });
 
   ipcMain.handle("profile-runtime:listProfileSessions", async (_event, profileId: string) => {
-    const profile = getProfile(profileId);
+    const resolvedId = resolveProfileId(profileId);
+    const profile = getProfile(resolvedId);
     const homeName = profile?.name ?? profileId;
     const home = profileHome(homeName);
     const dbPath = join(home, "state.db");
@@ -128,7 +130,8 @@ export function setupProfileRuntimeIPC(): void {
   ipcMain.handle(
     "profile-runtime:deleteProfileSession",
     async (_event, profileId: string, sessionId: string) => {
-      const profile = getProfile(profileId);
+      const resolvedId = resolveProfileId(profileId);
+      const profile = getProfile(resolvedId);
       const homeName = profile?.name ?? profileId;
       const home = profileHome(homeName);
       const dbPath = join(home, "state.db");
@@ -222,10 +225,10 @@ export function setupProfileRuntimeIPC(): void {
   });
 
   ipcMain.handle("profile-runtime:getGatewayLogs", async (_event, profileId: string, options?: GatewayLogQueryOptions) => {
-    return getHistory(profileId, options);
+    return getHistory(resolveProfileId(profileId), options);
   });
 
   ipcMain.handle("profile-runtime:setAutoRestart", async (_event, profileId: string, enabled: boolean) => {
-    updateRuntimeStatus(profileId, undefined, { autoRestart: enabled });
+    updateRuntimeStatus(resolveProfileId(profileId), undefined, { autoRestart: enabled });
   });
 }
