@@ -13,6 +13,7 @@ import {
   PipMirrorFields,
   createDefaultPipMirrorSelection,
 } from "../install/PipMirrorFields";
+import "../../screens/Install/install.css";
 
 type WizardStage =
   | "detect"
@@ -57,7 +58,7 @@ function InstallWizard({
   const [sourceType, setSourceType] = useState<SourceType>("local-zip");
   const [localZipPath, setLocalZipPath] = useState("");
   const [gitUrl, setGitUrl] = useState(
-    "https://github.com/NousResearch/hermes-agent.git",
+    "http://git.superic.com/aiplatform/hermes-agent.git",
   );
   const [gitBranch, setGitBranch] = useState("main");
   const [gitShallow, setGitShallow] = useState(true);
@@ -168,51 +169,51 @@ function InstallWizard({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t("install.agentSourceTitle") || "Install SmartCopilot"}
+    <div className="install-wizard-screen">
+      <div className="install-wizard-card">
+        <div className="install-wizard-header">
+          <h1 className="install-wizard-title">
+            {t("install.agentSourceTitle") || "Install SMC-Copilot"}
           </h1>
           {onCancel && (
             <button
-              className="text-gray-400 hover:text-gray-600"
+              type="button"
+              className="install-wizard-close"
               onClick={onCancel}
             >
-              <X className="w-5 h-5" />
+              <X className="install-icon-sm" />
             </button>
           )}
         </div>
 
         {state.stage === "detect" && (
-          <div className="flex items-center gap-3 text-gray-500">
-            <Spinner className="w-5 h-5 animate-spin" />
+          <div className="install-wizard-status">
+            <Spinner className="install-icon-sm install-spin" />
             <span>{t("install.detecting") || "Detecting installation..."}</span>
           </div>
         )}
 
         {state.stage === "select-source" && (
           <>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="install-source-desc">
               {t("install.agentSourceDesc") ||
                 "Select how to obtain the agent source code"}
             </p>
 
-            <div className="space-y-3">
+            <div className="install-source-options">
               <button
-                className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left ${
-                  sourceType === "local-zip"
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                type="button"
+                className={`install-source-option ${
+                  sourceType === "local-zip" ? "install-source-option--active" : ""
                 }`}
                 onClick={() => setSourceType("local-zip")}
               >
-                <FolderOpen className="w-6 h-6 text-blue-500 flex-shrink-0" />
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
+                <FolderOpen className="install-source-option-icon" />
+                <div className="install-source-option-body">
+                  <div className="install-source-option-title">
                     {t("install.fromLocalZip") || "From Local ZIP"}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="install-source-option-desc">
                     {t("install.fromLocalZipDesc") ||
                       "Select a local ZIP file, no network needed"}
                   </div>
@@ -220,19 +221,18 @@ function InstallWizard({
               </button>
 
               <button
-                className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left ${
-                  sourceType === "git-clone"
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                type="button"
+                className={`install-source-option ${
+                  sourceType === "git-clone" ? "install-source-option--active" : ""
                 }`}
                 onClick={() => setSourceType("git-clone")}
               >
-                <GitBranch className="w-6 h-6 text-green-500 flex-shrink-0" />
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
+                <GitBranch className="install-source-option-icon" />
+                <div className="install-source-option-body">
+                  <div className="install-source-option-title">
                     {t("install.fromGitClone") || "From Git Repository"}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="install-source-option-desc">
                     {t("install.fromGitCloneDesc") ||
                       "Clone from GitHub or private repo"}
                   </div>
@@ -241,14 +241,14 @@ function InstallWizard({
             </div>
 
             {sourceType === "local-zip" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="install-source-section">
+                <label className="install-source-label">
                   {t("install.zipFilePath") || "ZIP File Path"}
                 </label>
-                <div className="flex gap-2">
+                <div className="install-source-row">
                   <input
                     type="text"
-                    className="input flex-1"
+                    className="install-form-input"
                     value={localZipPath}
                     onChange={(e) => {
                       setLocalZipPath(e.target.value);
@@ -256,7 +256,11 @@ function InstallWizard({
                     }}
                     placeholder="C:\path\to\hermes-agent.zip"
                   />
-                  <button className="btn btn-secondary" onClick={handleBrowse}>
+                  <button
+                    type="button"
+                    className="install-btn install-btn-secondary"
+                    onClick={handleBrowse}
+                  >
                     {t("install.browse") || "Browse"}
                   </button>
                 </div>
@@ -264,45 +268,41 @@ function InstallWizard({
             )}
 
             {sourceType === "git-clone" && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t("install.gitUrl") || "Git URL"}
-                  </label>
-                  <input
-                    type="text"
-                    className="input w-full"
-                    value={gitUrl}
-                    onChange={(e) => {
-                      setGitUrl(e.target.value);
-                      setError("");
-                    }}
-                    placeholder="https://github.com/user/hermes-agent.git"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <div className="flex-1 space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="install-source-section">
+                <label className="install-source-label">
+                  {t("install.gitUrl") || "Git URL"}
+                </label>
+                <input
+                  type="text"
+                  className="install-form-input"
+                  value={gitUrl}
+                  onChange={(e) => {
+                    setGitUrl(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="https://github.com/user/hermes-agent.git"
+                />
+                <div className="install-source-git-grid">
+                  <div className="install-source-section">
+                    <label className="install-source-label">
                       {t("install.gitBranch") || "Branch"}
                     </label>
                     <input
                       type="text"
-                      className="input w-full"
+                      className="install-form-input"
                       value={gitBranch}
                       onChange={(e) => setGitBranch(e.target.value)}
                       placeholder="main"
                     />
                   </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={gitShallow}
-                        onChange={(e) => setGitShallow(e.target.checked)}
-                      />
-                      {t("install.shallowClone") || "Shallow"}
-                    </label>
-                  </div>
+                  <label className="install-source-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={gitShallow}
+                      onChange={(e) => setGitShallow(e.target.checked)}
+                    />
+                    {t("install.shallowClone") || "Shallow"}
+                  </label>
                 </div>
               </div>
             )}
@@ -310,71 +310,79 @@ function InstallWizard({
             <PipMirrorFields value={pipMirror} onChange={setPipMirror} />
 
             {error && (
-              <div className="flex items-center gap-2 text-red-500 text-sm">
-                <AlertTriangle className="w-4 h-4" />
+              <div className="install-source-error">
+                <AlertTriangle className="install-icon-sm" />
                 {error}
               </div>
             )}
 
             <button
-              className="btn btn-primary w-full flex items-center justify-center gap-2"
+              type="button"
+              className="install-btn install-btn-primary"
               onClick={handleStartInstall}
             >
               {t("install.startInstall") || "Start Install"}
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="install-icon-sm" />
             </button>
           </>
         )}
 
         {state.stage === "installing" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-              <Spinner className="w-5 h-5 animate-spin text-blue-500" />
+          <>
+            <div className="install-wizard-status">
+              <Spinner className="install-icon-sm install-spin" />
               <span>{t("install.installing") || "Installing..."}</span>
             </div>
             {progress.message && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {progress.message}
-              </p>
+              <p className="install-wizard-message">{progress.message}</p>
             )}
             <button
-              className="btn btn-secondary w-full"
+              type="button"
+              className="install-btn install-btn-secondary"
               onClick={() => setState({ ...state, stage: "select-source" })}
             >
               {t("common.cancel") || "Cancel"}
             </button>
-          </div>
+          </>
         )}
 
         {state.stage === "verifying" && (
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <Spinner className="w-5 h-5 animate-spin text-blue-500" />
+          <div className="install-wizard-status">
+            <Spinner className="install-icon-sm install-spin" />
             <span>{t("install.verifying") || "Verifying installation..."}</span>
           </div>
         )}
 
         {state.stage === "completed" && (
-          <div className="space-y-4 text-center">
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="install-wizard-center">
+            <CheckCircle className="install-wizard-success-icon" />
+            <h2 className="install-wizard-subtitle">
               {t("install.completed") || "Installation Complete"}
             </h2>
-            <button className="btn btn-primary w-full" onClick={onComplete}>
-              {t("install.launchApp") || "Launch SmartCopilot"}
+            <button
+              type="button"
+              className="install-btn install-btn-primary"
+              onClick={onComplete}
+            >
+              {t("install.launchApp") || "Launch SMC-Copilot"}
             </button>
           </div>
         )}
 
         {state.stage === "error" && (
-          <div className="space-y-4 text-center">
-            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="install-wizard-center">
+            <AlertTriangle className="install-wizard-error-icon" />
+            <h2 className="install-wizard-subtitle">
               {t("install.failed") || "Installation Failed"}
             </h2>
             {state.error && (
-              <p className="text-sm text-red-500">{state.error}</p>
+              <p className="install-wizard-error-text">{state.error}</p>
             )}
-            <button className="btn btn-primary w-full" onClick={handleRetry}>
+            <button
+              type="button"
+              className="install-btn install-btn-primary"
+              onClick={handleRetry}
+            >
               {t("install.retry") || "Retry"}
             </button>
           </div>

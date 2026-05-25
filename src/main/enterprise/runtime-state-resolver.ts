@@ -12,7 +12,8 @@ import { readRuntimeConfig } from "./desktop-runtime-config";
 import { existsInstallMarker } from "./install-marker";
 import { isModelConfigured } from "./model-config-status";
 
-const REGISTRY_KEY = "HKCU\\Software\\SMC\\Copilot";
+const REGISTRY_KEY_PRIMARY = "HKCU\\Software\\SMC\\copilot";
+const REGISTRY_KEY_LEGACY = "HKCU\\Software\\SMC\\Copilot";
 
 function hasProjectFiles(dir: string): boolean {
   return (
@@ -62,7 +63,9 @@ function detectUpdateMode(runtimeRoot: string): boolean {
     return false;
   }
 
-  const previousVersion = readRegistryValue(REGISTRY_KEY, "PreviousVersion");
+  const previousVersion =
+    readRegistryValue(REGISTRY_KEY_PRIMARY, "PreviousVersion") ??
+    readRegistryValue(REGISTRY_KEY_LEGACY, "PreviousVersion");
   if (previousVersion) return true;
 
   if (existsInstallMarker()) return true;

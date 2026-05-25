@@ -10,16 +10,16 @@ const { mockExistsSync, mockReaddirSync, mockResolveEffectivePortalMonorepoRoot 
 );
 
 const mockResolveInstallLocation = vi.fn(() => ({
-  installDir: "C:\\Programs\\SMC Copilot",
-  runtimeRoot: "C:\\Programs\\SMC Copilot\\runtime",
-  binDir: "C:\\Programs\\SMC Copilot\\bin",
-  agentDir: "C:\\Programs\\SMC Copilot\\runtime\\hermes",
-  hermesRuntimeRoot: "C:\\Programs\\SMC Copilot\\runtime\\hermes",
-  hermesSourceRoot: "C:\\Programs\\SMC Copilot\\runtime\\hermes\\src",
-  serveRuntimeRoot: "C:\\Programs\\SMC Copilot\\runtime\\serve",
-  serveSourceRoot: "C:\\Programs\\SMC Copilot\\runtime\\serve\\src",
-  portalRuntimeRoot: "C:\\Programs\\SMC Copilot\\runtime\\portal",
-  portalSourceRoot: "C:\\Programs\\SMC Copilot\\runtime\\portal\\src",
+  installDir: "C:\\Programs\\SMC-Copilot",
+  runtimeRoot: "C:\\Programs\\SMC-Copilot\\runtime",
+  binDir: "C:\\Programs\\SMC-Copilot\\bin",
+  agentDir: "C:\\Programs\\SMC-Copilot\\runtime\\hermes",
+  hermesRuntimeRoot: "C:\\Programs\\SMC-Copilot\\runtime\\hermes",
+  hermesSourceRoot: "C:\\Programs\\SMC-Copilot\\runtime\\hermes\\src",
+  serveRuntimeRoot: "C:\\Programs\\SMC-Copilot\\runtime\\serve",
+  serveSourceRoot: "C:\\Programs\\SMC-Copilot\\runtime\\serve\\src",
+  portalRuntimeRoot: "C:\\Programs\\SMC-Copilot\\runtime\\portal",
+  portalSourceRoot: "C:\\Programs\\SMC-Copilot\\runtime\\portal\\src",
   source: "registry" as const,
 }));
 
@@ -46,7 +46,7 @@ function norm(path: string): string {
   return path.replace(/\\/g, "/").toLowerCase();
 }
 
-const installPrefix = "c:/programs/smc copilot/runtime";
+const installPrefix = "c:/programs/smc-copilot/runtime";
 
 function mockStandardRuntimeLayout(): void {
   mockExistsSync.mockImplementation((p) => {
@@ -116,7 +116,7 @@ describe("resolveCopilotRuntimePaths", () => {
   });
 
   it("uses effective portal root when env is unset", () => {
-    const effective = "C:/Programs/SMC Copilot/runtime/portal/src";
+    const effective = "C:/Programs/SMC-Copilot/runtime/portal/src";
     mockResolveEffectivePortalMonorepoRoot.mockReturnValue(effective);
 
     const env = buildCopilotRuntimeEnv({});

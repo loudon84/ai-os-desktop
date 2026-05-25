@@ -32,7 +32,7 @@
 19. `src/main/config.ts` — 配置管理
 20. `src/main/installer.ts` — 安装管理
 20b. `src/main/runtime/runtime-paths.ts` — **V5.3** hermes/serve/portal 路径契约
-20c. `src/main/enterprise/windows/install-location-resolver.ts` + `path-resolver.ts` — 安装根目录解析
+20c. `electron-builder.yml` + `build/installer.nsh` + `install-location-resolver.ts` — **V5.4** 安装目录 / 注册表 / `desktop.exe`
 
 ### 第四阶段：理解数据模块
 

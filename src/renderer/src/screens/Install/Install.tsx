@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { ArrowRight, Copy } from "../../assets/icons";
 import { useI18n } from "../../components/useI18n";
+import "./install.css";
 import { AgentSourceSelect } from "./AgentSourceSelect";
 import type { AgentSourceConfig } from "./AgentSourceSelect";
 
@@ -122,10 +123,18 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
         <div className="install-error-banner">
           <p className="install-error-text">{failed}</p>
           <div className="install-error-actions">
-            <button className="btn btn-primary btn-sm" onClick={handleRetry}>
+            <button
+              type="button"
+              className="install-btn install-btn-primary install-btn-sm"
+              onClick={handleRetry}
+            >
               {t("install.retryInstallation")}
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleCopyLogs}>
+            <button
+              type="button"
+              className="install-btn install-btn-secondary install-btn-sm"
+              onClick={handleCopyLogs}
+            >
               <Copy size={13} />
               {copied ? t("install.copied") : t("install.copyLogs")}
             </button>
@@ -152,7 +161,11 @@ function Install({ onComplete, onFailed }: InstallProps): React.JSX.Element {
 
       {done && (
         <div className="install-done">
-          <button className="btn btn-primary" onClick={onComplete}>
+          <button
+            type="button"
+            className="install-btn install-btn-primary"
+            onClick={onComplete}
+          >
             {t("install.continueToSetup")}
             <ArrowRight size={16} />
           </button>

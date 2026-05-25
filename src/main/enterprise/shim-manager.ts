@@ -16,24 +16,25 @@ function writeCmdFile(filePath: string, content: string): void {
 }
 
 export function createDesktopShim(binDir: string, installDir: string): void {
-  const exeName = "smc-copilot.exe";
-  const content = `@echo off${CRLF}"${join(installDir, exeName)}" %*${CRLF}`;
-  writeCmdFile(join(binDir, "smc-copilot.cmd"), content);
-  writeCmdFile(join(binDir, "hermes-desktop.cmd"), content);
+  const exePath = join(installDir, "desktop.exe");
+  const launchLine = `@echo off${CRLF}"${exePath}" %*${CRLF}`;
+  writeCmdFile(join(binDir, "desktop.cmd"), launchLine);
+  writeCmdFile(join(binDir, "smc-copilot.cmd"), launchLine);
+  writeCmdFile(join(binDir, "hermes-desktop.cmd"), launchLine);
 }
 
 export function createPlaceholderHermesShim(binDir: string): void {
-  const content = `@echo off${CRLF}echo Hermes Agent is not yet installed. Please launch SMC Copilot to complete setup.${CRLF}`;
+  const content = `@echo off${CRLF}echo Hermes Agent is not yet installed. Please launch SMC-Copilot to complete setup.${CRLF}`;
   writeCmdFile(join(binDir, "hermes.cmd"), content);
 }
 
 export function createPlaceholderServeShim(binDir: string): void {
-  const content = `@echo off${CRLF}echo Copilot Serve is not yet installed. Please launch SMC Copilot to complete setup.${CRLF}`;
+  const content = `@echo off${CRLF}echo Copilot Serve is not yet installed. Please launch SMC-Copilot to complete setup.${CRLF}`;
   writeCmdFile(join(binDir, "serve.cmd"), content);
 }
 
 export function createPlaceholderPortalShim(binDir: string): void {
-  const content = `@echo off${CRLF}echo Portal is not yet installed. Please launch SMC Copilot to complete setup.${CRLF}`;
+  const content = `@echo off${CRLF}echo Portal is not yet installed. Please launch SMC-Copilot to complete setup.${CRLF}`;
   writeCmdFile(join(binDir, "portal.cmd"), content);
 }
 

@@ -1,6 +1,6 @@
-# team_v1.7 / ver5.3.4 — Deploy copilot-serve + Portal monorepo into SMC Copilot runtime
+# team_v1.7 / ver5.3.4 — Deploy copilot-serve + Portal monorepo into SMC-Copilot runtime (V5.3 serve layout + V5.4 desktop.exe)
 param(
-    [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\SMCCopilot",
+    [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\SMC-Copilot",
     [string]$RepoUrl = "https://github.com/loudon84/ai-os-serve.git",
     [string]$Branch = "master",
     [int]$Port = 8765,
@@ -15,7 +15,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RuntimeRoot = Join-Path $InstallRoot "runtime"
-$ServeRoot = Join-Path $RuntimeRoot "copilot-serve"
+$ServeRuntimeRoot = Join-Path $RuntimeRoot "serve"
+$ServeSourceRoot = Join-Path $ServeRuntimeRoot "src"
+$ServeVenv = Join-Path $ServeRuntimeRoot "venv"
 $PortalRuntimeRoot = Join-Path $RuntimeRoot "portal"
 $PortalMonorepoRoot = Join-Path $PortalRuntimeRoot "src"
 $DeployLog = Join-Path $RuntimeRoot "logs\deploy-copilot-serve.log"
@@ -242,14 +244,14 @@ AIOS_TEAM_HUB_USE_STUB=true
 COPILOT_REQUIRE_TOKEN=false
 CORS_ALLOW_ORIGINS=http://127.0.0.1,http://localhost
 "@
-    $envPath = Join-Path $ServeRoot ".env"
+    $envPath = Join-Path $ServeRuntimeRoot ".env"
     Set-Content -Path $envPath -Value $envContent -Encoding UTF8
     Write-DeployLog "Wrote $envPath"
 }
 
 function Set-ServeUserEnvVars {
-    $venvPython = Join-Path $ServeRoot ".venv\Scripts\python.exe"
-    [Environment]::SetEnvironmentVariable("COPILOT_SERVE_ROOT", $ServeRoot, "User")
+    $venvPython = Join-Path $ServeVenv "Scripts\python.exe"
+    [Environment]::SetEnvironmentVariable("COPILOT_SERVE_ROOT", $ServeSourceRoot, "User")
     [Environment]::SetEnvironmentVariable("COPILOT_SERVE_PYTHON", $venvPython, "User")
     [Environment]::SetEnvironmentVariable("COPILOT_SERVE_PORT", [string]$Port, "User")
     Write-DeployLog "Set user env: COPILOT_SERVE_ROOT, COPILOT_SERVE_PYTHON, COPILOT_SERVE_PORT"
@@ -280,8 +282,9 @@ function Update-DesktopRuntimeConfig {
     $merged["binDir"] = if ($merged.ContainsKey("binDir")) { $merged["binDir"] } else { (Join-Path $InstallRoot "bin") }
 
     if (-not $SkipServe) {
-        $merged["copilotServeDir"] = $ServeRoot
-        $merged["serveSourceRoot"] = $ServeRoot
+        $merged["serveRuntimeRoot"] = $ServeRuntimeRoot
+        $merged["serveSourceRoot"] = $ServeSourceRoot
+        $merged["copilotServeDir"] = $ServeSourceRoot
         $merged["copilotServePort"] = $Port
     }
 
@@ -306,7 +309,8 @@ function Write-DeployState {
         status = $Status
         completedAt = (Get-Date).ToString("o")
         installRoot = $InstallRoot
-        serveRoot = if ($SkipServe) { $null } else { $ServeRoot }
+        serveRuntimeRoot = if ($SkipServe) { $null } else { $ServeRuntimeRoot }
+        serveSourceRoot = if ($SkipServe) { $null } else { $ServeSourceRoot }
         serveStatus = $ServeStatus
         servePort = if ($SkipServe) { $null } else { $Port }
         serveBranch = if ($SkipServe) { $null } else { $Branch }
@@ -320,28 +324,45 @@ function Write-DeployState {
 }
 
 function Deploy-Serve {
-    Write-DeployLog "=== deploy copilot-serve ==="
+    Write-DeployLog "=== deploy copilot-serve (runtime/serve) ==="
     $null = Get-Python312
     Ensure-Uv
 
-    Sync-GitRepo -TargetRoot $ServeRoot -Url $RepoUrl -RefBranch $Branch -MarkerFile (Join-Path $ServeRoot "pyproject.toml")
+    New-Item -ItemType Directory -Path $ServeRuntimeRoot -Force | Out-Null
+    Sync-GitRepo -TargetRoot $ServeSourceRoot -Url $RepoUrl -RefBranch $Branch -MarkerFile (Join-Path $ServeSourceRoot "pyproject.toml")
 
-    Push-Location $ServeRoot
+    Push-Location $ServeSourceRoot
     try {
-        if ($Force -and (Test-Path ".venv")) {
-            Remove-Item -Recurse -Force ".venv"
+        if ($Force) {
+            if (Test-Path $ServeVenv) {
+                Remove-Item -Recurse -Force $ServeVenv
+            }
+            $legacyVenvInSrc = Join-Path $ServeSourceRoot ".venv"
+            if (Test-Path $legacyVenvInSrc) {
+                Remove-Item -Recurse -Force $legacyVenvInSrc
+            }
         }
-        if (-not (Test-Path ".venv\Scripts\python.exe")) {
-            Write-DeployLog "uv venv --python 3.12"
-            Invoke-DeployNative "uv venv" { uv venv --python 3.12 }
+        if (-not (Test-Path (Join-Path $ServeVenv "Scripts\python.exe"))) {
+            Write-DeployLog "uv venv $ServeVenv --python 3.12"
+            Invoke-DeployNative "uv venv" { uv venv $ServeVenv --python 3.12 }
         }
-        Write-DeployLog "uv sync --extra service"
-        Invoke-DeployNative "uv sync --extra service" { uv sync --extra service }
+        $prevUvEnv = $env:UV_PROJECT_ENVIRONMENT
+        $env:UV_PROJECT_ENVIRONMENT = $ServeVenv
+        try {
+            Write-DeployLog "uv sync --extra service"
+            Invoke-DeployNative "uv sync --extra service" { uv sync --extra service }
 
-        Write-ServeEnv
+            Write-ServeEnv
 
-        Write-DeployLog "alembic upgrade head"
-        Invoke-DeployNative "alembic upgrade head" { uv run alembic upgrade head }
+            Write-DeployLog "alembic upgrade head"
+            Invoke-DeployNative "alembic upgrade head" { uv run alembic upgrade head }
+        } finally {
+            if ($null -eq $prevUvEnv) {
+                Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue
+            } else {
+                $env:UV_PROJECT_ENVIRONMENT = $prevUvEnv
+            }
+        }
     } finally {
         Pop-Location
     }
@@ -378,18 +399,26 @@ function Deploy-Portal {
 
 function Restart-DesktopApp {
     if (-not $RestartDesktop) { return }
-    $desktopExe = Join-Path $InstallRoot "smc-ai-copilot.exe"
-    if (-not (Test-Path $desktopExe)) {
-        $desktopExe = Join-Path $InstallRoot "SMCCopilot.exe"
+    $desktopExe = $null
+    foreach ($candidate in @(
+            (Join-Path $InstallRoot "desktop.exe"),
+            (Join-Path $InstallRoot "smc-ai-copilot.exe"),
+            (Join-Path $InstallRoot "SMCCopilot.exe")
+        )) {
+        if (Test-Path $candidate) {
+            $desktopExe = $candidate
+            break
+        }
     }
-    if (Test-Path $desktopExe) {
-        Write-DeployLog "Restarting SMC Copilot..."
-        Get-Process -Name "smc-ai-copilot" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-        Get-Process -Name "SMC Copilot" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    if ($desktopExe) {
+        Write-DeployLog "Restarting desktop ($desktopExe)..."
+        foreach ($procName in @("desktop", "smc-ai-copilot")) {
+            Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
         Start-Sleep -Seconds 2
         Start-Process $desktopExe
     } else {
-        Write-DeployLog "Desktop executable not found; skip restart"
+        Write-DeployLog "Desktop executable not found (desktop.exe / legacy); skip restart"
     }
 }
 

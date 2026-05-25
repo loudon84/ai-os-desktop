@@ -135,7 +135,7 @@ export class WindowManager extends EventEmitter {
       modal: config.modal ?? false,
       parent: config.modal ? parentWindow : undefined,
       show: false, // 先不显示，加载完成后再显示
-      title: config.title || "SmartCopilot",
+      title: config.title || "SMC-Copilot",
       autoHideMenuBar: false,
       icon: this.defaultIcon,
       webPreferences: {

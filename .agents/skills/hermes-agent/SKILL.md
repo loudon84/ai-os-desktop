@@ -145,7 +145,7 @@ hermes doctor       # Diagnose any issues
 **For development:**
 
 ```bash
-git clone https://github.com/NousResearch/hermes-agent.git
+git clone http://git.superic.com/aiplatform/hermes-agent.git
 cd hermes-agent
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv venv --python 3.11

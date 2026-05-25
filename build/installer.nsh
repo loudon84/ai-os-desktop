@@ -6,6 +6,10 @@
 !include "nsis\Include\AddToPathSafe.nsh"
 !include "nsis\Include\RuntimePrecheck.nsh"
 
+!define SMC_COPILOT_REG_KEY "Software\SMC\copilot"
+!define SMC_COPILOT_LEGACY_REG_KEY "Software\SMC\Copilot"
+!define SMC_COPILOT_DEFAULT_DIR "$LOCALAPPDATA\Programs\SMC-Copilot"
+
 Var ExistingInstallDir
 Var RuntimeRoot
 Var BinDir
@@ -15,45 +19,41 @@ Var PreviousAppVersion
 !macro preInit
   SetRegView 64
 
-  ; 1. HKCU SMC Copilot
-  ReadRegStr $ExistingInstallDir HKCU "Software\SMC\Copilot" "InstallLocation"
+  ; 1. Primary normalized registry (HKCU)
+  ReadRegStr $ExistingInstallDir HKCU "${SMC_COPILOT_REG_KEY}" "InstallLocation"
 
-  ; 2. HKLM SMC Copilot
+  ; 2. Primary normalized registry (HKLM)
   ${If} $ExistingInstallDir == ""
-    ReadRegStr $ExistingInstallDir HKLM "Software\SMC\Copilot" "InstallLocation"
+    ReadRegStr $ExistingInstallDir HKLM "${SMC_COPILOT_REG_KEY}" "InstallLocation"
   ${EndIf}
 
-  ; 3. Legacy CopilotSMC
-  ${If} $ExistingInstallDir == ""
-    ReadRegStr $ExistingInstallDir HKCU "Software\SMC\CopilotSMC" "InstallLocation"
+  ; 3. Legacy SMC Copilot registry (record only, do not reuse as INSTDIR)
+  ReadRegStr $LegacyInstallDir HKCU "${SMC_COPILOT_LEGACY_REG_KEY}" "InstallLocation"
+
+  ; 4. Legacy CopilotSMC
+  ${If} $LegacyInstallDir == ""
+    ReadRegStr $LegacyInstallDir HKCU "Software\SMC\CopilotSMC" "InstallLocation"
   ${EndIf}
 
-  ; 4. Legacy HermesDesktop
-  ${If} $ExistingInstallDir == ""
+  ; 5. Legacy HermesDesktop
+  ${If} $LegacyInstallDir == ""
     ReadRegStr $LegacyInstallDir HKCU "Software\SMC\HermesDesktop" "InstallLocation"
-    ${If} $LegacyInstallDir != ""
-      StrCpy $ExistingInstallDir $LegacyInstallDir
-    ${EndIf}
   ${EndIf}
 
-  ; 5. Legacy com.nousresearch.hermes uninstall entry
-  ${If} $ExistingInstallDir == ""
+  ; 6. Legacy com.nousresearch.hermes uninstall entry
+  ${If} $LegacyInstallDir == ""
     ReadRegStr $LegacyInstallDir HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\com.nousresearch.hermes" "InstallLocation"
-    ${If} $LegacyInstallDir != ""
-      StrCpy $ExistingInstallDir $LegacyInstallDir
-    ${EndIf}
   ${EndIf}
 
-  ; 6. Default first-install directory
+  ; 7. Default first-install directory (no spaces)
   ${If} $ExistingInstallDir == ""
-    StrCpy $ExistingInstallDir "$LOCALAPPDATA\Programs\SMC Copilot"
+    StrCpy $ExistingInstallDir "${SMC_COPILOT_DEFAULT_DIR}"
   ${EndIf}
 
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$ExistingInstallDir"
   SetRegView 32
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$ExistingInstallDir"
 
-  ; Default install directory page to existing location on upgrade
   StrCpy $INSTDIR "$ExistingInstallDir"
 !macroend
 
@@ -69,13 +69,16 @@ Var PreviousAppVersion
 !macroend
 
 !macro customInstall
-  DetailPrint "Preparing SMC Copilot upgrade-safe directories..."
+  DetailPrint "Preparing SMC-Copilot upgrade-safe directories..."
 
   StrCpy $RuntimeRoot "$INSTDIR\runtime"
   StrCpy $BinDir "$INSTDIR\bin"
 
-  ; Read previous version for upgrade tracking
-  ReadRegStr $PreviousAppVersion HKCU "Software\SMC\Copilot" "AppVersion"
+  ; Read previous version for upgrade tracking (primary then legacy)
+  ReadRegStr $PreviousAppVersion HKCU "${SMC_COPILOT_REG_KEY}" "AppVersion"
+  ${If} $PreviousAppVersion == ""
+    ReadRegStr $PreviousAppVersion HKCU "${SMC_COPILOT_LEGACY_REG_KEY}" "AppVersion"
+  ${EndIf}
 
   CreateDirectory "$INSTDIR\bin"
   CreateDirectory "$INSTDIR\runtime"
@@ -94,13 +97,18 @@ Var PreviousAppVersion
   DetailPrint "Running environment precheck..."
   !insertmacro RunRuntimePrecheck "$INSTDIR"
 
-  ; Desktop launcher shim
+  ; Primary desktop launcher shim
+  FileOpen $0 "$INSTDIR\bin\desktop.cmd" w
+  FileWrite $0 "@echo off$\r$\n"
+  FileWrite $0 '"%~dp0..\desktop.exe" %*$\r$\n'
+  FileClose $0
+
+  ; Alias shims (compat)
   FileOpen $0 "$INSTDIR\bin\smc-copilot.cmd" w
   FileWrite $0 "@echo off$\r$\n"
   FileWrite $0 '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" %*$\r$\n'
   FileClose $0
 
-  ; Legacy shim name (compat)
   FileOpen $0 "$INSTDIR\bin\hermes-desktop.cmd" w
   FileWrite $0 "@echo off$\r$\n"
   FileWrite $0 '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" %*$\r$\n'
@@ -118,9 +126,11 @@ Var PreviousAppVersion
   IfFileExists "$INSTDIR\runtime\desktop-runtime.json" skip_desktop_runtime_json 0
     FileOpen $2 "$INSTDIR\runtime\desktop-runtime.json" w
     FileWrite $2 '{$\r$\n'
-    FileWrite $2 '  "productName": "SMC Copilot",$\r$\n'
+    FileWrite $2 '  "productName": "SMC-Copilot",$\r$\n'
     FileWrite $2 '  "appId": "com.smc.smc-ai-copilot",$\r$\n'
-    FileWrite $2 '  "executableName": "smc-ai-copilot",$\r$\n'
+    FileWrite $2 '  "executableName": "desktop",$\r$\n'
+    FileWrite $2 '  "registryKey": "HKCU\\Software\\SMC\\copilot",$\r$\n'
+    FileWrite $2 '  "legacyProductNames": ["SMC Copilot", "CopilotSMC", "HermesDesktop"],$\r$\n'
     FileWrite $2 '  "installDir": "$INSTDIR",$\r$\n'
     FileWrite $2 '  "runtimeRoot": "$INSTDIR\\runtime",$\r$\n'
     FileWrite $2 '  "binDir": "$INSTDIR\\bin",$\r$\n'
@@ -133,15 +143,15 @@ Var PreviousAppVersion
     FileClose $2
   skip_desktop_runtime_json:
 
-  WriteRegExpandStr HKCU "Software\SMC\Copilot" "InstallLocation" "$INSTDIR"
-  WriteRegExpandStr HKCU "Software\SMC\Copilot" "RuntimeRoot" "$INSTDIR\runtime"
-  WriteRegExpandStr HKCU "Software\SMC\Copilot" "BinDir" "$INSTDIR\bin"
-  WriteRegStr HKCU "Software\SMC\Copilot" "AppVersion" "${VERSION}"
-  WriteRegStr HKCU "Software\SMC\Copilot" "InstallMode" "per-user"
+  WriteRegExpandStr HKCU "${SMC_COPILOT_REG_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegExpandStr HKCU "${SMC_COPILOT_REG_KEY}" "RuntimeRoot" "$INSTDIR\runtime"
+  WriteRegExpandStr HKCU "${SMC_COPILOT_REG_KEY}" "BinDir" "$INSTDIR\bin"
+  WriteRegStr HKCU "${SMC_COPILOT_REG_KEY}" "AppVersion" "${VERSION}"
+  WriteRegStr HKCU "${SMC_COPILOT_REG_KEY}" "InstallMode" "per-user"
   ${If} $PreviousAppVersion != ""
-    WriteRegStr HKCU "Software\SMC\Copilot" "PreviousVersion" "$PreviousAppVersion"
+    WriteRegStr HKCU "${SMC_COPILOT_REG_KEY}" "PreviousVersion" "$PreviousAppVersion"
   ${EndIf}
-  WriteRegStr HKCU "Software\SMC\Copilot" "LastUpdatedAt" "${__DATE__} ${__TIME__}"
+  WriteRegStr HKCU "${SMC_COPILOT_REG_KEY}" "LastUpdatedAt" "${__DATE__} ${__TIME__}"
 
   !insertmacro AddToPathSafe "$INSTDIR\bin"
 
@@ -151,23 +161,27 @@ Var PreviousAppVersion
   Delete "$SMPROGRAMS\Hermes Agent.lnk"
   Delete "$SMPROGRAMS\Hermes Desktop.lnk"
 
-  ; Log install completion
+  ; Log install completion (include legacy dir when present)
   FileOpen $3 "$INSTDIR\runtime\logs\nsis-install.log" a
   FileSeek $3 0 END
   FileWrite $3 "[install] version=${VERSION} dir=$INSTDIR date=${__DATE__} ${__TIME__}$\r$\n"
+  ${If} $LegacyInstallDir != ""
+    FileWrite $3 "[install] legacyDir=$LegacyInstallDir$\r$\n"
+  ${EndIf}
   FileClose $3
 
   System::Call 'user32::SendMessageTimeout(i 0xffff, i ${WM_SETTINGCHANGE}, i 0, t "Environment", i 0, i 5000, *i .r0)'
 !macroend
 
 !macro customUnInstall
-  ReadRegStr $RuntimeRoot HKCU "Software\SMC\Copilot" "RuntimeRoot"
-  ReadRegStr $BinDir HKCU "Software\SMC\Copilot" "BinDir"
-  DetailPrint "Removing SMC Copilot from user PATH ($BinDir)..."
+  ReadRegStr $RuntimeRoot HKCU "${SMC_COPILOT_REG_KEY}" "RuntimeRoot"
+  ReadRegStr $BinDir HKCU "${SMC_COPILOT_REG_KEY}" "BinDir"
+  DetailPrint "Removing SMC-Copilot from user PATH ($BinDir)..."
 
   !insertmacro RemoveFromPathSafe "$INSTDIR\bin"
 
-  DeleteRegKey HKCU "Software\SMC\Copilot"
+  DeleteRegKey HKCU "${SMC_COPILOT_REG_KEY}"
+  DeleteRegKey HKCU "${SMC_COPILOT_LEGACY_REG_KEY}"
   DeleteRegKey HKCU "Software\SMC\CopilotSMC"
 
   System::Call 'user32::SendMessageTimeout(i 0xffff, i ${WM_SETTINGCHANGE}, i 0, t "Environment", i 0, i 5000, *i .r0)'

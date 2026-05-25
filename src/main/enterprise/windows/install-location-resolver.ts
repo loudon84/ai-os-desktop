@@ -3,18 +3,24 @@ import { homedir } from "node:os";
 import { existsSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const REGISTRY_KEY_PRIMARY = "HKCU\\Software\\SMC\\Copilot";
-const REGISTRY_KEY_PRIMARY_HKLM = "HKLM\\Software\\SMC\\Copilot";
+const REGISTRY_KEY_PRIMARY = "HKCU\\Software\\SMC\\copilot";
+const REGISTRY_KEY_PRIMARY_HKLM = "HKLM\\Software\\SMC\\copilot";
+const REGISTRY_KEY_LEGACY_SMC_COPILOT = "HKCU\\Software\\SMC\\Copilot";
 const REGISTRY_KEY_LEGACY_SMC = "HKCU\\Software\\SMC\\CopilotSMC";
 const REGISTRY_KEY_LEGACY_HERMES = "HKCU\\Software\\SMC\\HermesDesktop";
 const REGISTRY_KEY_LEGACY_UNINSTALL =
   "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\com.nousresearch.hermes";
 
+const PRIMARY_REGISTRY_KEYS = new Set([
+  REGISTRY_KEY_PRIMARY,
+  REGISTRY_KEY_PRIMARY_HKLM,
+]);
+
 const ENV_VAR_PRIMARY = "SMC_COPILOT_INSTALL_DIR";
 const ENV_VAR_LEGACY = "HERMES_DESKTOP_INSTALL_DIR";
 const REGISTRY_VALUE = "InstallLocation";
 
-const DEFAULT_PROGRAM_FOLDER = "SmartCopilot";
+const DEFAULT_PROGRAM_FOLDER = "SMC-Copilot";
 
 export type PathResolutionSource =
   | "env-var"
@@ -77,6 +83,7 @@ function readRegistryInstallInfo(): RegistryInstallInfo {
   const keys = [
     REGISTRY_KEY_PRIMARY,
     REGISTRY_KEY_PRIMARY_HKLM,
+    REGISTRY_KEY_LEGACY_SMC_COPILOT,
     REGISTRY_KEY_LEGACY_SMC,
     REGISTRY_KEY_LEGACY_HERMES,
     REGISTRY_KEY_LEGACY_UNINSTALL,
@@ -137,11 +144,17 @@ export function readLegacyInstallLocations(): LegacyInstallLocation[] {
     { installDir: join(localAppData, "Programs", "Hermes Agent"), source: "legacy-programs-hermes-agent" },
     { installDir: join(localAppData, "AIOS-Hermes"), source: "legacy-aios-hermes" },
     { installDir: join(localAppData, "Programs", "CopilotSMC"), source: "legacy-copilot-smc" },
+    { installDir: join(localAppData, "Programs", "SMC Copilot"), source: "legacy-programs-smc-copilot" },
+    { installDir: join(localAppData, "Programs", "SMC-Copilot"), source: "legacy-programs-smc-copilot-normalized" },
   ];
 
   if (process.platform === "win32") {
     const regInfo = readRegistryInstallInfo();
-    if (regInfo.installLocation) {
+    if (
+      regInfo.installLocation &&
+      regInfo.registryKey &&
+      !PRIMARY_REGISTRY_KEYS.has(regInfo.registryKey)
+    ) {
       candidates.unshift({
         installDir: regInfo.installLocation,
         source: regInfo.registryKey || "legacy-registry",
@@ -174,8 +187,9 @@ export function resolveInstallLocation(): DesktopInstallLocation {
 
   const regInfo = readRegistryInstallInfo();
   if (regInfo.installLocation) {
-    const source =
-      regInfo.registryKey === REGISTRY_KEY_PRIMARY ? "registry" : "legacy-registry";
+    const source = PRIMARY_REGISTRY_KEYS.has(regInfo.registryKey ?? "")
+      ? "registry"
+      : "legacy-registry";
     return locationFromInstallDir(regInfo.installLocation, source);
   }
 

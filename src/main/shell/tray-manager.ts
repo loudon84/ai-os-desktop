@@ -62,7 +62,7 @@ export class TrayManager {
     const icon = this.loadIcon();
     this.tray = new Tray(icon);
 
-    this.tray.setToolTip("SmartCopilot");
+    this.tray.setToolTip("SMC-Copilot");
     this.updateContextMenu();
 
     // 点击托盘图标显示/隐藏窗口
@@ -141,7 +141,7 @@ export class TrayManager {
 
     const template: Electron.MenuItemConstructorOptions[] = [
       {
-        label: "SmartCopilot",
+        label: "SMC-Copilot",
         enabled: false,
       },
       { type: "separator" },

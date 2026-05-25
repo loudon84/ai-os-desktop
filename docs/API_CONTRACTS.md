@@ -110,4 +110,25 @@ interface AiOsPortalInfo {
 
 ---
 
+## Windows 安装注册表（非 IPC）
+
+业务安装信息由 NSIS [`build/installer.nsh`](../build/installer.nsh) 写入，由 Main [`install-location-resolver.ts`](../src/main/enterprise/windows/install-location-resolver.ts) 读取。与 electron-builder 卸载项（`appId` / `nsis.guid`）分离。
+
+| 键 | 用途 |
+|---|---|
+| `HKCU\Software\SMC\copilot`（primary） | 安装后写入 `InstallLocation`、`RuntimeRoot`、`BinDir`、`AppVersion`、`PreviousVersion` 等 |
+| `HKLM\Software\SMC\copilot` | primary 的 HKLM 回退读取 |
+| `HKCU\Software\SMC\Copilot` | legacy，仅兼容读取 / 卸载清理 |
+| `HKCU\Software\SMC\CopilotSMC` | legacy |
+| `HKCU\Software\SMC\HermesDesktop` | legacy |
+| `HKCU\...\Uninstall\com.nousresearch.hermes` | legacy 卸载项 `InstallLocation` |
+
+**解析顺序（`readRegistryInstallInfo`）**：primary HKCU → primary HKLM → legacy 键（存在且目录存在则采用）。`resolveInstallLocation().source` 为 `registry` 仅当命中 primary 键。
+
+**默认路径（无注册表）**：`%LOCALAPPDATA%\Programs\SMC-Copilot`（dev-default 与 NSIS 首次安装一致）。
+
+**V5.4.1**：`desktop-runtime.json` 身份字段由 migration schema **5**（`migrateV541InstallIdentity`）在应用启动时刷新，NSIS 升级不 patch 已有 JSON。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

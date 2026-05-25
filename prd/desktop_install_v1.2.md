@@ -397,7 +397,7 @@ $INSTDIR\runtime\desktop-runtime.json
   "addToPath": true,
   "agentSource": {
     "sourceType": "git-clone",
-    "gitUrl": "https://github.com/NousResearch/hermes-agent.git",
+    "gitUrl": "http://git.superic.com/aiplatform/hermes-agent.git",
     "gitBranch": "main",
     "gitShallow": true
   }

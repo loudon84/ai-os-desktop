@@ -1,12 +1,23 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { app } from "electron";
 
 import type { DesktopInstallLocation } from "../enterprise/windows/install-location-resolver";
 
 const CONFIG_FILENAME = "desktop-runtime.json";
 
-export function migrateInstallLocation(location: DesktopInstallLocation): void {
+const CANONICAL_IDENTITY = {
+  productName: "SMC-Copilot",
+  appId: "com.smc.smc-ai-copilot",
+  executableName: "desktop",
+  registryKey: "HKCU\\Software\\SMC\\copilot",
+  legacyProductNames: ["SMC Copilot", "CopilotSMC", "HermesDesktop"],
+  legacyAppIds: ["com.nousresearch.hermes"],
+} as const;
+
+/** V5.4.1 — refresh install identity in desktop-runtime.json without clobbering user fields. */
+export function migrateV541InstallIdentity(
+  location: DesktopInstallLocation,
+): void {
   const configPath = join(location.runtimeRoot, CONFIG_FILENAME);
   mkdirSync(location.runtimeRoot, { recursive: true });
 
@@ -24,15 +35,11 @@ export function migrateInstallLocation(location: DesktopInstallLocation): void {
 
   const merged = {
     ...existing,
-    productName: "SMC-Copilot",
-    appId: "com.smc.smc-ai-copilot",
-    executableName: "desktop",
+    ...CANONICAL_IDENTITY,
     installDir: location.installDir,
     runtimeRoot: location.runtimeRoot,
     binDir: location.binDir,
     agentDir: location.agentDir,
-    legacyAppIds: ["com.nousresearch.hermes"],
-    appVersion: app.getVersion(),
   };
 
   writeFileSync(configPath, JSON.stringify(merged, null, 2), "utf-8");

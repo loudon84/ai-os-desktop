@@ -8,8 +8,8 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（V2.0 MainPage + **V3.2 Workspace Host** + **V3.3 Auth** + **V4.0 Multi Profiles** + **V1.3 Task Workbench**） |
-| appId | `com.smc.smc-ai-copilot`（productName: SMC Copilot） |
+| 版本 | 0.3.6（… + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
 ## 架构：三层进程（必须遵守）
@@ -229,13 +229,14 @@ Renderer Install 屏
   → 20 步流水线：预检 → Bundle → Agent → Venv → Hermes Home → Profile Bootstrap → Marker
 ```
 
-安装目录（Windows）：`%LOCALAPPDATA%\Programs\SMC Copilot\` 或注册表解析的 `$INSTDIR`。**V5.3** 标准 runtime 布局：
+安装目录（Windows）：`%LOCALAPPDATA%\Programs\SMC-Copilot\`（默认，无空格）或注册表 `HKCU\Software\SMC\copilot` → `InstallLocation`。**V5.4** 主程序为 `desktop.exe`；兼容读取 legacy `HKCU\Software\SMC\Copilot` 等键。**V5.3** 标准 runtime 布局：
 
 ```text
+$INSTDIR/desktop.exe
 $INSTDIR/runtime/hermes/{src,venv,logs}
 $INSTDIR/runtime/serve/{src,venv,.env,logs}
 $INSTDIR/runtime/portal/{src,node_modules,.env.local,logs}
-$INSTDIR/bin/{hermes,serve,portal,smc-copilot}.cmd
+$INSTDIR/bin/{desktop,smc-copilot,hermes-desktop,hermes,serve,portal}.cmd
 ```
 
 旧目录名（`hermes-agent` / `copilot-serve` / `ai-os-full`）仅用于**读取 fallback**与**一次性 schema v4 磁盘迁移**（`004-v53-runtime-layout.ts`）；canonical 布局为上式。
@@ -420,7 +421,7 @@ npm run lint         # ESLint
 | 改 Auth / 登录 / Bootstrap | `LoginScreen.tsx` → `desktopAuth` / `desktopUserConfig` → `auth-client.ts` / `user-config-client.ts` / `startup-decision.ts` |
 | 改启动门控 / splash→login | `useStartupGate.ts` → `shell-api.ts` → `startup-ipc.ts` → `startup-decision.ts` |
 | 改 Settings / Runtime 入口 | `SettingsDrawer.tsx` + `server/ServerPanel.tsx` + `general/GeneralPanel.tsx` + `Layout.openSettingsDrawer`；Workspaces 侧栏已无 `settings` 页 |
-| 改安装 / runtime 路径（V5.3） | `runtime/runtime-paths.ts` → `runtime/portal-root-resolver.ts` → `enterprise/windows/install-location-resolver.ts` / `path-resolver.ts` → `shim-manager.ts` / `copilot-serve-paths.ts` / `aios-paths.ts` |
+| 改安装 / runtime 路径（V5.3 / V5.4） | `electron-builder.yml` + `build/installer.nsh` → `install-location-resolver.ts` → `runtime/runtime-paths.ts` → `shim-manager.ts` |
 | 改 Portal 部署 / Settings Portal Runtime | `build/scripts/deploy-copilot-serve.ps1` → `PortalRuntimeSection.tsx` → `aios:get-portal-info` → `getAiOsPortalInfo()` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/navigation.ts`（二级侧栏 + openSettings） |
 
@@ -447,6 +448,8 @@ npm run lint         # ESLint
 | **V3.6.3** | SettingsDrawer `server`/`general` 面板；Workspaces 移除 settings 页；顶栏 `ServersEntry` | `SettingsDrawer/server/`, `SettingsDrawer/general/`, `MainPage/ServersEntry.tsx` |
 | **V5.3** | 安装 runtime 目录重命名：`hermes` / `serve` / `portal`；`src`+`venv` 分层；统一 `runtime-paths.ts`；`bin/*.cmd` shim | `runtime/runtime-paths.ts`, `enterprise/windows/*`, `shim-manager.ts`, `copilot-serve-paths.ts`, `aios-paths.ts` |
 | **V5.3.4** | Portal 部署脚本 clone `ai-os-full` → `runtime/portal/src`；`COPILOT_PORTAL_ROOT` 优先级解析；`aios:get-portal-info` + Settings Portal Runtime 路径展示 | `deploy-copilot-serve.ps1`, `portal-root-resolver.ts`, `aios-ipc.ts`, `PortalRuntimeSection.tsx` |
+| **V5.4** | 安装身份统一：`SMC-Copilot` 目录、`desktop.exe`、`HKCU\Software\SMC\copilot`；NSIS 不复用带空格 legacy 默认目录；安装包 `SMC-Copilot-*-setup.exe` | `electron-builder.yml`, `build/installer.nsh`, `install-location-resolver.ts`, `shim-manager.ts` |
+| **V5.4.1** | Review hotfix：migration schema **5** 刷新 `desktop-runtime.json` 身份字段；`readLegacyInstallLocations` 不把 primary 注册表当 legacy；`AppUserModelId` 对齐 `appId` | `005-v541-install-identity.ts`, `migration-runner.ts`, `install-location-resolver.ts`, `index.ts` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

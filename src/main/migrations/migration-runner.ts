@@ -11,8 +11,9 @@ import { migrateInstallLocation } from "./001-install-location";
 import { migrateRuntimeLayout } from "./002-runtime-layout";
 import { migrateWebOperatorConfig } from "./003-web-operator-config";
 import { migrateV53RuntimeLayout } from "./004-v53-runtime-layout";
+import { migrateV541InstallIdentity } from "./005-v541-install-identity";
 
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 let lastMigrationStatus: MigrationStatus = {
   schemaVersion: 0,
@@ -72,8 +73,13 @@ export function runDesktopMigrations(): MigrationStatus {
     state.schemaVersion = 3;
   }
 
-  if (state.schemaVersion < CURRENT_SCHEMA_VERSION) {
+  if (state.schemaVersion < 4) {
     warnings.push(...migrateV53RuntimeLayout(location));
+    state.schemaVersion = 4;
+  }
+
+  if (state.schemaVersion < CURRENT_SCHEMA_VERSION) {
+    migrateV541InstallIdentity(location);
     state.schemaVersion = CURRENT_SCHEMA_VERSION;
   }
 

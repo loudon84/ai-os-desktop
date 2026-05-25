@@ -1344,8 +1344,8 @@ function setupUpdater(): void {
 }
 
 app.whenReady().then(async () => {
-  app.name = "SmartCopilot";
-  electronApp.setAppUserModelId("com.smc.smc-copilot");
+  app.name = "SMC-Copilot";
+  electronApp.setAppUserModelId("com.smc.smc-ai-copilot");
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);

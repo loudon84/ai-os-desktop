@@ -3,7 +3,7 @@ export default {
   logout: "退出登录",
   email: "邮箱",
   password: "密码",
-  loginSubtitle: "输入账号密码以登录 SmartCopilot",
+  loginSubtitle: "输入账号密码以登录 SMC-Copilot",
   invalidEmail: "请输入有效的邮箱地址",
   passwordTooShort: "密码至少需要 4 个字符",
   showPassword: "显示密码",
@@ -16,7 +16,7 @@ export default {
   configDiffCancel: "取消",
   checkingSession: "正在检查会话…",
   account: "账户",
-  brandTitle: "SmartCopilot",
+  brandTitle: "SMC-Copilot",
   brandSubtitle:
     "在下方填写 Portal 后端与 Auth API 前缀并完成验证。登录成功后会将令牌注入 Portal Home，并同步门户会话 Cookie，避免内嵌页再次进入 /login。此登录不是 Hermes Gateway 登录。",
   loginPurposeHint:

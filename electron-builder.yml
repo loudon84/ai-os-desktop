@@ -1,5 +1,5 @@
 appId: com.smc.smc-ai-copilot
-productName: SMC Copilot
+productName: SMC-Copilot
 directories:
   buildResources: build
   output: dist
@@ -27,16 +27,16 @@ extraResources:
     filter:
       - "**/*"
 win:
-  executableName: smc-ai-copilot
+  executableName: desktop
   target:
     - target: nsis
       arch:
         - x64
 nsis:
   guid: "7D7C5222-4F0C-4BD0-B877-6D62ED5B941A"
-  artifactName: smc-copilot-${version}-setup.${ext}
-  shortcutName: SMC Copilot
-  uninstallDisplayName: SMC Copilot
+  artifactName: SMC-Copilot-${version}-setup.${ext}
+  shortcutName: SMC-Copilot
+  uninstallDisplayName: SMC-Copilot
   createDesktopShortcut: always
   createStartMenuShortcut: true
   oneClick: false

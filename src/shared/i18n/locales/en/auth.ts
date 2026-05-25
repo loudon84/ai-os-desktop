@@ -3,7 +3,7 @@ export default {
   logout: "Sign out",
   email: "Email",
   password: "Password",
-  loginSubtitle: "Enter your credentials to access SmartCopilot",
+  loginSubtitle: "Enter your credentials to access SMC-Copilot",
   invalidEmail: "Enter a valid email address",
   passwordTooShort: "Password must be at least 4 characters",
   showPassword: "Show password",
@@ -16,7 +16,7 @@ export default {
   configDiffCancel: "Cancel",
   checkingSession: "Checking session…",
   account: "Account",
-  brandTitle: "SmartCopilot",
+  brandTitle: "SMC-Copilot",
   brandSubtitle:
     "Sign in to your Portal Auth API (below). The desktop injects a Bearer token and syncs a portal session cookie so the embedded Portal Home tab skips /login. This is not Hermes Gateway login.",
   loginPurposeHint:

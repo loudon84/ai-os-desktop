@@ -2,15 +2,15 @@
 
 ## 项目定位
 
-**SMC Copilot**（包名 / 可执行文件：`smc-ai-copilot`）是基于 **Electron + React + TypeScript + TailwindCSS** 的 **Portal Desktop** 桌面壳：部署与运维 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)，并提供多 Profile 运行时、跨 Profile 编排与 WebContentsView（Web Operator）内嵌能力。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
+**SMC-Copilot**（npm 包名 `smc-ai-copilot`；Windows 主程序 **`desktop.exe`**）是基于 **Electron + React + TypeScript + TailwindCSS** 的 **Portal Desktop** 桌面壳：部署与运维 [Hermes Agent](https://github.com/loudon84/ai-os-hermes)，并提供多 Profile 运行时、跨 Profile 编排与 WebContentsView（Web Operator）内嵌能力。遵循 Electron 三层进程隔离模型（Main / Preload / Renderer）。
 
 本仓库代码由 **hermes-desktop**（单运行时安装/配置/聊天）演进而来；Hermes Agent 仍为执行引擎，SMC Copilot 负责桌面壳、进程生命周期、SQLite 控制面与统一 UI。
 
 | 项 | 值 |
 |---|---|
-| **产品名称** | SMC Copilot |
-| **包名 / 可执行文件** | `smc-ai-copilot` |
-| **版本** | 0.3.6（V2.x MainPage + **V3.2 Workspace Host** + **V3.2.1 Hotfix** + **V3.3 Auth Embed** + **V3.3.1 Hotfix** + **V4.0 Multi Profiles**） |
+| **产品名称** | SMC-Copilot |
+| **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
+| **版本** | 0.3.6（… + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -120,6 +120,17 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **部署脚本**：`build/scripts/deploy-copilot-serve.ps1` — clone Portal monorepo、`pnpm install`、用户级 `COPILOT_PORTAL_ROOT` / `COPILOT_PORTAL_RUNTIME_ROOT`、更新 `desktop-runtime.json`（`-SkipPortal` / `-SkipServe`）
 - **路径解析**：`portal-root-resolver.ts` — env → config → filesystem；`buildCopilotRuntimeEnv` 不再覆盖用户 env
 - **诊断 UI**：Settings → Server → Portal Runtime — `aios:get-portal-info` + `PortalRuntimeSection.tsx`
+
+**V5.4（安装包名称与路径统一）**：
+- **默认安装目录**：`%LOCALAPPDATA%\Programs\SMC-Copilot`（无空格）；主程序 **`desktop.exe`**
+- **业务注册表**：写入 `HKCU\Software\SMC\copilot`；运行时兼容读取 legacy `Software\SMC\Copilot` 等
+- **NSIS**：`build/installer.nsh` — 升级默认不复用带空格旧目录；`bin\desktop.cmd` + 别名 shim
+- **打包**：`electron-builder.yml` — `artifactName: SMC-Copilot-${version}-setup.${ext}`；`appId` / `nsis.guid` 不变
+
+**V5.4.1（Review hotfix）**：
+- **Migration schema 5**：`005-v541-install-identity.ts` — 启动时 merge `desktop-runtime.json` 的 `productName` / `executableName` / `appId` / `registryKey`（保留 `agentSource`、`pipMirror` 等用户字段）
+- **Legacy 发现**：`readLegacyInstallLocations()` 仅 legacy 注册表键才 unshift，避免把 primary 安装目录标为迁移源
+- **AppUserModelId**：`com.smc.smc-ai-copilot` 与 `electron-builder` `appId` 一致
 
 ## 核心目录
 
