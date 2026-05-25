@@ -178,6 +178,7 @@ import { bindMainBrowserWindow, registerWindowIpc } from "./window/window-ipc";
 import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
 import { generateId, getProfileByName, insertAuditEvent } from "./profile-runtime-db";
 import { setupWorkspacesIPC } from "./workspaces-ipc";
+import { registerWorkspaceChatIpc } from "./workspace-chat/workspace-chat-ipc";
 import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
@@ -428,6 +429,7 @@ function setupIPC(): void {
     setupProfileRuntimeIPC();
     setupProfileRoleIPC();
     setupWorkspacesIPC();
+    registerWorkspaceChatIpc(() => mainWindow);
   } catch { /* profile-runtime not available in early setup */ }
 
   try {

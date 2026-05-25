@@ -33,6 +33,7 @@ import { authApi } from "./auth-api";
 import { userConfigApi } from "./user-config-api";
 import { shellApi } from "./shell-api";
 import { copilotServeApi } from "./copilot-serve-api";
+import { workspaceChatApi } from "./workspace-chat-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -881,6 +882,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("smcShell", shellApi);
     contextBridge.exposeInMainWorld("copilotServe", copilotServeApi);
     contextBridge.exposeInMainWorld("workspaces", workspaces);
+    contextBridge.exposeInMainWorld("workspaceChat", workspaceChatApi);
   } catch (error) {
     console.error(error);
   }
@@ -911,4 +913,6 @@ if (process.contextIsolated) {
   window.smcShell = shellApi;
   // @ts-ignore (define in dts)
   window.workspaces = workspaces;
+  // @ts-ignore (define in dts)
+  window.workspaceChat = workspaceChatApi;
 }

@@ -127,11 +127,14 @@ export function WorkspacesProvider({
 
   const setActiveProfileId = useCallback((id: string | null) => {
     void workspacesApi.abortChat();
+    if (activeProfileId) {
+      void window.workspaceChat.abort(activeProfileId);
+    }
     setActiveProfileIdState(id);
     if (id) writeStorage(STORAGE_KEYS.activeProfileId, id);
     setActiveSessionId(null);
     setSessionsKeyword("");
-  }, []);
+  }, [activeProfileId]);
 
   const setActiveRightTab = useCallback((tab: RightInspectorTab) => {
     setActiveRightTabState(tab);

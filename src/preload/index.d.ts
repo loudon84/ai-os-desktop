@@ -701,10 +701,13 @@ interface WorkspacesAPI {
   gitStatus: (profileId: string) => Promise<{ branch: string | null; dirtyCount: number }>;
 }
 
+type WorkspaceChatAPI = typeof import("./workspace-chat-api").workspaceChatApi;
+
 declare global {
   interface Window {
     electron: ElectronAPI;
     workspaces: WorkspacesAPI;
+    workspaceChat: WorkspaceChatAPI;
     hermesAPI: HermesAPI;
     aiosBrowser: AiosBrowserAPI;
     profileRuntime: ProfileRuntimeAPI;

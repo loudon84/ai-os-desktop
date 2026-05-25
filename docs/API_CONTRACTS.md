@@ -48,6 +48,42 @@ Renderer guards by `streamingOwnerRef` + `abortChat` on profile switch (**team_v
 
 **Approval UI (team_v1.5.3):** No new chat IPC. Renderer sets `waiting_approval` when `chat-tool-progress` payload matches heuristics (`approval`, `confirm`, `human`, etc. in `approvalUtils.ts`). Approve clears local state only; Reject calls `abortChat`. Gateway resume is out of scope for P2.
 
+## Workspace Chat (team_v1.8)
+
+Workspaces Chat 面板经 `window.workspaceChat` 代理到 `copilot-serve`（`:8765`），不再经 `hermesAPI` 直连 Gateway。Main 注册于 `src/main/workspace-chat/workspace-chat-ipc.ts`，Preload：`src/preload/workspace-chat-api.ts`，契约：`src/shared/workspace-chat/workspace-chat-contract.ts`。
+
+| Channel | Direction | Args | Returns | Notes |
+|---------|-----------|------|---------|-------|
+| `workspace-chat:resolve-profile` | invoke | `profileRef: string` | `ResolvedProfile` | ref 支持 id / name / `default` |
+| `workspace-chat:list-models` | invoke | `profileId: string` | `ChatModelListResponse` | Gateway 模型列表 |
+| `workspace-chat:get-model-config` | invoke | `profileId: string` | `ProfileChatModelConfig \| null` | 持久化默认模型 |
+| `workspace-chat:set-model-config` | invoke | `profileId`, `SetProfileChatModelConfigPayload` | `ProfileChatModelConfig` | |
+| `workspace-chat:upload-attachments` | invoke | `UploadWorkspaceAttachmentsPayload` | `UploadWorkspaceAttachmentsResponse` | Main 弹窗选文件后 multipart 上传 serve |
+| `workspace-chat:remove-attachment` | invoke | `workspaceId`, `attachmentId` | `{ ok: true }` | |
+| `workspace-chat:send-message` | invoke | `WorkspaceChatSendPayload` | `{ stream_id: string }` | 立即返回；SSE 在 Main 后台消费 |
+| `workspace-chat:abort` | invoke | `profileId: string` 或 `{ profile_id, session_id? }` | `{ ok: true }` | 中止 stream；带 `session_id` 仅中止该会话桶 |
+
+**Events (Main → Renderer):** 载荷均含 `stream_id`、`profile_id`、`workspace_id`、`session_id`（scope 校验）。
+
+| Event | Payload | Notes |
+|-------|---------|-------|
+| `workspace-chat:chunk` | `WorkspaceChatChunkEvent` | 流式文本 |
+| `workspace-chat:tool-progress` | `WorkspaceChatToolProgressEvent` | 工具进度 |
+| `workspace-chat:usage` | `WorkspaceChatUsageEvent` | token 用量 |
+| `workspace-chat:done` | `WorkspaceChatDoneEvent` | 流结束；可含 `resolved_session_id`（Gateway `x-hermes-session-id`） |
+| `workspace-chat:error` | `WorkspaceChatErrorEvent` | 结构化错误 |
+| `workspace-chat:status` | `WorkspaceChatStatusEvent` | 预留状态（可选） |
+
+Renderer UI：`panels/ChatPanel.tsx` → `pages/Chat/HermesWebChatSurface.tsx`；编排 hook：`hooks/useHermesWebChat.ts`。
+
+**team_v1.8.1 hotfix：** 会话历史改走 copilot-serve `GET /api/v1/profiles/{id}/sessions/{session_id}/messages`（Renderer `copilotServeFetch`）；`chat.done` 回写 `resolved_session_id`；Main stream 按 `profile_id:session_id` 分桶 abort。
+
+**Serve 会话消息（Renderer 直连 serve，不经 IPC）：**
+
+```http
+GET /api/v1/profiles/{profile_id}/sessions/{session_id}/messages
+```
+
 ## Hermes memory (AIOSWorkspace)
 
 | Channel | Direction | Args | Returns | Notes |

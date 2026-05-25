@@ -1153,3 +1153,419 @@
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* team_v1.8 HermesWebChatSurface */
+.workspaces-webchat-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.workspaces-webchat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.workspaces-webchat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.workspaces-webchat-empty-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.workspaces-webchat-empty-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.workspaces-webchat-message-wrap {
+  margin-bottom: 12px;
+}
+
+.workspaces-webchat-streaming {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.04));
+  font-size: 14px;
+}
+
+.workspaces-webchat-composer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  padding: 12px 16px 14px;
+  background: var(--surface-panel, transparent);
+}
+
+.workspaces-webchat-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.workspaces-webchat-hint.is-warning {
+  color: var(--warning, #e6a23c);
+}
+
+.workspaces-webchat-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  max-height: 200px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--input-bg, rgba(0, 0, 0, 0.2));
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.workspaces-webchat-input:disabled {
+  opacity: 0.55;
+}
+
+.workspaces-webchat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.workspaces-webchat-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.workspaces-webchat-profile-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.workspaces-webchat-toolbar-label {
+  color: var(--text-secondary);
+}
+
+.workspaces-webchat-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.workspaces-webchat-select {
+  appearance: none;
+  padding: 4px 24px 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.workspaces-webchat-select-icon {
+  position: absolute;
+  right: 6px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.workspaces-webchat-profile-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.workspaces-webchat-model {
+  position: relative;
+}
+
+.workspaces-webchat-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  max-width: 180px;
+}
+
+.workspaces-webchat-model-trigger:disabled {
+  opacity: 0.5;
+}
+
+.workspaces-webchat-model-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--surface-panel, #1a1a1a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.workspaces-webchat-model-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.workspaces-webchat-model-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 6px 0 4px;
+}
+
+.workspaces-webchat-model-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.workspaces-webchat-model-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.workspaces-webchat-model-empty {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.workspaces-webchat-model-save {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 11px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.workspaces-webchat-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.workspaces-webchat-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workspaces-webchat-more {
+  display: flex;
+  gap: 4px;
+}
+
+.workspaces-webchat-send,
+.workspaces-webchat-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.workspaces-webchat-send {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+}
+
+.workspaces-webchat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workspaces-webchat-stop {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.workspaces-webchat-attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.workspaces-webchat-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+}
+
+.workspaces-webchat-attachment-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspaces-webchat-activity {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.workspaces-webchat-activity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.workspaces-webchat-activity-body {
+  margin: 4px 0 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 11px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.workspaces-webchat-error-card {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.workspaces-webchat-error-title {
+  margin: 0;
+  font-size: 13px;
+  color: #f87171;
+}
+
+.workspaces-webchat-error-details {
+  margin: 8px 0 0;
+  font-size: 11px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.workspaces-webchat-status-toast {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.workspaces-webchat-day-divider {
+  text-align: center;
+  margin: 16px 0 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.workspaces-webchat-usage {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.workspaces-webchat-attach-menu {
+  position: relative;
+}
+
+.workspaces-webchat-attach-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--surface-panel, #1a1a1a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.workspaces-webchat-attach-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.workspaces-webchat-attach-dropdown button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workspaces-webchat-workspace-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}

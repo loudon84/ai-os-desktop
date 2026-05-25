@@ -1,3 +1,4 @@
+/** @deprecated Workspaces 中央面板已改用 panels/ChatPanel → HermesWebChatSurface（team_v1.8+）。保留仅供旧路由参考。 */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatHeader } from "./ChatHeader";

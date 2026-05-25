@@ -37,6 +37,8 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | 路径 | 职责 | 常见改动 |
 |---|---|---|
 | `src/main/` | 主进程：IPC、Gateway、配置、SQLite、Enterprise Install | 新 IPC、后端逻辑 |
+| `src/main/workspace-chat/` | **team_v1.8** Workspaces Chat：resolve / 模型 / 附件 / SSE 代理到 `copilot-serve` | Chat 面板 IPC |
+| `src/shared/workspace-chat/` | `workspace-chat-contract.ts` — Renderer/Main/Preload 共享类型 | 改 chat 契约时 |
 | `src/main/browser/` | Web Operator（BrowserView、安全、审计、Tool Server） | 浏览器自动化 |
 | `src/main/enterprise/` | 企业安装、本地 zip/git 源、**agent-deps-installer**、**pip-mirror-config** | 安装/预检/Doctor/依赖 |
 | `src/main/runtime/` | **V5.3** `runtime-paths.ts` + **`portal-root-resolver.ts`** — hermes/serve/portal 统一路径契约 + `buildCopilotRuntimeEnv` + `resolveEffectivePortalMonorepoRoot` | 改安装目录结构 / 运行时路径 / Portal 根解析 |
@@ -70,6 +72,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.desktopAuth` | `src/preload/auth-api.ts` | V3.3 Portal Auth 登录（**不向 Renderer 暴露 token**） |
 | `window.desktopUserConfig` | `src/preload/user-config-api.ts` | V3.3 本地 bootstrap apply / diff / bootstrap-state |
 | `window.copilotServe` | `src/preload/copilot-serve-api.ts` | **V1.3** 本地 `copilot-serve` 生命周期（:get-connection / start / stop / logs）；**不含**任务业务 API |
+| `window.workspaceChat` | `src/preload/workspace-chat-api.ts` | **team_v1.8** Workspaces Chat（resolve / 模型 / 附件 / send SSE）；见 `docs/API_CONTRACTS.md` § Workspace Chat |
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
 
 类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`。
