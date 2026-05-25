@@ -1,7 +1,12 @@
 import { join, dirname } from "path";
-import { existsSync } from "fs";
 import { app } from "electron";
 import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
+import {
+  isPortalMonorepoRoot,
+  readConfigPortalSourceRoot,
+  resolveEffectivePortalMonorepoRoot,
+} from "../runtime/portal-root-resolver";
+import type { AiOsPortalInfo } from "../../shared/aios/aios-contract";
 
 let _cachedPaths: AiOsPaths | null = null;
 
@@ -14,17 +19,7 @@ export interface AiOsPaths {
   dataDir: string;
 }
 
-function isPortalMonorepoRoot(dir: string): boolean {
-  if (!dir) return false;
-  return (
-    existsSync(join(dir, "package.json")) &&
-    existsSync(join(dir, "backend")) &&
-    existsSync(join(dir, "frontend"))
-  );
-}
-
-function portalMonorepoCandidates(): string[] {
-  const paths = resolveCopilotRuntimePaths();
+function devPortalCandidates(): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (raw: string | undefined): void => {
@@ -34,8 +29,6 @@ function portalMonorepoCandidates(): string[] {
     seen.add(normalized);
     out.push(normalized);
   };
-
-  add(process.env.COPILOT_PORTAL_ROOT);
 
   try {
     const appPath = app.getAppPath();
@@ -51,19 +44,12 @@ function portalMonorepoCandidates(): string[] {
   add(join(__dirname, "../.."));
   add(join(__dirname, "../../.."));
 
-  add(paths.portalSourceRoot);
-  add(paths.portalRuntimeRoot);
-  add(join(paths.runtimeRoot, "ai-os-full"));
-
   return out;
 }
 
 function resolvePortalMonorepoRoot(): string {
-  for (const candidate of portalMonorepoCandidates()) {
-    if (isPortalMonorepoRoot(candidate)) {
-      return candidate;
-    }
-  }
+  const effective = resolveEffectivePortalMonorepoRoot(devPortalCandidates());
+  if (effective) return effective;
 
   const paths = resolveCopilotRuntimePaths();
   return paths.portalSourceRoot;
@@ -90,9 +76,38 @@ export function getAiOsPaths(): AiOsPaths {
 }
 
 export function isAiOsInstalled(): boolean {
-  return isPortalMonorepoRoot(getAiOsPaths().aiosRoot);
+  return resolveEffectivePortalMonorepoRoot(devPortalCandidates()) !== null;
+}
+
+export function getAiOsPortalInfo(): AiOsPortalInfo {
+  const paths = resolveCopilotRuntimePaths();
+  const effective = resolveEffectivePortalMonorepoRoot(devPortalCandidates());
+
+  return {
+    installed: effective !== null,
+    portalRoot: effective,
+    portalRuntimeRoot: paths.portalRuntimeRoot,
+    envPortalRoot: process.env.COPILOT_PORTAL_ROOT?.trim() || null,
+    configPortalRoot: readConfigPortalSourceRoot(),
+  };
+}
+
+export function buildPortalNotInstalledMessage(): string {
+  const paths = resolveCopilotRuntimePaths();
+  const info = getAiOsPortalInfo();
+  const expected = join(paths.portalRuntimeRoot, "src");
+  const envHint = info.envPortalRoot
+    ? `COPILOT_PORTAL_ROOT=${info.envPortalRoot} (not a valid monorepo)`
+    : "COPILOT_PORTAL_ROOT is not set";
+  return (
+    `Portal is not installed. Expected monorepo (package.json + backend/ + frontend/) at ` +
+    `${expected} or set COPILOT_PORTAL_ROOT. ${envHint}. ` +
+    `Run build/scripts/deploy-copilot-serve.ps1 to deploy Portal.`
+  );
 }
 
 export function clearPathCache(): void {
   _cachedPaths = null;
 }
+
+export { isPortalMonorepoRoot };

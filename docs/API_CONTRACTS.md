@@ -73,4 +73,41 @@ Preload：`window.shellView` 的 `layerId` 传 `"portal"`。Main 懒创建见 `s
 
 ---
 
+## AIOS Portal Runtime
+
+Registered in `src/main/aios/aios-ipc.ts` (`registerAiosIpc`), exposed as `window.aiosRuntime` (`src/preload/aios-api.ts`). Types: `src/shared/aios/aios-contract.ts`.
+
+| Channel | Direction | Args | Returns | Notes |
+|---------|-----------|------|---------|-------|
+| `aios:get-runtime-status` | invoke | — | runtime status rows | |
+| `aios:get-runtime-snapshot` | invoke | — | `AiOsRuntimeSnapshot` | backend + frontend services |
+| `aios:start` | invoke | — | void | Spawns Portal backend/frontend; requires installed monorepo |
+| `aios:stop` | invoke | — | void | |
+| `aios:restart` | invoke | — | void | |
+| `aios:get-logs` | invoke | `serviceId`, `options?` | `AiOsLogEntry[]` | |
+| `aios:doctor` | invoke | — | `AiOsDoctorReport` | |
+| `aios:reconcile` | invoke | — | reconcile result | |
+| `aios:check-ports` | invoke | — | `PortCheckResult[]` | |
+| `aios:get-home-url` | invoke | — | `{ url: string }` | Embedded Portal Home URL |
+| `aios:get-portal-info` | invoke | — | `AiOsPortalInfo` | **V5.3.4** — installed flag + effective/config/env roots |
+| `aios:install` | invoke | options | — | **Preload 声明；Main 未注册**（后续单独实现） |
+
+**`AiOsPortalInfo`（V5.3.4）：**
+
+```typescript
+interface AiOsPortalInfo {
+  installed: boolean;
+  portalRoot: string | null;       // effective monorepo root
+  portalRuntimeRoot: string;
+  envPortalRoot: string | null;    // process.env.COPILOT_PORTAL_ROOT
+  configPortalRoot: string | null; // desktop-runtime.json portalSourceRoot
+}
+```
+
+**Events (Main → Renderer):** `aios:runtime-changed` → `RuntimeStatusChangeEvent`（`onAiOsRuntimeChanged`）。
+
+**Portal monorepo 根解析（Main，非 IPC）：** `src/main/runtime/portal-root-resolver.ts` — `resolveEffectivePortalMonorepoRoot()` 优先级：`COPILOT_PORTAL_ROOT` → `desktop-runtime.json` → filesystem（`runtime/portal/src`、legacy `ai-os-full`）。`buildCopilotRuntimeEnv()` 保留已有 env。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

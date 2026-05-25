@@ -80,6 +80,14 @@ export interface AiOsRuntimeSnapshot {
   webAppUrl?: string;
 }
 
+export interface AiOsPortalInfo {
+  installed: boolean;
+  portalRoot: string | null;
+  portalRuntimeRoot: string;
+  envPortalRoot: string | null;
+  configPortalRoot: string | null;
+}
+
 export interface AiOsInstallOptions {
   sourceType: "git" | "local-zip";
   gitUrl?: string;
@@ -195,5 +203,6 @@ export interface AiOsAPI {
   reconcile(): Promise<AiOsReconcileResult>;
   checkPorts(): Promise<PortCheckResult[]>;
   getHomeUrl(): Promise<{ url: string }>;
+  getPortalInfo(): Promise<AiOsPortalInfo>;
   onAiOsRuntimeChanged(callback: (event: RuntimeStatusChangeEvent) => void): () => void;
 }

@@ -92,10 +92,10 @@ function AgentSourceSelect({ onConfirm, onCancel }: AgentSourceSelectProps): Rea
       <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t("install.agentSourceTitle") || "安装 SMC Copilot"}
+            {t("install.agentSourceTitle") || "安装 SmartCopilot"}
           </h1>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {t("install.agentSourceDesc") || "选择 SMC Copilot 源码的获取方式"}
+            {t("install.agentSourceDesc") || "选择 SmartCopilot 源码的获取方式"}
           </p>
         </div>
 

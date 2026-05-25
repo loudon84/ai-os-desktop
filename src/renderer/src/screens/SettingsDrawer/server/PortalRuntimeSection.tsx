@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RuntimeServiceRecord } from "../../../../../shared/aios/aios-contract";
+import type {
+  AiOsPortalInfo,
+  RuntimeServiceRecord,
+} from "../../../../../shared/aios/aios-contract";
 
 export function PortalRuntimeSection(): React.JSX.Element {
   const { t } = useTranslation("portal");
   const [services, setServices] = useState<RuntimeServiceRecord[]>([]);
+  const [portalInfo, setPortalInfo] = useState<AiOsPortalInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!window.aiosRuntime) return;
     try {
-      const snapshot = await window.aiosRuntime.getRuntimeSnapshot();
+      const [snapshot, info] = await Promise.all([
+        window.aiosRuntime.getRuntimeSnapshot(),
+        window.aiosRuntime.getPortalInfo(),
+      ]);
       setServices(snapshot.services);
+      setPortalInfo(info);
       setActionError(null);
     } catch (err) {
       setActionError((err as Error).message);
@@ -76,6 +84,22 @@ export function PortalRuntimeSection(): React.JSX.Element {
       <dl className="settings-hermes-info" style={{ marginTop: 12 }}>
         <div className="settings-hermes-row">
           <div className="settings-hermes-detail">
+            <span className="settings-hermes-label">{t("portalInstallStatusLabel")}</span>
+            <span className="settings-hermes-value">
+              {portalInfo?.installed ? t("portalInstalled") : t("portalNotInstalled")}
+            </span>
+          </div>
+          {portalInfo?.portalRoot ? (
+            <div className="settings-hermes-detail">
+              <span className="settings-hermes-label">{t("portalRootLabel")}</span>
+              <span className="settings-hermes-value settings-hermes-value-mono">
+                {portalInfo.portalRoot}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className="settings-hermes-row">
+          <div className="settings-hermes-detail">
             <span className="settings-hermes-label">Portal Backend</span>
             <span className="settings-hermes-value">{backend?.status ?? "—"}</span>
           </div>
@@ -85,6 +109,12 @@ export function PortalRuntimeSection(): React.JSX.Element {
           </div>
         </div>
       </dl>
+
+      {!portalInfo?.installed ? (
+        <p className="settings-field-hint" style={{ marginTop: 8 }}>
+          {t("portalNotInstalledHint")}
+        </p>
+      ) : null}
 
       {backend?.last_error ? (
         <p className="settings-field-hint" style={{ color: "var(--color-danger, #f87171)" }}>
@@ -106,7 +136,7 @@ export function PortalRuntimeSection(): React.JSX.Element {
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy}
+          disabled={busy || !portalInfo?.installed}
           onClick={() => void runAction("start")}
         >
           {busy ? t("startingPortal") : t("startPortal")}

@@ -17,4 +17,10 @@ export default {
   stopPortal: "停止",
   restartPortal: "重启",
   portalDoctor: "诊断",
+  portalInstallStatusLabel: "安装状态",
+  portalInstalled: "已安装",
+  portalNotInstalled: "未安装",
+  portalRootLabel: "Monorepo 根目录",
+  portalNotInstalledHint:
+    "请运行 build/scripts/deploy-copilot-serve.ps1 将 Portal 部署到 runtime/portal/src，或将用户环境变量 COPILOT_PORTAL_ROOT 指向有效 monorepo（含 package.json、backend/、frontend/）。部署后需重启桌面应用。",
 } as const;

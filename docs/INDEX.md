@@ -116,6 +116,11 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **bin shim**：`hermes.cmd` / `serve.cmd` / `portal.cmd`（`shim-manager.ts`）
 - **向后兼容**：`desktop-runtime.json` 读取时自动迁移旧路径字段
 
+**V5.3.4（Portal 部署与路径 hotfix）**：
+- **部署脚本**：`build/scripts/deploy-copilot-serve.ps1` — clone Portal monorepo、`pnpm install`、用户级 `COPILOT_PORTAL_ROOT` / `COPILOT_PORTAL_RUNTIME_ROOT`、更新 `desktop-runtime.json`（`-SkipPortal` / `-SkipServe`）
+- **路径解析**：`portal-root-resolver.ts` — env → config → filesystem；`buildCopilotRuntimeEnv` 不再覆盖用户 env
+- **诊断 UI**：Settings → Server → Portal Runtime — `aios:get-portal-info` + `PortalRuntimeSection.tsx`
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -123,7 +128,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/` | 主进程 — IPC 注册、Gateway 管理、配置读写、会话/记忆/技能管理、**Profile Runtime**、**Enterprise Install**、**Portal Runtime**、**Migrations**、**SSH** | 需按任务范围 |
 | `src/main/window/` | **V1.4.1** 窗口控制 IPC — minimize/maximize/close/is-maximized | 按需扩展 |
 | `src/main/enterprise/` | 企业安装、Doctor、installer-precheck-reader、agent-deps-installer、pip-mirror-config（31 个文件含 doctor/ 和 windows/ 子目录） | 按需扩展 |
-| `src/main/runtime/` | **V5.3** 三 runtime 路径契约（hermes/serve/portal）+ 标准环境变量 | 改安装目录时必读 |
+| `src/main/runtime/` | **V5.3** 三 runtime 路径契约（hermes/serve/portal）+ **`portal-root-resolver.ts`**（V5.3.4） | 改安装目录 / Portal 根解析时必读 |
 | `src/main/aios/` | **Portal Runtime** — 配置/Doctor/健康/IPC/路径/端口/进程/协调/监管/WebContents 控制（10 个文件） | 按需扩展 |
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
@@ -138,7 +143,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |
-| `build/` | 构建资源（**installer.nsh**、**nsis/Include/RuntimePrecheck.nsh**、**VCRuntimeCheck.nsh**、**winget/**） | NSIS 脚本按需更新 |
+| `build/` | 构建资源（**installer.nsh**、**nsis/Include/RuntimePrecheck.nsh**、**VCRuntimeCheck.nsh**、**winget/**、**`scripts/deploy-copilot-serve.ps1`**） | NSIS / 运维部署脚本 |
 | `docs/` | 项目文档 | 按需更新 |
 
 ## 开发前必须阅读

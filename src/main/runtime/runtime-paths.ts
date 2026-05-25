@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { existsSync, readdirSync } from "node:fs";
 import { resolveInstallLocation } from "../enterprise/windows/install-location-resolver";
+import { resolveEffectivePortalMonorepoRoot } from "./portal-root-resolver";
 
 const isWindows = process.platform === "win32";
 
@@ -202,6 +203,9 @@ function resolvePortalSourceRoot(
   portalRuntimeRoot: string,
   runtimeRoot: string,
 ): string {
+  const fromEffective = resolveEffectivePortalMonorepoRoot();
+  if (fromEffective) return fromEffective;
+
   const standardSource = join(portalRuntimeRoot, "src");
   if (existsSync(join(standardSource, "package.json"))) {
     return standardSource;
@@ -287,8 +291,12 @@ export function buildCopilotRuntimeEnv(
     COPILOT_SERVE_PYTHON: paths.servePython,
     COPILOT_SERVE_PORT: base.COPILOT_SERVE_PORT ?? "8765",
 
-    COPILOT_PORTAL_RUNTIME_ROOT: paths.portalRuntimeRoot,
-    COPILOT_PORTAL_ROOT: paths.portalSourceRoot,
+    COPILOT_PORTAL_RUNTIME_ROOT:
+      base.COPILOT_PORTAL_RUNTIME_ROOT?.trim() || paths.portalRuntimeRoot,
+    COPILOT_PORTAL_ROOT:
+      base.COPILOT_PORTAL_ROOT?.trim() ||
+      resolveEffectivePortalMonorepoRoot() ||
+      paths.portalSourceRoot,
     COPILOT_PORTAL_URL: base.COPILOT_PORTAL_URL ?? "http://127.0.0.1:3000",
     COPILOT_PORTAL_PORT: base.COPILOT_PORTAL_PORT ?? "3000",
   };

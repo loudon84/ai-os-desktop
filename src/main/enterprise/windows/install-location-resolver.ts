@@ -14,7 +14,7 @@ const ENV_VAR_PRIMARY = "SMC_COPILOT_INSTALL_DIR";
 const ENV_VAR_LEGACY = "HERMES_DESKTOP_INSTALL_DIR";
 const REGISTRY_VALUE = "InstallLocation";
 
-const DEFAULT_PROGRAM_FOLDER = "SMC Copilot";
+const DEFAULT_PROGRAM_FOLDER = "SmartCopilot";
 
 export type PathResolutionSource =
   | "env-var"

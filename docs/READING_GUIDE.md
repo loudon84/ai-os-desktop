@@ -187,6 +187,17 @@
 2. `src/main/window/window-ipc.ts` — IPC handler
 3. `src/preload/index.ts` — windowControls API
 
+### 阅读 Portal Runtime / monorepo 路径（V5.3.4）
+
+1. `src/renderer/src/screens/SettingsDrawer/server/PortalRuntimeSection.tsx` — Settings UI
+2. `src/preload/aios-api.ts` — `window.aiosRuntime.getPortalInfo()` 等
+3. `src/main/aios/aios-ipc.ts` — `aios:get-portal-info` 等 handler
+4. `src/main/aios/aios-paths.ts` — `getAiOsPortalInfo()`、`isAiOsInstalled()`
+5. `src/main/runtime/portal-root-resolver.ts` — `resolveEffectivePortalMonorepoRoot()`
+6. `src/main/runtime/runtime-paths.ts` — `buildCopilotRuntimeEnv()`、`resolvePortalSourceRoot()`
+7. `build/scripts/deploy-copilot-serve.ps1` — 运维 clone + env 写入
+8. `docs/API_CONTRACTS.md` — AIOS Portal Runtime 表
+
 ---
 
 ## 输出要求

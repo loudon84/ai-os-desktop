@@ -34,6 +34,8 @@ export const aiosApi: AiOsAPI = {
 
   getHomeUrl: (): Promise<{ url: string }> => ipcRenderer.invoke("aios:get-home-url"),
 
+  getPortalInfo: () => ipcRenderer.invoke("aios:get-portal-info"),
+
   onAiOsRuntimeChanged: (callback) => {
     const handler = (_event: Electron.IpcRendererEvent, data: RuntimeStatusChangeEvent) => callback(data);
     ipcRenderer.on("aios:runtime-changed", handler);

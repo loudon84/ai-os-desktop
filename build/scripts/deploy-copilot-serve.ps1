@@ -1,23 +1,39 @@
-# team_v1.7 — Deploy copilot-serve into SMC Copilot runtime directory
+# team_v1.7 / ver5.3.4 — Deploy copilot-serve + Portal monorepo into SMC Copilot runtime
 param(
-    [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\SMC Copilot",
+    [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\SMCCopilot",
     [string]$RepoUrl = "https://github.com/loudon84/ai-os-serve.git",
     [string]$Branch = "master",
     [int]$Port = 8765,
+    [string]$PortalRepoUrl = "https://github.com/loudon84/ai-os-full.git",
+    [string]$PortalBranch = "master",
     [switch]$Force,
+    [switch]$SkipServe,
+    [switch]$SkipPortal,
     [switch]$RestartDesktop
 )
 
 $ErrorActionPreference = "Stop"
 
-$ServeRoot = Join-Path $InstallRoot "runtime\copilot-serve"
-$DeployLog = Join-Path $InstallRoot "runtime\logs\deploy-copilot-serve.log"
-$StateFile = Join-Path $ServeRoot "deploy-state.json"
+$RuntimeRoot = Join-Path $InstallRoot "runtime"
+$ServeRoot = Join-Path $RuntimeRoot "copilot-serve"
+$PortalRuntimeRoot = Join-Path $RuntimeRoot "portal"
+$PortalMonorepoRoot = Join-Path $PortalRuntimeRoot "src"
+$DeployLog = Join-Path $RuntimeRoot "logs\deploy-copilot-serve.log"
+$StateFile = Join-Path $RuntimeRoot "deploy-state.json"
+$DesktopRuntimeConfig = Join-Path $RuntimeRoot "desktop-runtime.json"
 
 function Assert-LastExit([string]$Step) {
     if ($LASTEXITCODE -ne 0) {
         throw "$Step failed with exit code $LASTEXITCODE"
     }
+}
+
+function Write-DeployLog([string]$Message) {
+    $line = "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
+    Write-Host $line
+    $logDir = Split-Path $DeployLog -Parent
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+    Add-Content -Path $DeployLog -Value $line
 }
 
 # git/uv 常把进度写到 stderr；在 Stop 模式下会误报为失败，仅以 $LASTEXITCODE 为准。
@@ -53,36 +69,6 @@ function Invoke-DeployNativeRetry([string]$Step, [int]$MaxAttempts, [scriptblock
         }
     }
     throw $lastError
-}
-
-function Remove-ServeRootTree {
-    if (Test-Path $ServeRoot) {
-        Write-DeployLog "Removing $ServeRoot for fresh clone"
-        Remove-Item -Recurse -Force $ServeRoot -ErrorAction Stop
-    }
-}
-
-function Clone-ServeRepoFresh {
-    $parent = Split-Path $ServeRoot -Parent
-    if (-not (Test-Path $parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
-    }
-    Write-DeployLog "git clone $RepoUrl (branch $Branch) -> $ServeRoot"
-    Invoke-DeployNativeRetry "git clone" 3 {
-        git -c http.postBuffer=524288000 `
-            -c http.lowSpeedLimit=0 `
-            -c http.lowSpeedTime=999999 `
-            -c http.version=HTTP/1.1 `
-            clone --branch $Branch --depth 1 --single-branch $RepoUrl $ServeRoot
-    }
-}
-
-function Write-DeployLog([string]$Message) {
-    $line = "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
-    Write-Host $line
-    $logDir = Split-Path $DeployLog -Parent
-    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-    Add-Content -Path $DeployLog -Value $line
 }
 
 function Test-WindowsVersion {
@@ -126,28 +112,91 @@ function Ensure-Uv {
     }
 }
 
-function Sync-Repo {
-    $pyproject = Join-Path $ServeRoot "pyproject.toml"
-    $gitDir = Join-Path $ServeRoot ".git"
-    $repoComplete = (Test-Path $pyproject) -and (Test-Path $gitDir)
+function Test-Node {
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        throw "Node.js not found. Install Node.js 18+ (24.x recommended)."
+    }
+    $version = (& node --version 2>&1 | Out-String).Trim()
+    if ($version -notmatch "^v(\d+)") {
+        throw "Unable to parse Node.js version: $version"
+    }
+    $major = [int]$Matches[1]
+    if ($major -lt 18) {
+        throw "Node.js 18+ required (detected $version)"
+    }
+    Write-DeployLog "Node.js $version"
+}
+
+function Ensure-Pnpm {
+    if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+        $pnpmVersion = (& pnpm --version 2>&1 | Out-String).Trim()
+        Write-DeployLog "pnpm $pnpmVersion"
+        return
+    }
+    if (Get-Command corepack -ErrorAction SilentlyContinue) {
+        Write-DeployLog "Enabling pnpm via corepack..."
+        Invoke-DeployNative "corepack enable" { corepack enable }
+        Invoke-DeployNative "corepack prepare pnpm" { corepack prepare pnpm@9.15.4 --activate }
+    }
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        Write-DeployLog "Installing pnpm globally via npm..."
+        Invoke-DeployNative "npm install -g pnpm" { npm install -g pnpm@9.15.4 }
+    }
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        throw "pnpm not available after install"
+    }
+}
+
+function Remove-Tree([string]$Path) {
+    if (Test-Path $Path) {
+        Write-DeployLog "Removing $Path for fresh clone"
+        Remove-Item -Recurse -Force $Path -ErrorAction Stop
+    }
+}
+
+function Clone-GitRepoFresh([string]$TargetRoot, [string]$Url, [string]$RefBranch) {
+    $parent = Split-Path $TargetRoot -Parent
+    if (-not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    Write-DeployLog "git clone $Url (branch $RefBranch) -> $TargetRoot"
+    Invoke-DeployNativeRetry "git clone" 3 {
+        git -c http.postBuffer=524288000 `
+            -c http.lowSpeedLimit=0 `
+            -c http.lowSpeedTime=999999 `
+            -c http.version=HTTP/1.1 `
+            clone --branch $RefBranch --depth 1 --single-branch $Url $TargetRoot
+    }
+}
+
+function Sync-GitRepo {
+    param(
+        [string]$TargetRoot,
+        [string]$Url,
+        [string]$RefBranch,
+        [string]$MarkerFile
+    )
+
+    $gitDir = Join-Path $TargetRoot ".git"
+    $repoComplete = (Test-Path $MarkerFile) -and (Test-Path $gitDir)
 
     if ($Force -or -not $repoComplete) {
-        Remove-ServeRootTree
-        Clone-ServeRepoFresh
+        Remove-Tree $TargetRoot
+        Clone-GitRepoFresh $TargetRoot $Url $RefBranch
     } else {
-        Write-DeployLog "git update in $ServeRoot (shallow fetch)"
+        Write-DeployLog "git update in $TargetRoot (shallow fetch)"
         $updateFailed = $false
-        Push-Location $ServeRoot
+        Push-Location $TargetRoot
         try {
             Invoke-DeployNativeRetry "git fetch" 3 {
                 git -c http.postBuffer=524288000 `
                     -c http.lowSpeedLimit=0 `
                     -c http.lowSpeedTime=999999 `
                     -c http.version=HTTP/1.1 `
-                    fetch --depth 1 origin $Branch
+                    fetch --depth 1 origin $RefBranch
             }
-            Invoke-DeployNative "git checkout" { git checkout -f $Branch }
-            Invoke-DeployNative "git reset" { git reset --hard "origin/$Branch" }
+            Invoke-DeployNative "git checkout" { git checkout -f $RefBranch }
+            Invoke-DeployNative "git reset" { git reset --hard "origin/$RefBranch" }
         } catch {
             Write-DeployLog "git update failed ($_), re-cloning fresh..."
             $updateFailed = $true
@@ -155,13 +204,22 @@ function Sync-Repo {
             Pop-Location
         }
         if ($updateFailed) {
-            Remove-ServeRootTree
-            Clone-ServeRepoFresh
+            Remove-Tree $TargetRoot
+            Clone-GitRepoFresh $TargetRoot $Url $RefBranch
         }
     }
 
-    if (-not (Test-Path $pyproject)) {
-        throw "pyproject.toml missing after sync (network or branch '$Branch' unavailable?)"
+    if (-not (Test-Path $MarkerFile)) {
+        throw "Expected marker file missing after sync: $MarkerFile (branch '$RefBranch' unavailable?)"
+    }
+}
+
+function Test-PortalMonorepoLayout([string]$Root) {
+    foreach ($name in @("package.json", "backend", "frontend")) {
+        $path = Join-Path $Root $name
+        if (-not (Test-Path $path)) {
+            throw "Portal monorepo layout invalid at $Root (missing $name)"
+        }
     }
 }
 
@@ -189,7 +247,7 @@ CORS_ALLOW_ORIGINS=http://127.0.0.1,http://localhost
     Write-DeployLog "Wrote $envPath"
 }
 
-function Set-UserEnvVars {
+function Set-ServeUserEnvVars {
     $venvPython = Join-Path $ServeRoot ".venv\Scripts\python.exe"
     [Environment]::SetEnvironmentVariable("COPILOT_SERVE_ROOT", $ServeRoot, "User")
     [Environment]::SetEnvironmentVariable("COPILOT_SERVE_PYTHON", $venvPython, "User")
@@ -197,29 +255,76 @@ function Set-UserEnvVars {
     Write-DeployLog "Set user env: COPILOT_SERVE_ROOT, COPILOT_SERVE_PYTHON, COPILOT_SERVE_PORT"
 }
 
-function Write-DeployState([string]$Status, [string]$ErrorMsg = $null) {
+function Set-PortalUserEnvVars {
+    [Environment]::SetEnvironmentVariable("COPILOT_PORTAL_ROOT", $PortalMonorepoRoot, "User")
+    [Environment]::SetEnvironmentVariable("COPILOT_PORTAL_RUNTIME_ROOT", $PortalRuntimeRoot, "User")
+    Write-DeployLog "Set user env: COPILOT_PORTAL_ROOT=$PortalMonorepoRoot"
+    Write-DeployLog "Set user env: COPILOT_PORTAL_RUNTIME_ROOT=$PortalRuntimeRoot"
+}
+
+function Update-DesktopRuntimeConfig {
+    $merged = @{}
+    if (Test-Path $DesktopRuntimeConfig) {
+        try {
+            $existing = Get-Content -Path $DesktopRuntimeConfig -Raw | ConvertFrom-Json
+            foreach ($prop in $existing.PSObject.Properties) {
+                $merged[$prop.Name] = $prop.Value
+            }
+        } catch {
+            Write-DeployLog "Warning: desktop-runtime.json unreadable, rewriting minimal config"
+        }
+    }
+
+    $merged["installDir"] = if ($merged.ContainsKey("installDir")) { $merged["installDir"] } else { $InstallRoot }
+    $merged["runtimeRoot"] = if ($merged.ContainsKey("runtimeRoot")) { $merged["runtimeRoot"] } else { $RuntimeRoot }
+    $merged["binDir"] = if ($merged.ContainsKey("binDir")) { $merged["binDir"] } else { (Join-Path $InstallRoot "bin") }
+
+    if (-not $SkipServe) {
+        $merged["copilotServeDir"] = $ServeRoot
+        $merged["serveSourceRoot"] = $ServeRoot
+        $merged["copilotServePort"] = $Port
+    }
+
+    if (-not $SkipPortal) {
+        $merged["portalRuntimeRoot"] = $PortalRuntimeRoot
+        $merged["portalSourceRoot"] = $PortalMonorepoRoot
+    }
+
+    ($merged | ConvertTo-Json -Depth 6) | Set-Content -Path $DesktopRuntimeConfig -Encoding UTF8
+    Write-DeployLog "Updated $DesktopRuntimeConfig"
+}
+
+function Write-DeployState {
+    param(
+        [string]$Status,
+        [string]$ServeStatus = "skipped",
+        [string]$PortalStatus = "skipped",
+        [string]$ErrorMsg = $null
+    )
+
     $state = @{
         status = $Status
         completedAt = (Get-Date).ToString("o")
-        serveRoot = $ServeRoot
-        port = $Port
-        branch = $Branch
+        installRoot = $InstallRoot
+        serveRoot = if ($SkipServe) { $null } else { $ServeRoot }
+        serveStatus = $ServeStatus
+        servePort = if ($SkipServe) { $null } else { $Port }
+        serveBranch = if ($SkipServe) { $null } else { $Branch }
+        portalRoot = if ($SkipPortal) { $null } else { $PortalMonorepoRoot }
+        portalRuntimeRoot = if ($SkipPortal) { $null } else { $PortalRuntimeRoot }
+        portalStatus = $PortalStatus
+        portalBranch = if ($SkipPortal) { $null } else { $PortalBranch }
         error = $ErrorMsg
     }
-    $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding UTF8
+    $state | ConvertTo-Json -Depth 4 | Set-Content -Path $StateFile -Encoding UTF8
 }
 
-try {
-    Write-DeployLog "=== deploy-copilot-serve start ==="
-    Write-DeployLog "InstallRoot=$InstallRoot ServeRoot=$ServeRoot"
-
-    Test-WindowsVersion
-    Test-Git
+function Deploy-Serve {
+    Write-DeployLog "=== deploy copilot-serve ==="
     $null = Get-Python312
     Ensure-Uv
 
-    New-Item -ItemType Directory -Path (Join-Path $InstallRoot "runtime\logs") -Force | Out-Null
-    Sync-Repo
+    Sync-GitRepo -TargetRoot $ServeRoot -Url $RepoUrl -RefBranch $Branch -MarkerFile (Join-Path $ServeRoot "pyproject.toml")
 
     Push-Location $ServeRoot
     try {
@@ -241,22 +346,82 @@ try {
         Pop-Location
     }
 
-    Set-UserEnvVars
-    Write-DeployState "success"
+    Set-ServeUserEnvVars
+    Write-DeployLog "=== copilot-serve deploy success ==="
+}
 
-    if ($RestartDesktop) {
-        $desktopExe = Join-Path $InstallRoot "smc-ai-copilot.exe"
-        if (Test-Path $desktopExe) {
-            Write-DeployLog "Restarting SMC Copilot..."
-            Get-Process -Name "smc-ai-copilot" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 2
-            Start-Process $desktopExe
+function Deploy-Portal {
+    Write-DeployLog "=== deploy Portal monorepo ==="
+    Test-Node
+    Ensure-Pnpm
+
+    New-Item -ItemType Directory -Path $PortalRuntimeRoot -Force | Out-Null
+    Sync-GitRepo -TargetRoot $PortalMonorepoRoot -Url $PortalRepoUrl -RefBranch $PortalBranch -MarkerFile (Join-Path $PortalMonorepoRoot "package.json")
+    Test-PortalMonorepoLayout $PortalMonorepoRoot
+
+    Push-Location $PortalMonorepoRoot
+    try {
+        if (Test-Path "pnpm-lock.yaml") {
+            Write-DeployLog "pnpm install --frozen-lockfile"
+            Invoke-DeployNative "pnpm install" { pnpm install --frozen-lockfile }
+        } else {
+            Write-DeployLog "pnpm install"
+            Invoke-DeployNative "pnpm install" { pnpm install }
         }
+    } finally {
+        Pop-Location
     }
 
-    Write-DeployLog "=== deploy-copilot-serve success ==="
+    Set-PortalUserEnvVars
+    Write-DeployLog "=== Portal monorepo deploy success ==="
+}
+
+function Restart-DesktopApp {
+    if (-not $RestartDesktop) { return }
+    $desktopExe = Join-Path $InstallRoot "smc-ai-copilot.exe"
+    if (-not (Test-Path $desktopExe)) {
+        $desktopExe = Join-Path $InstallRoot "SMCCopilot.exe"
+    }
+    if (Test-Path $desktopExe) {
+        Write-DeployLog "Restarting SMC Copilot..."
+        Get-Process -Name "smc-ai-copilot" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Get-Process -Name "SMC Copilot" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Start-Process $desktopExe
+    } else {
+        Write-DeployLog "Desktop executable not found; skip restart"
+    }
+}
+
+$serveStatus = "skipped"
+$portalStatus = "skipped"
+
+try {
+    Write-DeployLog "=== deploy-runtime start (ver5.3.4) ==="
+    Write-DeployLog "InstallRoot=$InstallRoot SkipServe=$SkipServe SkipPortal=$SkipPortal"
+
+    Test-WindowsVersion
+    Test-Git
+    New-Item -ItemType Directory -Path (Join-Path $RuntimeRoot "logs") -Force | Out-Null
+
+    if (-not $SkipServe) {
+        Deploy-Serve
+        $serveStatus = "success"
+    }
+
+    if (-not $SkipPortal) {
+        Deploy-Portal
+        $portalStatus = "success"
+    }
+
+    Update-DesktopRuntimeConfig
+    Write-DeployState -Status "success" -ServeStatus $serveStatus -PortalStatus $portalStatus
+
+    Restart-DesktopApp
+
+    Write-DeployLog "=== deploy-runtime success ==="
 } catch {
     Write-DeployLog "ERROR: $_"
-    Write-DeployState "failed" $_.ToString()
+    Write-DeployState -Status "failed" -ServeStatus $serveStatus -PortalStatus $portalStatus -ErrorMsg $_.ToString()
     throw
 }

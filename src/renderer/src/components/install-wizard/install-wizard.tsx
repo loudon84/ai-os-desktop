@@ -172,7 +172,7 @@ function InstallWizard({
       <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t("install.agentSourceTitle") || "Install SMC Copilot"}
+            {t("install.agentSourceTitle") || "Install SmartCopilot"}
           </h1>
           {onCancel && (
             <button
@@ -360,7 +360,7 @@ function InstallWizard({
               {t("install.completed") || "Installation Complete"}
             </h2>
             <button className="btn btn-primary w-full" onClick={onComplete}>
-              {t("install.launchApp") || "Launch SMC Copilot"}
+              {t("install.launchApp") || "Launch SmartCopilot"}
             </button>
           </div>
         )}

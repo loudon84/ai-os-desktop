@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { BrowserWindow } from "electron";
-import { isAiOsInstalled } from "./aios-paths";
+import { isAiOsInstalled, buildPortalNotInstalledMessage, clearPathCache } from "./aios-paths";
+import { clearCopilotRuntimePathCache } from "../runtime/runtime-paths";
 import { writeAiOsEnvFile, getAiOsEnvConfig } from "./aios-config";
 import { resolveAiosHomeUrl, resolveAiosBackendUrl, resolveAiosBackendHealthUrl, parseBackendPortFromUrl } from "./aios-home-url";
 import { spawnFrontend, killProcess, killAllProcesses, getProcess } from "./aios-process";
@@ -260,8 +261,10 @@ async function probeRemoteBackend(
 }
 
 export async function startAiOs(mainWindow: BrowserWindow | null): Promise<AiOsRuntimeStatus> {
+  clearPathCache();
+  clearCopilotRuntimePathCache();
   if (!isAiOsInstalled()) {
-    throw new Error("Portal is not installed");
+    throw new Error(buildPortalNotInstalledMessage());
   }
 
   const config = getAiOsEnvConfig();

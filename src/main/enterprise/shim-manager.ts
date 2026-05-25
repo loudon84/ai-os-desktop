@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getCopilotServePort } from "../copilot-serve/copilot-serve-paths";
 import { resolveCopilotRuntimePaths } from "../runtime/runtime-paths";
+import { resolveEffectivePortalMonorepoRoot } from "../runtime/portal-root-resolver";
 import { findPnpm } from "../utils/pnpm-resolver";
 
 const CRLF = "\r\n";
@@ -15,7 +16,7 @@ function writeCmdFile(filePath: string, content: string): void {
 }
 
 export function createDesktopShim(binDir: string, installDir: string): void {
-  const exeName = "smc-ai-copilot.exe";
+  const exeName = "smc-copilot.exe";
   const content = `@echo off${CRLF}"${join(installDir, exeName)}" %*${CRLF}`;
   writeCmdFile(join(binDir, "smc-copilot.cmd"), content);
   writeCmdFile(join(binDir, "hermes-desktop.cmd"), content);
@@ -84,15 +85,17 @@ export function updatePortalShim(
   paths: ReturnType<typeof resolveCopilotRuntimePaths>,
 ): void {
   const pnpm = findPnpm();
+  const portalRoot =
+    resolveEffectivePortalMonorepoRoot() ?? paths.portalSourceRoot;
   const content = [
     "@echo off",
     `set COPILOT_INSTALL_ROOT=${installRoot}`,
     `set COPILOT_RUNTIME_ROOT=${paths.runtimeRoot}`,
     `set COPILOT_PORTAL_RUNTIME_ROOT=${paths.portalRuntimeRoot}`,
-    `set COPILOT_PORTAL_ROOT=${paths.portalSourceRoot}`,
+    `set COPILOT_PORTAL_ROOT=${portalRoot}`,
     "set COPILOT_PORTAL_URL=http://127.0.0.1:3000",
     "set COPILOT_PORTAL_PORT=3000",
-    `cd /d "${paths.portalSourceRoot}"`,
+    `cd /d "${portalRoot}"`,
     `"${pnpm}" --filter @portal/web start %*`,
     "",
   ].join(CRLF);
@@ -120,7 +123,8 @@ export function ensureShims(): void {
     createPlaceholderServeShim(paths.binDir);
   }
 
-  if (existsSync(join(paths.portalSourceRoot, "package.json"))) {
+  const portalRoot = resolveEffectivePortalMonorepoRoot();
+  if (portalRoot) {
     updatePortalShim(paths.binDir, paths.installRoot, paths);
   } else {
     createPlaceholderPortalShim(paths.binDir);

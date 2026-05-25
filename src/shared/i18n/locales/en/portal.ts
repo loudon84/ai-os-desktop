@@ -17,4 +17,10 @@ export default {
   stopPortal: "Stop",
   restartPortal: "Restart",
   portalDoctor: "Doctor",
+  portalInstallStatusLabel: "Install status",
+  portalInstalled: "Installed",
+  portalNotInstalled: "Not installed",
+  portalRootLabel: "Monorepo root",
+  portalNotInstalledHint:
+    "Run build/scripts/deploy-copilot-serve.ps1 to clone Portal into runtime/portal/src, or set user env COPILOT_PORTAL_ROOT to a valid monorepo path (package.json + backend/ + frontend/). Restart the desktop app after deploy.",
 } as const;

@@ -25,8 +25,8 @@ export function migrateInstallLocation(location: DesktopInstallLocation): void {
   const merged = {
     ...existing,
     productName: "SMC Copilot",
-    appId: "com.smc.smc-ai-copilot",
-    executableName: "smc-ai-copilot",
+    appId: "com.smc.smc-copilot",
+    executableName: "smc-copilot",
     installDir: location.installDir,
     runtimeRoot: location.runtimeRoot,
     binDir: location.binDir,

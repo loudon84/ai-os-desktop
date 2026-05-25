@@ -39,7 +39,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `src/main/` | 主进程：IPC、Gateway、配置、SQLite、Enterprise Install | 新 IPC、后端逻辑 |
 | `src/main/browser/` | Web Operator（BrowserView、安全、审计、Tool Server） | 浏览器自动化 |
 | `src/main/enterprise/` | 企业安装、本地 zip/git 源、**agent-deps-installer**、**pip-mirror-config** | 安装/预检/Doctor/依赖 |
-| `src/main/runtime/` | **V5.3** `runtime-paths.ts` — hermes/serve/portal 统一路径契约 + `buildCopilotRuntimeEnv` | 改安装目录结构 / 运行时路径 |
+| `src/main/runtime/` | **V5.3** `runtime-paths.ts` + **`portal-root-resolver.ts`** — hermes/serve/portal 统一路径契约 + `buildCopilotRuntimeEnv` + `resolveEffectivePortalMonorepoRoot` | 改安装目录结构 / 运行时路径 / Portal 根解析 |
 | `src/main/window/` | V1.4.1 窗口 IPC（`registerWindowIpc`） | 标题栏按钮 |
 | `src/main/shell/` | **main-window-controller.ts**（默认 1280×800）、ShellView、菜单、`portal-view-coordinator` | 主窗口尺寸、壳层 IPC |
 | `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |
@@ -70,6 +70,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.desktopAuth` | `src/preload/auth-api.ts` | V3.3 Portal Auth 登录（**不向 Renderer 暴露 token**） |
 | `window.desktopUserConfig` | `src/preload/user-config-api.ts` | V3.3 本地 bootstrap apply / diff / bootstrap-state |
 | `window.copilotServe` | `src/preload/copilot-serve-api.ts` | **V1.3** 本地 `copilot-serve` 生命周期（:get-connection / start / stop / logs）；**不含**任务业务 API |
+| `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
 
 类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`。
 
@@ -239,6 +240,26 @@ $INSTDIR/bin/{hermes,serve,portal,smc-copilot}.cmd
 
 旧目录名（`hermes-agent` / `copilot-serve` / `ai-os-full`）仅用于**读取 fallback**与**一次性 schema v4 磁盘迁移**（`004-v53-runtime-layout.ts`）；canonical 布局为上式。
 
+**Portal monorepo 部署（V5.3.4，`build/scripts/deploy-copilot-serve.ps1`）**：企业安装流水线不 clone Portal；运维脚本可 `-SkipServe` 仅部署 Portal：
+
+```powershell
+# 默认同时部署 copilot-serve + Portal monorepo
+.\build\scripts\deploy-copilot-serve.ps1
+
+# 仅 Portal：git clone ai-os-full → runtime/portal/src → pnpm install
+.\build\scripts\deploy-copilot-serve.ps1 -SkipServe
+```
+
+脚本写入用户级环境变量与 `runtime/desktop-runtime.json`：
+
+| 变量 / 字段 | 值 |
+|---|---|
+| `COPILOT_PORTAL_ROOT` | `$INSTDIR\runtime\portal\src`（monorepo 根） |
+| `COPILOT_PORTAL_RUNTIME_ROOT` | `$INSTDIR\runtime\portal` |
+| `desktop-runtime.json` → `portalSourceRoot` / `portalRuntimeRoot` | 同上 |
+
+Main 解析优先级（`portal-root-resolver.ts` → `aios-paths.ts`）：`COPILOT_PORTAL_ROOT` → `desktop-runtime.json` → 文件系统候选（含 legacy `ai-os-full`）。`buildCopilotRuntimeEnv()` **保留**已有 env，不再无条件覆盖为空目录。
+
 用户数据：`%USERPROFILE%\.hermes\`。
 
 安全：仅 `127.0.0.1`、不写 HKLM/系统 PATH、Token 不落盘、Bundle 必须 SHA-256。
@@ -369,6 +390,7 @@ npm run lint         # ESLint
 | Token 注入 | `auth/token-inject-url.ts`, `auth/token-header-injector.ts`, `auth/token-store.ts` | Portal Home Bearer；keytar 优先 |
 | Auth / Bootstrap | `auth/auth-client.ts`, `auth/auth-ipc.ts`, `user-config/user-config-client.ts`, `startup/startup-decision.ts` | Portal 登录 + 本地 bootstrap + 启动门控 |
 | Session 分区 | `shared/shell/browser-partitions.ts`, `shell/views/view-registry.ts` | 三分区策略常量与注册 |
+| Portal Runtime | `aios/aios-*.ts`, `runtime/portal-root-resolver.ts` | Portal frontend/backend 启停、Doctor、monorepo 路径解析 |
 
 ## 深入阅读顺序
 
@@ -398,7 +420,8 @@ npm run lint         # ESLint
 | 改 Auth / 登录 / Bootstrap | `LoginScreen.tsx` → `desktopAuth` / `desktopUserConfig` → `auth-client.ts` / `user-config-client.ts` / `startup-decision.ts` |
 | 改启动门控 / splash→login | `useStartupGate.ts` → `shell-api.ts` → `startup-ipc.ts` → `startup-decision.ts` |
 | 改 Settings / Runtime 入口 | `SettingsDrawer.tsx` + `server/ServerPanel.tsx` + `general/GeneralPanel.tsx` + `Layout.openSettingsDrawer`；Workspaces 侧栏已无 `settings` 页 |
-| 改安装 / runtime 路径（V5.3） | `runtime/runtime-paths.ts` → `enterprise/windows/install-location-resolver.ts` / `path-resolver.ts` → `shim-manager.ts` / `copilot-serve-paths.ts` / `aios-paths.ts` |
+| 改安装 / runtime 路径（V5.3） | `runtime/runtime-paths.ts` → `runtime/portal-root-resolver.ts` → `enterprise/windows/install-location-resolver.ts` / `path-resolver.ts` → `shim-manager.ts` / `copilot-serve-paths.ts` / `aios-paths.ts` |
+| 改 Portal 部署 / Settings Portal Runtime | `build/scripts/deploy-copilot-serve.ps1` → `PortalRuntimeSection.tsx` → `aios:get-portal-info` → `getAiOsPortalInfo()` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/navigation.ts`（二级侧栏 + openSettings） |
 
 ## 版本特性索引
@@ -423,6 +446,7 @@ npm run lint         # ESLint
 | **V3.6.2** | **team_v1.6.2** Workspaces 三栏 hotfix：Status Cards、左右折叠、静态 page registry、修复 lazy 页 icons | `WorkspacesShell`, `WorkspaceStatusCards`, `WorkspaceRightPanel`, `registry/workspace-pages.tsx` |
 | **V3.6.3** | SettingsDrawer `server`/`general` 面板；Workspaces 移除 settings 页；顶栏 `ServersEntry` | `SettingsDrawer/server/`, `SettingsDrawer/general/`, `MainPage/ServersEntry.tsx` |
 | **V5.3** | 安装 runtime 目录重命名：`hermes` / `serve` / `portal`；`src`+`venv` 分层；统一 `runtime-paths.ts`；`bin/*.cmd` shim | `runtime/runtime-paths.ts`, `enterprise/windows/*`, `shim-manager.ts`, `copilot-serve-paths.ts`, `aios-paths.ts` |
+| **V5.3.4** | Portal 部署脚本 clone `ai-os-full` → `runtime/portal/src`；`COPILOT_PORTAL_ROOT` 优先级解析；`aios:get-portal-info` + Settings Portal Runtime 路径展示 | `deploy-copilot-serve.ps1`, `portal-root-resolver.ts`, `aios-ipc.ts`, `PortalRuntimeSection.tsx` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---
