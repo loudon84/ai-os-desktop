@@ -299,11 +299,7 @@ function Welcome({
             </button>
 
             <div className="welcome-divider"><span>or</span></div>
-
-            <button className="btn btn-secondary welcome-recheck-btn" onClick={() => setPanel("ssh")}>
-              🔐 Connect via SSH
-            </button>
-
+           
             <button className="btn btn-secondary welcome-recheck-btn" onClick={() => setPanel("remote")}>
               <Globe size={16} />
               Connect to Remote Hermes
@@ -320,11 +316,7 @@ function Welcome({
           </button>
           <p className="welcome-note">{t("welcome.installSizeHint")}</p>
 
-          <div className="welcome-divider"><span>{t("welcome.dividerOr")}</span></div>
-
-          <button className="btn btn-secondary welcome-recheck-btn" onClick={() => setPanel("ssh")}>
-            🔐 Connect via SSH
-          </button>
+          <div className="welcome-divider"><span>{t("welcome.dividerOr")}</span></div>         
 
           <button className="btn btn-secondary welcome-recheck-btn" onClick={() => setPanel("remote")}>
             <Globe size={16} />

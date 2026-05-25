@@ -1,10 +1,10 @@
 # team_v1.7 / ver5.3.4 — Deploy copilot-serve + Portal monorepo into SMC-Copilot runtime (V5.3 serve layout + V5.4 desktop.exe)
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\SMC-Copilot",
-    [string]$RepoUrl = "https://github.com/loudon84/ai-os-serve.git",
+    [string]$RepoUrl = "http://git.superic.com/aiplatform/copilot-serve.git",
     [string]$Branch = "master",
     [int]$Port = 8765,
-    [string]$PortalRepoUrl = "https://github.com/loudon84/ai-os-full.git",
+    [string]$PortalRepoUrl = "http://git.superic.com/aiplatform/copilot-full.git",
     [string]$PortalBranch = "master",
     [switch]$Force,
     [switch]$SkipServe,

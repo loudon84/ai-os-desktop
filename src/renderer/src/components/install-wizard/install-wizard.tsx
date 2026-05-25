@@ -280,7 +280,7 @@ function InstallWizard({
                     setGitUrl(e.target.value);
                     setError("");
                   }}
-                  placeholder="https://github.com/user/hermes-agent.git"
+                  placeholder="http://git.superic.com/aiplatform/hermes-agent.git"
                 />
                 <div className="install-source-git-grid">
                   <div className="install-source-section">
