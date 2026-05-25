@@ -9,6 +9,7 @@ function mapGatewayStatus(status: string): ProfileRuntimeStatus {
     case "starting":
       return "starting";
     case "failed":
+    case "error":
       return "error";
     case "stopping":
       return "stopping";
@@ -77,14 +78,8 @@ export function useProfileRuntime(
 
   useEffect(() => {
     void refresh();
-    const interval = setInterval(() => void refresh(), 8000);
-    const unsub = workspacesApi.onRuntimeStatusChanged((ev) => {
-      if (ev.profileId === profileId) void refresh();
-    });
-    return () => {
-      clearInterval(interval);
-      unsub();
-    };
+    const interval = setInterval(() => void refresh(), 5000);
+    return () => clearInterval(interval);
   }, [profileId, refresh]);
 
   const runAction = useCallback(

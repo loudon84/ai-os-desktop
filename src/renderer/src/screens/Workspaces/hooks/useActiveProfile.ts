@@ -75,6 +75,8 @@ export function useActiveProfile(): {
 
   useEffect(() => {
     void refetch();
+    const interval = setInterval(() => void refetch(), 5000);
+    return () => clearInterval(interval);
   }, [refetch]);
 
   return { loading, error, refetch };

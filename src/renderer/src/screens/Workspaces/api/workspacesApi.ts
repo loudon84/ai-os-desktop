@@ -1,5 +1,17 @@
 import type { ProfileGatewayState, ProfileSummary } from "../../../../../shared/profile-runtime/profile-runtime-contract";
 import {
+  ensureCopilotServeConfig,
+  getServeGatewayLogs,
+  listServeProfileEvents,
+  listServeProfileGatewayStates,
+  listServeProfiles,
+  probeServeProfileHealth,
+  restartServeProfile,
+  serveStatusToGatewayState,
+  startServeProfile,
+  stopServeProfile,
+} from "../../../lib/copilot-serve/profile-client";
+import {
   EXPERT_PROFILE_BY_ID,
   EXPERT_PROFILE_BY_ROUTE_KEY,
   EXPERT_PROFILE_LOOKUP_KEYS,
@@ -63,7 +75,8 @@ function profileNameForApi(profileId: string, profile?: AIOSProfile | null): str
 
 export const workspacesApi = {
   async listProfiles(): Promise<AIOSProfile[]> {
-    const rows = await window.profileRuntime.listProfiles();
+    const config = await ensureCopilotServeConfig();
+    const rows = await listServeProfiles(config);
     return rows
       .filter(
         (p) => EXPERT_PROFILE_LOOKUP_KEYS.has(p.name) || EXPERT_PROFILE_LOOKUP_KEYS.has(p.id),
@@ -73,43 +86,51 @@ export const workspacesApi = {
   },
 
   async getProfile(profileId: string): Promise<AIOSProfile | null> {
-    const row = await window.profileRuntime.getProfile(profileId);
-    return row ? toAIOSProfile(row) : null;
+    const list = await this.listProfiles();
+    return list.find((p) => p.id === profileId) ?? null;
   },
 
   async startProfile(profileId: string): Promise<ProfileGatewayState> {
-    return window.profileRuntime.startProfile(profileId);
+    const config = await ensureCopilotServeConfig();
+    const res = await startServeProfile(config, profileId);
+    return serveStatusToGatewayState(res);
   },
 
   async stopProfile(profileId: string): Promise<ProfileGatewayState> {
-    return window.profileRuntime.stopProfile(profileId);
+    const config = await ensureCopilotServeConfig();
+    const res = await stopServeProfile(config, profileId);
+    return serveStatusToGatewayState(res);
   },
 
   async restartProfile(profileId: string): Promise<ProfileGatewayState> {
-    return window.profileRuntime.restartProfile(profileId);
+    const config = await ensureCopilotServeConfig();
+    const res = await restartServeProfile(config, profileId);
+    return serveStatusToGatewayState(res);
   },
 
   async getRuntimeStatus(): Promise<ProfileGatewayState[]> {
-    return window.profileRuntime.getRuntimeStatus();
+    const config = await ensureCopilotServeConfig();
+    return listServeProfileGatewayStates(config);
   },
 
   async probeProfileHealth(profileId: string): Promise<{ healthy: boolean }> {
-    return window.profileRuntime.probeProfileHealth(profileId);
+    const config = await ensureCopilotServeConfig();
+    return probeServeProfileHealth(config, profileId);
   },
 
+  /** Gateway 生命周期由 copilot-serve 管理；依赖轮询 refresh，不再订阅 Main IPC。 */
   onRuntimeStatusChanged(
-    callback: Parameters<typeof window.profileRuntime.onRuntimeStatusChanged>[0],
+    _callback: Parameters<typeof window.profileRuntime.onRuntimeStatusChanged>[0],
   ): () => void {
-    return window.profileRuntime.onRuntimeStatusChanged(callback);
+    return () => {};
   },
 
   async getGatewayLogs(
     profileId: string,
     options?: { limit?: number },
   ): Promise<Array<{ timestamp: string; level: string; message: string }>> {
-    const logs = await window.profileRuntime.getGatewayLogs(profileId, {
-      limit: options?.limit ?? 200,
-    });
+    const config = await ensureCopilotServeConfig();
+    const logs = await getServeGatewayLogs(config, profileId, options?.limit ?? 200);
     return logs.map((l) => ({
       timestamp: l.timestamp,
       level: l.level,
@@ -118,7 +139,8 @@ export const workspacesApi = {
   },
 
   async listAuditEvents(profileId: string, limit = 50) {
-    return window.profileRuntime.listAuditEvents({ profileId, limit });
+    const config = await ensureCopilotServeConfig();
+    return listServeProfileEvents(config, profileId, limit);
   },
 
   async sendMessage(

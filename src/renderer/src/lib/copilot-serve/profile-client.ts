@@ -1,12 +1,26 @@
 import type {
   AuditEventRecord,
   GatewayLogEntry,
+  ProfileGatewayState,
   ProfileRole,
   ProfileRuntimeStatus,
   ProfileSummary,
   RuntimeType,
 } from "../../../../shared/profile-runtime/profile-runtime-contract";
 import { copilotServeFetch, type CopilotServeHttpConfig } from "./http-client";
+
+/** 确保 copilot-serve 已启动并返回 Renderer 直连用的 HTTP 配置。 */
+export async function ensureCopilotServeConfig(): Promise<CopilotServeHttpConfig> {
+  let status = await window.copilotServe.getStatus();
+  if (status.status !== "running") {
+    status = await window.copilotServe.start();
+  }
+  const connection = await window.copilotServe.getConnection();
+  if (!connection) {
+    throw new Error(status.lastError ?? "copilot-serve 未连接");
+  }
+  return { baseUrl: connection.baseUrl, token: connection.token };
+}
 
 export interface ServeProfileResponse {
   id: string;
@@ -73,6 +87,28 @@ function mapServeRole(role: string | null): ProfileRole {
   return role === "aios-controller" ? "aios-controller" : "specialist";
 }
 
+export function serveStatusToGatewayState(row: ServeProfileStatusResponse): ProfileGatewayState {
+  return {
+    profileId: row.profile_id,
+    status: mapServeGatewayStatus(row.status),
+    port: row.gateway_port,
+    pid: row.gateway_pid,
+    baseUrl: `http://127.0.0.1:${row.gateway_port}`,
+    lastError: row.healthy ? null : row.message,
+  };
+}
+
+export function serveProfileToGatewayState(row: ServeProfileResponse): ProfileGatewayState {
+  return {
+    profileId: row.id,
+    status: mapServeGatewayStatus(row.status),
+    port: row.gateway_port,
+    pid: row.gateway_pid,
+    baseUrl: `http://127.0.0.1:${row.gateway_port}`,
+    lastError: row.status === "error" ? "Gateway error" : null,
+  };
+}
+
 export function serveProfileToSummary(row: ServeProfileResponse): ProfileSummary {
   return {
     id: row.id,
@@ -133,6 +169,24 @@ export async function listServeProfiles(
 ): Promise<ProfileSummary[]> {
   const rows = await copilotServeFetch<ServeProfileResponse[]>(config, "/api/v1/profiles");
   return rows.map(serveProfileToSummary).sort((a, b) => a.sort_order - b.sort_order);
+}
+
+export async function listServeProfileGatewayStates(
+  config: CopilotServeHttpConfig,
+): Promise<ProfileGatewayState[]> {
+  const rows = await copilotServeFetch<ServeProfileResponse[]>(config, "/api/v1/profiles");
+  return rows.map(serveProfileToGatewayState);
+}
+
+export async function probeServeProfileHealth(
+  config: CopilotServeHttpConfig,
+  profileId: string,
+): Promise<{ healthy: boolean }> {
+  const row = await copilotServeFetch<ServeProfileStatusResponse>(
+    config,
+    `/api/v1/profiles/${profileId}/health`,
+  );
+  return { healthy: row.healthy };
 }
 
 export async function startServeProfile(

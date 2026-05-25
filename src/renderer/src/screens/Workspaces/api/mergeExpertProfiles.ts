@@ -1,4 +1,5 @@
 import type { ProfileGatewayState, ProfileSummary } from "../../../../../shared/profile-runtime/profile-runtime-contract";
+import { ensureCopilotServeConfig, listServeProfiles } from "../../../lib/copilot-serve/profile-client";
 import {
   EXPERT_PROFILE_ENTRIES,
   EXPERT_PROFILE_BY_ID,
@@ -129,7 +130,8 @@ export function mergeExpertProfiles(
 }
 
 export async function fetchDbExpertProfiles(): Promise<AIOSProfile[]> {
-  const rows = await window.profileRuntime.listProfiles();
+  const config = await ensureCopilotServeConfig();
+  const rows = await listServeProfiles(config);
   return rows
     .filter((p) => EXPERT_PROFILE_LOOKUP_KEYS.has(p.name) || EXPERT_PROFILE_LOOKUP_KEYS.has(p.id))
     .map((s) => profileSummaryToAIOSProfile(s));

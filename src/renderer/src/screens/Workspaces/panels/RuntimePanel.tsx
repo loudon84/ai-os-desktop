@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../../components/useI18n";
-import type { RuntimeStatusChangeEvent } from "../../../../../shared/profile-runtime/profile-runtime-contract";
 import { workspacesApi } from "../api/workspacesApi";
 import { useWorkspaces } from "../context/WorkspacesContext";
 
@@ -19,7 +18,7 @@ export function RuntimePanel(): React.JSX.Element {
   const { activeProfileId, runtime } = useWorkspaces();
   const [logs, setLogs] = useState("");
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
-  const [profileEvents, setProfileEvents] = useState<RuntimeStatusChangeEvent[]>([]);
+  const [profileEvents, setProfileEvents] = useState<AuditRow[]>([]);
 
   const loadLogs = useCallback(async () => {
     if (!activeProfileId) return;
@@ -38,17 +37,20 @@ export function RuntimePanel(): React.JSX.Element {
     }
     try {
       const rows = await workspacesApi.listAuditEvents(activeProfileId, 30);
-      setAuditRows(
-        rows.map((r) => ({
-          id: r.id,
-          event_type: r.event_type,
-          action: r.action,
-          status: r.status,
-          created_at: r.created_at,
-        })),
+      const mapped = rows.map((r) => ({
+        id: r.id,
+        event_type: r.event_type,
+        action: r.action,
+        status: r.status,
+        created_at: r.created_at,
+      }));
+      setAuditRows(mapped);
+      setProfileEvents(
+        mapped.filter((r) => r.action.startsWith("profile_")).slice(0, MAX_EVENTS),
       );
     } catch {
       setAuditRows([]);
+      setProfileEvents([]);
     }
   }, [activeProfileId]);
 
@@ -56,18 +58,6 @@ export function RuntimePanel(): React.JSX.Element {
     void loadLogs();
     void loadAudit();
   }, [loadLogs, loadAudit, runtime.status]);
-
-  useEffect(() => {
-    if (!activeProfileId) {
-      setProfileEvents([]);
-      return;
-    }
-    const unsub = workspacesApi.onRuntimeStatusChanged((ev) => {
-      if (ev.profileId !== activeProfileId) return;
-      setProfileEvents((prev) => [ev, ...prev].slice(0, MAX_EVENTS));
-    });
-    return unsub;
-  }, [activeProfileId]);
 
   if (!activeProfileId) {
     return <p className="workspaces-panel-muted">{t("workspaces.noProfile")}</p>;
@@ -153,9 +143,8 @@ export function RuntimePanel(): React.JSX.Element {
         ) : (
           <ul className="workspaces-panel-list">
             {profileEvents.map((ev) => (
-              <li key={`${ev.timestamp}-${ev.newStatus}`} className="workspaces-panel-list-item">
-                {new Date(ev.timestamp).toLocaleString()} · {ev.previousStatus} → {ev.newStatus}
-                {ev.reason ? ` (${ev.reason})` : ""}
+              <li key={ev.id} className="workspaces-panel-list-item">
+                {new Date(ev.created_at).toLocaleString()} · {ev.action} · {ev.status}
               </li>
             ))}
           </ul>
