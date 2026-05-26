@@ -1,8 +1,14 @@
 export default {
   portal: "Portal",
   workspaces: "智能体工作区",
+  localHermes: "本地 Hermes",
   taskWorkbench: "任务工作台",
   webOperator: "Web 操作",
+  webOperatorSide: {
+    expand: "展开侧栏",
+    collapse: "折叠侧栏",
+    resize: "拖动调整侧栏宽度",
+  },
   office: "工作区",
   externalBrowser: "外部网页",
   chat: "聊天",

@@ -15,6 +15,7 @@ import {
   restartCopilotServeProcess,
   startCopilotServeProcess,
   stopCopilotServeProcess,
+  syncCopilotServeStatusFromHealth,
 } from "./copilot-serve-process";
 import { runCopilotServePreflight } from "./copilot-serve-preflight";
 import { resolveCopilotServeRuntimeDir } from "./copilot-serve-paths";
@@ -51,7 +52,7 @@ function emitStatusChanged(win: BrowserWindow | null): void {
 
 export function registerCopilotServeIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle("copilot-serve:get-connection", () => getCopilotServeConnection());
-  ipcMain.handle("copilot-serve:get-status", () => getCopilotServeStatus());
+  ipcMain.handle("copilot-serve:get-status", () => syncCopilotServeStatusFromHealth());
   ipcMain.handle("copilot-serve:get-logs", (_event, options?: { tailLines?: number }) =>
     getCopilotServeLogs(options),
   );

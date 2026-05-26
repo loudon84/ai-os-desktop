@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 export type View =
   | "portal"
   | "workspaces"
+  | "local-hermes"
   | "task-workbench"
   | "web-operator"
   | "office"
@@ -19,6 +20,7 @@ export type UpdateState = "available" | "downloading" | "ready" | null;
 export const VIEW_TITLE_KEYS: Partial<Record<View, string>> = {
   portal: "navigation.portal",
   workspaces: "navigation.workspaces",
+  "local-hermes": "navigation.localHermes",
   "task-workbench": "navigation.taskWorkbench",
   "web-operator": "navigation.webOperator",
   office: "navigation.office",

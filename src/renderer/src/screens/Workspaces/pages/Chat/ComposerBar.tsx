@@ -41,7 +41,9 @@ export function ComposerBar({
   onClear,
   onViewSessions,
   showPresetRequired,
+  showProfileStarting,
   showStartProfile,
+  showGatewayWaiting,
   showRestartUnhealthy,
   onStartProfile,
   onRestartProfile,
@@ -81,7 +83,9 @@ export function ComposerBar({
   onClear: () => void;
   onViewSessions?: () => void;
   showPresetRequired?: boolean;
+  showProfileStarting?: boolean;
   showStartProfile?: boolean;
+  showGatewayWaiting?: boolean;
   showRestartUnhealthy?: boolean;
   onStartProfile?: () => void;
   onRestartProfile?: () => void;
@@ -122,12 +126,24 @@ export function ComposerBar({
           })}
         </p>
       ) : null}
+      {showProfileStarting ? (
+        <p className="workspaces-webchat-hint">
+          {t("workspaces.chat.profileStarting", { defaultValue: "Profile is starting…" })}
+        </p>
+      ) : null}
       {showStartProfile ? (
         <p className="workspaces-webchat-hint">
           {t("workspaces.chat.startProfile", { defaultValue: "Profile is stopped." })}{" "}
           <button type="button" className="workspaces-link-button" onClick={onStartProfile}>
             {t("workspaces.runtime.start", { defaultValue: "Start" })}
           </button>
+        </p>
+      ) : null}
+      {showGatewayWaiting ? (
+        <p className="workspaces-webchat-hint">
+          {t("workspaces.chat.gatewayWaiting", {
+            defaultValue: "Waiting for gateway to become ready…",
+          })}
         </p>
       ) : null}
       {showRestartUnhealthy ? (

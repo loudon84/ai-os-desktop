@@ -3,9 +3,14 @@ import { WebOperatorScreen } from "../../screens/WebOperator/WebOperatorScreen";
 import { WorkspacesScreen } from "../../screens/Workspaces";
 import { PortalScreen } from "../../screens/Portal/Index";
 import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
+import { HermesScreen } from "../../screens/Hermes";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { View } from "../../types/desktop-shell";
 import type { SettingsDrawerPanel } from "../../screens/SettingsDrawer/settings-drawer-types";
+import {
+  DEFAULT_WEB_OPERATOR_LAYOUT,
+  type WebOperatorLayoutState,
+} from "../../../../shared/shell/main-page-state-contract";
 import { CompositeWorkspace } from "./CompositeWorkspace";
 import { ReactWorkspace } from "./ReactWorkspace";
 import { WebViewWorkspace } from "./WebViewWorkspace";
@@ -18,6 +23,8 @@ export interface WorkspaceRendererProps {
   onOpenSettingsDrawer?: (panel?: SettingsDrawerPanel) => void;
   secondaryPanel?: string;
   onSecondaryPanelChange?: (panel: string) => void;
+  webOperatorLayout?: WebOperatorLayoutState;
+  onWebOperatorLayoutChange?: (next: WebOperatorLayoutState) => void;
 }
 
 function WorkspaceShell({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -37,6 +44,8 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
     onOpenSettingsDrawer,
     secondaryPanel,
     onSecondaryPanelChange,
+    webOperatorLayout = DEFAULT_WEB_OPERATOR_LAYOUT,
+    onWebOperatorLayoutChange,
   } = props;
 
   if (typeof workspaceId === "string" && workspaceId.startsWith("external-browser:")) {
@@ -72,6 +81,8 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
             enabled={workspaceId === "web-operator"}
             focusedPanel={secondaryPanel}
             onFocusedPanelChange={onSecondaryPanelChange}
+            layout={webOperatorLayout}
+            onLayoutChange={onWebOperatorLayoutChange ?? (() => {})}
           />
         </CompositeWorkspace>
       );
@@ -89,6 +100,19 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
           <ReactWorkspace active={workspaceId === "task-workbench"}>
             <WorkspaceShell>
               <TaskWorkbenchScreen />
+            </WorkspaceShell>
+          </ReactWorkspace>
+        );
+      }
+      if (module.id === "local-hermes") {
+        return (
+          <ReactWorkspace active={workspaceId === "local-hermes"}>
+            <WorkspaceShell>
+              <HermesScreen
+                activePanel={secondaryPanel}
+                onPanelChange={onSecondaryPanelChange}
+                onOpenRuntimeSettings={() => onOpenSettingsDrawer?.("runtime")}
+              />
             </WorkspaceShell>
           </ReactWorkspace>
         );

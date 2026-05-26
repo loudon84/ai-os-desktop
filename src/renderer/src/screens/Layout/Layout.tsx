@@ -21,7 +21,12 @@ import { useDesktopNavigation } from "../../hooks/useDesktopNavigation";
 import { useUpdateState } from "../../hooks/useUpdateState";
 import { useRemoteMode } from "../../hooks/useRemoteMode";
 import { useProfileEntries } from "../../hooks/useProfileEntries";
-import type { MainPagePersistedState } from "../../../../shared/shell/main-page-state-contract";
+import {
+  DEFAULT_WEB_OPERATOR_LAYOUT,
+  normalizeWebOperatorLayout,
+  type MainPagePersistedState,
+  type WebOperatorLayoutState,
+} from "../../../../shared/shell/main-page-state-contract";
 import { defaultSecondaryPanel } from "../../../../shared/workspace/workspace-secondary-nav";
 import { isStaticWorkspaceId } from "../../workspace/workspace-registry";
 import type { StaticWorkspaceId } from "../../../../shared/workspace/workspace-contract";
@@ -36,6 +41,7 @@ function isValidRestoredView(
   const known: View[] = [
     "portal",
     "workspaces",
+    "local-hermes",
     "task-workbench",
     "web-operator",
     "office",
@@ -70,6 +76,9 @@ function Layout(): React.JSX.Element {
   const [workspaceSecondaryState, setWorkspaceSecondaryState] = useState<
     Record<string, string>
   >({});
+  const [webOperatorLayout, setWebOperatorLayout] = useState<WebOperatorLayoutState>(
+    DEFAULT_WEB_OPERATOR_LAYOUT,
+  );
   const [hydrated, setHydrated] = useState(false);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<SettingsDrawerPanel>("server");
@@ -106,6 +115,7 @@ function Layout(): React.JSX.Element {
         setSidebarMode(state.sidebarMode);
         setWorkspaceOrder(state.workspaceOrder);
         setWorkspaceSecondaryState(state.workspaceSecondaryState ?? {});
+        setWebOperatorLayout(normalizeWebOperatorLayout(state.webOperatorLayout));
         await restoreExternalTabs(state.externalTabs);
 
         const externalIds = state.externalTabs.map((t) => t.id);
@@ -186,6 +196,7 @@ function Layout(): React.JSX.Element {
         lastActiveWorkspace: String(navigation.view),
         lastSettingsDrawerPanel: settingsPanel,
         workspaceSecondaryState,
+        webOperatorLayout,
       };
       void window.mainPageState.write(payload).catch((err) => {
         console.warn("[Layout] failed to persist main page state:", err);
@@ -205,7 +216,12 @@ function Layout(): React.JSX.Element {
     navigation.view,
     settingsPanel,
     workspaceSecondaryState,
+    webOperatorLayout,
   ]);
+
+  const handleWebOperatorLayoutChange = useCallback((next: WebOperatorLayoutState) => {
+    setWebOperatorLayout(normalizeWebOperatorLayout(next));
+  }, []);
 
   const activeShellLayerId = resolveActiveShellLayerId(navigation.view);
   const activeMetadata = activeShellLayerId
@@ -331,6 +347,8 @@ function Layout(): React.JSX.Element {
           onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
           secondaryPanel={secondaryPanel}
           onSecondaryPanelChange={handleSecondaryPanelChange}
+          webOperatorLayout={webOperatorLayout}
+          onWebOperatorLayoutChange={handleWebOperatorLayoutChange}
         />
       }
       statusBar={

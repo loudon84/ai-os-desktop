@@ -49,6 +49,9 @@ export default {
   },
   chat: {
     startProfileHint: "Profile 未启动，请先启动后再对话。",
+    startProfile: "Profile 已停止。",
+    profileStarting: "Profile 启动中…",
+    gatewayWaiting: "等待 Gateway 就绪…",
     restartUnhealthyHint: "Profile 已运行但 Gateway 健康检查失败，请重启以恢复。",
     presetRequired: "请先安装该专家 preset 后再对话。",
     toolCall: "工具",

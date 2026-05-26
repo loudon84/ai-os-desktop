@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ResolvedProfile } from "../../../../../../../shared/workspace-chat/workspace-chat-contract";
 
-export function useProfileResolver(profileRef: string | null): {
+export function useProfileResolver(
+  profileRef: string | null,
+  options?: { enabled?: boolean },
+): {
   resolved: ResolvedProfile | null;
   resolving: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 } {
+  const enabled = options?.enabled ?? true;
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!profileRef?.trim()) {
+    if (!enabled || !profileRef?.trim()) {
       setResolved(null);
       setError(null);
       return;
@@ -28,7 +32,7 @@ export function useProfileResolver(profileRef: string | null): {
     } finally {
       setResolving(false);
     }
-  }, [profileRef]);
+  }, [enabled, profileRef]);
 
   useEffect(() => {
     void refresh();

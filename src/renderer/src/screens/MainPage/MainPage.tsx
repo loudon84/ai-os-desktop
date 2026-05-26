@@ -85,8 +85,9 @@ export function MainPage({
   downloadPercent,
   onUpdate,
 }: MainPageProps): React.JSX.Element {
-  const globalSecondaryNav = hasGlobalSecondaryNav(activeView);
-  const showGlobalSidebar = globalSecondaryNav && sidebarMode !== "hidden";
+  // topbar 不显示子菜单
+  const globalSecondaryNav = false; // hasGlobalSecondaryNav(activeView);
+  const showGlobalSidebar = false; // globalSecondaryNav && sidebarMode !== "hidden";
 
   return (
     <div
@@ -119,6 +120,7 @@ export function MainPage({
         showSidebarToggle={globalSecondaryNav}
       />
       <div className="MainPage__body">
+        {/*
         {showGlobalSidebar ? (
           <aside className="MainPage__sidebar">
             <DesktopSidebar
@@ -134,14 +136,17 @@ export function MainPage({
             />
           </aside>
         ) : null}
+        */}
         <main className="MainPage__content">{outlet}</main>
       </div>
 
-      {statusBar ? <footer className="MainPage__status">{statusBar}</footer> : null}
+      {/* 
+      {statusBar ? <footer className="MainPage__status">{statusBar}</footer> : null} 
       <MainPageDebugPanel
         metadataById={metadataById}
         keepAliveEntries={keepAliveEntries}
       />
+      */}
       {modalLayer}
       {drawerLayer}
     </div>

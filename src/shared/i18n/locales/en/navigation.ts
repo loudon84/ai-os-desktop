@@ -1,8 +1,14 @@
 export default {
   portal: "Portal",
   workspaces: "Agent Workspace",
+  localHermes: "Local Hermes",
   taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",
+  webOperatorSide: {
+    expand: "Expand side panel",
+    collapse: "Collapse side panel",
+    resize: "Resize side panel",
+  },
   office: "Office",
   externalBrowser: "External",
   chat: "Chat",

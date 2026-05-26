@@ -57,6 +57,17 @@ function findListeningPidWindows(port: number): number | null {
 
 async function checkCopilotServePort(): Promise<PreflightCheckItem> {
   const port = getCopilotServePort();
+  const healthUrl = `http://127.0.0.1:${port}/api/v1/health`;
+
+  if (await checkCopilotServeHealth(healthUrl)) {
+    return {
+      id: "port8765",
+      label: `Port ${port}`,
+      status: "pass",
+      detail: "copilot-serve healthy",
+    };
+  }
+
   const available = await isPortAvailable(port);
   if (available) {
     return {
@@ -213,11 +224,13 @@ export async function runCopilotServePreflight(): Promise<CopilotServePreflightR
 
   const blocking = checks.filter((c) => c.status === "fail");
   const installed = hasPyproject && hasVenv;
-  const ready = installed && blocking.length === 0;
+  const healthCheck = checks.find((c) => c.id === "health");
+  const healthOk = healthCheck?.status === "pass";
+  const ready = (installed && blocking.length === 0) || (healthOk && blocking.length === 0);
 
   return {
     ready,
-    installed,
+    installed: installed || healthOk,
     serveRoot,
     checks,
   };

@@ -21,9 +21,30 @@ export function useHermesWebChat() {
   } = useWorkspaces();
 
   const profileRef = activeProfileId ?? activeProfile?.name ?? null;
-  const { resolved, resolving, error: resolveError } = useProfileResolver(profileRef);
+  const profileInstalledInServe = activeProfile?.installed !== false;
+  const { resolved, resolving, error: resolveError, refresh: refreshResolve } = useProfileResolver(
+    profileRef,
+    {
+      enabled: profileInstalledInServe,
+    },
+  );
+
+  useEffect(() => {
+    if (!profileRef || !profileInstalledInServe) return;
+    void refreshResolve();
+  }, [
+    profileRef,
+    profileInstalledInServe,
+    runtime.status,
+    runtime.healthy,
+    runtime.lastError,
+    refreshResolve,
+  ]);
 
   const profileId = resolved?.profile_id ?? null;
+  const gatewayReady = Boolean(resolved?.healthy && resolved?.status === "running");
+  const canChat = Boolean(profileId && gatewayReady && resolved?.status !== "not_deployed");
+
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,8 +54,23 @@ export function useHermesWebChat() {
       setWorkspaceId(null);
     }
   }, [profileId]);
-  const gatewayReady = Boolean(resolved?.healthy && resolved?.status === "running");
-  const canChat = Boolean(profileId && gatewayReady && resolved?.status !== "not_deployed");
+
+  useEffect(() => {
+    const starting =
+      runtime.status === "starting" || resolved?.status === "starting";
+    if (!starting || !profileRef) return;
+    const id = window.setInterval(() => void refreshResolve(), 1500);
+    return () => window.clearInterval(id);
+  }, [runtime.status, resolved?.status, profileRef, refreshResolve]);
+
+  useEffect(() => {
+    if (!profileId || gatewayReady) return;
+    if (resolved?.status !== "running") return;
+    const timers = [1000, 2000, 3000].map((ms) =>
+      window.setTimeout(() => void refreshResolve(), ms),
+    );
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [profileId, gatewayReady, resolved?.status, refreshResolve]);
 
   const sessionId = useMemo(
     () => activeSessionId ?? `draft_${profileId ?? "none"}`,

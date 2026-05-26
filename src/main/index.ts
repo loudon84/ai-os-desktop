@@ -232,7 +232,7 @@ const launchArgs = {
 };
 
 // Debug flag to show native menu bar (for testing menu template)
-const showNativeMenuBar = true ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
+const showNativeMenuBar = false ; // process.env.SMC_SHOW_NATIVE_MENU_BAR === "1";
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({

@@ -2,6 +2,7 @@
 export type StaticWorkspaceId =
   | "portal"
   | "workspaces"
+  | "local-hermes"
   | "task-workbench"
   | "web-operator"
   | "office";
@@ -15,6 +16,7 @@ export type WorkspaceKind = "webview" | "react" | "composite";
 export type WorkspaceSource =
   | "system"
   | "local"
+  | "hermes"
   | "operator"
   | "office"
   | "external";

@@ -49,6 +49,9 @@ export default {
   },
   chat: {
     startProfileHint: "Profile is not running. Start it to chat.",
+    startProfile: "Profile is stopped.",
+    profileStarting: "Profile is starting…",
+    gatewayWaiting: "Waiting for gateway to become ready…",
     restartUnhealthyHint:
       "Profile is running but Gateway health check failed. Restart to recover.",
     presetRequired: "Install this expert preset before chatting.",

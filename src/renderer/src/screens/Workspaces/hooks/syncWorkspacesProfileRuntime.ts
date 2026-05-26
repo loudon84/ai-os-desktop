@@ -22,7 +22,10 @@ function mapGatewayStatus(status: string): ProfileRuntimeStatus {
   }
 }
 
-/** Legacy single-gateway fallback when default row is not running in copilot-serve. */
+/**
+ * Legacy single-gateway fallback only when copilot-serve runtime sync is unavailable.
+ * Must not override serve-reported stopped/starting/error (team_v1.8.3).
+ */
 export async function enrichDefaultFromLegacyGateway(
   profiles: AIOSProfile[],
 ): Promise<AIOSProfile[]> {
@@ -63,9 +66,18 @@ export async function applyRuntimeStatesToProfiles(
     return { profiles: prev, activeLastError: null };
   }
 
-  const states = await workspacesApi.getRuntimeStatus();
+  let states: Awaited<ReturnType<typeof workspacesApi.getRuntimeStatus>> = [];
+  let serveSyncFailed = false;
+  try {
+    states = await workspacesApi.getRuntimeStatus();
+  } catch {
+    serveSyncFailed = true;
+  }
+
   let next = mergeExpertProfiles(prev, states);
-  next = await enrichDefaultFromLegacyGateway(next);
+  if (serveSyncFailed) {
+    next = await enrichDefaultFromLegacyGateway(next);
+  }
 
   const probeId = options?.probeProfileId;
   let activeLastError: string | null = null;

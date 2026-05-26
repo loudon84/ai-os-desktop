@@ -251,6 +251,100 @@ function readYamlScalar(content: string, keys: string[]): string {
   return "";
 }
 
+/** Fields under the `model:` block (gateway run.py reads `model.default`). */
+function readModelSectionFields(content: string): {
+  provider: string;
+  model: string;
+  baseUrl: string;
+} {
+  const match = content.match(/^model:\s*\n((?:[ \t]+.+\n)*)/m);
+  if (!match) return { provider: "", model: "", baseUrl: "" };
+  const section = match[1];
+  return {
+    provider: readYamlScalar(section, ["provider"]),
+    model: readYamlScalar(section, ["default", "model"]),
+    baseUrl: readYamlScalar(section, ["base_url"]),
+  };
+}
+
+function upsertModelSectionBlock(
+  content: string,
+  provider: string,
+  model: string,
+  baseUrl: string,
+): string {
+  const block = [
+    "model:",
+    `  provider: "${provider}"`,
+    `  default: "${model}"`,
+    ...(baseUrl ? [`  base_url: "${baseUrl}"`] : []),
+  ];
+
+  const lines = content.split("\n");
+  let modelLine = -1;
+  let sectionEnd = lines.length;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (/^model:\s*$/.test(lines[i])) {
+      modelLine = i;
+      continue;
+    }
+    if (modelLine >= 0 && i > modelLine) {
+      if (/^[^\s#]/.test(lines[i]) && lines[i].trim() !== "") {
+        sectionEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (modelLine >= 0) {
+    return [...lines.slice(0, modelLine), ...block, ...lines.slice(sectionEnd)].join(
+      "\n",
+    );
+  }
+
+  const insert = `${block.join("\n")}\n`;
+  if (/^platforms:/m.test(content)) {
+    return content.replace(/^platforms:/m, `${insert}platforms:`);
+  }
+  return `${content.trimEnd()}\n\n${insert}`;
+}
+
+/**
+ * Gateway `_resolve_gateway_model()` only reads `model.default`, not root-level
+ * `default:`. Desktop historically wrote flat keys — mirror into `model:`.
+ */
+/** @returns true when config.yaml was updated with a `model:` section */
+export function syncGatewayModelSection(profile?: string): boolean {
+  const paths = profilePaths(profile);
+  if (!existsSync(paths.configFile)) return false;
+
+  let content = readFileSync(paths.configFile, "utf-8");
+  const section = readModelSectionFields(content);
+  const provider =
+    section.provider ||
+    readYamlScalar(content, ["provider", "default_provider"]) ||
+    "auto";
+  const model =
+    section.model || readYamlScalar(content, ["default", "default_model"]);
+  const baseUrl = section.baseUrl || readYamlScalar(content, ["base_url"]);
+
+  if (!model) return false;
+
+  const already =
+    section.model === model &&
+    (section.provider || provider) === provider &&
+    (!baseUrl || section.baseUrl === baseUrl);
+  if (already) return false;
+
+  const next = upsertModelSectionBlock(content, provider, model, baseUrl);
+  if (next === content) return false;
+
+  safeWriteFile(paths.configFile, next);
+  invalidateCache(`mc:${profile || "default"}`);
+  return true;
+}
+
 function ensureHermesConfigFile(configFile: string, home: string): void {
   if (existsSync(configFile)) return;
   if (!existsSync(home)) {
@@ -287,10 +381,14 @@ export function getModelConfig(profile?: string): {
   if (!existsSync(configFile)) return defaults;
 
   const content = readFileSync(configFile, "utf-8");
+  const section = readModelSectionFields(content);
 
-  const provider = readYamlScalar(content, ["provider", "default_provider"]);
-  const model = readYamlScalar(content, ["default", "default_model"]);
-  const baseUrl = readYamlScalar(content, ["base_url"]);
+  const provider =
+    section.provider ||
+    readYamlScalar(content, ["provider", "default_provider"]);
+  const model =
+    section.model || readYamlScalar(content, ["default", "default_model"]);
+  const baseUrl = section.baseUrl || readYamlScalar(content, ["base_url"]);
 
   const result = {
     provider: provider || defaults.provider,
@@ -355,6 +453,7 @@ export function setModelConfig(
   }
 
   safeWriteFile(paths.configFile, content);
+  syncGatewayModelSection(profile);
 }
 
 export function getHermesHome(profile?: string): string {

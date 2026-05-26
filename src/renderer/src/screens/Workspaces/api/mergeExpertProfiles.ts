@@ -62,7 +62,6 @@ export function profileSummaryToAIOSProfile(summary: ProfileSummary): AIOSProfil
 }
 
 function placeholderProfile(entry: (typeof EXPERT_PROFILE_ENTRIES)[number]): AIOSProfile {
-  const isDefault = entry.routeKey === "default";
   return {
     id: entry.id,
     name: entry.routeKey,
@@ -71,7 +70,7 @@ function placeholderProfile(entry: (typeof EXPERT_PROFILE_ENTRIES)[number]): AIO
     gatewayPort: entry.gatewayPort,
     status: "not_deployed",
     healthy: false,
-    installed: isDefault,
+    installed: false,
   };
 }
 

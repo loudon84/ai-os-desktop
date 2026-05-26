@@ -1,6 +1,7 @@
-import type {
-  MainPagePersistedStateV1,
-  MainPagePersistedStateV2,
+import {
+  normalizeWebOperatorLayout,
+  type MainPagePersistedStateV1,
+  type MainPagePersistedStateV2,
 } from "../../shared/shell/main-page-state-contract";
 
 const DEFAULT_V2: MainPagePersistedStateV2 = {
@@ -72,5 +73,8 @@ function normalizeV2(raw: Partial<MainPagePersistedStateV2>): MainPagePersistedS
     lastActiveWorkspace: migrateWorkspaceId(raw.lastActiveWorkspace),
     lastSettingsDrawerPanel: raw.lastSettingsDrawerPanel,
     workspaceSecondaryState: migrateWorkspaceSecondaryState(raw.workspaceSecondaryState),
+    webOperatorLayout: raw.webOperatorLayout
+      ? normalizeWebOperatorLayout(raw.webOperatorLayout)
+      : undefined,
   };
 }

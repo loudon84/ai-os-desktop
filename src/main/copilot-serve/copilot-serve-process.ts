@@ -106,6 +106,27 @@ export function getCopilotServeConnection(): CopilotServeConnection | null {
   };
 }
 
+/** 探测已手动启动的 copilot-serve（非 desktop 子进程），用于状态面板与 precheck。 */
+export async function syncCopilotServeStatusFromHealth(): Promise<CopilotServeStatus> {
+  const paths = getCopilotServePaths();
+  if (!paths) {
+    return getCopilotServeStatus();
+  }
+
+  const healthUrl = `${buildStatus(paths).baseUrl}/api/v1/health`;
+  if (await checkCopilotServeHealth(healthUrl)) {
+    if (!desktopToken) {
+      desktopToken = process.env.COPILOT_DESKTOP_TOKEN?.trim() || randomUUID();
+    }
+    if (!child || child.killed) {
+      processStatus = "running";
+      lastError = null;
+    }
+  }
+
+  return getCopilotServeStatus();
+}
+
 export function getCopilotServeStatus(): CopilotServeStatus {
   const paths = getCopilotServePaths();
   if (!paths) {
@@ -127,6 +148,16 @@ export function getCopilotServeStatus(): CopilotServeStatus {
   return buildStatus(paths);
 }
 
+function formatPreflightFailure(
+  checks: Awaited<ReturnType<typeof runCopilotServePreflight>>["checks"],
+): string {
+  const failed = checks.filter((c) => c.status === "fail").map((c) => c.label);
+  if (failed.length === 0) {
+    return "preflight failed: deploy copilot-serve before start";
+  }
+  return `preflight failed (${failed.join(", ")}): deploy copilot-serve before start`;
+}
+
 export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
   const paths = getCopilotServePaths();
   if (!paths) {
@@ -135,15 +166,25 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
     return getCopilotServeStatus();
   }
 
+  const healthUrl = `${buildStatus(paths).baseUrl}/api/v1/health`;
+  if (await checkCopilotServeHealth(healthUrl)) {
+    if (!desktopToken) {
+      desktopToken = process.env.COPILOT_DESKTOP_TOKEN?.trim() || randomUUID();
+    }
+    processStatus = "running";
+    lastError = null;
+    return buildStatus(paths);
+  }
+
   const preflight = await runCopilotServePreflight();
   if (!preflight.ready) {
     processStatus = "error";
-    lastError = "preflight failed: deploy copilot-serve before start";
+    lastError = formatPreflightFailure(preflight.checks);
     return buildStatus(paths);
   }
 
   if (child && !child.killed) {
-    const healthy = await checkCopilotServeHealth(`${buildStatus(paths).baseUrl}/api/v1/health`);
+    const healthy = await checkCopilotServeHealth(healthUrl);
     if (healthy) {
       processStatus = "running";
       return buildStatus(paths);
@@ -197,7 +238,6 @@ export async function startCopilotServeProcess(): Promise<CopilotServeStatus> {
     setCopilotServeManagedPid(null);
   });
 
-  const healthUrl = `${buildStatus(paths).baseUrl}/api/v1/health`;
   for (let i = 0; i < 40; i += 1) {
     if (await checkCopilotServeHealth(healthUrl)) {
       processStatus = "running";

@@ -34,17 +34,35 @@ export function HermesWebChatSurface(): React.JSX.Element {
   const disabled =
     !activeProfileId || !canChat || !profileInstalled || resolving || Boolean(resolveError);
 
+  const profileRunning = runtime.status === "running";
+  const profileHealthy = runtime.healthy;
+  const profileStarting =
+    runtime.status === "starting" || resolved?.status === "starting";
+  const profileStopped = runtime.status === "stopped";
+  const showRestartUnhealthy = Boolean(
+    activeProfileId && profileInstalled && profileRunning && !profileHealthy,
+  );
+  const showGatewayWaiting = Boolean(
+    activeProfileId &&
+      profileInstalled &&
+      profileRunning &&
+      !gatewayReady &&
+      !showRestartUnhealthy,
+  );
+
   const statusMessage =
     stream.historyLoadError ??
-    (resolving
-      ? t("workspaces.chat.resolvingProfile", { defaultValue: "Resolving profile…" })
-      : resolveError
-        ? resolveError
-        : resolved?.status === "not_deployed"
-          ? t("workspaces.chat.notDeployed", {
-              defaultValue: "Profile is not deployed on this machine.",
-            })
-          : "");
+    (runtime.lastError
+      ? runtime.lastError
+      : resolving
+        ? t("workspaces.chat.resolvingProfile", { defaultValue: "Resolving profile…" })
+        : resolveError
+          ? resolveError
+          : resolved?.status === "not_deployed"
+            ? t("workspaces.chat.notDeployed", {
+                defaultValue: "Profile is not deployed on this machine.",
+              })
+            : "");
 
   const handleDropFiles = useCallback(
     (files: FileList) => {
@@ -79,8 +97,13 @@ export function HermesWebChatSurface(): React.JSX.Element {
     [attachments, setWorkspaceId, stream, workspaceId],
   );
 
-  const profileRunning = runtime.status === "running";
-  const profileHealthy = runtime.healthy;
+  const handleStartProfile = useCallback(() => {
+    void runtime.start();
+  }, [runtime]);
+
+  const handleRestartProfile = useCallback(() => {
+    void runtime.restart();
+  }, [runtime]);
 
   return (
     <div className="workspaces-panel-root is-chat workspaces-webchat-root">
@@ -131,12 +154,14 @@ export function HermesWebChatSurface(): React.JSX.Element {
           attachments.clear();
         }}
         showPresetRequired={Boolean(activeProfileId && !profileInstalled)}
-        showRestartUnhealthy={Boolean(
-          activeProfileId && profileInstalled && profileRunning && !profileHealthy,
+        showProfileStarting={Boolean(activeProfileId && profileInstalled && profileStarting)}
+        showStartProfile={Boolean(
+          activeProfileId && profileInstalled && profileStopped && !profileStarting,
         )}
-        showStartProfile={Boolean(activeProfileId && profileInstalled && !profileRunning)}
-        onStartProfile={() => void runtime.start()}
-        onRestartProfile={() => void runtime.restart()}
+        showGatewayWaiting={showGatewayWaiting}
+        showRestartUnhealthy={showRestartUnhealthy}
+        onStartProfile={handleStartProfile}
+        onRestartProfile={handleRestartProfile}
         onDropFiles={handleDropFiles}
         onViewSessions={handleViewSessions}
       />

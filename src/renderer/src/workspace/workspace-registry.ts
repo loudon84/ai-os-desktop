@@ -2,16 +2,6 @@ import type { WorkspaceModule } from "../../../shared/workspace/workspace-contra
 
 export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
   {
-    id: "portal",
-    titleKey: "navigation.portal",
-    kind: "webview",
-    closeable: false,
-    draggable: false,
-    persistable: true,
-    shellLayerId: "portal",
-    source: "system",
-  },
-  {
     id: "workspaces",
     titleKey: "navigation.workspaces",
     kind: "react",
@@ -21,13 +11,23 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     source: "local",
   },
   {
-    id: "task-workbench",
-    titleKey: "navigation.taskWorkbench",
+    id: "local-hermes",
+    titleKey: "navigation.localHermes",
     kind: "react",
     closeable: false,
     draggable: false,
     persistable: true,
-    source: "local",
+    source: "hermes",
+  },
+  {
+    id: "portal",
+    titleKey: "navigation.portal",
+    kind: "webview",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    shellLayerId: "portal",
+    source: "system",
   },
   {
     id: "web-operator",
@@ -39,6 +39,17 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     shellLayerId: "web-operator",
     source: "operator",
   },
+  /*
+  {
+    id: "task-workbench",
+    titleKey: "navigation.taskWorkbench",
+    kind: "react",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    source: "local",
+  },
+  
   {
     id: "office",
     titleKey: "navigation.office",
@@ -48,6 +59,7 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     persistable: true,
     source: "office",
   },
+  */
 ];
 
 const staticById = new Map(

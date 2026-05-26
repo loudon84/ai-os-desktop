@@ -11,7 +11,13 @@ import {
   getHermesScript,
   getEnhancedPath,
 } from "./installer";
-import { getModelConfig, readEnv, getConnectionConfig, getFullConnectionConfig } from "./config";
+import {
+  getModelConfig,
+  readEnv,
+  getConnectionConfig,
+  getFullConnectionConfig,
+  syncGatewayModelSection,
+} from "./config";
 import { getSshTunnelUrl, isSshTunnelActive, isSshTunnelHealthy, startSshTunnel } from "./ssh-tunnel";
 import { stripAnsi } from "./utils";
 
@@ -47,7 +53,8 @@ export function setSshRemoteApiKey(key: string): void {
   _sshRemoteApiKey = key;
 }
 
-export function getRemoteAuthHeader(): Record<string, string> {
+/** Auth headers for Gateway HTTP (/health, /v1/chat/completions). */
+export function getRemoteAuthHeader(profile?: string): Record<string, string> {
   const conn = getConnectionConfig();
   if (conn.mode === "ssh") {
     if (_sshRemoteApiKey) return { Authorization: `Bearer ${_sshRemoteApiKey}` };
@@ -57,7 +64,12 @@ export function getRemoteAuthHeader(): Record<string, string> {
     const apiKey = getFullConnectionConfig().apiKey;
     if (apiKey) return { Authorization: `Bearer ${apiKey}` };
   }
-  return {};
+  const env = readEnv(profile);
+  const serverKey = env.API_SERVER_KEY?.trim();
+  if (!serverKey) return {};
+  const enabled = env.API_SERVER_ENABLED?.trim().toLowerCase();
+  if (enabled === "false" || enabled === "0") return {};
+  return { Authorization: `Bearer ${serverKey}` };
 }
 
 export async function ensureSshTunnelIfNeeded(): Promise<void> {
@@ -94,17 +106,50 @@ interface ChatHandle {
   abort: () => void;
 }
 
+/**
+ * Model id for POST /v1/chat/completions to the Hermes API server.
+ * This is the advertised API model (hermes-agent / profile name), not the
+ * LLM id from config.yaml — upstream routing uses config server-side.
+ */
+function resolveApiServerModelName(profile?: string): string {
+  const env = readEnv(profile);
+  const fromEnv = env.API_SERVER_MODEL_NAME?.trim();
+  if (fromEnv) return fromEnv;
+  const id = profile?.trim();
+  if (id && id !== "default") return id;
+  return "hermes-agent";
+}
+
+function sanitizeChatHistory(
+  history: Array<{ role: string; content: string }> | undefined,
+  currentMessage: string,
+): Array<{ role: string; content: string }> {
+  if (!history?.length) return [];
+  const trimmedCurrent = currentMessage.trim();
+  const out: Array<{ role: string; content: string }> = [];
+  for (const msg of history) {
+    const content = msg.content?.trim() ?? "";
+    if (!content) continue;
+    const role = msg.role === "agent" ? "assistant" : msg.role;
+    if (role !== "user" && role !== "assistant" && role !== "system") continue;
+    // Avoid duplicating the message we append as the final user turn
+    if (role === "user" && content === trimmedCurrent) continue;
+    out.push({ role, content });
+  }
+  return out;
+}
+
 // ────────────────────────────────────────────────────
 //  API Server health check
 // ────────────────────────────────────────────────────
 
-function isApiServerReady(): Promise<boolean> {
+function isApiServerReady(profile?: string): Promise<boolean> {
   return new Promise((resolve) => {
     const url = `${getApiUrl()}/health`;
     const mod = url.startsWith("https") ? https : http;
     const req = mod.request(
       url,
-      { method: "GET", timeout: 1500, headers: getRemoteAuthHeader() },
+      { method: "GET", timeout: 1500, headers: getRemoteAuthHeader(profile) },
       (res) => {
         resolve(res.statusCode === 200);
         res.resume();
@@ -171,30 +216,24 @@ function sendMessageViaApi(
   _resumeSessionId?: string,
   history?: Array<{ role: string; content: string }>,
 ): ChatHandle {
-  const mc = getModelConfig(profile);
+  const apiModel = resolveApiServerModelName(profile);
   const controller = new AbortController();
 
   // Build full conversation from history + current message (standard OpenAI format)
-  const messages: Array<{ role: string; content: string }> = [];
-  if (history && history.length > 0) {
-    for (const msg of history) {
-      messages.push({
-        role: msg.role === "agent" ? "assistant" : msg.role,
-        content: msg.content,
-      });
-    }
-  }
-  messages.push({ role: "user", content: message });
+  const messages: Array<{ role: string; content: string }> = [
+    ...sanitizeChatHistory(history, message),
+    { role: "user", content: message },
+  ];
 
   const body = JSON.stringify({
-    model: mc.model || "hermes-agent",
+    model: apiModel,
     messages,
     stream: true,
   });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...getRemoteAuthHeader(),
+    ...getRemoteAuthHeader(profile),
   };
 
   let sessionId = _resumeSessionId || "";
@@ -217,7 +256,7 @@ function sendMessageViaApi(
   function probeRealError(): void {
     // When streaming returns empty, make a non-streaming request to surface the real error
     const probeBody = JSON.stringify({
-      model: mc.model || "hermes-agent",
+      model: apiModel,
       messages: [{ role: "user", content: message }],
       stream: false,
     });
@@ -229,7 +268,7 @@ function sendMessageViaApi(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getRemoteAuthHeader(),
+          ...getRemoteAuthHeader(profile),
         },
       },
       (res) => {
@@ -631,6 +670,12 @@ export async function sendMessage(
   history?: Array<{ role: string; content: string }>,
 ): Promise<ChatHandle> {
   ensureInitialized();
+  if (!isRemoteMode()) {
+    const configSynced = syncGatewayModelSection(profile);
+    if (configSynced && isGatewayRunning()) {
+      restartGateway(profile);
+    }
+  }
 
   // Remote mode: always use API, no CLI fallback
   if (isRemoteMode()) {
@@ -639,7 +684,7 @@ export async function sendMessage(
 
   // Check API server availability (cache the result, re-check periodically)
   if (apiServerAvailable === null || apiServerAvailable === false) {
-    apiServerAvailable = await isApiServerReady();
+    apiServerAvailable = await isApiServerReady(profile);
   }
 
   if (apiServerAvailable) {
@@ -706,6 +751,7 @@ let gatewayStartedByApp = false;
 
 export function startGateway(profile?: string): boolean {
   ensureInitialized();
+  syncGatewayModelSection(profile);
   if (isGatewayRunning()) return false;
 
   // Build gateway env with profile API keys
