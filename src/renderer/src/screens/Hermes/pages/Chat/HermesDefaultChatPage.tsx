@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useHermesDefault } from "../../context/HermesDefaultContext";
 import { ChatScrollArea } from "./ChatScrollArea";
 import { ComposerBar } from "./ComposerBar";
@@ -6,38 +7,34 @@ import { StatusToast } from "./StatusToast";
 import { formatChatError } from "../../utils/formatChatError";
 
 export default function HermesDefaultChatPage() {
-  const { chat, runtime, sessions, setActiveSessionId } = useHermesDefault();
+  const { t } = useTranslation();
+  const { chat, runtime, startNewConversation } = useHermesDefault();
   const [text, setText] = useState("");
 
-  useEffect(() => {
-    const unsub = window.hermesAPI.onChatDone((sessionId) => {
-      if (sessionId) {
-        setActiveSessionId(sessionId);
-        void sessions.refresh();
-      }
-    });
-    return unsub;
-  }, [sessions, setActiveSessionId]);
-
   const handleSend = useCallback(async () => {
-    const sid = await chat.send(text, (sessionId) => {
-      setActiveSessionId(sessionId);
-      void sessions.refresh();
-    });
-    if (sid) setActiveSessionId(sid);
+    await chat.send(text);
     setText("");
-  }, [chat, sessions, setActiveSessionId, text]);
+  }, [chat, text]);
 
   const toast = chat.error
     ? formatChatError(chat.error)
     : runtime.error
       ? formatChatError(runtime.error)
       : chat.runState === "streaming"
-        ? "Generating…"
+        ? t("workspaces.hermes.chat.generating")
         : "";
 
   return (
     <div className="hermes-chat-page hermes-panel-root is-chat">
+      <div className="hermes-chat-page__toolbar">
+        <button
+          type="button"
+          className="hermes-btn-ghost"
+          onClick={() => void startNewConversation()}
+        >
+          {t("workspaces.hermes.chat.newConversation")}
+        </button>
+      </div>
       <StatusToast message={toast} variant={chat.error || runtime.error ? "error" : "info"} />
       <ChatScrollArea messages={chat.messages} />
       <ComposerBar
@@ -46,6 +43,7 @@ export default function HermesDefaultChatPage() {
         runState={chat.runState}
         gatewayStatus={runtime.status}
         gatewayBusy={runtime.busy}
+        toolProgress={chat.toolProgress}
         onSend={() => void handleSend()}
         onAbort={() => void chat.abort()}
         onStartGateway={() => void runtime.start()}

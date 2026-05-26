@@ -456,6 +456,7 @@ npm run lint         # ESLint
 | **V5.4** | 安装身份统一：`SMC-Copilot` 目录、`desktop.exe`、`HKCU\Software\SMC\copilot`；NSIS 不复用带空格 legacy 默认目录；安装包 `SMC-Copilot-*-setup.exe` | `electron-builder.yml`, `build/installer.nsh`, `install-location-resolver.ts`, `shim-manager.ts` |
 | **V5.4.1** | Review hotfix：migration schema **5** 刷新 `desktop-runtime.json` 身份字段；`readLegacyInstallLocations` 不把 primary 注册表当 legacy；`AppUserModelId` 对齐 `appId` | `005-v541-install-identity.ts`, `migration-runner.ts`, `install-location-resolver.ts`, `index.ts` |
 | **V5.6** | **Local Hermes** 顶层 Tab + 三栏操作模块（Chat/Sessions/Skills/Tools/Memory/Providers/Models）；固定 `default` profile + `hermesAPI` IPC | `screens/Hermes/`, `workspace-registry.ts` `local-hermes`, `WorkspaceRenderer.tsx` |
+| **V5.6.1** | Local Hermes hotfix：`syncGatewayModelSection` + Gateway restart；Chat 新对话/tool progress；Models/Sessions/Skills/Providers 功能补齐；`workspaces.hermes.*` i18n | `prd/v5.6.1_hermes-default-hotfix.md`, `src/main/hermes.ts`, `src/main/config.ts`, `screens/Hermes/` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

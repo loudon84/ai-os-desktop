@@ -3,12 +3,22 @@ import { hermesDefaultApi } from "../api/hermesDefaultApi";
 import type { HermesChatRunState, HermesMessage } from "../types";
 import { formatChatError } from "../utils/formatChatError";
 
-export function useHermesDefaultChat(activeSessionId: string | null) {
+type UseHermesDefaultChatOptions = {
+  onSessionDone?: (sessionId?: string) => void;
+};
+
+export function useHermesDefaultChat(
+  activeSessionId: string | null,
+  options?: UseHermesDefaultChatOptions,
+) {
   const [messages, setMessages] = useState<HermesMessage[]>([]);
   const [runState, setRunState] = useState<HermesChatRunState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [toolProgress, setToolProgress] = useState<string | null>(null);
   const streamBufRef = useRef("");
   const assistantIdRef = useRef<string | null>(null);
+  const onSessionDoneRef = useRef(options?.onSessionDone);
+  onSessionDoneRef.current = options?.onSessionDone;
 
   const loadSession = useCallback(async (sessionId: string) => {
     setError(null);
@@ -47,15 +57,18 @@ export function useHermesDefaultChat(activeSessionId: string | null) {
           prev.map((m) => (m.id === aid ? { ...m, content: text } : m)),
         );
       }),
-      hermesDefaultApi.chat.onDone((_sessionId) => {
+      hermesDefaultApi.chat.onDone((sessionId) => {
         setRunState("idle");
         streamBufRef.current = "";
         assistantIdRef.current = null;
+        setToolProgress(null);
+        onSessionDoneRef.current?.(sessionId);
       }),
       hermesDefaultApi.chat.onError((err) => {
         setError(formatChatError(err));
         setRunState("error");
         streamBufRef.current = "";
+        setToolProgress(null);
         const aid = assistantIdRef.current;
         assistantIdRef.current = null;
         if (aid) {
@@ -63,6 +76,9 @@ export function useHermesDefaultChat(activeSessionId: string | null) {
             prev.filter((m) => m.id !== aid || m.content.trim().length > 0),
           );
         }
+      }),
+      hermesDefaultApi.chat.onToolProgress((tool) => {
+        setToolProgress(tool);
       }),
     ];
     return () => unsubs.forEach((u) => u());
@@ -74,6 +90,7 @@ export function useHermesDefaultChat(activeSessionId: string | null) {
       if (!trimmed || runState === "streaming") return null;
 
       setError(null);
+      setToolProgress(null);
       setRunState("streaming");
       streamBufRef.current = "";
 
@@ -125,21 +142,30 @@ export function useHermesDefaultChat(activeSessionId: string | null) {
     setRunState("idle");
     streamBufRef.current = "";
     assistantIdRef.current = null;
+    setToolProgress(null);
   }, []);
 
   const clear = useCallback(() => {
     setMessages([]);
     setError(null);
     setRunState("idle");
+    setToolProgress(null);
   }, []);
+
+  const startNewChat = useCallback(async () => {
+    await abort();
+    clear();
+  }, [abort, clear]);
 
   return {
     messages,
     runState,
     error,
+    toolProgress,
     send,
     abort,
     clear,
+    startNewChat,
     loadSession,
   };
 }

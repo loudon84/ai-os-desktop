@@ -36,6 +36,8 @@ export const HERMES_NAV_ITEMS = [
   { key: "models", labelI18nKey: "workspaces.nav.models", icon: "Box" },
 ] as const;
 
+export const HERMES_CONFIG_KEYS = ["provider", "default", "base_url", "streaming"] as const;
+
 export const LAYOUT = {
   sidebarWidthPx: 220,
   sidebarCollapsedWidthPx: 48,

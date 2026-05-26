@@ -1,4 +1,5 @@
 import { Send, Square } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { HermesChatRunState, HermesGatewayUiStatus } from "../../types";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
   runState: HermesChatRunState;
   gatewayStatus: HermesGatewayUiStatus;
   gatewayBusy: boolean;
+  toolProgress?: string | null;
   disabled?: boolean;
   onSend: () => void;
   onAbort: () => void;
@@ -19,11 +21,13 @@ export function ComposerBar({
   runState,
   gatewayStatus,
   gatewayBusy,
+  toolProgress,
   disabled,
   onSend,
   onAbort,
   onStartGateway,
 }: Props) {
+  const { t } = useTranslation();
   const gatewayDown = gatewayStatus !== "running";
   const streaming = runState === "streaming";
 
@@ -31,22 +35,27 @@ export function ComposerBar({
     <div className="hermes-composer">
       {gatewayDown ? (
         <div className="hermes-composer__banner">
-          <span>Gateway 未运行</span>
+          <span>{t("workspaces.hermes.chat.gatewayDown")}</span>
           <button
             type="button"
             className="hermes-btn-primary"
             disabled={gatewayBusy}
             onClick={onStartGateway}
           >
-            Start Gateway
+            {t("workspaces.hermes.chat.startGateway")}
           </button>
         </div>
+      ) : null}
+      {toolProgress ? (
+        <p className="hermes-composer__tool-progress">
+          {t("workspaces.hermes.chat.toolProgress", { tool: toolProgress })}
+        </p>
       ) : null}
       <div className="hermes-composer__row">
         <textarea
           className="hermes-composer__input"
           rows={2}
-          placeholder="Message…"
+          placeholder={t("workspaces.hermes.composer.placeholder")}
           value={text}
           disabled={disabled || gatewayDown || streaming}
           onChange={(e) => onTextChange(e.target.value)}
@@ -62,7 +71,7 @@ export function ComposerBar({
             type="button"
             className="hermes-composer__send"
             onClick={onAbort}
-            title="Stop"
+            title={t("workspaces.hermes.composer.stop")}
           >
             <Square size={18} />
           </button>
@@ -72,7 +81,7 @@ export function ComposerBar({
             className="hermes-composer__send"
             disabled={disabled || gatewayDown || !text.trim()}
             onClick={onSend}
-            title="Send"
+            title={t("workspaces.hermes.composer.send")}
           >
             <Send size={18} />
           </button>

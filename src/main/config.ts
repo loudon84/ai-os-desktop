@@ -252,7 +252,7 @@ function readYamlScalar(content: string, keys: string[]): string {
 }
 
 /** Fields under the `model:` block (gateway run.py reads `model.default`). */
-function readModelSectionFields(content: string): {
+export function readModelSectionFields(content: string): {
   provider: string;
   model: string;
   baseUrl: string;
@@ -267,7 +267,7 @@ function readModelSectionFields(content: string): {
   };
 }
 
-function upsertModelSectionBlock(
+export function upsertModelSectionBlock(
   content: string,
   provider: string,
   model: string,

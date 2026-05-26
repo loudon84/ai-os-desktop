@@ -751,7 +751,11 @@ let gatewayStartedByApp = false;
 
 export function startGateway(profile?: string): boolean {
   ensureInitialized();
-  syncGatewayModelSection(profile);
+  const configSynced = syncGatewayModelSection(profile);
+  if (configSynced && isGatewayRunning()) {
+    restartGateway(profile);
+    return false;
+  }
   if (isGatewayRunning()) return false;
 
   // Build gateway env with profile API keys
@@ -886,7 +890,7 @@ export function testRemoteConnection(
 }
 
 export function restartGateway(profile?: string): void {
-  if (!gatewayStartedByApp && !isGatewayRunning()) return;
+  if (!isGatewayRunning()) return;
   stopGateway(true);
   setTimeout(() => {
     startGateway(profile);

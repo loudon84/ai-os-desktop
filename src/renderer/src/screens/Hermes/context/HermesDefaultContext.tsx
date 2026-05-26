@@ -59,6 +59,7 @@ type HermesDefaultContextValue = {
   skills: ReturnType<typeof useHermesDefaultSkills>;
   tools: ReturnType<typeof useHermesDefaultTools>;
   navItems: typeof HERMES_NAV_ITEMS;
+  startNewConversation: () => Promise<void>;
 };
 
 const HermesDefaultContext = createContext<HermesDefaultContextValue | null>(null);
@@ -83,7 +84,15 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const profile = useHermesDefaultProfile();
   const runtime = useHermesDefaultRuntime();
   const sessions = useHermesDefaultSessions();
-  const chat = useHermesDefaultChat(activeSessionId);
+  const chat = useHermesDefaultChat(activeSessionId, {
+    onSessionDone: (sessionId) => {
+      if (sessionId) {
+        setActiveSessionIdState(sessionId);
+        writeStorage(STORAGE_KEYS.activeSessionId, sessionId);
+      }
+      void sessions.refresh();
+    },
+  });
   const models = useHermesDefaultModels();
   const memory = useHermesDefaultMemory();
   const skills = useHermesDefaultSkills();
@@ -114,6 +123,12 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     writeStorage(STORAGE_KEYS.collapsedRightPanel, v);
   }, []);
 
+  const startNewConversation = useCallback(async () => {
+    await chat.startNewChat();
+    setActiveSessionIdState(null);
+    writeStorage(STORAGE_KEYS.activeSessionId, null);
+  }, [chat]);
+
   const value = useMemo(
     () => ({
       activeNavItem,
@@ -135,6 +150,7 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
       skills,
       tools,
       navItems: HERMES_NAV_ITEMS,
+      startNewConversation,
     }),
     [
       activeNavItem,
@@ -155,6 +171,7 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
       memory,
       skills,
       tools,
+      startNewConversation,
     ],
   );
 
