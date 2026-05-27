@@ -702,12 +702,14 @@ interface WorkspacesAPI {
 }
 
 type WorkspaceChatAPI = typeof import("./workspace-chat-api").workspaceChatApi;
+type HermesDefaultChatAPI = typeof import("./hermes-default-chat-api").hermesDefaultChatApi;
 
 declare global {
   interface Window {
     electron: ElectronAPI;
     workspaces: WorkspacesAPI;
     workspaceChat: WorkspaceChatAPI;
+    hermesDefaultChat: HermesDefaultChatAPI;
     hermesAPI: HermesAPI;
     aiosBrowser: AiosBrowserAPI;
     profileRuntime: ProfileRuntimeAPI;

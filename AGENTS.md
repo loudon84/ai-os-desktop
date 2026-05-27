@@ -63,7 +63,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | 全局对象 | 文件 | 用途 |
 |---|---|---|
 | `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等；**含 `windowControls`、`getInstallerPrecheck`** |
-| `window.aiosBrowser` | `src/preload/browser-api.ts` | Web Operator（13 方法 + 事件） |
+| `window.aiosBrowser` | `src/preload/browser-api.ts` | Web Operator（legacy 13 方法 + **V5.7** frame/snapshot/结构化动作 API + 事件） |
 | `window.profileRuntime` | `src/preload/profile-runtime-api.ts` | 多 Profile 运行时（20 方法，含日志/自动重启） |
 | `window.profileRole` | `src/preload/profile-role-api.ts` | **V4.0** 专家角色预设安装、角色库同步、role spec 查询/重编译 |
 | `window.profileEntry` | `src/preload/profile-entry-api.ts` | Profile 页面入口与布局（5 方法） |
@@ -173,6 +173,8 @@ Chat.tsx
       → 本地: GET /health → SSE POST /v1/chat/completions 或 CLI fallback
   → main/sse-parser.ts: 解析 SSE（含 hermes.tool.progress）
 ```
+
+**v5.6.2（Local Hermes WebChat Surface）：** `screens/Hermes/pages/Chat/*` 通过 `window.hermesDefaultChat`（`hermes-chat:*` IPC）提供模型列表、附件上传；Chat 下拉选模型为**会话级**（不写 `config.yaml`）；**发送时** `model_id` → `models.json` → 同步 `config.yaml` `model:` 段（必要时 restart Gateway）；HTTP 体 `model` 为 `hermes-agent`（Gateway 实际 LLM 读 config）；Main 日志 `[Hermes Chat] 发送前模型路由`；**保存为默认**走 `hermes-chat:set-model-config`。事件复用全局 `chat-*`。
 
 ### 单 Gateway（legacy default）
 
@@ -422,6 +424,7 @@ npm run lint         # ESLint
 | 改 Workspace 路由 | `workspace-registry.ts` → `WorkspaceRenderer.tsx` → `WorkspaceOutlet.tsx` |
 | 改 Workspaces 三栏布局 | `screens/Workspaces/panels/WorkspacesShell.tsx` → `WorkspaceStatusCards` / `WorkspacesSidebar` / `WorkspaceRightPanel` / `registry/workspace-pages.tsx` |
 | 改 Local Hermes（default profile） | `screens/Hermes/` → `hermesDefaultApi.ts` → `window.hermesAPI`（禁止引入 `workspaceChat` / `profileRuntime`） |
+| 改 Local Hermes Models 库 | `screens/Hermes/pages/Models/HermesDefaultModelsSurface.tsx` → `hermesDefaultApi.models.*` / `providers.setEnv`（对齐 Workspaces `Models.tsx`） |
 | 改 Session 分区 / Token | `browser-partitions.ts` → `useExternalBrowserTabs.ts` / `view-registry.ts`；`token-inject-url.ts` |
 | 改 Auth / 登录 / Bootstrap | `LoginScreen.tsx` → `desktopAuth` / `desktopUserConfig` → `auth-client.ts` / `user-config-client.ts` / `startup-decision.ts` |
 | 改启动门控 / splash→login | `useStartupGate.ts` → `shell-api.ts` → `startup-ipc.ts` → `startup-decision.ts` |
@@ -457,6 +460,9 @@ npm run lint         # ESLint
 | **V5.4.1** | Review hotfix：migration schema **5** 刷新 `desktop-runtime.json` 身份字段；`readLegacyInstallLocations` 不把 primary 注册表当 legacy；`AppUserModelId` 对齐 `appId` | `005-v541-install-identity.ts`, `migration-runner.ts`, `install-location-resolver.ts`, `index.ts` |
 | **V5.6** | **Local Hermes** 顶层 Tab + 三栏操作模块（Chat/Sessions/Skills/Tools/Memory/Providers/Models）；固定 `default` profile + `hermesAPI` IPC | `screens/Hermes/`, `workspace-registry.ts` `local-hermes`, `WorkspaceRenderer.tsx` |
 | **V5.6.1** | Local Hermes hotfix：`syncGatewayModelSection` + Gateway restart；Chat 新对话/tool progress；Models/Sessions/Skills/Providers 功能补齐；`workspaces.hermes.*` i18n | `prd/v5.6.1_hermes-default-hotfix.md`, `src/main/hermes.ts`, `src/main/config.ts`, `screens/Hermes/` |
+| **V5.6.2** | Local Hermes WebChat Surface：`hermes-chat:*` IPC + `HermesDefaultWebChatSurface`（模型/附件/流式，无 `workspaceChat`） | `prd/v5.6.2_hermes-webchat-surface.md`, `src/main/hermes-default-chat/`, `screens/Hermes/pages/Chat/` |
+| **V5.6.3** | Local Hermes Models 页复刻 Workspaces：卡片网格 + 弹窗增删改 + 模型发现；`hermesDefaultApi.models`（无 Set active） | `prd/v5.6.3_hermes-models-page.md`, `screens/Hermes/pages/Models/HermesDefaultModelsSurface.tsx` |
+| **V5.7** | **WebContentsView 浏览器核心**：Frame Tree、DOM Snapshot、iframe 元素定位/点击/输入、结构化动作日志；`browser:*` IPC；`PageStructurePanel` | `prd/v5.7_webcontentsview.md`, `src/main/browser/browser-v57-core.ts`, `screens/WebOperator/`, `docs/API_CONTRACTS.md` § Web Operator V5.7 |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

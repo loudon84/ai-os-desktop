@@ -60,6 +60,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **动态工作区 Tabs**：`main-page-tabs.ts` — 静态 Tab + `profileEntries` 中 `specialist-workspace` 条目
 - **ShellView IPC 扩展**：`create` / `loadUrl` / `focus` / `destroy` / `getState` / `getAll`；`window.shellView` 全量暴露
 - **Web Operator 视口**：`WebOperatorScreen` + `WebContentsHost` layer `web-operator`（常量 `web-operator-constants.ts`）
+- **V5.7 WebContentsView**：`browser:*` IPC、Frame/DOM Snapshot、iframe 元素动作；`PageStructurePanel`；PRD `prd/v5.7_webcontentsview.md`
 - **工具栏 UI**：`BrowserToolbar` 单行布局（`web-operator.css` 中 `browser-toolbar*`）
 - **Lazy create**：`shell-view-ipc` 对 `web-operator` 与 `aios-home` 在 set-bounds 前自动创建
 

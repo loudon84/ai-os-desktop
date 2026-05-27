@@ -6,12 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  HERMES_NAV_ITEMS,
-  STORAGE_KEYS,
-  type HermesNavItemKey,
-} from "../constants";
-import { useHermesDefaultChat } from "../hooks/useHermesDefaultChat";
+import { HERMES_NAV_ITEMS, STORAGE_KEYS, type HermesNavItemKey } from "../constants";
 import { useHermesDefaultMemory } from "../hooks/useHermesDefaultMemory";
 import { useHermesDefaultModels } from "../hooks/useHermesDefaultModels";
 import { useHermesDefaultProfile } from "../hooks/useHermesDefaultProfile";
@@ -53,13 +48,12 @@ type HermesDefaultContextValue = {
   profile: ReturnType<typeof useHermesDefaultProfile>;
   runtime: ReturnType<typeof useHermesDefaultRuntime>;
   sessions: ReturnType<typeof useHermesDefaultSessions>;
-  chat: ReturnType<typeof useHermesDefaultChat>;
   models: ReturnType<typeof useHermesDefaultModels>;
   memory: ReturnType<typeof useHermesDefaultMemory>;
   skills: ReturnType<typeof useHermesDefaultSkills>;
   tools: ReturnType<typeof useHermesDefaultTools>;
   navItems: typeof HERMES_NAV_ITEMS;
-  startNewConversation: () => Promise<void>;
+  startNewConversation: () => void;
 };
 
 const HermesDefaultContext = createContext<HermesDefaultContextValue | null>(null);
@@ -84,15 +78,6 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const profile = useHermesDefaultProfile();
   const runtime = useHermesDefaultRuntime();
   const sessions = useHermesDefaultSessions();
-  const chat = useHermesDefaultChat(activeSessionId, {
-    onSessionDone: (sessionId) => {
-      if (sessionId) {
-        setActiveSessionIdState(sessionId);
-        writeStorage(STORAGE_KEYS.activeSessionId, sessionId);
-      }
-      void sessions.refresh();
-    },
-  });
   const models = useHermesDefaultModels();
   const memory = useHermesDefaultMemory();
   const skills = useHermesDefaultSkills();
@@ -123,11 +108,10 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     writeStorage(STORAGE_KEYS.collapsedRightPanel, v);
   }, []);
 
-  const startNewConversation = useCallback(async () => {
-    await chat.startNewChat();
+  const startNewConversation = useCallback(() => {
     setActiveSessionIdState(null);
     writeStorage(STORAGE_KEYS.activeSessionId, null);
-  }, [chat]);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -144,7 +128,6 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
       profile,
       runtime,
       sessions,
-      chat,
       models,
       memory,
       skills,
@@ -166,7 +149,6 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
       profile,
       runtime,
       sessions,
-      chat,
       models,
       memory,
       skills,
@@ -175,9 +157,7 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return (
-    <HermesDefaultContext.Provider value={value}>{children}</HermesDefaultContext.Provider>
-  );
+  return <HermesDefaultContext.Provider value={value}>{children}</HermesDefaultContext.Provider>;
 }
 
 export function useHermesDefault(): HermesDefaultContextValue {
@@ -187,3 +167,4 @@ export function useHermesDefault(): HermesDefaultContextValue {
   }
   return ctx;
 }
+

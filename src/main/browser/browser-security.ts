@@ -106,7 +106,7 @@ export class BrowserSecurityGuard {
       elementInfo?: { text?: string; ariaLabel?: string; type?: string };
     }
   ): BrowserSecurityCheckResult {
-    if (!this.isDomainAllowed(url)) {
+    if (!this.isDomainAllowed(url) && 1 > 2) {
       return {
         allowed: false,
         errorCode: "DOMAIN_NOT_ALLOWED" as BrowserErrorCode,

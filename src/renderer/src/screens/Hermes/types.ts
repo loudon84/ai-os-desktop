@@ -5,15 +5,31 @@ export type HermesGatewayUiStatus =
   | "stopping"
   | "error";
 
-export type HermesChatRunState = "idle" | "streaming" | "error";
+export type HermesChatRunState =
+  | "idle"
+  | "creating"
+  | "streaming"
+  | "waiting_approval"
+  | "completed"
+  | "error"
+  | "cancelled";
 
 export type HermesRightInspectorTab = "runtime" | "skills" | "memory" | "workspace";
 
 export type HermesMessage = {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "tool";
   content: string;
-  createdAt: number;
+  createdAt: string;
+  toolCalls?: HermesToolCall[];
+};
+
+export type HermesToolCall = {
+  id: string;
+  name: string;
+  args?: unknown;
+  resultPreview?: string;
+  status: "running" | "completed" | "error" | "waiting_approval";
 };
 
 export type HermesSession = {

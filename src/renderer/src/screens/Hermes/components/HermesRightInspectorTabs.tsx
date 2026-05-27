@@ -2,13 +2,13 @@ import { useTranslation } from "react-i18next";
 import { useHermesDefault } from "../context/HermesDefaultContext";
 import type { HermesRightInspectorTab } from "../types";
 
-const TABS: HermesRightInspectorTab[] = ["runtime", "skills", "memory", "workspace"];
+const TABS: HermesRightInspectorTab[] = ["workspace", "runtime"];
 
 const TAB_LABELS: Record<HermesRightInspectorTab, string> = {
+  workspace: "workspaces.tabs.workspace",
   runtime: "workspaces.tabs.runtime",
   skills: "workspaces.tabs.skills",
   memory: "workspaces.tabs.memory",
-  workspace: "workspaces.tabs.workspace",
 };
 
 export function HermesRightInspectorTabs() {

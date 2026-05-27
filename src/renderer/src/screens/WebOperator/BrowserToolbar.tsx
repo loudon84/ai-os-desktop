@@ -1,14 +1,22 @@
 import { useState, type KeyboardEvent } from "react";
-import { ArrowLeft, ArrowRight, RotateCw, Globe, ShieldCheck, ShieldX } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Globe, ShieldCheck, ShieldX, ScanSearch } from "lucide-react";
 import { useBrowserActions } from "./hooks/use-browser-actions";
 
 interface BrowserToolbarProps {
   onNavigate?: (url: string) => void;
+  onRefreshSnapshot?: () => void;
   currentUrl?: string;
   isDomainAllowed?: boolean;
+  snapshotLoading?: boolean;
 }
 
-export function BrowserToolbar({ onNavigate, currentUrl = "", isDomainAllowed }: BrowserToolbarProps) {
+export function BrowserToolbar({
+  onNavigate,
+  onRefreshSnapshot,
+  currentUrl = "",
+  isDomainAllowed,
+  snapshotLoading = false,
+}: BrowserToolbarProps) {
   const [url, setUrl] = useState(currentUrl);
   const actions = useBrowserActions();
 
@@ -71,6 +79,18 @@ export function BrowserToolbar({ onNavigate, currentUrl = "", isDomainAllowed }:
             <ShieldX size={14} className="browser-toolbar__shield browser-toolbar__shield--blocked" />
           ))}
       </div>
+
+      {onRefreshSnapshot ? (
+        <button
+          type="button"
+          onClick={onRefreshSnapshot}
+          disabled={snapshotLoading}
+          className="browser-toolbar__icon-btn"
+          title="Refresh Snapshot"
+        >
+          <ScanSearch size={16} className={snapshotLoading ? "animate-pulse" : ""} />
+        </button>
+      ) : null}
 
       <button
         type="button"

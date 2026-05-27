@@ -41,6 +41,7 @@ export type WorkspaceSecondaryPanel =
   | "memory"
   | "runtime"
   | "browser-state"
+  | "page-structure"
   | "screenshot"
   | "action-log"
   | "office";

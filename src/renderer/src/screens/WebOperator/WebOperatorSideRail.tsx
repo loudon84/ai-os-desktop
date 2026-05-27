@@ -1,4 +1,4 @@
-import { Camera, Monitor, PanelRightOpen, ScrollText } from "lucide-react";
+import { Camera, Monitor, PanelRightOpen, ScanSearch, ScrollText } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
 import {
   SECONDARY_NAV_BY_WORKSPACE,
@@ -10,6 +10,7 @@ const PANEL_ICONS: Partial<
   Record<WorkspaceSecondaryPanel, React.ComponentType<{ size?: number }>>
 > = {
   "browser-state": Monitor,
+  "page-structure": ScanSearch,
   screenshot: Camera,
   "action-log": ScrollText,
 };

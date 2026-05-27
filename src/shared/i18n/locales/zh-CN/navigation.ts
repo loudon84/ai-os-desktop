@@ -15,6 +15,7 @@ export default {
   sessions: "会话",
   agents: "智能体",
   browserState: "浏览器状态",
+  pageStructure: "页面结构",
   screenshot: "截图",
   actionLog: "操作日志",
   chatPlaceholder: "输入消息…",

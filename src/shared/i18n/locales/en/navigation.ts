@@ -15,6 +15,7 @@ export default {
   sessions: "Sessions",
   agents: "Agents",
   browserState: "Browser state",
+  pageStructure: "Page structure",
   screenshot: "Screenshot",
   actionLog: "Action log",
   chatPlaceholder: "Message…",

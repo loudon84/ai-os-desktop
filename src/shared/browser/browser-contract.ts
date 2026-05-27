@@ -152,3 +152,30 @@ export interface BrowserSecurityCheckResult {
   message?: string;
   isSensitiveAction?: boolean;
 }
+
+// v5.7 WebContentsView browser core — re-exports (non-breaking)
+export type {
+  BrowserRect,
+  BrowserFrameSnapshot,
+  BrowserFrameTarget,
+} from "./browser-frame-contract";
+export type {
+  BrowserSnapshotError,
+  BrowserElementSnapshot,
+  BrowserPageSnapshot,
+  BrowserSnapshotOptions,
+  BrowserElementTarget,
+} from "./browser-snapshot-contract";
+export type {
+  BrowserActionType,
+  BrowserActionErrorCode,
+  BrowserActionError,
+  BrowserStructuredActionResult,
+  BrowserActionLogEntry,
+  BrowserRuntimeState,
+  BrowserTypeOptions,
+  BrowserScrollOptions,
+  BrowserScreenshotOptions,
+  BrowserStructuredScreenshotResult,
+} from "./browser-action-contract";
+export { BrowserV57Events } from "./browser-action-contract";

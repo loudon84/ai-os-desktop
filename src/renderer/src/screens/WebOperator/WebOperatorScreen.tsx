@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { PanelRightClose } from "lucide-react";
 import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import { useI18n } from "../../components/useI18n";
@@ -7,6 +7,7 @@ import { BrowserToolbar } from "./BrowserToolbar";
 import { BrowserStatePanel } from "./BrowserStatePanel";
 import { ScreenshotPanel } from "./ScreenshotPanel";
 import { BrowserActionLog } from "./BrowserActionLog";
+import { PageStructurePanel } from "./PageStructurePanel";
 import { WebOperatorSideRail } from "./WebOperatorSideRail";
 import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
@@ -30,8 +31,11 @@ export function WebOperatorScreen({
 }: WebOperatorScreenProps): React.JSX.Element {
   const { t } = useI18n();
   const stateRef = useRef<HTMLDivElement>(null);
+  const structureRef = useRef<HTMLDivElement>(null);
   const screenshotRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotRefreshTrigger, setSnapshotRefreshTrigger] = useState(0);
 
   const { layoutRef, sideWidthPx, sideCollapsed, onHandlePointerDown } =
     useWebOperatorLayoutSplit({ layout, onLayoutChange });
@@ -39,11 +43,13 @@ export function WebOperatorScreen({
   useEffect(() => {
     if (sideCollapsed) return;
     const target =
-      focusedPanel === "screenshot"
-        ? screenshotRef.current
-        : focusedPanel === "action-log"
-          ? logRef.current
-          : stateRef.current;
+      focusedPanel === "page-structure"
+        ? structureRef.current
+        : focusedPanel === "screenshot"
+          ? screenshotRef.current
+          : focusedPanel === "action-log"
+            ? logRef.current
+            : stateRef.current;
     target?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [focusedPanel, sideCollapsed]);
 
@@ -51,7 +57,9 @@ export function WebOperatorScreen({
     const base =
       panel === "action-log"
         ? "web-operator-layout__panel web-operator-layout__panel--grow"
-        : "web-operator-layout__panel";
+        : panel === "page-structure"
+          ? "web-operator-layout__panel web-operator-layout__panel--grow"
+          : "web-operator-layout__panel";
     return focusedPanel === panel
       ? `${base} web-operator-layout__panel--focused`
       : base;
@@ -63,6 +71,22 @@ export function WebOperatorScreen({
     },
     [layout, onLayoutChange],
   );
+
+  const handleRefreshSnapshot = useCallback(async () => {
+    setSnapshotLoading(true);
+    try {
+      await window.aiosBrowser.snapshot({
+        includeFrames: true,
+        includeInteractiveElements: true,
+      });
+      setSnapshotRefreshTrigger((n) => n + 1);
+      if (focusedPanel !== "page-structure") {
+        onFocusedPanelChange?.("page-structure");
+      }
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }, [focusedPanel, onFocusedPanelChange]);
 
   const gridStyle = {
     "--wo-side-width": `${sideWidthPx}px`,
@@ -76,7 +100,10 @@ export function WebOperatorScreen({
       style={gridStyle}
     >
       <div className="web-operator-layout__main">
-        <BrowserToolbar />
+        <BrowserToolbar
+          onRefreshSnapshot={() => void handleRefreshSnapshot()}
+          snapshotLoading={snapshotLoading}
+        />
         <WebContentsHost
           layerId={WEB_OPERATOR_LAYER_ID}
           className="web-operator-layout__viewport"
@@ -120,11 +147,12 @@ export function WebOperatorScreen({
               <div ref={stateRef} className={panelClass("browser-state")}>
                 <BrowserStatePanel className="flex-1 overflow-hidden" />
               </div>
-              {/*
-              <div ref={screenshotRef} className={panelClass("screenshot")}>
-                <ScreenshotPanel />
-              </div>
-               */}
+              <div ref={structureRef} className={panelClass("page-structure")}>
+                <PageStructurePanel
+                  externalRefreshTrigger={snapshotRefreshTrigger}
+                  className="flex-1 overflow-hidden min-h-[200px]"
+                />
+              </div>             
               <div ref={logRef} className={panelClass("action-log")}>
                 <BrowserActionLog className="flex-1" />
               </div>

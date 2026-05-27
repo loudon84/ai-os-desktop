@@ -17,9 +17,20 @@ import {
   getConnectionConfig,
   getFullConnectionConfig,
   syncGatewayModelSection,
+  setModelConfig,
 } from "./config";
 import { getSshTunnelUrl, isSshTunnelActive, isSshTunnelHealthy, startSshTunnel } from "./ssh-tunnel";
 import { stripAnsi } from "./utils";
+import { buildUserMessageContent } from "./hermes-default-chat/hermes-default-chat-attachments";
+import { buildGatewayChatCompletionsBody } from "./hermes-default-chat/hermes-default-chat-request";
+import { resolveModelIdForSend } from "./hermes-default-chat/hermes-default-chat-models";
+import type { SavedModel } from "./models";
+import {
+  buildChatModelRoutingLog,
+  logChatModelRouting,
+  modelConfigMatchesSaved,
+} from "./hermes-default-chat/hermes-chat-model-routing";
+import { applyCustomEndpointEnv } from "./hermes-model-env";
 
 const LOCAL_API_URL = "http://127.0.0.1:8642";
 
@@ -79,32 +90,18 @@ export async function ensureSshTunnelIfNeeded(): Promise<void> {
   }
 }
 
-const LOCAL_PROVIDERS = new Set([
-  "custom",
-  "lmstudio",
-  "ollama",
-  "vllm",
-  "llamacpp",
-]);
-
-// Map base-URL patterns to the API key env var they need
-const URL_KEY_MAP: Array<{ pattern: RegExp; envKey: string }> = [
-  { pattern: /openrouter\.ai/i, envKey: "OPENROUTER_API_KEY" },
-  { pattern: /anthropic\.com/i, envKey: "ANTHROPIC_API_KEY" },
-  { pattern: /openai\.com/i, envKey: "OPENAI_API_KEY" },
-  { pattern: /huggingface\.co/i, envKey: "HF_TOKEN" },
-  { pattern: /api\.groq\.com/i, envKey: "GROQ_API_KEY" },
-  { pattern: /api\.deepseek\.com/i, envKey: "DEEPSEEK_API_KEY" },
-  { pattern: /api\.together\.xyz/i, envKey: "TOGETHER_API_KEY" },
-  { pattern: /api\.fireworks\.ai/i, envKey: "FIREWORKS_API_KEY" },
-  { pattern: /api\.cerebras\.ai/i, envKey: "CEREBRAS_API_KEY" },
-  { pattern: /api\.mistral\.ai/i, envKey: "MISTRAL_API_KEY" },
-  { pattern: /api\.perplexity\.ai/i, envKey: "PERPLEXITY_API_KEY" },
-];
-
 interface ChatHandle {
   abort: () => void;
 }
+
+export type HermesSendMessageOptions = {
+  attachmentIds?: string[];
+  modelId?: string;
+};
+
+type ChatMessageContent =
+  | string
+  | Array<{ type: string; text?: string; image_url?: { url: string } }>;
 
 /**
  * Model id for POST /v1/chat/completions to the Hermes API server.
@@ -209,32 +206,79 @@ export interface ChatCallbacks {
   }) => void;
 }
 
-function sendMessageViaApi(
+async function syncGatewayToSavedModel(
+  saved: SavedModel,
+  profile?: string,
+): Promise<{ syncedConfig: boolean; restartedGateway: boolean }> {
+  const cfg = getModelConfig(profile);
+  if (modelConfigMatchesSaved(cfg, saved)) {
+    return { syncedConfig: false, restartedGateway: false };
+  }
+
+  setModelConfig(saved.provider, saved.model, saved.baseUrl, profile);
+  syncGatewayModelSection(profile);
+
+  if (!isRemoteMode() && isGatewayRunning()) {
+    await restartGatewayAsync(profile);
+    return { syncedConfig: true, restartedGateway: true };
+  }
+
+  return { syncedConfig: true, restartedGateway: false };
+}
+
+async function sendMessageViaApi(
   message: string,
   cb: ChatCallbacks,
   profile?: string,
   _resumeSessionId?: string,
   history?: Array<{ role: string; content: string }>,
-): ChatHandle {
-  const apiModel = resolveApiServerModelName(profile);
+  options?: HermesSendMessageOptions,
+  routingMeta?: { syncedConfig: boolean; restartedGateway: boolean; configBefore: ReturnType<typeof getModelConfig> },
+): Promise<ChatHandle> {
   const controller = new AbortController();
 
+  const userContent: ChatMessageContent = await buildUserMessageContent(
+    message,
+    profile,
+    options?.attachmentIds ?? [],
+  );
+
   // Build full conversation from history + current message (standard OpenAI format)
-  const messages: Array<{ role: string; content: string }> = [
+  const messages: Array<{ role: string; content: ChatMessageContent }> = [
     ...sanitizeChatHistory(history, message),
-    { role: "user", content: message },
+    { role: "user", content: userContent },
   ];
 
-  const body = JSON.stringify({
-    model: apiModel,
+  const apiServerModel = resolveApiServerModelName(profile);
+  const payload = buildGatewayChatCompletionsBody(
     messages,
-    stream: true,
-  });
+    profile,
+    options?.modelId,
+    apiServerModel,
+  );
+  const gatewayCompletionsUrl = `${getApiUrl().replace(/\/+$/, "")}/v1/chat/completions`;
+  logChatModelRouting(
+    buildChatModelRoutingLog({
+      profile,
+      modelId: options?.modelId,
+      apiServerModel,
+      payload,
+      gatewayCompletionsUrl,
+      syncedConfig: routingMeta?.syncedConfig ?? false,
+      restartedGateway: routingMeta?.restartedGateway ?? false,
+      configBefore: routingMeta?.configBefore,
+    }),
+  );
+  const body = JSON.stringify(payload);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...getRemoteAuthHeader(profile),
   };
+  const resumeId = _resumeSessionId?.trim();
+  if (resumeId) {
+    headers["x-hermes-session-id"] = resumeId;
+  }
 
   let sessionId = _resumeSessionId || "";
   let hasContent = false;
@@ -255,11 +299,13 @@ function sendMessageViaApi(
 
   function probeRealError(): void {
     // When streaming returns empty, make a non-streaming request to surface the real error
-    const probeBody = JSON.stringify({
-      model: apiModel,
-      messages: [{ role: "user", content: message }],
-      stream: false,
-    });
+    const probePayload = buildGatewayChatCompletionsBody(
+      [{ role: "user", content: message }],
+      profile,
+      options?.modelId,
+      resolveApiServerModelName(profile),
+    );
+    const probeBody = JSON.stringify({ ...probePayload, stream: false });
     const probeUrl = `${getApiUrl()}/v1/chat/completions`;
     const probeMod = probeUrl.startsWith("https") ? https : http;
     const probeReq = probeMod.request(
@@ -482,9 +528,13 @@ function sendMessageViaCli(
   cb: ChatCallbacks,
   profile?: string,
   resumeSessionId?: string,
+  options?: HermesSendMessageOptions,
 ): ChatHandle {
-  const mc = getModelConfig(profile);
   const profileEnv = readEnv(profile);
+  const saved = resolveModelIdForSend(options?.modelId, profile);
+  const mc = saved
+    ? { provider: saved.provider, model: saved.model, baseUrl: saved.baseUrl }
+    : getModelConfig(profile);
 
   const args: string[] = [];
   if (profile && profile !== "default") {
@@ -537,38 +587,7 @@ function sendMessageViaCli(
     }
   }
 
-  const isCustomEndpoint = LOCAL_PROVIDERS.has(mc.provider);
-  if (isCustomEndpoint && mc.baseUrl) {
-    env.HERMES_INFERENCE_PROVIDER = "custom";
-    env.OPENAI_BASE_URL = mc.baseUrl.replace(/\/+$/, "");
-
-    // Resolve the right API key: check URL-specific key first, then OPENAI_API_KEY
-    let resolvedKey = "";
-    for (const { pattern, envKey } of URL_KEY_MAP) {
-      if (pattern.test(mc.baseUrl)) {
-        resolvedKey = profileEnv[envKey] || env[envKey] || "";
-        break;
-      }
-    }
-    if (!resolvedKey) {
-      resolvedKey =
-        profileEnv.CUSTOM_API_KEY ||
-        env.CUSTOM_API_KEY ||
-        profileEnv.OPENAI_API_KEY ||
-        env.OPENAI_API_KEY ||
-        "";
-    }
-    // Local servers (localhost/127.0.0.1) don't need a real key
-    if (!resolvedKey && /localhost|127\.0\.0\.1/i.test(mc.baseUrl)) {
-      resolvedKey = "no-key-required";
-    }
-    env.OPENAI_API_KEY = resolvedKey || "no-key-required";
-
-    delete env.OPENROUTER_API_KEY;
-    delete env.ANTHROPIC_API_KEY;
-    delete env.ANTHROPIC_TOKEN;
-    delete env.OPENROUTER_BASE_URL;
-  }
+  applyCustomEndpointEnv(env, profileEnv, mc);
 
   const proc = spawn(getHermesScript(), args, {
     cwd: getHermesRepo(),
@@ -668,18 +687,34 @@ export async function sendMessage(
   profile?: string,
   resumeSessionId?: string,
   history?: Array<{ role: string; content: string }>,
+  options?: HermesSendMessageOptions,
 ): Promise<ChatHandle> {
   ensureInitialized();
-  if (!isRemoteMode()) {
-    const configSynced = syncGatewayModelSection(profile);
-    if (configSynced && isGatewayRunning()) {
-      restartGateway(profile);
-    }
+
+  const configBefore = getModelConfig(profile);
+  let routingMeta = {
+    syncedConfig: false,
+    restartedGateway: false,
+    configBefore,
+  };
+
+  const saved = resolveModelIdForSend(options?.modelId, profile);
+  if (saved && !isRemoteMode()) {
+    const sync = await syncGatewayToSavedModel(saved, profile);
+    routingMeta = { ...routingMeta, ...sync };
   }
 
   // Remote mode: always use API, no CLI fallback
   if (isRemoteMode()) {
-    return sendMessageViaApi(message, cb, profile, resumeSessionId);
+    return sendMessageViaApi(
+      message,
+      cb,
+      profile,
+      resumeSessionId,
+      history,
+      options,
+      routingMeta,
+    );
   }
 
   // Check API server availability (cache the result, re-check periodically)
@@ -688,11 +723,41 @@ export async function sendMessage(
   }
 
   if (apiServerAvailable) {
-    return sendMessageViaApi(message, cb, profile, resumeSessionId, history);
+    return sendMessageViaApi(
+      message,
+      cb,
+      profile,
+      resumeSessionId,
+      history,
+      options,
+      routingMeta,
+    );
   }
 
-  // Fallback to CLI
-  return sendMessageViaCli(message, cb, profile, resumeSessionId);
+  // Fallback to CLI — attachments not supported on CLI path
+  if (saved) {
+    const apiServerModel = resolveApiServerModelName(profile);
+    const payload = buildGatewayChatCompletionsBody(
+      [{ role: "user", content: message }],
+      profile,
+      options?.modelId,
+      apiServerModel,
+    );
+    logChatModelRouting(
+      buildChatModelRoutingLog({
+        profile,
+        modelId: options?.modelId,
+        apiServerModel,
+        payload,
+        gatewayCompletionsUrl: "(CLI fallback)",
+        syncedConfig: routingMeta.syncedConfig,
+        restartedGateway: routingMeta.restartedGateway,
+        configBefore: routingMeta.configBefore,
+      }),
+    );
+  }
+
+  return sendMessageViaCli(message, cb, profile, resumeSessionId, options);
 }
 
 // Lazy init — called on first sendMessage or gateway start
@@ -895,4 +960,36 @@ export function restartGateway(profile?: string): void {
   setTimeout(() => {
     startGateway(profile);
   }, 500);
+}
+
+/** Restart gateway and wait until API health responds (local mode model switch). */
+export function restartGatewayAsync(profile?: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!isGatewayRunning()) {
+      resolve();
+      return;
+    }
+    stopGateway(true);
+    apiServerAvailable = false;
+    setTimeout(() => {
+      startGateway(profile);
+      let attempts = 0;
+      const poll = (): void => {
+        void isApiServerReady(profile).then((ok) => {
+          if (ok) {
+            apiServerAvailable = true;
+            resolve();
+            return;
+          }
+          attempts += 1;
+          if (attempts >= 24) {
+            resolve();
+            return;
+          }
+          setTimeout(poll, 250);
+        });
+      };
+      setTimeout(poll, 400);
+    }, 500);
+  });
 }

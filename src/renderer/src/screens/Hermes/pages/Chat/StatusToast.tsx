@@ -4,7 +4,7 @@ export function StatusToast({
 }: {
   message: string;
   variant?: "info" | "error";
-}) {
+}): React.JSX.Element | null {
   if (!message) return null;
   return (
     <div
@@ -16,3 +16,4 @@ export function StatusToast({
     </div>
   );
 }
+

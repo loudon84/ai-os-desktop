@@ -15,6 +15,8 @@ export const STORAGE_KEYS = {
   collapsedLeftPanel: "hermesDefault.collapsedLeftPanel",
   activeNavItem: "hermesDefault.activeNavItem",
   activeSessionId: "hermesDefault.activeSessionId",
+  /** Chat 会话级模型（models.json UUID）；不写 config.yaml */
+  chatPendingModelId: "hermesDefault.chatPendingModelId",
 } as const;
 
 export type HermesNavItemKey =

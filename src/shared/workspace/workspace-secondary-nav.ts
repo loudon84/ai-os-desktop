@@ -12,7 +12,7 @@ export const SECONDARY_NAV_BY_WORKSPACE: Record<
   "local-hermes": [],
   /** team_v1.5：三栏工作区自包含，侧栏不再切换子面板 */
   "task-workbench": [],
-  "web-operator": ["browser-state", "screenshot", "action-log"],
+  "web-operator": ["browser-state", "page-structure", "screenshot", "action-log"],
   office: ["office"],
 };
 
@@ -25,6 +25,7 @@ export const SECONDARY_PANEL_LABEL_KEYS: Record<WorkspaceSecondaryPanel, string>
   memory: "workspaces.tabs.memory",
   runtime: "workspaces.tabs.runtime",
   "browser-state": "navigation.browserState",
+  "page-structure": "navigation.pageStructure",
   screenshot: "navigation.screenshot",
   "action-log": "navigation.actionLog",
   office: "navigation.office",

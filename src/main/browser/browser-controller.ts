@@ -21,6 +21,23 @@ import { BrowserSecurityGuard } from "./browser-security";
 import { BrowserAuditLogger } from "./browser-audit";
 import { PendingSensitiveAction as InternalPendingAction, PENDING_ACTION_TIMEOUT_MS } from "./browser-types";
 import { randomUUID } from "crypto";
+import { BrowserV57Core } from "./browser-v57-core";
+import type {
+  BrowserRuntimeState,
+  BrowserStructuredActionResult,
+  BrowserTypeOptions,
+  BrowserScrollOptions,
+  BrowserScreenshotOptions,
+  BrowserStructuredScreenshotResult,
+} from "../../shared/browser/browser-action-contract";
+import type {
+  BrowserPageSnapshot,
+  BrowserSnapshotOptions,
+  BrowserElementTarget,
+} from "../../shared/browser/browser-snapshot-contract";
+import type { BrowserFrameSnapshot } from "../../shared/browser/browser-frame-contract";
+import type { BrowserElementSnapshot } from "../../shared/browser/browser-snapshot-contract";
+import type { BrowserActionLogEntry } from "../../shared/browser/browser-action-contract";
 
 const GET_PAGE_STATE_SCRIPT = `
 (function __get_page_state__() {
@@ -80,6 +97,7 @@ export class BrowserController {
   private viewManager: BrowserViewPort;
   private securityGuard: BrowserSecurityGuard;
   private auditLogger: BrowserAuditLogger;
+  readonly v57: BrowserV57Core;
   private pendingActions: Map<string, InternalPendingAction> = new Map();
   private pendingTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private mainWindow: Electron.BrowserWindow | null = null;
@@ -92,10 +110,12 @@ export class BrowserController {
     this.viewManager = viewManager;
     this.securityGuard = securityGuard;
     this.auditLogger = auditLogger;
+    this.v57 = new BrowserV57Core(viewManager);
   }
 
   setMainWindow(win: Electron.BrowserWindow): void {
     this.mainWindow = win;
+    this.v57.setMainWindow(win);
   }
 
   private emitBrowserOpened(url: string, source: BrowserActionSource): void {
@@ -465,6 +485,62 @@ export class BrowserController {
       source: "user", action: pending.action as BrowserActionName, url: pending.url,
       status: "confirmed", message: "User confirmed action"
     });
+    return { ok: true };
+  }
+
+  // --- v5.7 WebContentsView browser core ---
+
+  getRuntimeState(): Promise<BrowserRuntimeState> {
+    return this.v57.getRuntimeState();
+  }
+
+  listFrames(): BrowserFrameSnapshot[] {
+    return this.v57.listFrames();
+  }
+
+  capturePageSnapshot(options?: BrowserSnapshotOptions): Promise<BrowserPageSnapshot> {
+    return this.v57.snapshot(options);
+  }
+
+  findElement(target: BrowserElementTarget): Promise<BrowserElementSnapshot | null> {
+    return this.v57.findElement(target);
+  }
+
+  clickElement(target: BrowserElementTarget): Promise<BrowserStructuredActionResult> {
+    return this.v57.clickElement(target);
+  }
+
+  typeElement(
+    target: BrowserElementTarget,
+    text: string,
+    options?: BrowserTypeOptions,
+  ): Promise<BrowserStructuredActionResult> {
+    return this.v57.typeElement(target, text, options);
+  }
+
+  selectOption(
+    target: BrowserElementTarget,
+    value: string,
+  ): Promise<BrowserStructuredActionResult> {
+    return this.v57.selectOption(target, value);
+  }
+
+  scrollPage(options: BrowserScrollOptions): Promise<BrowserStructuredActionResult> {
+    return this.v57.scroll(options);
+  }
+
+  captureStructuredScreenshot(
+    options?: BrowserScreenshotOptions,
+  ): Promise<BrowserStructuredScreenshotResult | null> {
+    return this.v57.captureStructuredScreenshot(options);
+  }
+
+  getActionLogs(limit?: number): BrowserActionLogEntry[] {
+    return this.v57.actionLogStore.getAll(limit);
+  }
+
+  clearActionLogs(): { ok: boolean } {
+    this.v57.actionLogStore.clear();
     return { ok: true };
   }
 

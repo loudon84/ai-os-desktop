@@ -140,6 +140,7 @@ App (main)
 | ShellView 全 API | 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) ShellView 表 |
 | Web Operator UI 视口 | `WebOperatorScreen` → `WebContentsHost("web-operator")`；`WEB_OPERATOR_LAYER_ID` 见 `web-operator-constants.ts` |
 | Web Operator 工具栏 | `BrowserToolbar` 单行 chrome（`web-operator.css`） |
+| **V5.7 WebContentsView 核心** | Main：`browser-v57-core` + frame/snapshot/locator；IPC `browser:*`；UI：`PageStructurePanel` / 结构化 `BrowserActionLog` |
 
 ### V2.2 增量（单轨 ShellView）
 

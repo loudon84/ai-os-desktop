@@ -179,6 +179,7 @@ import { setupProfileRuntimeIPC } from "./profile-runtime-ipc";
 import { generateId, getProfileByName, insertAuditEvent } from "./profile-runtime-db";
 import { setupWorkspacesIPC } from "./workspaces-ipc";
 import { registerWorkspaceChatIpc } from "./workspace-chat/workspace-chat-ipc";
+import { registerHermesDefaultChatIpc } from "./hermes-default-chat/hermes-default-chat-ipc";
 import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
@@ -430,6 +431,14 @@ function setupIPC(): void {
     setupProfileRoleIPC();
     setupWorkspacesIPC();
     registerWorkspaceChatIpc(() => mainWindow);
+    registerHermesDefaultChatIpc(() => mainWindow, {
+      get current() {
+        return currentChatAbort;
+      },
+      set current(v: (() => void) | null) {
+        currentChatAbort = v;
+      },
+    });
   } catch { /* profile-runtime not available in early setup */ }
 
   try {

@@ -1,3 +1,8 @@
+import type {
+  HermesChatSendPayload,
+  SetHermesChatModelConfigPayload,
+  UploadHermesAttachmentsPayload,
+} from "../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
 import { HERMES_DEFAULT_PROFILE } from "../constants";
 
 const P = HERMES_DEFAULT_PROFILE;
@@ -47,35 +52,57 @@ export const hermesDefaultApi = {
   },
 
   chat: {
-    sendMessage(input: {
-      message: string;
-      resumeSessionId?: string;
-      history?: Array<{ role: string; content: string }>;
-    }) {
-      return window.hermesAPI.sendMessage(
-        input.message,
-        P,
-        input.resumeSessionId,
-        input.history,
+    listModels() {
+      return window.hermesDefaultChat.listModels(P);
+    },
+    getModelConfig() {
+      return window.hermesDefaultChat.getModelConfig(P);
+    },
+    setModelConfig(payload: SetHermesChatModelConfigPayload) {
+      return window.hermesDefaultChat.setModelConfig(P, payload);
+    },
+    uploadAttachments(payload: Omit<UploadHermesAttachmentsPayload, "profile">) {
+      return window.hermesDefaultChat.uploadAttachments({ ...payload, profile: P });
+    },
+    uploadDroppedAttachments(
+      payload: Omit<UploadHermesAttachmentsPayload, "profile">,
+      files: FileList,
+    ) {
+      return window.hermesDefaultChat.uploadDroppedAttachments(
+        { ...payload, profile: P },
+        files,
       );
     },
+    removeAttachment(workspaceId: string, attachmentId: string) {
+      return window.hermesDefaultChat.removeAttachment(workspaceId, attachmentId, P);
+    },
+    sendMessage(input: Omit<HermesChatSendPayload, "profile">) {
+      return window.hermesDefaultChat.sendMessage({
+        message: input.message,
+        profile: P,
+        resumeSessionId: input.resumeSessionId,
+        history: input.history,
+        attachment_ids: input.attachment_ids,
+        model_id: input.model_id,
+      });
+    },
     abort() {
-      return window.hermesAPI.abortChat();
+      return window.hermesDefaultChat.abort();
     },
     onChunk(callback: (chunk: string) => void) {
-      return window.hermesAPI.onChatChunk(callback);
+      return window.hermesDefaultChat.onChunk(callback);
     },
     onDone(callback: (sessionId?: string) => void) {
-      return window.hermesAPI.onChatDone(callback);
+      return window.hermesDefaultChat.onDone(callback);
     },
     onError(callback: (error: string) => void) {
-      return window.hermesAPI.onChatError(callback);
+      return window.hermesDefaultChat.onError(callback);
     },
     onToolProgress(callback: (tool: string) => void) {
-      return window.hermesAPI.onChatToolProgress(callback);
+      return window.hermesDefaultChat.onToolProgress(callback);
     },
-    onUsage(callback: Parameters<typeof window.hermesAPI.onChatUsage>[0]) {
-      return window.hermesAPI.onChatUsage(callback);
+    onUsage(callback: Parameters<typeof window.hermesDefaultChat.onUsage>[0]) {
+      return window.hermesDefaultChat.onUsage(callback);
     },
   },
 

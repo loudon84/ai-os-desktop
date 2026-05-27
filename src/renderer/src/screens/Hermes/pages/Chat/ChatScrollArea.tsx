@@ -1,34 +1,90 @@
-import { useEffect, useRef } from "react";
-import type { HermesMessage } from "../../types";
+import { useI18n } from "../../../../components/useI18n";
+import AgentMarkdown from "../../../../components/AgentMarkdown";
+import type { HermesChatUsageEvent } from "../../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
+import type { HermesChatRunState, HermesMessage, HermesToolCall } from "../../types";
+import { useAutoScroll } from "./hooks/useAutoScroll";
+import { ChatBubble } from "./ChatBubble";
+import { ActivityRow } from "./ActivityRow";
+import { ErrorCard } from "./ErrorCard";
+import { UsageRow } from "./UsageRow";
 
-export function ChatScrollArea({ messages }: { messages: HermesMessage[] }) {
-  const endRef = useRef<HTMLDivElement>(null);
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+export function ChatScrollArea({
+  messages,
+  streamingContent,
+  activeTool,
+  runState,
+  lastError,
+  lastUsage,
+}: {
+  messages: HermesMessage[];
+  streamingContent: string;
+  activeTool: HermesToolCall | null;
+  runState: HermesChatRunState;
+  lastError: string | null;
+  lastUsage?: HermesChatUsageEvent | null;
+}): React.JSX.Element {
+  const { t } = useI18n();
+  const { containerRef, bottomRef } = useAutoScroll([
+    messages,
+    streamingContent,
+    activeTool,
+    runState,
+    lastError,
+    lastUsage,
+  ]);
 
-  if (messages.length === 0) {
-    return (
-      <div className="hermes-chat-empty">
-        <p>与本地 default Hermes Gateway 对话</p>
-        <p className="hermes-muted">数据经 window.hermesAPI 直连本地 Gateway</p>
-      </div>
-    );
-  }
+  const isEmpty =
+    messages.length === 0 && !streamingContent && !activeTool && runState === "idle";
+
+  let lastDay = "";
 
   return (
-    <div className="hermes-chat-scroll">
-      {messages.map((m) => (
-        <div
-          key={m.id}
-          className={`hermes-chat-bubble hermes-chat-bubble--${m.role}`}
-        >
-          <div className="hermes-chat-bubble__role">{m.role}</div>
-          <div className="hermes-chat-bubble__content">{m.content || "…"}</div>
+    <div ref={containerRef} className="hermes-webchat-scroll">
+      {isEmpty ? (
+        <div className="hermes-webchat-empty">
+          <p className="hermes-webchat-empty-title">
+            {t("workspaces.hermes.chat.emptyTitle", { defaultValue: "Start a conversation" })}
+          </p>
+          <p className="hermes-webchat-empty-hint">
+            {t("workspaces.hermes.chat.emptyHint", {
+              defaultValue: "Ask anything about your local Hermes gateway.",
+            })}
+          </p>
         </div>
-      ))}
-      <div ref={endRef} />
+      ) : null}
+      {messages.map((msg) => {
+        const day = dayLabel(msg.createdAt);
+        const showDay = day !== lastDay;
+        lastDay = day;
+        return (
+          <div key={msg.id}>
+            {showDay ? <div className="hermes-webchat-day-divider">{day}</div> : null}
+            <div className="hermes-webchat-message-wrap">
+              <ChatBubble message={msg} />
+            </div>
+          </div>
+        );
+      })}
+      {activeTool ? (
+        <div className="hermes-webchat-message-wrap">
+          <ActivityRow tool={activeTool} />
+        </div>
+      ) : null}
+      {streamingContent ? (
+        <div className="hermes-webchat-streaming">
+          <AgentMarkdown>{streamingContent}</AgentMarkdown>
+        </div>
+      ) : null}
+      {lastError ? <ErrorCard message={lastError} /> : null}
+      {lastUsage ? <UsageRow usage={lastUsage} /> : null}
+      <div ref={bottomRef} />
     </div>
   );
 }
+

@@ -1,5 +1,13 @@
 /* v5.6 Local Hermes — layout & components (mirrors Workspaces.css, scoped to .hermes-screen) */
 
+.h-full {
+  height: 100%;
+}
+
+.w-full {
+  width: 100%;
+}
+
 .hermes-screen {
   flex: 1 1 auto;
   height: 100%;
@@ -864,6 +872,346 @@
   margin: 0 10px 6px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+/* —— Hermes WebChat Surface (v5.6.2) —— */
+.hermes-webchat-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hermes-webchat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hermes-webchat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.hermes-webchat-empty-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.hermes-webchat-empty-hint {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.hermes-webchat-day-divider {
+  margin: 10px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.hermes-webchat-message-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hermes-webchat-streaming {
+  align-self: flex-start;
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.hermes-webchat-composer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  background: var(--bg-primary);
+}
+
+.hermes-webchat-input {
+  width: 100%;
+  min-height: 44px;
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.hermes-webchat-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hermes-webchat-toolbar {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hermes-webchat-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.hermes-webchat-send,
+.hermes-webchat-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.hermes-webchat-send:hover:not(:disabled),
+.hermes-webchat-stop:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.hermes-webchat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hermes-webchat-attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hermes-webchat-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hermes-webchat-attachment-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermes-webchat-attachment-meta {
+  color: var(--text-muted);
+}
+
+.hermes-webchat-attachment-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hermes-webchat-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.hermes-webchat-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hermes-webchat-attach-menu,
+.hermes-webchat-model {
+  position: relative;
+}
+
+.hermes-webchat-attach-dropdown,
+.hermes-webchat-model-menu {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  z-index: 30;
+  min-width: 220px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.hermes-webchat-attach-dropdown button,
+.hermes-webchat-model-menu button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.hermes-webchat-attach-dropdown button:hover:not(:disabled),
+.hermes-webchat-model-menu button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.hermes-webchat-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.hermes-webchat-model-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hermes-webchat-model-group-label {
+  margin-top: 8px;
+  padding: 6px 4px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hermes-webchat-model-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hermes-webchat-model-item-check {
+  flex: 0 0 12px;
+  width: 12px;
+  color: var(--accent-text);
+}
+
+.hermes-webchat-model-item:not(.is-selected) .hermes-webchat-model-item-check {
+  visibility: hidden;
+}
+
+.hermes-webchat-model-item.is-selected {
+  background: var(--accent-subtle);
+}
+
+.hermes-webchat-model-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermes-webchat-model-save {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.hermes-webchat-more {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.hermes-webchat-activity {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+
+.hermes-webchat-activity-toggle {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.hermes-webchat-activity-status {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hermes-webchat-activity-body {
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  overflow: auto;
+}
+
+.hermes-webchat-error-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.hermes-webchat-error-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.hermes-webchat-usage {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .hermes-skills-layout {
