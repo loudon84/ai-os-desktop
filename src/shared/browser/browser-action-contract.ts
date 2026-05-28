@@ -16,6 +16,7 @@ export type BrowserActionType =
   | "typeElement"
   | "selectOption"
   | "scroll"
+  | "getFrameHtml"
   | "screenshot";
 
 export type BrowserActionErrorCode =

@@ -36,6 +36,10 @@ import type {
   BrowserElementTarget,
 } from "../../shared/browser/browser-snapshot-contract";
 import type { BrowserFrameSnapshot } from "../../shared/browser/browser-frame-contract";
+import type {
+  BrowserFrameHtmlRequest,
+  BrowserFrameHtmlResult,
+} from "../../shared/browser/browser-frame-contract";
 import type { BrowserElementSnapshot } from "../../shared/browser/browser-snapshot-contract";
 import type { BrowserActionLogEntry } from "../../shared/browser/browser-action-contract";
 
@@ -496,6 +500,10 @@ export class BrowserController {
 
   listFrames(): BrowserFrameSnapshot[] {
     return this.v57.listFrames();
+  }
+
+  getFrameHtml(target: BrowserFrameHtmlRequest): Promise<BrowserFrameHtmlResult> {
+    return this.v57.getFrameHtml(target);
   }
 
   capturePageSnapshot(options?: BrowserSnapshotOptions): Promise<BrowserPageSnapshot> {

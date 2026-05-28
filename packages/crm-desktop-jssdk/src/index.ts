@@ -83,7 +83,7 @@ function submitPageContext(
 }
 
 function onCommand(handler: (command: CrmDesktopCommand) => void): () => void {
-  const listener = (event: MessageEvent) => {
+  const listener = (event: MessageEvent): void => {
     if (event.origin !== window.location.origin) return;
     const data = event.data as {
       source?: string;

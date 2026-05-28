@@ -1,4 +1,4 @@
-import { Download, MessageSquare, List, Users, Monitor, Camera, ScrollText, Building } from "lucide-react";
+import { Download, MessageSquare, List, Users, Monitor, ScrollText, Building } from "lucide-react";
 import { useI18n } from "../../components/useI18n";
 import type { UpdateState, View } from "../../types/desktop-shell";
 import type { SidebarMode } from "../../screens/MainPage/main-page-types";
@@ -14,7 +14,6 @@ const SECONDARY_ICONS: Partial<Record<WorkspaceSecondaryPanel, typeof MessageSqu
   sessions: List,
   agents: Users,
   "browser-state": Monitor,
-  screenshot: Camera,
   "action-log": ScrollText,
   office: Building,
 };

@@ -4,6 +4,8 @@ import { FrameTreePanel } from "./FrameTreePanel";
 import { ElementListPanel } from "./ElementListPanel";
 import { usePageSnapshot } from "./hooks/use-page-snapshot";
 import type { BrowserElementSnapshot } from "../../../../shared/browser/browser-snapshot-contract";
+import { PageSelectorActionBar } from "./panels/PageSelectorActionBar";
+import { PageFrameHtmlInspector } from "./panels/PageFrameHtmlInspector";
 
 interface PageStructurePanelProps {
   className?: string;
@@ -80,6 +82,11 @@ export function PageStructurePanel({
         selectedFrameId={selectedFrameId}
         onSelectFrame={setSelectedFrameId}
         errors={snapshot?.errors.map((e) => ({ frameId: e.frameId, message: e.message }))}
+      />
+      <PageSelectorActionBar selectedFrameId={selectedFrameId} />
+      <PageFrameHtmlInspector
+        selectedFrameId={selectedFrameId}
+        frames={snapshot?.frames ?? []}
       />
       <ElementListPanel
         elements={filteredElements}

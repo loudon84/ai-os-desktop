@@ -29,6 +29,10 @@ import type {
   BrowserActionLogEntry,
 } from "../shared/browser/browser-action-contract";
 import type {
+  BrowserFrameHtmlRequest,
+  BrowserFrameHtmlResult,
+} from "../shared/browser/browser-frame-contract";
+import type {
   CrmBridgeOnEventPayload,
   CrmBridgeStoredEvent,
   CrmBridgeResult,
@@ -71,6 +75,7 @@ export interface AiosBrowserAPI {
   ): Promise<BrowserStructuredActionResult>;
   scroll(options: BrowserScrollOptions): Promise<BrowserStructuredActionResult>;
   screenshotV2(options?: BrowserScreenshotOptions): Promise<BrowserStructuredScreenshotResult | null>;
+  getFrameHtml(target: BrowserFrameHtmlRequest): Promise<BrowserFrameHtmlResult>;
   getActionLogs(limit?: number): Promise<BrowserActionLogEntry[]>;
   clearActionLogs(): Promise<{ ok: boolean }>;
   onStateChanged(callback: (state: BrowserRuntimeState) => void): () => void;
@@ -132,6 +137,7 @@ export const aiosBrowser: AiosBrowserAPI = {
     ipcRenderer.invoke("browser:select-option", { target, value }),
   scroll: (options) => ipcRenderer.invoke("browser:scroll", options),
   screenshotV2: (options?) => ipcRenderer.invoke("browser:screenshot-v2", options),
+  getFrameHtml: (target) => ipcRenderer.invoke("browser:get-frame-html", target),
   getActionLogs: (limit?) => ipcRenderer.invoke("browser:action-logs", limit),
   clearActionLogs: () => ipcRenderer.invoke("browser:clear-action-logs"),
   onStateChanged: (callback) => {

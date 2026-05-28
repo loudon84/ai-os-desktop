@@ -1,34 +1,7 @@
 import type { WorkspaceModule } from "../../../shared/workspace/workspace-contract";
 
 export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
-  {
-    id: "workspaces",
-    titleKey: "navigation.workspaces",
-    kind: "react",
-    closeable: false,
-    draggable: false,
-    persistable: true,
-    source: "local",
-  },
-  {
-    id: "local-hermes",
-    titleKey: "navigation.localHermes",
-    kind: "react",
-    closeable: false,
-    draggable: false,
-    persistable: true,
-    source: "hermes",
-  },
-  {
-    id: "portal",
-    titleKey: "navigation.portal",
-    kind: "webview",
-    closeable: false,
-    draggable: false,
-    persistable: true,
-    shellLayerId: "portal",
-    source: "system",
-  },
+   
   {
     id: "web-operator",
     titleKey: "navigation.webOperator",
@@ -49,7 +22,36 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     showInTabBar: false,
     source: "crm",
   },
+  {
+    id: "local-hermes",
+    titleKey: "navigation.localHermes",
+    kind: "react",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    source: "hermes",
+  },
+
   /*
+  {
+    id: "workspaces",
+    titleKey: "navigation.workspaces",
+    kind: "react",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    source: "local",
+  },
+  {
+    id: "portal",
+    titleKey: "navigation.portal",
+    kind: "webview",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    shellLayerId: "portal",
+    source: "system",
+  },
   {
     id: "task-workbench",
     titleKey: "navigation.taskWorkbench",

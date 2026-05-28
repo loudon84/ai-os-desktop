@@ -18,6 +18,10 @@ import { BrowserV57Events } from "../../shared/browser/browser-action-contract";
 import type { BrowserElementTarget } from "../../shared/browser/browser-snapshot-contract";
 import type { BrowserPageSnapshot, BrowserElementSnapshot } from "../../shared/browser/browser-snapshot-contract";
 import type { BrowserFrameSnapshot } from "../../shared/browser/browser-frame-contract";
+import type {
+  BrowserFrameHtmlRequest,
+  BrowserFrameHtmlResult,
+} from "../../shared/browser/browser-frame-contract";
 import { BrowserFrameInspector } from "./browser-frame-inspector";
 import { BrowserCoordinateResolver } from "./browser-coordinate-resolver";
 import { BrowserDomSnapshot } from "./browser-dom-snapshot";
@@ -139,6 +143,42 @@ const SCROLL_TO_ELEMENT_SCRIPT = (selector: string) => `
 })()
 `;
 
+const GET_FRAME_HTML_SCRIPT = (
+  selector: string | undefined,
+  outer: boolean,
+  maxLength: number,
+) => `
+(function() {
+  var node = ${
+    selector
+      ? `document.querySelector(${JSON.stringify(selector)})`
+      : "document.documentElement"
+  };
+  if (!node) {
+    return {
+      ok: false,
+      code: "ELEMENT_NOT_FOUND",
+      message: "Element not found"
+    };
+  }
+
+  var html = ${
+    selector ? (outer ? "node.outerHTML" : "node.innerHTML") : "document.documentElement.outerHTML"
+  };
+  var text = document.body ? document.body.innerText : "";
+  var truncated = html.length > ${maxLength};
+
+  return {
+    ok: true,
+    url: location.href,
+    title: document.title,
+    html: html.slice(0, ${maxLength}),
+    text: text.slice(0, ${Math.min(maxLength, 20000)}),
+    truncated: truncated
+  };
+})()
+`;
+
 export class BrowserV57Core {
   readonly actionLogStore = new BrowserActionLogStore();
   private readonly frameInspector = new BrowserFrameInspector();
@@ -217,6 +257,183 @@ export class BrowserV57Core {
     const wc = this.getWc();
     if (!wc) return [];
     return this.frameInspector.listFrames(wc);
+  }
+
+  async getFrameHtml(target: BrowserFrameHtmlRequest): Promise<BrowserFrameHtmlResult> {
+    const startedAt = Date.now();
+    const action: BrowserActionType = "getFrameHtml";
+    const wc = this.getWc();
+
+    if (!wc || !this.viewManager.isReady()) {
+      const result: BrowserFrameHtmlResult = {
+        ok: false,
+        capturedAt: new Date().toISOString(),
+        error: {
+          code: "WEB_CONTENTS_NOT_READY",
+          message: "External web view is not ready",
+        },
+      };
+      this.log(action, target, this.notReadyResult(action, startedAt));
+      return result;
+    }
+
+    const frames = this.frameInspector.listFrames(wc);
+    const frameMeta =
+      target.frameId
+        ? frames.find((frame) => frame.frameId === target.frameId)
+        : target.framePath
+          ? frames.find(
+              (frame) => JSON.stringify(frame.path) === JSON.stringify(target.framePath),
+            )
+          : target.urlIncludes
+            ? frames.find((frame) => frame.url.includes(target.urlIncludes ?? ""))
+            : target.name
+              ? frames.find((frame) => frame.name === target.name)
+              : target.title
+                ? frames.find((frame) => frame.title === target.title)
+                : typeof target.index === "number"
+                  ? frames[target.index]
+                  : frames[0];
+
+    if (!frameMeta) {
+      const error = actionError("FRAME_NOT_FOUND", "Frame not found");
+      this.log(
+        action,
+        target,
+        wrapResult(action, startedAt, {
+          ok: false,
+          url: wc.getURL(),
+          title: wc.getTitle(),
+          error,
+        }),
+      );
+      return {
+        ok: false,
+        capturedAt: new Date().toISOString(),
+        error: { code: "FRAME_NOT_FOUND", message: "Frame not found" },
+      };
+    }
+
+    const frame = this.frameInspector.resolveFrameByPath(wc, frameMeta.path);
+    if (!frame) {
+      const error = actionError("FRAME_NOT_FOUND", "Frame not found for path");
+      this.log(
+        action,
+        target,
+        wrapResult(action, startedAt, {
+          ok: false,
+          frameId: frameMeta.frameId,
+          url: wc.getURL(),
+          title: wc.getTitle(),
+          error,
+        }),
+      );
+      return {
+        ok: false,
+        frameId: frameMeta.frameId,
+        capturedAt: new Date().toISOString(),
+        error: { code: "FRAME_NOT_FOUND", message: "Frame not found for path" },
+      };
+    }
+
+    try {
+      const maxLength = target.maxLength ?? 100_000;
+      const raw = (await frame.executeJavaScript(
+        GET_FRAME_HTML_SCRIPT(target.selector, target.outer !== false, maxLength),
+      )) as {
+        ok: boolean;
+        url?: string;
+        title?: string;
+        html?: string;
+        text?: string;
+        truncated?: boolean;
+        code?: BrowserActionErrorCode;
+        message?: string;
+      };
+
+      if (!raw.ok) {
+        const code =
+          raw.code === "ELEMENT_NOT_FOUND" ||
+          raw.code === "FRAME_NOT_FOUND" ||
+          raw.code === "FRAME_SCRIPT_BLOCKED" ||
+          raw.code === "WEB_CONTENTS_NOT_READY"
+            ? raw.code
+            : "UNKNOWN_BROWSER_ERROR";
+        const message = raw.message ?? "Get frame html failed";
+        const error = actionError(code, message);
+        this.log(
+          action,
+          target,
+          wrapResult(action, startedAt, {
+            ok: false,
+            frameId: frameMeta.frameId,
+            selector: target.selector,
+            url: frameMeta.url,
+            title: frameMeta.title,
+            error,
+          }),
+        );
+        return {
+          ok: false,
+          frameId: frameMeta.frameId,
+          url: frameMeta.url,
+          title: frameMeta.title,
+          selector: target.selector,
+          capturedAt: new Date().toISOString(),
+          error: { code, message },
+        };
+      }
+
+      const result: BrowserFrameHtmlResult = {
+        ok: true,
+        frameId: frameMeta.frameId,
+        url: raw.url ?? frameMeta.url,
+        title: raw.title ?? frameMeta.title,
+        selector: target.selector,
+        html: raw.html ?? "",
+        text: raw.text,
+        truncated: raw.truncated,
+        capturedAt: new Date().toISOString(),
+      };
+
+      this.log(
+        action,
+        target,
+        wrapResult(action, startedAt, {
+          ok: true,
+          frameId: frameMeta.frameId,
+          selector: target.selector,
+          url: result.url,
+          title: result.title,
+        }),
+      );
+
+      return result;
+    } catch (err) {
+      const message = (err as Error).message;
+      const error = actionError("FRAME_SCRIPT_BLOCKED", message);
+      this.log(
+        action,
+        target,
+        wrapResult(action, startedAt, {
+          ok: false,
+          frameId: frameMeta.frameId,
+          selector: target.selector,
+          url: frameMeta.url,
+          title: frameMeta.title,
+          error,
+        }),
+      );
+      return {
+        ok: false,
+        frameId: frameMeta.frameId,
+        url: frameMeta.url,
+        title: frameMeta.title,
+        selector: target.selector,
+        capturedAt: new Date().toISOString(),
+        error: { code: "FRAME_SCRIPT_BLOCKED", message },
+      };
+    }
   }
 
   async snapshot(options?: Parameters<BrowserDomSnapshot["capture"]>[1]): Promise<BrowserPageSnapshot> {

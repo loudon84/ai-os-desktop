@@ -16,6 +16,7 @@ export default {
   agents: "Agents",
   browserState: "Browser state",
   crmContext: "CRM Context",
+  hermesTask: "Hermes Task",
   crm: {
     workbench: "CRM Assistant",
     customerAi: "Customer AI",

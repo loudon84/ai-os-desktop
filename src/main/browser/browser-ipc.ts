@@ -26,6 +26,10 @@ import type {
   BrowserElementTarget,
 } from "../../shared/browser/browser-snapshot-contract";
 import type { BrowserFrameSnapshot } from "../../shared/browser/browser-frame-contract";
+import type {
+  BrowserFrameHtmlRequest,
+  BrowserFrameHtmlResult,
+} from "../../shared/browser/browser-frame-contract";
 import type { BrowserElementSnapshot } from "../../shared/browser/browser-snapshot-contract";
 import { BrowserController } from "./browser-controller";
 import type { BrowserViewPort } from "./browser-viewport";
@@ -211,6 +215,13 @@ export class BrowserIPC {
     );
 
     ipcMain.handle(
+      "browser:get-frame-html",
+      async (_event, target: BrowserFrameHtmlRequest): Promise<BrowserFrameHtmlResult> => {
+        return this.controller.getFrameHtml(target);
+      },
+    );
+
+    ipcMain.handle(
       "browser:action-logs",
       async (_event, limit?: number): Promise<BrowserActionLogEntry[]> => {
         return this.controller.getActionLogs(limit);
@@ -234,6 +245,7 @@ export class BrowserIPC {
       "browser:get-state", "browser:list-frames", "browser:snapshot",
       "browser:find-element", "browser:click-element", "browser:type-element",
       "browser:select-option", "browser:scroll", "browser:screenshot-v2",
+      "browser:get-frame-html",
       "browser:action-logs", "browser:clear-action-logs",
     ];
     for (const ch of channels) {

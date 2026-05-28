@@ -309,8 +309,13 @@ function createWindow(): void {
 
   mainWindow.webContents.on(
     "did-fail-load",
-    (_event, errorCode, errorDescription) => {
-      console.error("[LOAD FAIL]", errorCode, errorDescription);
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      console.error("[LOAD FAIL]", {
+        errorCode,
+        errorDescription,
+        validatedURL,
+        isMainFrame,
+      });
     },
   );
 

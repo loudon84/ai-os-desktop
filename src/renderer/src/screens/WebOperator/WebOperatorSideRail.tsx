@@ -1,4 +1,12 @@
-import { Building2, Camera, Monitor, PanelRightOpen, ScanSearch, ScrollText } from "lucide-react";
+import {
+  Bot,
+  Building2,
+  Monitor,
+  PanelRightClose,
+  PanelRightOpen,
+  ScanSearch,
+  ScrollText,
+} from "lucide-react";
 import { useI18n } from "../../components/useI18n";
 import {
   SECONDARY_NAV_BY_WORKSPACE,
@@ -11,28 +19,32 @@ const PANEL_ICONS: Partial<
 > = {
   "browser-state": Monitor,
   "crm-context": Building2,
+  "hermes-task": Bot,
   "page-structure": ScanSearch,
-  screenshot: Camera,
   "action-log": ScrollText,
 };
 
 export interface WebOperatorSideRailProps {
   focusedPanel: string;
   onFocusedPanelChange?: (panel: string) => void;
-  onExpand: () => void;
+  panelsOpen: boolean;
+  onTogglePanelsOpen: () => void;
 }
 
 export function WebOperatorSideRail({
   focusedPanel,
   onFocusedPanelChange,
-  onExpand,
+  panelsOpen,
+  onTogglePanelsOpen,
 }: WebOperatorSideRailProps): React.JSX.Element {
   const { t } = useI18n();
   const panels = SECONDARY_NAV_BY_WORKSPACE["web-operator"];
 
   const handlePanelClick = (panel: WorkspaceSecondaryPanel): void => {
     onFocusedPanelChange?.(panel);
-    onExpand();
+    if (!panelsOpen) {
+      onTogglePanelsOpen();
+    }
   };
 
   return (
@@ -40,10 +52,12 @@ export function WebOperatorSideRail({
       <button
         type="button"
         className="web-operator-side-rail__btn"
-        title={t("navigation.webOperatorSide.expand")}
-        onClick={onExpand}
+        title={
+          panelsOpen ? t("navigation.webOperatorSide.collapse") : t("navigation.webOperatorSide.expand")
+        }
+        onClick={onTogglePanelsOpen}
       >
-        <PanelRightOpen size={16} />
+        {panelsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
       </button>
       <div className="web-operator-side-rail__nav">
         {panels.map((panel) => {

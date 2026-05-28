@@ -1,19 +1,13 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
-import { PanelRightClose } from "lucide-react";
+﻿import { useCallback, useState } from "react";
 import { WebContentsHost } from "../../components/shell/WebContentsHost";
-import { useI18n } from "../../components/useI18n";
 import type { WebOperatorLayoutState } from "../../../../shared/shell/main-page-state-contract";
 import { BrowserToolbar } from "./BrowserToolbar";
-import { BrowserStatePanel } from "./BrowserStatePanel";
-import { ScreenshotPanel } from "./ScreenshotPanel";
-import { BrowserActionLog } from "./BrowserActionLog";
-import { PageStructurePanel } from "./PageStructurePanel";
-import { CrmEventPanel } from "./CrmEventPanel";
 import { WebOperatorSideRail } from "./WebOperatorSideRail";
 import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
 import "./web-operator.css";
 import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
+import { WebOperatorPanels } from "./panels";
 
 export interface WebOperatorScreenProps {
   focusedPanel?: string;
@@ -30,46 +24,11 @@ export function WebOperatorScreen({
   onLayoutChange,
   onFocusedPanelChange,
 }: WebOperatorScreenProps): React.JSX.Element {
-  const { t } = useI18n();
-  const stateRef = useRef<HTMLDivElement>(null);
-  const crmRef = useRef<HTMLDivElement>(null);
-  const structureRef = useRef<HTMLDivElement>(null);
-  const screenshotRef = useRef<HTMLDivElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [snapshotRefreshTrigger, setSnapshotRefreshTrigger] = useState(0);
 
   const { layoutRef, sideWidthPx, sideCollapsed, onHandlePointerDown } =
     useWebOperatorLayoutSplit({ layout, onLayoutChange });
-
-  useEffect(() => {
-    if (sideCollapsed) return;
-    const target =
-      focusedPanel === "page-structure"
-        ? structureRef.current
-        : focusedPanel === "crm-context"
-          ? crmRef.current
-        : focusedPanel === "screenshot"
-          ? screenshotRef.current
-          : focusedPanel === "action-log"
-            ? logRef.current
-            : stateRef.current;
-    target?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [focusedPanel, sideCollapsed]);
-
-  const panelClass = (panel: string): string => {
-    const base =
-      panel === "action-log"
-        ? "web-operator-layout__panel web-operator-layout__panel--grow"
-        : panel === "crm-context"
-          ? "web-operator-layout__panel web-operator-layout__panel--grow"
-        : panel === "page-structure"
-          ? "web-operator-layout__panel web-operator-layout__panel--grow"
-          : "web-operator-layout__panel";
-    return focusedPanel === panel
-      ? `${base} web-operator-layout__panel--focused`
-      : base;
-  };
 
   const setCollapsed = useCallback(
     (collapsed: boolean) => {
@@ -121,57 +80,28 @@ export function WebOperatorScreen({
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label={t("navigation.webOperatorSide.resize")}
+          aria-label="Resize side panel"
           className="web-operator-layout__handle"
           onPointerDown={onHandlePointerDown}
         />
       ) : null}
 
-      <div className="web-operator-layout__side">
-        {sideCollapsed ? (
-          <WebOperatorSideRail
+      {!sideCollapsed ? (
+        <section className="web-operator-layout__side">
+          <WebOperatorPanels
             focusedPanel={focusedPanel}
-            onFocusedPanelChange={onFocusedPanelChange}
-            onExpand={() => setCollapsed(false)}
+            externalRefreshTrigger={snapshotRefreshTrigger}
+            onRefreshSnapshot={() => void handleRefreshSnapshot()}
           />
-        ) : (
-          <>
-            <header className="web-operator-layout__side-header">
-              <span className="web-operator-layout__side-title">
-                {t("navigation.webOperator")}
-              </span>
-              <button
-                type="button"
-                className="web-operator-side-rail__btn"
-                title={t("navigation.webOperatorSide.collapse")}
-                onClick={() => setCollapsed(true)}
-              >
-                <PanelRightClose size={16} />
-              </button>
-            </header>
-            <div className="web-operator-layout__side-panels">
-              <div ref={stateRef} className={panelClass("browser-state")}>
-                <BrowserStatePanel className="flex-1 overflow-hidden" />
-              </div>
-              <div ref={crmRef} className={panelClass("crm-context")}>
-                <CrmEventPanel
-                  className="flex-1 overflow-hidden min-h-[200px]"
-                  onRefreshSnapshot={() => void handleRefreshSnapshot()}
-                />
-              </div>
-              <div ref={structureRef} className={panelClass("page-structure")}>
-                <PageStructurePanel
-                  externalRefreshTrigger={snapshotRefreshTrigger}
-                  className="flex-1 overflow-hidden min-h-[200px]"
-                />
-              </div>             
-              <div ref={logRef} className={panelClass("action-log")}>
-                <BrowserActionLog className="flex-1" />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+        </section>
+      ) : null}
+
+      <WebOperatorSideRail
+        focusedPanel={focusedPanel}
+        onFocusedPanelChange={onFocusedPanelChange}
+        panelsOpen={!sideCollapsed}
+        onTogglePanelsOpen={() => setCollapsed(!sideCollapsed)}
+      />
     </div>
   );
 }

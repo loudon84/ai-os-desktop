@@ -46,7 +46,7 @@ export type WorkspaceSecondaryPanel =
   | "runtime"
   | "browser-state"
   | "crm-context"
+  | "hermes-task"
   | "page-structure"
-  | "screenshot"
   | "action-log"
   | "office";

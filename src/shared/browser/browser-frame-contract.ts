@@ -28,3 +28,32 @@ export interface BrowserFrameTarget {
   title?: string;
   index?: number;
 }
+
+export interface BrowserFrameHtmlRequest extends BrowserFrameTarget {
+  selector?: string;
+  /** When selector is provided: outerHTML (default true) or innerHTML (false). */
+  outer?: boolean;
+  /** Max HTML length returned. Default is decided by the caller. */
+  maxLength?: number;
+}
+
+export interface BrowserFrameHtmlResult {
+  ok: boolean;
+  frameId?: string;
+  url?: string;
+  title?: string;
+  selector?: string;
+  html?: string;
+  text?: string;
+  capturedAt: string;
+  truncated?: boolean;
+  error?: {
+    code:
+      | "WEB_CONTENTS_NOT_READY"
+      | "FRAME_NOT_FOUND"
+      | "FRAME_SCRIPT_BLOCKED"
+      | "ELEMENT_NOT_FOUND"
+      | "UNKNOWN_BROWSER_ERROR";
+    message: string;
+  };
+}

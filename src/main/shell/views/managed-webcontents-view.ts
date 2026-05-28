@@ -53,7 +53,7 @@ export class ManagedWebContentsView {
     url: string,
     options?: Partial<ShellViewOptions>,
   ): Promise<void> {
-    if (this.view && !this.view.webContents.isDestroyed()) {
+    if (this.getWebContents()) {
       await this.load(url);
       return;
     }
@@ -108,7 +108,8 @@ export class ManagedWebContentsView {
   }
 
   async load(url: string): Promise<void> {
-    if (!this.view || this.view.webContents.isDestroyed()) {
+    const wc = this.getWebContents();
+    if (!wc) {
       throw new Error(`View ${this.id} is not created or destroyed`);
     }
 
@@ -117,15 +118,16 @@ export class ManagedWebContentsView {
     this.errorDescription = undefined;
     this.crashed = false;
     this.setState("loading");
-    await this.view.webContents.loadURL(url);
+    await wc.loadURL(url);
     this.loading = false;
     this.setState("ready");
     this.emitMetadataChanged();
   }
 
   reload(): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
-    this.view.webContents.reload();
+    const wc = this.getWebContents();
+    if (!wc) return;
+    wc.reload();
     this.emitMetadataChanged();
   }
 
@@ -152,7 +154,7 @@ export class ManagedWebContentsView {
   }
 
   show(bounds: ShellViewBounds): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
+    if (!this.view || !this.getWebContents()) return;
 
     this.currentBounds = bounds;
     this.view.setBounds(bounds);
@@ -167,7 +169,7 @@ export class ManagedWebContentsView {
   }
 
   hide(): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
+    if (!this.view || !this.getWebContents()) return;
 
     this.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -179,7 +181,7 @@ export class ManagedWebContentsView {
   }
 
   updateBounds(bounds: ShellViewBounds): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
+    if (!this.view || !this.getWebContents()) return;
 
     this.currentBounds = bounds;
     this.view.setBounds(bounds);
@@ -193,21 +195,24 @@ export class ManagedWebContentsView {
   }
 
   focus(): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
-    this.view.webContents.focus();
+    const wc = this.getWebContents();
+    if (!wc) return;
+    wc.focus();
   }
 
   openDevTools(): void {
-    if (!this.view || this.view.webContents.isDestroyed()) return;
-    this.view.webContents.openDevTools({ mode: "detach" });
+    const wc = this.getWebContents();
+    if (!wc) return;
+    wc.openDevTools({ mode: "detach" });
   }
 
   destroy(): void {
     if (!this.view) return;
 
-    if (!this.view.webContents.isDestroyed()) {
+    const wc = this.view.webContents;
+    if (wc && !wc.isDestroyed()) {
       this.parent.contentView.removeChildView(this.view);
-      this.view.webContents.close();
+      wc.close();
     }
 
     this.view = null;
@@ -217,7 +222,7 @@ export class ManagedWebContentsView {
   }
 
   isReady(): boolean {
-    return this.view !== null && !this.view.webContents.isDestroyed();
+    return this.getWebContents() !== null;
   }
 
   isActive(): boolean {
@@ -225,8 +230,9 @@ export class ManagedWebContentsView {
   }
 
   getWebContents(): Electron.WebContents | null {
-    if (!this.view || this.view.webContents.isDestroyed()) return null;
-    return this.view.webContents;
+    const wc = this.view?.webContents;
+    if (!wc || wc.isDestroyed()) return null;
+    return wc;
   }
 
   getState(): ShellViewState {
