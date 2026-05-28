@@ -28,6 +28,13 @@ import type {
   BrowserStructuredScreenshotResult,
   BrowserActionLogEntry,
 } from "../shared/browser/browser-action-contract";
+import type {
+  CrmBridgeOnEventPayload,
+  CrmBridgeStoredEvent,
+  CrmBridgeResult,
+  CrmDesktopCommand,
+} from "../shared/crm-bridge";
+import { CrmBridgeEvents } from "../shared/crm-bridge";
 
 export interface AiosBrowserAPI {
   open(request: BrowserOpenRequest): Promise<BrowserOpenResult>;
@@ -68,6 +75,12 @@ export interface AiosBrowserAPI {
   clearActionLogs(): Promise<{ ok: boolean }>;
   onStateChanged(callback: (state: BrowserRuntimeState) => void): () => void;
   onActionLogged(callback: (log: BrowserActionLogEntry) => void): () => void;
+
+  /** v5.7.1 — CRM desktop bridge */
+  listCrmEvents(limit?: number): Promise<CrmBridgeStoredEvent[]>;
+  getLastCrmEvent(): Promise<CrmBridgeStoredEvent | null>;
+  sendCrmCommand(command: CrmDesktopCommand): Promise<CrmBridgeResult>;
+  onCrmEvent(callback: (payload: CrmBridgeOnEventPayload) => void): () => void;
 }
 
 export const aiosBrowser: AiosBrowserAPI = {
@@ -132,5 +145,17 @@ export const aiosBrowser: AiosBrowserAPI = {
       callback(log);
     ipcRenderer.on(BrowserV57Events.ACTION_LOGGED, handler);
     return () => ipcRenderer.removeListener(BrowserV57Events.ACTION_LOGGED, handler);
+  },
+
+  listCrmEvents: (limit?) => ipcRenderer.invoke("crm-bridge:list-events", limit),
+  getLastCrmEvent: () => ipcRenderer.invoke("crm-bridge:get-last-event"),
+  sendCrmCommand: (command) => ipcRenderer.invoke("crm-bridge:send-command", command),
+  onCrmEvent: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: CrmBridgeOnEventPayload,
+    ): void => callback(payload);
+    ipcRenderer.on(CrmBridgeEvents.ON_EVENT, handler);
+    return () => ipcRenderer.removeListener(CrmBridgeEvents.ON_EVENT, handler);
   },
 };

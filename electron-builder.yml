@@ -22,6 +22,10 @@ extraResources:
     to: resources/skills/
     filter:
       - "**/*"
+  - from: resources/crm-bridge/
+    to: resources/crm-bridge/
+    filter:
+      - "**/*"
   - from: resources/profile-presets/
     to: resources/profile-presets/
     filter:

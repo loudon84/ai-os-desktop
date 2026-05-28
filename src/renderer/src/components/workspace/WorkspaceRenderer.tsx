@@ -4,6 +4,7 @@ import { WorkspacesScreen } from "../../screens/Workspaces";
 import { PortalScreen } from "../../screens/Portal/Index";
 import { TaskWorkbenchScreen } from "../../screens/TaskWorkbench/TaskWorkbenchScreen";
 import { HermesScreen } from "../../screens/Hermes";
+import { CrmWorkbenchScreen } from "../../screens/Crm/CrmWorkbenchScreen";
 import { resolveWorkspaceModule } from "../../workspace/workspace-registry";
 import type { View } from "../../types/desktop-shell";
 import type { SettingsDrawerPanel } from "../../screens/SettingsDrawer/settings-drawer-types";
@@ -112,6 +113,18 @@ export function WorkspaceRenderer(props: WorkspaceRendererProps): React.JSX.Elem
                 activePanel={secondaryPanel}
                 onPanelChange={onSecondaryPanelChange}
                 onOpenRuntimeSettings={() => onOpenSettingsDrawer?.("runtime")}
+              />
+            </WorkspaceShell>
+          </ReactWorkspace>
+        );
+      }
+      if (module.id === "crm-workbench") {
+        return (
+          <ReactWorkspace active={workspaceId === "crm-workbench"}>
+            <WorkspaceShell>
+              <CrmWorkbenchScreen
+                enabled={workspaceId === "crm-workbench"}
+                onNavigate={onNavigate}
               />
             </WorkspaceShell>
           </ReactWorkspace>

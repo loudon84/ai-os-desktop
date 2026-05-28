@@ -6,6 +6,7 @@ export type View =
   | "local-hermes"
   | "task-workbench"
   | "web-operator"
+  | "crm-workbench"
   | "office"
   | `external-browser:${string}`;
 
@@ -23,6 +24,7 @@ export const VIEW_TITLE_KEYS: Partial<Record<View, string>> = {
   "local-hermes": "navigation.localHermes",
   "task-workbench": "navigation.taskWorkbench",
   "web-operator": "navigation.webOperator",
+  "crm-workbench": "navigation.crm.workbench",
   office: "navigation.office",
 };
 

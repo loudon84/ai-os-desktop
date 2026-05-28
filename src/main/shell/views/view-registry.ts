@@ -6,6 +6,12 @@ import {
   PORTAL_PARTITION,
   WEB_OPERATOR_PARTITION,
 } from "../../../shared/shell/browser-partitions";
+import { resolveCompiledPreloadPath } from "../../utils/preload-paths";
+
+/** Compiled preload for WebOperator CRM bridge (out/preload/crm-bridge-preload.js). */
+function crmBridgePreloadPath(): string {
+  return resolveCompiledPreloadPath("crm-bridge-preload.js");
+}
 
 /**
  * ShellView session partition strategy (V3.2.1):
@@ -43,7 +49,8 @@ export class ViewRegistry {
       defaultLayer: "content",
       defaultPartition: WEB_OPERATOR_PARTITION,
       defaultSandbox: true,
-      defaultPreload: undefined,
+      defaultContextIsolation: true,
+      defaultPreload: crmBridgePreloadPath(),
     });
 
     this.register("portal", {

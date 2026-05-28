@@ -299,6 +299,48 @@ Preload：`window.aiosBrowser`（`src/preload/browser-api.ts`）。Main：`src/m
 
 ---
 
+## CRM Desktop Bridge（V5.7.1）
+
+CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src/preload/crm-bridge-preload.ts` 注入最小桥接 API：
+
+- `window.CopilotDesktopCRM.emit(event)`：只允许在**真实用户点击**后的短时间窗口内提交（preload 本地校验），随后通过 IPC 进入 Main 二次校验。
+- `crm-bridge:command`：Main 下发命令到 CRM 页面（preload 转发为 `window.postMessage`，由 CRM JSSDK 消费）。
+
+### Main IPC（invoke）
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `crm-bridge:emit` | `CrmBridgeEmitInput` | `CrmBridgeResult` |
+| `crm-bridge:list-events` | `limit?: number` | `CrmBridgeStoredEvent[]` |
+| `crm-bridge:get-last-event` | — | `CrmBridgeStoredEvent \| null` |
+| `crm-bridge:send-command` | `CrmDesktopCommand` | `CrmBridgeResult` |
+
+### Main → Renderer event
+
+| Event | Payload |
+|-------|---------|
+| `crm-bridge:on-event` | `CrmBridgeOnEventPayload` |
+
+### Main → CRM WebContents event
+
+| Event | Payload |
+|-------|---------|
+| `crm-bridge:command` | `CrmDesktopCommand` |
+
+**Shared DTO：** `src/shared/crm-bridge/*`。
+
+**Renderer 路由（`open-renderer-route`）：** Main `routeAction.route` 由 `Layout.tsx` 解析为 `src/shared/crm-bridge/crm-renderer-routes.ts` 中的路径，并切换到 workspace `crm-workbench`（本地 React，非 Portal WebView）。当前路径：
+
+| `route` | 页面 |
+|---------|------|
+| `/crm/customer-ai` | 客户 AI 分析 |
+| `/crm/quote-assistant` | 报价辅助 |
+| `/crm/order-risk` | 订单风控 |
+
+配置见 `resources/crm-bridge/crm-bridge.config.json`；UI 入口 `src/renderer/src/screens/Crm/CrmWorkbenchScreen.tsx`。
+
+---
+
 ## Windows 安装注册表（非 IPC）
 
 业务安装信息由 NSIS [`build/installer.nsh`](../build/installer.nsh) 写入，由 Main [`install-location-resolver.ts`](../src/main/enterprise/windows/install-location-resolver.ts) 读取。与 electron-builder 卸载项（`appId` / `nsis.guid`）分离。

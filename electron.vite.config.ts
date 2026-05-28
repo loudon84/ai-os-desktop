@@ -11,7 +11,16 @@ export default defineConfig({
       }
     }
   },
-  preload: {},
+  preload: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/preload/index.ts'),
+          'crm-bridge-preload': resolve('src/preload/crm-bridge-preload.ts'),
+        },
+      },
+    },
+  },
   renderer: {
     resolve: {
       alias: {

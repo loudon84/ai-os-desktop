@@ -5,6 +5,7 @@ export type StaticWorkspaceId =
   | "local-hermes"
   | "task-workbench"
   | "web-operator"
+  | "crm-workbench"
   | "office";
 
 export type ExternalBrowserWorkspaceId = `external-browser:${string}`;
@@ -18,6 +19,7 @@ export type WorkspaceSource =
   | "local"
   | "hermes"
   | "operator"
+  | "crm"
   | "office"
   | "external";
 
@@ -28,6 +30,8 @@ export interface WorkspaceModule {
   closeable: boolean;
   draggable: boolean;
   persistable: boolean;
+  /** When false, workspace is reachable via navigation but omitted from top tabs. */
+  showInTabBar?: boolean;
   shellLayerId?: string;
   source: WorkspaceSource;
 }
@@ -41,6 +45,7 @@ export type WorkspaceSecondaryPanel =
   | "memory"
   | "runtime"
   | "browser-state"
+  | "crm-context"
   | "page-structure"
   | "screenshot"
   | "action-log"

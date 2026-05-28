@@ -39,6 +39,16 @@ export const STATIC_WORKSPACE_MODULES: WorkspaceModule[] = [
     shellLayerId: "web-operator",
     source: "operator",
   },
+  {
+    id: "crm-workbench",
+    titleKey: "navigation.crm.workbench",
+    kind: "react",
+    closeable: false,
+    draggable: false,
+    persistable: true,
+    showInTabBar: false,
+    source: "crm",
+  },
   /*
   {
     id: "task-workbench",

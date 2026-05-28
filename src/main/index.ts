@@ -128,6 +128,7 @@ import { BrowserSecurityGuard } from "./browser/browser-security";
 import { BrowserAuditLogger } from "./browser/browser-audit";
 import { BrowserController } from "./browser/browser-controller";
 import { BrowserIPC } from "./browser/browser-ipc";
+import { setupCrmBridge, teardownCrmBridge } from "./crm-bridge";
 import { BrowserToolBridge } from "./browser/browser-tool-bridge";
 import { BrowserToolServer } from "./browser/browser-tool-server";
 import { profileHome } from "./utils";
@@ -1558,6 +1559,8 @@ app.whenReady().then(async () => {
       browserIPC = new BrowserIPC(controller, viewManager);
       browserIPC.register();
 
+      setupCrmBridge(controller, viewManager, mainWindow);
+
       const toolBridge = new BrowserToolBridge(controller);
       browserToolServer = new BrowserToolServer(toolBridge);
       browserToolServer.start().catch((err) => {
@@ -1606,6 +1609,7 @@ app.on("window-all-closed", () => {
     stopSshTunnel();
     stopClaw3d();
     if (browserToolServer) browserToolServer.stop();
+    teardownCrmBridge();
     app.quit();
   }
 });

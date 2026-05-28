@@ -1,0 +1,42 @@
+{
+  "enabled": true,
+  "allowedOrigins": [
+    "https://crm.company.com",
+    "https://*.crm.company.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+  ],
+  "payloadMaxBytes": 524288,
+  "trustedGestureWindowMs": 1500,
+  "allowedEventTypes": [
+    "crm.context.submit",
+    "crm.customer.open-ai-panel",
+    "crm.quote.create-assist",
+    "crm.order.risk-check",
+    "crm.page.snapshot-request"
+  ],
+  "routes": {
+    "crm.context.submit": {
+      "action": "open-web-operator-panel",
+      "focusedPanel": "page-structure",
+      "refreshSnapshot": true
+    },
+    "crm.customer.open-ai-panel": {
+      "action": "open-renderer-route",
+      "route": "/crm/customer-ai"
+    },
+    "crm.quote.create-assist": {
+      "action": "open-renderer-route",
+      "route": "/crm/quote-assistant"
+    },
+    "crm.order.risk-check": {
+      "action": "open-renderer-route",
+      "route": "/crm/order-risk"
+    },
+    "crm.page.snapshot-request": {
+      "action": "open-web-operator-panel",
+      "focusedPanel": "page-structure",
+      "refreshSnapshot": true
+    }
+  }
+}

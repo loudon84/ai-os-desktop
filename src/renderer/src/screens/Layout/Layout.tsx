@@ -31,6 +31,8 @@ import { defaultSecondaryPanel } from "../../../../shared/workspace/workspace-se
 import { isStaticWorkspaceId } from "../../workspace/workspace-registry";
 import type { StaticWorkspaceId } from "../../../../shared/workspace/workspace-contract";
 import { useShellLayerVisibility } from "../../hooks/useShellLayerVisibility";
+import type { CrmBridgeOnEventPayload } from "../../../../shared/crm-bridge";
+import { navigateCrmRendererRoute } from "../../crm-bridge/crm-renderer-navigation";
 
 function isValidRestoredView(
   view: string | undefined,
@@ -44,6 +46,7 @@ function isValidRestoredView(
     "local-hermes",
     "task-workbench",
     "web-operator",
+    "crm-workbench",
     "office",
   ];
 
@@ -296,6 +299,32 @@ function Layout(): React.JSX.Element {
       return undefined;
     }
   }, [navigation.navigateToView]);
+
+  useEffect(() => {
+    const api = window.aiosBrowser as unknown as {
+      onCrmEvent?: (cb: (payload: CrmBridgeOnEventPayload) => void) => () => void;
+    };
+
+    if (!api.onCrmEvent) return undefined;
+
+    return api.onCrmEvent((payload) => {
+      const action = payload.routeAction;
+      if (!action?.ok) return;
+
+      if (action.action === "open-renderer-route" && action.route) {
+        if (navigateCrmRendererRoute(action.route, payload.event)) {
+          navigation.navigateToView("crm-workbench");
+        }
+        return;
+      }
+
+      navigation.navigateToView("web-operator");
+
+      if (action.focusedPanel) {
+        handleSecondaryPanelChange(action.focusedPanel);
+      }
+    });
+  }, [navigation, handleSecondaryPanelChange]);
 
   if (!hydrated) {
     return (

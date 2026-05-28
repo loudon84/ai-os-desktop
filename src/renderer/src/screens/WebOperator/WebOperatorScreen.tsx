@@ -8,6 +8,7 @@ import { BrowserStatePanel } from "./BrowserStatePanel";
 import { ScreenshotPanel } from "./ScreenshotPanel";
 import { BrowserActionLog } from "./BrowserActionLog";
 import { PageStructurePanel } from "./PageStructurePanel";
+import { CrmEventPanel } from "./CrmEventPanel";
 import { WebOperatorSideRail } from "./WebOperatorSideRail";
 import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
@@ -31,6 +32,7 @@ export function WebOperatorScreen({
 }: WebOperatorScreenProps): React.JSX.Element {
   const { t } = useI18n();
   const stateRef = useRef<HTMLDivElement>(null);
+  const crmRef = useRef<HTMLDivElement>(null);
   const structureRef = useRef<HTMLDivElement>(null);
   const screenshotRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,8 @@ export function WebOperatorScreen({
     const target =
       focusedPanel === "page-structure"
         ? structureRef.current
+        : focusedPanel === "crm-context"
+          ? crmRef.current
         : focusedPanel === "screenshot"
           ? screenshotRef.current
           : focusedPanel === "action-log"
@@ -57,6 +61,8 @@ export function WebOperatorScreen({
     const base =
       panel === "action-log"
         ? "web-operator-layout__panel web-operator-layout__panel--grow"
+        : panel === "crm-context"
+          ? "web-operator-layout__panel web-operator-layout__panel--grow"
         : panel === "page-structure"
           ? "web-operator-layout__panel web-operator-layout__panel--grow"
           : "web-operator-layout__panel";
@@ -146,6 +152,12 @@ export function WebOperatorScreen({
             <div className="web-operator-layout__side-panels">
               <div ref={stateRef} className={panelClass("browser-state")}>
                 <BrowserStatePanel className="flex-1 overflow-hidden" />
+              </div>
+              <div ref={crmRef} className={panelClass("crm-context")}>
+                <CrmEventPanel
+                  className="flex-1 overflow-hidden min-h-[200px]"
+                  onRefreshSnapshot={() => void handleRefreshSnapshot()}
+                />
               </div>
               <div ref={structureRef} className={panelClass("page-structure")}>
                 <PageStructurePanel

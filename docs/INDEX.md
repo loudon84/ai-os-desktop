@@ -61,6 +61,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **ShellView IPC 扩展**：`create` / `loadUrl` / `focus` / `destroy` / `getState` / `getAll`；`window.shellView` 全量暴露
 - **Web Operator 视口**：`WebOperatorScreen` + `WebContentsHost` layer `web-operator`（常量 `web-operator-constants.ts`）
 - **V5.7 WebContentsView**：`browser:*` IPC、Frame/DOM Snapshot、iframe 元素动作；`PageStructurePanel`；PRD `prd/v5.7_webcontentsview.md`
+- **V5.7.1 CRM Desktop Bridge**：CRM 页面主动上报 + Desktop 回控命令；Main `src/main/crm-bridge/`、Preload `src/preload/crm-bridge-preload.ts`、契约 `src/shared/crm-bridge/`、SDK `packages/crm-desktop-jssdk/`；PRD `prd/v5.7.1_webFrame.md`
 - **工具栏 UI**：`BrowserToolbar` 单行布局（`web-operator.css` 中 `browser-toolbar*`）
 - **Lazy create**：`shell-view-ipc` 对 `web-operator` 与 `aios-home` 在 set-bounds 前自动创建
 

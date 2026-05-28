@@ -228,6 +228,15 @@ browser.* back/forward/reload/getState/...
   → 同一 ShellBrowserViewAdapter WebContents（web-operator）
 ```
 
+### CRM Desktop Bridge（V5.7.1）
+
+CRM 业务页面运行于 WebOperator WebContentsView 中，通过专用 preload `src/preload/crm-bridge-preload.ts` 建立**受控双向通道**：
+
+- CRM → Desktop：CRM JSSDK 在用户主动点击后提交 `CrmBridgeEvent`（preload 先校验用户手势；Main 再校验 origin / event type / payload size / requestId 去重），并可触发 Renderer 聚焦侧栏与刷新 snapshot。
+- Desktop → CRM：Renderer 通过 IPC 发送 `CrmDesktopCommand`，Main 转发到 WebOperator WebContents，由 preload 转为 `window.postMessage` 交由 CRM JSSDK 消费。
+
+入口模块：Main `src/main/crm-bridge/`；Shared DTO `src/shared/crm-bridge/`；SDK `packages/crm-desktop-jssdk/`；配置 `resources/crm-bridge/crm-bridge.config.json`（打包后位于 `process.resourcesPath`）。
+
 ### Enterprise Install（V1.2.1）
 
 ```
