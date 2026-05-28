@@ -20,7 +20,6 @@ export function ComposerBar({
   modelsLoading,
   onModelsOpen,
   onModelSelect,
-  onSaveDefaultModel,
   attachments,
   onUploadAttachment,
   onRemoveAttachment,
@@ -47,7 +46,6 @@ export function ComposerBar({
   modelsLoading: boolean;
   onModelsOpen: () => void;
   onModelSelect: (model: HermesChatModel) => void;
-  onSaveDefaultModel: () => void;
   attachments: HermesChatAttachmentMeta[];
   onUploadAttachment: () => void;
   onRemoveAttachment: (id: string) => void;
@@ -113,7 +111,6 @@ export function ComposerBar({
           loading={modelsLoading}
           onOpen={onModelsOpen}
           onSelect={onModelSelect}
-          onSaveDefault={onSaveDefaultModel}
         />
         <AttachmentMenu
           disabled={disabled}

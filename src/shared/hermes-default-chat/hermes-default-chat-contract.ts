@@ -1,10 +1,13 @@
-/** Local Hermes default profile chat — Renderer/Main/Preload contract (v5.6.2). */
+/** Local Hermes default profile chat — Renderer/Main/Preload contract (v5.6.4). */
 
 export type HermesChatModel = {
   id: string;
   label: string;
   provider?: string | null;
   base_url?: string | null;
+  model: string;
+  api_key_env?: string | null;
+  api_key_literal?: string | null;
   source: string;
   is_current: boolean;
 };
@@ -24,11 +27,19 @@ export type HermesChatModelConfig = {
   updated_at: string;
 };
 
+/** Models 页面 Set Default 专用；Chat 不得调用。 */
 export type SetHermesChatModelConfigPayload = {
-  provider: string;
   model_id: string;
-  model_label?: string | null;
-  base_url?: string | null;
+};
+
+export type HermesSessionModelBinding = {
+  modelId: string;
+  model: string;
+  provider: string;
+  baseUrl: string;
+  apiKeyEnv?: string | null;
+  apiKeyLiteral?: string | null;
+  updatedAt: string;
 };
 
 export type HermesChatAttachmentMeta = {

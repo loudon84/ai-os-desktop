@@ -28,16 +28,45 @@ import {
   listHermesChatModels,
   getHermesChatModelConfig,
   setHermesChatModelConfig,
+  resolveModelIdForSend,
 } from "./hermes-default-chat-models";
 import {
   pickAndUploadHermesAttachments,
   uploadHermesAttachmentsFromBuffers,
   removeHermesAttachment,
 } from "./hermes-default-chat-attachments";
+import {
+  getSessionModel,
+  setSessionModel,
+  HERMES_DRAFT_SESSION_ID,
+  migrateSessionModelBinding,
+} from "./hermes-session-model-store";
 
 export type HermesChatAbortRef = {
   current: (() => void) | null;
 };
+
+function resolveSendModelId(
+  payload: HermesChatSendPayload,
+): { modelId: string | undefined; saved: ReturnType<typeof resolveModelIdForSend> } {
+  const profile = payload.profile;
+  const sessionKey = payload.resumeSessionId?.trim() || HERMES_DRAFT_SESSION_ID;
+
+  if (payload.model_id?.trim()) {
+    const saved = resolveModelIdForSend(payload.model_id, profile);
+    if (saved) {
+      setSessionModel(sessionKey, saved, profile);
+    }
+    return { modelId: payload.model_id, saved };
+  }
+
+  const binding = getSessionModel(sessionKey, profile);
+  if (binding) {
+    return { modelId: binding.modelId, saved: resolveModelIdForSend(binding.modelId, profile) };
+  }
+
+  return { modelId: undefined, saved: null };
+}
 
 export function registerHermesDefaultChatIpc(
   getMainWindow: () => BrowserWindow | null,
@@ -66,6 +95,24 @@ export function registerHermesDefaultChatIpc(
         await restartGatewayAsync(profile);
       }
       return result;
+    },
+  );
+
+  ipcMain.handle(
+    "hermes-chat:get-session-model",
+    (_event, sessionId: string, profile?: string) => {
+      return getSessionModel(sessionId, profile);
+    },
+  );
+
+  ipcMain.handle(
+    "hermes-chat:set-session-model",
+    (_event, sessionId: string, modelId: string, profile?: string) => {
+      const saved = resolveModelIdForSend(modelId, profile);
+      if (!saved) {
+        throw new Error(`Model not found: ${modelId}`);
+      }
+      return setSessionModel(sessionId, saved, profile);
     },
   );
 
@@ -114,8 +161,11 @@ export function registerHermesDefaultChatIpc(
       chatAbortRef.current();
     }
 
+    const { modelId, saved } = resolveSendModelId(payload);
+    const requestSessionKey = payload.resumeSessionId?.trim() || HERMES_DRAFT_SESSION_ID;
+
     console.log(
-      `[Hermes Chat] IPC send-message model_id=${payload.model_id ?? "(未传)"} profile=${profile ?? "default"}`,
+      `[Hermes Chat] IPC send-message model_id=${modelId ?? "(session/default)"} profile=${profile ?? "default"}`,
     );
 
     let fullResponse = "";
@@ -136,6 +186,9 @@ export function registerHermesDefaultChatIpc(
         },
         onDone: (sessionId) => {
           chatAbortRef.current = null;
+          if (sessionId) {
+            migrateSessionModelBinding(requestSessionKey, sessionId, profile);
+          }
           event.sender.send("chat-done", sessionId || "");
           resolveChat({ response: fullResponse, sessionId });
           const mainWindow = getMainWindow();
@@ -174,7 +227,10 @@ export function registerHermesDefaultChatIpc(
       payload.history,
       {
         attachmentIds: payload.attachment_ids,
-        modelId: payload.model_id,
+        modelId,
+        sessionId: payload.resumeSessionId,
+        selectedModel: saved?.model,
+        selectedBaseUrl: saved?.baseUrl,
       },
     );
 

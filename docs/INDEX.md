@@ -133,6 +133,16 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Legacy 发现**：`readLegacyInstallLocations()` 仅 legacy 注册表键才 unshift，避免把 primary 安装目录标为迁移源
 - **AppUserModelId**：`com.smc.smc-ai-copilot` 与 `electron-builder` `appId` 一致
 
+**V5.6.4（Hermes Default Chat Hotfix）**：
+- **Models 页**：模型注册 + `custom_providers` 同步 + **Set Default**（`hermes-chat:set-model-config`）；写 root `default` / `model:` / `custom_providers`；变更时 **Gateway restart**
+- **Chat 页**：**仅 session 级**选模（`hermes-chat:get/set-session-model`）；绑定 `~/.hermes/desktop/session-models.json`；**禁止** Save as Default
+- **发送强制约束**（详见 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) § V5.6.4、[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § Hermes Default Chat）：
+  - 解析顺序：`payload.model_id` → session 绑定 → 无则 Gateway 默认
+  - 发送前 **overlay** `config.yaml` 的 **`model:`** 段（不改 root `default:`）；Gateway 按 `model.default` 推理
+  - API Key **必须**从 `profileHome/.env` 经 `readEnv()` 解析（`apiKeyEnv` / `apiKeyLiteral` / `URL_KEY_MAP`）；同步进 `custom_providers` 的裸 `key_env` + 解析后 `api_key`
+  - **禁止** Chat 改 root 默认、**禁止**为 session 选模 restart Gateway、**禁止** Windows 下用 `hermes.exe` 作 Chat 回退（用 `python -m hermes_cli.main`）
+- **新会话**：`draft_default` → 首条 `chat-done` 后迁移到真实 `sessionId`
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -152,6 +162,9 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |
 | `src/main/user-config/` | **V3.3** 本地 bootstrap apply / diff / applier | 登录后桌面配置落盘 |
 | `src/main/startup/` | **V3.3.1** `startup-decision.ts`、`startup-ipc.ts` | 启动门控（auth + bootstrap 前置） |
+| `src/main/hermes-default-chat/` | **V5.6.4** Chat IPC、session 模型绑定、Gateway 请求体、附件 | 改 Local Hermes Chat 必读 |
+| `src/main/hermes-config/` | **V5.6.4** `config.yaml` / `custom_providers` / session `model:` overlay | 改模型 YAML 同步必读 |
+| `src/main/hermes-model-env.ts` | **V5.6.4** `URL_KEY_MAP`、`resolveApiKeyForSavedModel` | API Key 从 `.env` 解析规则 |
 | `resources/skills/` | 内置技能包 — web/web-operator/SKILL.md 等 | 按需扩展 |
 | `resources/profiles/` | **V1.1 新增** Profile 配置模板 + SOUL.md | 按需扩展 |
 | `tests/` | 测试文件（16 个） | 按需扩展 |
@@ -182,6 +195,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 
 ## 禁止行为
 
+- **Local Hermes Chat** 不得违反 V5.6.4 强制约束（session 选模、`.env` API Key、`model:` overlay）；见 `docs/ARCHITECTURE.md` § V5.6.4、`docs/API_CONTRACTS.md` § Hermes Default Chat
 - 不允许凭猜测新增 IPC channel
 - 不允许绕过 preload 层直接访问 Node.js API
 - 不允许修改主进程的 Gateway 启动/停止逻辑，除非明确理解进程管理

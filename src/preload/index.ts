@@ -508,14 +508,18 @@ const hermesAPI = {
     provider: string,
     model: string,
     baseUrl: string,
+    opts?: { apiKeyEnv?: string; apiKeyLiteral?: string },
   ): Promise<{
     id: string;
     name: string;
     provider: string;
     model: string;
     baseUrl: string;
+    apiKeyEnv?: string;
+    apiKeyLiteral?: string;
     createdAt: number;
-  }> => ipcRenderer.invoke("add-model", name, provider, model, baseUrl),
+    updatedAt?: number;
+  }> => ipcRenderer.invoke("add-model", name, provider, model, baseUrl, opts),
 
   removeModel: (id: string): Promise<boolean> =>
     ipcRenderer.invoke("remove-model", id),

@@ -61,6 +61,12 @@ export const hermesDefaultApi = {
     setModelConfig(payload: SetHermesChatModelConfigPayload) {
       return window.hermesDefaultChat.setModelConfig(P, payload);
     },
+    getSessionModel(sessionId: string) {
+      return window.hermesDefaultChat.getSessionModel(sessionId, P);
+    },
+    setSessionModel(sessionId: string, modelId: string) {
+      return window.hermesDefaultChat.setSessionModel(sessionId, modelId, P);
+    },
     uploadAttachments(payload: Omit<UploadHermesAttachmentsPayload, "profile">) {
       return window.hermesDefaultChat.uploadAttachments({ ...payload, profile: P });
     },
@@ -182,8 +188,14 @@ export const hermesDefaultApi = {
     list() {
       return window.hermesAPI.listModels();
     },
-    add(name: string, provider: string, model: string, baseUrl: string) {
-      return window.hermesAPI.addModel(name, provider, model, baseUrl);
+    add(
+      name: string,
+      provider: string,
+      model: string,
+      baseUrl: string,
+      opts?: { apiKeyEnv?: string; apiKeyLiteral?: string },
+    ) {
+      return window.hermesAPI.addModel(name, provider, model, baseUrl, opts);
     },
     update(id: string, fields: Record<string, string>) {
       return window.hermesAPI.updateModel(id, fields);
@@ -194,8 +206,8 @@ export const hermesDefaultApi = {
     getActive() {
       return window.hermesAPI.getModelConfig(P);
     },
-    setActive(provider: string, model: string, baseUrl: string) {
-      return window.hermesAPI.setModelConfig(provider, model, baseUrl, P);
+    setDefault(modelId: string) {
+      return window.hermesDefaultChat.setModelConfig(P, { model_id: modelId });
     },
   },
 

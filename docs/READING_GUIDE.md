@@ -167,6 +167,17 @@
 6. `src/main/browser/browser-security.ts` — 安全策略
 7. `src/main/browser/browser-audit.ts` — 审计日志
 
+### 阅读 Hermes Default Chat（V5.6.4）
+
+1. `src/renderer/src/screens/Hermes/pages/Chat/hooks/useHermesDefaultWebChat.ts` — Chat 页面编排（session、model、stream）
+2. `src/renderer/src/screens/Hermes/pages/Chat/hooks/useHermesDefaultChatModels.ts` — session 级模型绑定读取/写入
+3. `src/preload/hermes-default-chat-api.ts` — `window.hermesDefaultChat` 预加载 API
+4. `src/main/hermes-default-chat/hermes-default-chat-ipc.ts` — `hermes-chat:*` IPC（含 `draft_default` 绑定迁移）
+5. `src/main/hermes-default-chat/hermes-session-model-store.ts` — `session-models.json` 持久化
+6. `src/main/hermes-default-chat/hermes-default-chat-request.ts` — request-level `provider`/`base_url` 请求体构建
+7. `src/main/hermes-config/hermes-config-yaml.ts` — Models Set Default / `custom_providers` 同步
+8. `docs/API_CONTRACTS.md` — Hermes Default Chat (v5.6.4) 通道契约
+
 ### 阅读 SSH 远程连接
 
 1. `src/main/ssh-remote.ts` — SSH 远程连接

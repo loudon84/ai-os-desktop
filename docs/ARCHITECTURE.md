@@ -268,6 +268,100 @@ LoginScreen
 
 实现：`src/main/aios/aios-runtime-supervisor.ts`、`aios-home-url.ts`、`aios-config.ts`。
 
+## V5.6.4 Local Hermes Chat — 强制约束（Session 模型 + `.env` API Key）
+
+> 屏幕：`src/renderer/src/screens/Hermes/pages/Chat/`（`window.hermesDefaultChat`）  
+> Main：`src/main/hermes-default-chat/`、`src/main/hermes-config/`、`src/main/hermes-model-env.ts`  
+> IPC 表：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § Hermes Default Chat  
+> PRD：`prd/v5.6.4_hermes-chat.md`
+
+Hermes Python Gateway **不**根据 HTTP 请求体里的 `provider` / `base_url` / `api_key` 切换运行时模型；它只读 `~/.hermes/config.yaml` 的 **`model:`** 段与进程环境变量。桌面端 Chat 必须在 Main 进程强制执行下列规则。
+
+### 1. 页面职责（MUST 分离）
+
+| 页面 | 职责 | 允许写 `config.yaml` | Gateway restart |
+|------|------|----------------------|-----------------|
+| **Models** | 注册 `models.json`、同步 `custom_providers`、**Set Default** | root `default` + `model:` + `custom_providers` | Set Default / 模型 CRUD 后 **是** |
+| **Chat** | 当前 **session** 的模型下拉 | **仅**发送前 overlay **`model:`**（见下）；**不得**改 root `default:` | **否**（session 选模） |
+
+Chat **禁止**：Save as Default、`hermes-chat:set-model-config`、为普通发送调用 `setModelConfig()`。
+
+### 2. Session 级模型（MUST）
+
+**唯一事实源（桌面侧）**：`profileHome(profile)/desktop/session-models.json`（`hermes-session-model-store.ts`）。
+
+| 规则 | 说明 |
+|------|------|
+| **绑定键** | 真实 `sessionId`；新对话在首条消息前使用常量 `draft_default` |
+| **写入时机** | 用户在下拉切换 → `hermes-chat:set-session-model`；或发送时带 `model_id` → 同步写入当前 session 键 |
+| **读取时机** | `hermes-chat:send-message`：`payload.model_id` **优先**，否则 `getSessionModel(sessionId)` |
+| **迁移** | 首条消息 `chat-done` 返回真实 id 后：`migrateSessionModelBinding(draft_default → sessionId)` |
+| **隔离** | 不同 session 可绑定不同 `modelId`；不得共用全局 UI 状态代替 per-session 绑定 |
+
+Renderer **必须**通过 `window.hermesDefaultChat`（Preload `hermes-default-chat-api.ts`），**禁止** `workspaceChat` / 直接改 `config.yaml`。
+
+### 3. 发送前 Gateway 运行时 overlay（MUST）
+
+在 `sendMessageViaApi` 内、调用 Gateway **之前**（`overlayGatewayModelSectionForSession`）：
+
+1. `resolveModelIdForSend(model_id, profile)` → `SavedModel`
+2. 若有 saved：将 `config.yaml` 的 **`model.provider` / `model.default` / `model.base_url`** 写成该 saved 条目
+3. **不得**修改 root 级 `default:`（Models 页 Set Default 专用）
+4. **不得**为此 restart Gateway（Gateway 按 config 文件 mtime 重读）
+
+否则 Gateway 仍使用旧 `model.default`（例如 `gemma4:26b`），即使用户在 Chat 选了 `deepseek-v4-flash`。
+
+### 4. API Key 从 `.env` 解析（MUST）
+
+**密钥来源**：`profileHome(profile)/.env`，Main 通过 `readEnv(profile)` 读取；**禁止** Renderer 持有明文 key。
+
+解析顺序（`resolveApiKeyForSavedModel`，`hermes-model-env.ts`）：
+
+1. `SavedModel.apiKeyLiteral`（如 Ollama `no-key-required`）
+2. `SavedModel.apiKeyEnv` → `readEnv(profile)[apiKeyEnv]`
+3. 若缺 `apiKeyEnv`：按 `baseUrl` 匹配 **`URL_KEY_MAP`**（如 `api.deepseek.com` → `DEEPSEEK_API_KEY`）
+4. `ensureModelsApiKeyEnvPersisted()` 将推断出的 env 名回写 `models.json`
+
+**`custom_providers` 同步**（`buildCustomProviderEntry`，Models CRUD / 首次 Chat 发送前 `syncCustomProvidersFromModels`）：
+
+| 字段 | 规则 |
+|------|------|
+| `key_env` | **裸**环境变量名（如 `DEEPSEEK_API_KEY`）；**禁止** `${VAR}`（Hermes `load_config` 展开后会导致 `getenv` 失败） |
+| `api_key` | 同步时从 `readEnv()` 写入解析后的值，供 Gateway `runtime_provider` 使用 |
+| Gateway 进程 env | `startGateway()` 注入 profile `.env` 中全部键；`set-env` 改 `*_API_KEY` 后 **restart Gateway** |
+
+**禁止**：在 Chat 路径硬编码 API key；在文档/日志中输出 key 明文。
+
+### 5. 传输路径（MUST）
+
+```text
+Renderer ModelSelector / send
+  → window.hermesDefaultChat.sendMessage({ model_id?, resumeSessionId?, ... })
+  → hermes-chat:send-message
+  → resolveSendModelId (model_id | session-models.json)
+  → prepareChatProviderCredentials (一次性 sync custom_providers + 必要时 restart)
+  → overlayGatewayModelSectionForSession (model: 段)
+  → POST /v1/chat/completions（body.model = API Server 注册名，如 hermes-agent）
+  → Hermes Gateway 读 config.model.default + custom_providers / env 推理
+```
+
+| 路径 | 何时 |
+|------|------|
+| **Gateway HTTP** | 默认；API `/health` 可用 |
+| **CLI** | 仅 API 不可用；Windows **必须** `python -m hermes_cli.main`（**禁止** `hermes.exe`） |
+
+**禁止**：因 session 模型与全局默认不一致而强制 CLI（无控制台会 `NoConsoleScreenBufferError`）。
+
+### 6. 实现索引
+
+| 模块 | 文件 |
+|------|------|
+| Session 绑定 | `hermes-session-model-store.ts` |
+| IPC / 发送 | `hermes-default-chat-ipc.ts` → `hermes.ts` `sendMessageViaApi` |
+| YAML overlay / custom_providers | `hermes-config-yaml.ts` |
+| Env / URL → key | `hermes-model-env.ts`、`config.ts` `readEnv` |
+| 请求体（日志/未来） | `hermes-default-chat-request.ts` |
+
 ## 核心模块
 
 ### 1. Window Manager (C4)
@@ -544,10 +638,16 @@ src/
 |--------|------|
 | 快捷键配置 | `~/.hermes/desktop/shortcuts.json` |
 | Shell 状态 | `~/.hermes/desktop/shell-state.json` |
+| Hermes Chat session 模型绑定 | `~/.hermes/desktop/session-models.json` |
 | 插件目录 | `~/.hermes/plugins/` |
 | 插件存储 | `~/.hermes/desktop/plugin-storage/` |
 
 ## 版本历史
+
+### 0.3.6 (V5.6.4 Hermes Default Chat Hotfix)
+- **Session 级选模**：`hermes-chat:get-session-model` / `hermes-chat:set-session-model`，绑定落盘 `session-models.json`
+- **新会话迁移**：首条消息后拿到真实 `sessionId` 时，Main 将 `draft_default` 模型绑定迁移到真实会话，确保多 session 隔离
+- **发送链路**：`hermes-chat:send-message` 保持 request-level `provider`/`base_url`，普通聊天不写 `config.yaml`、不重启 Gateway
 
 ### 0.1.8 (Phase 5)
 - **Tray 集成**: 系统托盘、最小化到托盘、启动隐藏

@@ -14,7 +14,44 @@ interface SavedModel {
   provider: string;
   model: string;
   baseUrl: string;
+  apiKeyEnv?: string;
+  apiKeyLiteral?: string;
   createdAt: number;
+}
+
+function inferApiKeyFields(baseUrl: string): { apiKeyEnv: string; apiKeyLiteral: string } {
+  const url = baseUrl.trim().toLowerCase();
+  if (url.includes("api.deepseek.com")) {
+    return { apiKeyEnv: "DEEPSEEK_API_KEY", apiKeyLiteral: "" };
+  }
+  if (
+    /localhost:11434|:11434/.test(url) ||
+    /192\.168\.\d+\.\d+:11434/.test(url)
+  ) {
+    return { apiKeyEnv: "", apiKeyLiteral: "ollama" };
+  }
+  if (url.includes("api.groq.com")) return { apiKeyEnv: "GROQ_API_KEY", apiKeyLiteral: "" };
+  if (url.includes("api.together.xyz")) {
+    return { apiKeyEnv: "TOGETHER_API_KEY", apiKeyLiteral: "" };
+  }
+  if (url.includes("fireworks.ai")) {
+    return { apiKeyEnv: "FIREWORKS_API_KEY", apiKeyLiteral: "" };
+  }
+  if (url.includes("cerebras.ai")) {
+    return { apiKeyEnv: "CEREBRAS_API_KEY", apiKeyLiteral: "" };
+  }
+  if (url.includes("mistral.ai")) {
+    return { apiKeyEnv: "MISTRAL_API_KEY", apiKeyLiteral: "" };
+  }
+  return { apiKeyEnv: "", apiKeyLiteral: "" };
+}
+
+function isDefaultModel(
+  m: SavedModel,
+  active: { provider: string; model: string } | null,
+): boolean {
+  if (!active?.model) return false;
+  return m.provider === active.provider && m.model === active.model;
 }
 
 function providerLabelKey(value: string): string {
@@ -65,10 +102,19 @@ export function HermesDefaultModelsSurface({
   const [formModel, setFormModel] = useState("");
   const [formBaseUrl, setFormBaseUrl] = useState("");
   const [formApiKey, setFormApiKey] = useState("");
+  const [formApiKeyEnv, setFormApiKeyEnv] = useState("");
+  const [formApiKeyLiteral, setFormApiKeyLiteral] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [formError, setFormError] = useState("");
   const [providerTouched, setProviderTouched] = useState(false);
   const [providerAutoFilled, setProviderAutoFilled] = useState(false);
+  const [apiKeyAutoFilled, setApiKeyAutoFilled] = useState(false);
+  const [activeConfig, setActiveConfig] = useState<{
+    provider: string;
+    model: string;
+    baseUrl: string;
+  } | null>(null);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
   function resolveCustomEnvKey(url: string): string {
     if (!url) return "CUSTOM_API_KEY";
@@ -87,8 +133,12 @@ export function HermesDefaultModelsSurface({
   }
 
   const loadModels = useCallback(async () => {
-    const list = await hermesDefaultApi.models.list();
+    const [list, active] = await Promise.all([
+      hermesDefaultApi.models.list(),
+      hermesDefaultApi.models.getActive(),
+    ]);
     setModels(list);
+    setActiveConfig(active);
     setLoading(false);
   }, []);
 
@@ -119,10 +169,13 @@ export function HermesDefaultModelsSurface({
     setFormModel("");
     setFormBaseUrl("");
     setFormApiKey("");
+    setFormApiKeyEnv("");
+    setFormApiKeyLiteral("");
     setShowApiKey(false);
     setFormError("");
     setProviderTouched(false);
     setProviderAutoFilled(false);
+    setApiKeyAutoFilled(false);
     setShowModal(true);
   }
 
@@ -133,10 +186,13 @@ export function HermesDefaultModelsSurface({
     setFormModel(m.model);
     setFormBaseUrl(m.baseUrl);
     setFormApiKey("");
+    setFormApiKeyEnv(m.apiKeyEnv ?? "");
+    setFormApiKeyLiteral(m.apiKeyLiteral ?? "");
     setShowApiKey(false);
     setFormError("");
     setProviderTouched(true);
     setProviderAutoFilled(false);
+    setApiKeyAutoFilled(false);
     setShowModal(true);
   }
 
@@ -162,6 +218,16 @@ export function HermesDefaultModelsSurface({
     }
   }, [formBaseUrl, showModal, providerTouched, formProvider, providerAutoFilled]);
 
+  useEffect(() => {
+    if (!showModal || apiKeyAutoFilled) return;
+    const inferred = inferApiKeyFields(formBaseUrl);
+    if (inferred.apiKeyEnv || inferred.apiKeyLiteral) {
+      setFormApiKeyEnv(inferred.apiKeyEnv);
+      setFormApiKeyLiteral(inferred.apiKeyLiteral);
+      setApiKeyAutoFilled(true);
+    }
+  }, [formBaseUrl, showModal, apiKeyAutoFilled]);
+
   async function handleSave(): Promise<void> {
     const name = formName.trim();
     const model = formModel.trim();
@@ -171,15 +237,30 @@ export function HermesDefaultModelsSurface({
     }
     setFormError("");
 
+    const keyOpts = {
+      apiKeyEnv: formApiKeyEnv.trim() || undefined,
+      apiKeyLiteral: formApiKeyLiteral.trim() || undefined,
+    };
+
     if (editingModel) {
       await hermesDefaultApi.models.update(editingModel.id, {
         name,
         provider: formProvider,
         model,
         baseUrl: formBaseUrl.trim(),
+        ...(keyOpts.apiKeyEnv ? { apiKeyEnv: keyOpts.apiKeyEnv } : { apiKeyEnv: "" }),
+        ...(keyOpts.apiKeyLiteral
+          ? { apiKeyLiteral: keyOpts.apiKeyLiteral }
+          : { apiKeyLiteral: "" }),
       });
     } else {
-      await hermesDefaultApi.models.add(name, formProvider, model, formBaseUrl.trim());
+      await hermesDefaultApi.models.add(
+        name,
+        formProvider,
+        model,
+        formBaseUrl.trim(),
+        keyOpts,
+      );
     }
 
     if (formApiKey.trim() && formProvider === "custom") {
@@ -196,6 +277,22 @@ export function HermesDefaultModelsSurface({
     setConfirmDelete(null);
     await loadModels();
   }
+
+  async function handleSetDefault(m: SavedModel): Promise<void> {
+    setSettingDefaultId(m.id);
+    try {
+      await hermesDefaultApi.models.setDefault(m.id);
+      await loadModels();
+    } finally {
+      setSettingDefaultId(null);
+    }
+  }
+
+  const defaultModelMissing =
+    Boolean(activeConfig?.model) &&
+    !models.some(
+      (m) => m.model === activeConfig?.model && m.provider === activeConfig?.provider,
+    );
 
   const filtered = models.filter((m) => {
     if (!search) return true;
@@ -225,6 +322,12 @@ export function HermesDefaultModelsSurface({
           {t("models.addModel")}
         </button>
       </div>
+
+      {defaultModelMissing ? (
+        <div className="models-error" role="alert">
+          Default model missing — select another model and click Set Default.
+        </div>
+      ) : null}
 
       {models.length > 0 && (
         <div className="models-search">
@@ -258,6 +361,9 @@ export function HermesDefaultModelsSurface({
                 <div className="models-card-title">
                   <BrandLogo provider={m.provider} modelId={m.model} size={20} />
                   <div className="models-card-name">{m.name}</div>
+                  {isDefaultModel(m, activeConfig) ? (
+                    <span className="models-modal-auto-badge">Default</span>
+                  ) : null}
                 </div>
                 <span className="models-card-provider">{t(providerLabelKey(m.provider))}</span>
               </div>
@@ -283,17 +389,32 @@ export function HermesDefaultModelsSurface({
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn-ghost models-card-delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDelete(m.id);
-                    }}
-                    title={t("models.deleteModelTitle")}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <>
+                    {!isDefaultModel(m, activeConfig) ? (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        disabled={settingDefaultId === m.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleSetDefault(m);
+                        }}
+                      >
+                        Set Default
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn-ghost models-card-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDelete(m.id);
+                      }}
+                      title={t("models.deleteModelTitle")}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -422,6 +543,36 @@ export function HermesDefaultModelsSurface({
                   placeholder={t("models.baseUrlPlaceholder")}
                 />
                 <span className="models-modal-hint">{t("models.customProviderHint")}</span>
+              </div>
+
+              <div className="models-modal-field">
+                <label className="models-modal-label">API Key Env ({t("common.optional")})</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={formApiKeyEnv}
+                  onChange={(e) => {
+                    setFormApiKeyEnv(e.target.value);
+                    setApiKeyAutoFilled(false);
+                  }}
+                  placeholder="DEEPSEEK_API_KEY"
+                />
+              </div>
+
+              <div className="models-modal-field">
+                <label className="models-modal-label">
+                  API Key Literal ({t("common.optional")})
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={formApiKeyLiteral}
+                  onChange={(e) => {
+                    setFormApiKeyLiteral(e.target.value);
+                    setApiKeyAutoFilled(false);
+                  }}
+                  placeholder="ollama"
+                />
               </div>
 
               {formProvider === "custom" ? (

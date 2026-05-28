@@ -62,8 +62,7 @@ export function HermesDefaultWebChatSurface(): React.JSX.Element {
         modelStatus={models.status}
         modelsLoading={models.loading}
         onModelsOpen={() => void models.reload()}
-        onModelSelect={(m) => void models.selectModel(m)}
-        onSaveDefaultModel={() => void models.saveAsDefault()}
+        onModelSelect={(m) => models.selectModel(m)}
         attachments={attachments.attachments}
         onUploadAttachment={() => void attachments.upload()}
         onRemoveAttachment={(id) => void attachments.remove(id)}

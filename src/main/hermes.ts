@@ -17,20 +17,21 @@ import {
   getConnectionConfig,
   getFullConnectionConfig,
   syncGatewayModelSection,
-  setModelConfig,
 } from "./config";
 import { getSshTunnelUrl, isSshTunnelActive, isSshTunnelHealthy, startSshTunnel } from "./ssh-tunnel";
 import { stripAnsi } from "./utils";
 import { buildUserMessageContent } from "./hermes-default-chat/hermes-default-chat-attachments";
 import { buildGatewayChatCompletionsBody } from "./hermes-default-chat/hermes-default-chat-request";
 import { resolveModelIdForSend } from "./hermes-default-chat/hermes-default-chat-models";
-import type { SavedModel } from "./models";
 import {
   buildChatModelRoutingLog,
   logChatModelRouting,
-  modelConfigMatchesSaved,
 } from "./hermes-default-chat/hermes-chat-model-routing";
 import { applyCustomEndpointEnv } from "./hermes-model-env";
+import {
+  overlayGatewayModelSectionForSession,
+  syncCustomProvidersFromModels,
+} from "./hermes-config/hermes-config-yaml";
 
 const LOCAL_API_URL = "http://127.0.0.1:8642";
 
@@ -97,6 +98,9 @@ interface ChatHandle {
 export type HermesSendMessageOptions = {
   attachmentIds?: string[];
   modelId?: string;
+  sessionId?: string;
+  selectedModel?: string;
+  selectedBaseUrl?: string;
 };
 
 type ChatMessageContent =
@@ -206,26 +210,6 @@ export interface ChatCallbacks {
   }) => void;
 }
 
-async function syncGatewayToSavedModel(
-  saved: SavedModel,
-  profile?: string,
-): Promise<{ syncedConfig: boolean; restartedGateway: boolean }> {
-  const cfg = getModelConfig(profile);
-  if (modelConfigMatchesSaved(cfg, saved)) {
-    return { syncedConfig: false, restartedGateway: false };
-  }
-
-  setModelConfig(saved.provider, saved.model, saved.baseUrl, profile);
-  syncGatewayModelSection(profile);
-
-  if (!isRemoteMode() && isGatewayRunning()) {
-    await restartGatewayAsync(profile);
-    return { syncedConfig: true, restartedGateway: true };
-  }
-
-  return { syncedConfig: true, restartedGateway: false };
-}
-
 async function sendMessageViaApi(
   message: string,
   cb: ChatCallbacks,
@@ -233,7 +217,7 @@ async function sendMessageViaApi(
   _resumeSessionId?: string,
   history?: Array<{ role: string; content: string }>,
   options?: HermesSendMessageOptions,
-  routingMeta?: { syncedConfig: boolean; restartedGateway: boolean; configBefore: ReturnType<typeof getModelConfig> },
+  routingMeta?: { syncedConfig: boolean; restartedGateway: boolean },
 ): Promise<ChatHandle> {
   const controller = new AbortController();
 
@@ -249,6 +233,14 @@ async function sendMessageViaApi(
     { role: "user", content: userContent },
   ];
 
+  const saved = resolveModelIdForSend(options?.modelId, profile);
+  if (saved) {
+    const overlayApplied = overlayGatewayModelSectionForSession(profile, saved);
+    if (overlayApplied && routingMeta) {
+      routingMeta.syncedConfig = true;
+    }
+  }
+
   const apiServerModel = resolveApiServerModelName(profile);
   const payload = buildGatewayChatCompletionsBody(
     messages,
@@ -260,13 +252,15 @@ async function sendMessageViaApi(
   logChatModelRouting(
     buildChatModelRoutingLog({
       profile,
+      sessionId: options?.sessionId,
       modelId: options?.modelId,
       apiServerModel,
       payload,
       gatewayCompletionsUrl,
       syncedConfig: routingMeta?.syncedConfig ?? false,
       restartedGateway: routingMeta?.restartedGateway ?? false,
-      configBefore: routingMeta?.configBefore,
+      selectedModel: options?.selectedModel,
+      selectedBaseUrl: options?.selectedBaseUrl,
     }),
   );
   const body = JSON.stringify(payload);
@@ -523,6 +517,29 @@ async function sendMessageViaApi(
 
 const NOISE_PATTERNS = [/^[╭╰│╮╯─┌┐└┘┤├┬┴┼]/, /⚕\s*Hermes/];
 
+/**
+ * Windows `hermes.exe` shim requires a console (prompt_toolkit). Electron has none —
+ * spawn `python -m hermes_cli.main` instead.
+ */
+function spawnHermesCli(
+  cliArgs: string[],
+  env: Record<string, string>,
+): ChildProcess {
+  if (process.platform === "win32") {
+    return spawn(getHermesPython(), ["-m", "hermes_cli.main", ...cliArgs], {
+      cwd: getHermesRepo(),
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+  }
+  return spawn(getHermesScript(), cliArgs, {
+    cwd: getHermesRepo(),
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 function sendMessageViaCli(
   message: string,
   cb: ChatCallbacks,
@@ -556,6 +573,7 @@ function sendMessageViaCli(
     HOME: homedir(),
     HERMES_HOME: HERMES_HOME,
     PYTHONUNBUFFERED: "1",
+    HERMES_QUIET: "1",
   };
 
   // Inject all API keys from the profile .env so the CLI can access them
@@ -563,6 +581,7 @@ function sendMessageViaCli(
     "OPENROUTER_API_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
+    "DEEPSEEK_API_KEY",
     "GROQ_API_KEY",
     "GLM_API_KEY",
     "KIMI_API_KEY",
@@ -589,11 +608,7 @@ function sendMessageViaCli(
 
   applyCustomEndpointEnv(env, profileEnv, mc);
 
-  const proc = spawn(getHermesScript(), args, {
-    cwd: getHermesRepo(),
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const proc = spawnHermesCli(args, env);
 
   let hasOutput = false;
   let capturedSessionId = "";
@@ -680,6 +695,16 @@ function sendMessageViaCli(
 // ────────────────────────────────────────────────────
 
 let apiServerAvailable: boolean | null = null; // cached after first check
+let chatProviderCredentialsSynced = false;
+
+function prepareChatProviderCredentials(profile?: string): void {
+  if (chatProviderCredentialsSynced || isRemoteMode()) return;
+  chatProviderCredentialsSynced = true;
+  const configChanged = syncCustomProvidersFromModels(profile);
+  if (configChanged && isGatewayRunning()) {
+    restartGateway(profile);
+  }
+}
 
 export async function sendMessage(
   message: string,
@@ -691,18 +716,12 @@ export async function sendMessage(
 ): Promise<ChatHandle> {
   ensureInitialized();
 
-  const configBefore = getModelConfig(profile);
-  let routingMeta = {
+  const routingMeta = {
     syncedConfig: false,
     restartedGateway: false,
-    configBefore,
   };
 
-  const saved = resolveModelIdForSend(options?.modelId, profile);
-  if (saved && !isRemoteMode()) {
-    const sync = await syncGatewayToSavedModel(saved, profile);
-    routingMeta = { ...routingMeta, ...sync };
-  }
+  prepareChatProviderCredentials(profile);
 
   // Remote mode: always use API, no CLI fallback
   if (isRemoteMode()) {
@@ -734,25 +753,27 @@ export async function sendMessage(
     );
   }
 
-  // Fallback to CLI — attachments not supported on CLI path
-  if (saved) {
+  // Fallback to CLI when Gateway API is unavailable; attachments not supported on CLI path
+  if (options?.modelId) {
     const apiServerModel = resolveApiServerModelName(profile);
     const payload = buildGatewayChatCompletionsBody(
       [{ role: "user", content: message }],
       profile,
-      options?.modelId,
+      options.modelId,
       apiServerModel,
     );
     logChatModelRouting(
       buildChatModelRoutingLog({
         profile,
-        modelId: options?.modelId,
+        sessionId: options.sessionId,
+        modelId: options.modelId,
         apiServerModel,
         payload,
         gatewayCompletionsUrl: "(CLI fallback)",
         syncedConfig: routingMeta.syncedConfig,
         restartedGateway: routingMeta.restartedGateway,
-        configBefore: routingMeta.configBefore,
+        selectedModel: options.selectedModel,
+        selectedBaseUrl: options.selectedBaseUrl,
       }),
     );
   }

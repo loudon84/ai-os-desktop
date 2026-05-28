@@ -124,6 +124,11 @@ function invalidateCache(prefix: string): void {
   }
 }
 
+/** Called after full config.yaml rewrites (e.g. hermes-config-yaml). */
+export function invalidateModelConfigCache(profile?: string): void {
+  invalidateCache(`mc:${profile || "default"}`);
+}
+
 function profilePaths(profile?: string): {
   envFile: string;
   configFile: string;

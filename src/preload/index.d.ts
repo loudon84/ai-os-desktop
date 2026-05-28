@@ -333,13 +333,17 @@ interface HermesAPI {
     provider: string,
     model: string,
     baseUrl: string,
+    opts?: { apiKeyEnv?: string; apiKeyLiteral?: string },
   ) => Promise<{
     id: string;
     name: string;
     provider: string;
     model: string;
     baseUrl: string;
+    apiKeyEnv?: string;
+    apiKeyLiteral?: string;
     createdAt: number;
+    updatedAt?: number;
   }>;
   removeModel: (id: string) => Promise<boolean>;
   updateModel: (id: string, fields: Record<string, string>) => Promise<boolean>;

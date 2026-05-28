@@ -28,6 +28,36 @@ export type ModelRoutingFields = {
   baseUrl: string;
 };
 
+export type SavedModelApiKeyFields = {
+  baseUrl: string;
+  apiKeyEnv?: string;
+  apiKeyLiteral?: string;
+};
+
+/** Infer `*_API_KEY` env var name from a custom OpenAI-compatible base URL. */
+export function resolveApiKeyEnvForBaseUrl(baseUrl: string): string | undefined {
+  const url = baseUrl.trim();
+  if (!url) return undefined;
+  for (const { pattern, envKey } of URL_KEY_MAP) {
+    if (pattern.test(url)) return envKey;
+  }
+  return undefined;
+}
+
+/** Resolve API key for a saved model from literal, explicit env, or URL inference. */
+export function resolveApiKeyForSavedModel(
+  saved: SavedModelApiKeyFields,
+  profileEnv: Record<string, string>,
+): string | undefined {
+  if (saved.apiKeyLiteral?.trim()) {
+    return saved.apiKeyLiteral.trim();
+  }
+  const envKey =
+    saved.apiKeyEnv?.trim() || resolveApiKeyEnvForBaseUrl(saved.baseUrl);
+  if (!envKey) return undefined;
+  return profileEnv[envKey]?.trim() || undefined;
+}
+
 export function applyCustomEndpointEnv(
   env: Record<string, string>,
   profileEnv: Record<string, string>,

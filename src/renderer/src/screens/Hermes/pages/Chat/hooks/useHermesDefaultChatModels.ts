@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PROVIDERS } from "../../../../../constants";
-import { STORAGE_KEYS } from "../../../constants";
+import { HERMES_DRAFT_SESSION_ID } from "../../../constants";
 import { hermesDefaultApi } from "../../../api/hermesDefaultApi";
 import type {
   HermesChatModel,
@@ -15,6 +15,7 @@ export type ModelGroup = {
     label: string;
     provider: string | null;
     base_url: string | null;
+    model: string;
   }>;
 };
 
@@ -34,45 +35,24 @@ function groupModels(models: HermesChatModel[]): ModelGroup[] {
       label: m.label,
       provider: m.provider ?? null,
       base_url: m.base_url ?? null,
+      model: m.model,
     });
   }
   return Array.from(map.values());
 }
 
-function readStoredChatModelId(): string | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.chatPendingModelId);
-    const id = raw?.trim();
-    return id || null;
-  } catch {
-    return null;
-  }
+function sessionKey(activeSessionId: string | null): string {
+  return activeSessionId?.trim() || HERMES_DRAFT_SESSION_ID;
 }
 
-function writeStoredChatModelId(id: string | null): void {
-  try {
-    if (id) {
-      localStorage.setItem(STORAGE_KEYS.chatPendingModelId, id);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.chatPendingModelId);
-    }
-  } catch {
-    /* ignore quota */
-  }
+function findModelById(models: HermesChatModel[], id: string): HermesChatModel | null {
+  return models.find((m) => m.id === id) ?? null;
 }
 
-function resolvePendingFromList(
-  models: HermesChatModel[],
-): HermesChatModel | null {
-  const storedId = readStoredChatModelId();
-  if (storedId) {
-    const match = models.find((m) => m.id === storedId);
-    if (match) return match;
-  }
-  return models.find((m) => m.is_current) ?? null;
-}
-
-export function useHermesDefaultChatModels(gatewayReady: boolean): {
+export function useHermesDefaultChatModels(
+  gatewayReady: boolean,
+  activeSessionId: string | null,
+): {
   models: HermesChatModel[];
   modelGroups: ModelGroup[];
   config: HermesChatModelConfig | null;
@@ -82,13 +62,26 @@ export function useHermesDefaultChatModels(gatewayReady: boolean): {
   reload: () => Promise<void>;
   pendingModel: HermesChatModel | null;
   selectModel: (model: HermesChatModel) => void;
-  saveAsDefault: () => Promise<void>;
 } {
   const [models, setModels] = useState<HermesChatModel[]>([]);
   const [config, setConfig] = useState<HermesChatModelConfig | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingModel, setPendingModel] = useState<HermesChatModel | null>(null);
+
+  const sk = sessionKey(activeSessionId);
+
+  const resolvePendingForSession = useCallback(
+    async (list: HermesChatModel[]): Promise<HermesChatModel | null> => {
+      const binding = await hermesDefaultApi.chat.getSessionModel(sk);
+      if (binding) {
+        const match = findModelById(list, binding.modelId);
+        if (match) return match;
+      }
+      return list.find((m) => m.is_current) ?? null;
+    },
+    [sk],
+  );
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -100,36 +93,26 @@ export function useHermesDefaultChatModels(gatewayReady: boolean): {
       setModels(list.models);
       setStatus(list.status ?? null);
       setConfig(cfg);
-      setPendingModel(resolvePendingFromList(list.models));
+      setPendingModel(await resolvePendingForSession(list.models));
     } catch {
       setModels([]);
       setStatus("error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [resolvePendingForSession]);
 
   useEffect(() => {
     void reload();
-  }, [reload, gatewayReady]);
+  }, [reload, gatewayReady, sk]);
 
-  /** Session-only selection; does not write config.yaml or restart Gateway. */
-  const selectModel = useCallback((model: HermesChatModel) => {
-    setPendingModel(model);
-    writeStoredChatModelId(model.id);
-  }, []);
-
-  const saveAsDefault = useCallback(async () => {
-    if (!pendingModel) return;
-    const saved = await hermesDefaultApi.chat.setModelConfig({
-      provider: pendingModel.provider ?? "auto",
-      model_id: pendingModel.id,
-      model_label: pendingModel.label,
-      base_url: pendingModel.base_url ?? null,
-    });
-    setConfig(saved);
-    await reload();
-  }, [pendingModel, reload]);
+  const selectModel = useCallback(
+    (model: HermesChatModel) => {
+      setPendingModel(model);
+      void hermesDefaultApi.chat.setSessionModel(sk, model.id);
+    },
+    [sk],
+  );
 
   const displayModel = useMemo(() => {
     if (pendingModel) return pendingModel.label;
@@ -148,7 +131,5 @@ export function useHermesDefaultChatModels(gatewayReady: boolean): {
     pendingModel,
     reload,
     selectModel,
-    saveAsDefault,
   };
 }
-

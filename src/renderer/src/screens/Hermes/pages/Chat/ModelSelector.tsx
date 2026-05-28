@@ -13,7 +13,6 @@ export function ModelSelector({
   loading,
   onOpen,
   onSelect,
-  onSaveDefault,
 }: {
   displayModel: string;
   selectedModelId: string | null;
@@ -23,7 +22,6 @@ export function ModelSelector({
   loading: boolean;
   onOpen: () => void;
   onSelect: (model: HermesChatModel) => void;
-  onSaveDefault: () => void;
 }): React.JSX.Element {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -94,6 +92,7 @@ export function ModelSelector({
                           label: m.label,
                           provider: m.provider,
                           base_url: m.base_url,
+                          model: m.model,
                           source: "saved",
                           is_current: isSelected,
                         });

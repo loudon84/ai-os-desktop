@@ -89,6 +89,7 @@ import {
   updateSessionTitle,
 } from "./session-cache";
 import { listModels, addModel, removeModel, updateModel } from "./models";
+import { syncCustomProvidersFromModels } from "./hermes-config/hermes-config-yaml";
 import {
   listProfiles,
   createProfile,
@@ -1115,14 +1116,31 @@ function setupIPC(): void {
   });
   ipcMain.handle(
     "add-model",
-    (_event, name: string, provider: string, model: string, baseUrl: string) =>
-      addModel(name, provider, model, baseUrl),
+    (
+      _event,
+      name: string,
+      provider: string,
+      model: string,
+      baseUrl: string,
+      opts?: { apiKeyEnv?: string; apiKeyLiteral?: string },
+    ) => {
+      const entry = addModel(name, provider, model, baseUrl, opts);
+      syncCustomProvidersFromModels();
+      return entry;
+    },
   );
-  ipcMain.handle("remove-model", (_event, id: string) => removeModel(id));
+  ipcMain.handle("remove-model", (_event, id: string) => {
+    const ok = removeModel(id);
+    if (ok) syncCustomProvidersFromModels();
+    return ok;
+  });
   ipcMain.handle(
     "update-model",
-    (_event, id: string, fields: Record<string, string>) =>
-      updateModel(id, fields),
+    (_event, id: string, fields: Record<string, string>) => {
+      const ok = updateModel(id, fields);
+      if (ok) syncCustomProvidersFromModels();
+      return ok;
+    },
   );
 
   // Claw3D

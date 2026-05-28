@@ -43,6 +43,6 @@ export function useHermesDefaultModels() {
     add: hermesDefaultApi.models.add,
     update: hermesDefaultApi.models.update,
     remove: hermesDefaultApi.models.remove,
-    setActive: hermesDefaultApi.models.setActive,
+    setDefault: hermesDefaultApi.models.setDefault,
   };
 }

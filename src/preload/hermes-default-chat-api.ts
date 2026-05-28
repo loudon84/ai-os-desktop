@@ -5,6 +5,7 @@ import type {
   HermesChatAttachmentBuffer,
   HermesChatSendPayload,
   HermesChatUsageEvent,
+  HermesSessionModelBinding,
   SetHermesChatModelConfigPayload,
   UploadHermesAttachmentsPayload,
   UploadHermesAttachmentsResponse,
@@ -24,6 +25,21 @@ export const hermesDefaultChatApi = {
     payload: SetHermesChatModelConfigPayload,
   ): Promise<HermesChatModelConfig> {
     return ipcRenderer.invoke("hermes-chat:set-model-config", profile, payload);
+  },
+
+  getSessionModel(
+    sessionId: string,
+    profile?: string,
+  ): Promise<HermesSessionModelBinding | null> {
+    return ipcRenderer.invoke("hermes-chat:get-session-model", sessionId, profile);
+  },
+
+  setSessionModel(
+    sessionId: string,
+    modelId: string,
+    profile?: string,
+  ): Promise<HermesSessionModelBinding> {
+    return ipcRenderer.invoke("hermes-chat:set-session-model", sessionId, modelId, profile);
   },
 
   uploadAttachments(

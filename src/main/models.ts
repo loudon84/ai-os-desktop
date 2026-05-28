@@ -4,6 +4,7 @@ import { homedir } from "os";
 import { randomUUID } from "crypto";
 import { safeWriteFile } from "./utils";
 import DEFAULT_MODELS from "./default-models";
+import { resolveApiKeyEnvForBaseUrl } from "./hermes-model-env";
 
 function modelsFilePath(): string {
   const home = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
@@ -16,14 +17,21 @@ export interface SavedModel {
   provider: string;
   model: string;
   baseUrl: string;
+  apiKeyEnv?: string;
+  apiKeyLiteral?: string;
   createdAt: number;
+  updatedAt?: number;
 }
+
+export type SavedModelInputFields = Partial<
+  Pick<SavedModel, "name" | "provider" | "model" | "baseUrl" | "apiKeyEnv" | "apiKeyLiteral">
+>;
 
 function readModels(): SavedModel[] {
   try {
     const path = modelsFilePath();
     if (!existsSync(path)) return [];
-    return JSON.parse(readFileSync(path, "utf-8"));
+    return JSON.parse(readFileSync(path, "utf-8")) as SavedModel[];
   } catch {
     return [];
   }
@@ -53,27 +61,54 @@ export function listModels(): SavedModel[] {
   return readModels();
 }
 
+/** Backfill `apiKeyEnv` from base URL for legacy models.json entries. */
+export function ensureModelsApiKeyEnvPersisted(): boolean {
+  const models = readModels();
+  let changed = false;
+  const next = models.map((m) => {
+    if (m.apiKeyEnv?.trim() || !m.baseUrl?.trim()) {
+      return m;
+    }
+    const inferred = resolveApiKeyEnvForBaseUrl(m.baseUrl);
+    if (!inferred) return m;
+    changed = true;
+    return { ...m, apiKeyEnv: inferred, updatedAt: Date.now() };
+  });
+  if (changed) {
+    writeModels(next);
+  }
+  return changed;
+}
+
+export function resolveSavedModelById(id: string): SavedModel | null {
+  return listModels().find((m) => m.id === id) ?? null;
+}
+
 export function addModel(
   name: string,
   provider: string,
   model: string,
   baseUrl: string,
+  opts?: { apiKeyEnv?: string; apiKeyLiteral?: string },
 ): SavedModel {
   const models = readModels();
 
-  // Dedup: if same model ID + provider exists, return existing
   const existing = models.find(
     (m) => m.model === model && m.provider === provider,
   );
   if (existing) return existing;
 
+  const now = Date.now();
   const entry: SavedModel = {
     id: randomUUID(),
     name,
     provider,
     model,
     baseUrl: baseUrl || "",
-    createdAt: Date.now(),
+    apiKeyEnv: opts?.apiKeyEnv?.trim() || undefined,
+    apiKeyLiteral: opts?.apiKeyLiteral?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
   };
   models.push(entry);
   writeModels(models);
@@ -88,14 +123,15 @@ export function removeModel(id: string): boolean {
   return true;
 }
 
-export function updateModel(
-  id: string,
-  fields: Partial<Pick<SavedModel, "name" | "provider" | "model" | "baseUrl">>,
-): boolean {
+export function updateModel(id: string, fields: SavedModelInputFields): boolean {
   const models = readModels();
   const idx = models.findIndex((m) => m.id === id);
   if (idx === -1) return false;
-  models[idx] = { ...models[idx], ...fields };
+  models[idx] = {
+    ...models[idx],
+    ...fields,
+    updatedAt: Date.now(),
+  };
   writeModels(models);
   return true;
 }

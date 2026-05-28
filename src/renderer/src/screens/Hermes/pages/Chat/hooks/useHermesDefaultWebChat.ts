@@ -13,7 +13,7 @@ export function useHermesDefaultWebChat() {
     [activeSessionId],
   );
 
-  const models = useHermesDefaultChatModels(true);
+  const models = useHermesDefaultChatModels(true, activeSessionId);
   const attachments = useHermesDefaultChatAttachments(sessionId);
   const composer = useHermesDefaultComposerState();
 

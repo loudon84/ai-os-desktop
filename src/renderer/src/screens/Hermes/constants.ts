@@ -15,9 +15,12 @@ export const STORAGE_KEYS = {
   collapsedLeftPanel: "hermesDefault.collapsedLeftPanel",
   activeNavItem: "hermesDefault.activeNavItem",
   activeSessionId: "hermesDefault.activeSessionId",
-  /** Chat 会话级模型（models.json UUID）；不写 config.yaml */
+  /** @deprecated v5.6.4 使用 Main session-models.json */
   chatPendingModelId: "hermesDefault.chatPendingModelId",
 } as const;
+
+/** 新会话草稿（尚无 state.db session id） */
+export const HERMES_DRAFT_SESSION_ID = "draft_default" as const;
 
 export type HermesNavItemKey =
   | "chat"
