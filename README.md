@@ -1,3 +1,4 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/loudon84/ai-os-desktop)
 # SMC Copilot (`smc-ai-copilot`)
 
 **SMC Copilot** is an Electron-based **Portal Desktop** shell for [Hermes Agent](https://github.com/loudon84/ai-os-hermes). The repository codebase evolved from **hermes-desktop** (install/configure/chat for a single Hermes runtime) into a multi-profile copilot console with cross-profile orchestration and embedded web automation.
