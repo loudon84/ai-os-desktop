@@ -16,14 +16,51 @@ export interface WebOperatorPanelsProps {
   focusedPanel: string;
   externalRefreshTrigger: number;
   onRefreshSnapshot: () => void;
+  onFocusedPanelChange?: (panel: string) => void;
 }
 
 type PanelRefMap = Record<WebOperatorPanelId, React.RefObject<HTMLDivElement | null>>;
+
+function renderPanelBody(
+  panelId: WebOperatorPanelId,
+  props: {
+    externalRefreshTrigger: number;
+    onRefreshSnapshot: () => void;
+    onFocusedPanelChange?: (panel: string) => void;
+  },
+): React.ReactNode {
+  switch (panelId) {
+    case "browser-state":
+      return <BrowserStatePanel className="web-operator-panels__content" />;
+    case "crm-context":
+      return (
+        <CrmEventPanel
+          className="web-operator-panels__content"
+          onRefreshSnapshot={props.onRefreshSnapshot}
+        />
+      );
+    case "hermes-task":
+      return <HermesTaskPanel className="web-operator-panels__content" />;
+    case "page-structure":
+      return (
+        <PageStructurePanel
+          externalRefreshTrigger={props.externalRefreshTrigger}
+          className="web-operator-panels__content"
+          onAnalyzeContent={() => props.onFocusedPanelChange?.("hermes-task")}
+        />
+      );
+    case "action-log":
+      return <BrowserActionLog className="web-operator-panels__content" />;
+    default:
+      return null;
+  }
+}
 
 export function WebOperatorPanels({
   focusedPanel,
   externalRefreshTrigger,
   onRefreshSnapshot,
+  onFocusedPanelChange,
 }: WebOperatorPanelsProps): React.JSX.Element {
   const activePanel = normalizeWebOperatorPanelId(focusedPanel);
 
@@ -41,6 +78,12 @@ export function WebOperatorPanels({
     "action-log": logRef,
   };
 
+  const bodyProps = {
+    externalRefreshTrigger,
+    onRefreshSnapshot,
+    onFocusedPanelChange,
+  };
+
   useEffect(() => {
     panelRefs[activePanel]?.current?.scrollIntoView({
       behavior: "smooth",
@@ -51,43 +94,23 @@ export function WebOperatorPanels({
   return (
     <div className="web-operator-panels">
       {WEB_OPERATOR_PANEL_ORDER.map((panel) => {
-        if (panel.id !== activePanel) return null;
+        const isHermesTask = panel.id === "hermes-task";
+        const isActive = panel.id === activePanel;
+
+        if (!isHermesTask && !isActive) return null;
+
         return (
           <WebOperatorPanelCard
             key={panel.id}
             panel={panel}
-            focused
+            focused={isActive}
+            hidden={isHermesTask && !isActive}
             panelRef={panelRefs[panel.id]}
           >
-            {panel.id === "browser-state" ? (
-              <BrowserStatePanel className="web-operator-panels__content" />
-            ) : null}
-
-            {panel.id === "crm-context" ? (
-              <CrmEventPanel
-                className="web-operator-panels__content"
-                onRefreshSnapshot={onRefreshSnapshot}
-              />
-            ) : null}
-
-            {panel.id === "hermes-task" ? (
-              <HermesTaskPanel className="web-operator-panels__content" />
-            ) : null}
-
-            {panel.id === "page-structure" ? (
-              <PageStructurePanel
-                externalRefreshTrigger={externalRefreshTrigger}
-                className="web-operator-panels__content"
-              />
-            ) : null}
-
-            {panel.id === "action-log" ? (
-              <BrowserActionLog className="web-operator-panels__content" />
-            ) : null}
+            {renderPanelBody(panel.id, bodyProps)}
           </WebOperatorPanelCard>
         );
       })}
     </div>
   );
 }
-

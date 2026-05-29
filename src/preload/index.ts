@@ -35,6 +35,7 @@ import { shellApi } from "./shell-api";
 import { copilotServeApi } from "./copilot-serve-api";
 import { workspaceChatApi } from "./workspace-chat-api";
 import { hermesDefaultChatApi } from "./hermes-default-chat-api";
+import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -889,6 +890,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("workspaces", workspaces);
     contextBridge.exposeInMainWorld("workspaceChat", workspaceChatApi);
     contextBridge.exposeInMainWorld("hermesDefaultChat", hermesDefaultChatApi);
+    contextBridge.exposeInMainWorld("webOperatorTaskSession", webOperatorTaskSessionApi);
   } catch (error) {
     console.error(error);
   }
@@ -923,4 +925,6 @@ if (process.contextIsolated) {
   window.workspaceChat = workspaceChatApi;
   // @ts-ignore (define in dts)
   window.hermesDefaultChat = hermesDefaultChatApi;
+  // @ts-ignore (define in dts)
+  window.webOperatorTaskSession = webOperatorTaskSessionApi;
 }

@@ -73,6 +73,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.desktopUserConfig` | `src/preload/user-config-api.ts` | V3.3 本地 bootstrap apply / diff / bootstrap-state |
 | `window.copilotServe` | `src/preload/copilot-serve-api.ts` | **V1.3** 本地 `copilot-serve` 生命周期（:get-connection / start / stop / logs）；**不含**任务业务 API |
 | `window.workspaceChat` | `src/preload/workspace-chat-api.ts` | **team_v1.8** Workspaces Chat（resolve / 模型 / 附件 / send SSE）；见 `docs/API_CONTRACTS.md` § Workspace Chat |
+| `window.webOperatorTaskSession` | `src/preload/web-operator-task-session-api.ts` | **V5.7.5** WebOperator Page→Hermes 任务会话（`task_session` SQLite） |
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
 
 类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`。
@@ -474,6 +475,7 @@ npm run lint         # ESLint
 | **V5.6.3** | Local Hermes Models 页复刻 Workspaces：卡片网格 + 弹窗增删改 + 模型发现；`hermesDefaultApi.models`（无 Set active） | `prd/v5.6.3_hermes-models-page.md`, `screens/Hermes/pages/Models/HermesDefaultModelsSurface.tsx` |
 | **V5.6.4** | Hermes 多模型：`custom_providers` YAML 同步、session 级 Chat 模型、移除 Save as Default、发送不写 config | `prd/v5.6.4_hermes-chat.md`, `src/main/hermes-config/`, `hermes-session-model-store.ts` |
 | **V5.7** | **WebContentsView 浏览器核心**：Frame Tree、DOM Snapshot、iframe 元素定位/点击/输入、结构化动作日志；`browser:*` IPC；`PageStructurePanel` | `prd/v5.7_webcontentsview.md`, `src/main/browser/browser-v57-core.ts`, `screens/WebOperator/`, `docs/API_CONTRACTS.md` § Web Operator V5.7 |
+| **V5.7.5** | WebOperator `[分析内容]` → Hermes 任务流：`webOperatorTaskSession` IPC + `task_session` SQLite；`HermesTaskStartDialog`；iframe `pageUrl` 派生 | `prd/v5.7.5_hermes_integration.md`, `web-operator-task-session-*`, `HermesTaskPanel`, `components/hermes/` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

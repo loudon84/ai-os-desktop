@@ -1,75 +1,194 @@
-import { ShieldAlert, CheckCircle, XCircle } from "lucide-react";
-import { WebOperatorHermesChatPanel } from "../../components/hermes";
-import { useWebOperatorPageContext } from "./context/use-web-operator-page-context";
-import { usePendingActions } from "./hooks/use-pending-actions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  WebOperatorHermesChatPanel,
+  type HermesPanelPageContext,
+  type HermesPanelTaskInput,
+} from "../../components/hermes";
+import { useWebOperatorPageContext } from "./context";
 
 interface HermesTaskPanelProps {
   className?: string;
 }
 
-export function HermesTaskPanel({ className }: HermesTaskPanelProps) {
-  const { pageContext } = useWebOperatorPageContext();
-  const { pendingActions, confirmAction, rejectAction } = usePendingActions();
+type StartDialogState = {
+  requestId: string;
+  taskId: string;
+  pageUrl: string;
+  pageContext: HermesPanelPageContext;
+};
 
+export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.Element {
+  const {
+    pageContext,
+    analysisRequest,
+    setTaskStartDialog,
+    setTaskStartDialogHandlers,
+  } = useWebOperatorPageContext();
+
+  const [currentTask, setCurrentTask] = useState<HermesPanelTaskInput | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  const startDialogRef = useRef<StartDialogState | null>(null);
+  /** 每个 taskId 仅 upsert 一次（首次 chat-done 绑定 sessionId） */
+  const upsertedTaskIdRef = useRef<string | null>(null);
+
+  const closeStartDialog = useCallback(() => {
+    startDialogRef.current = null;
+    setTaskStartDialog(null);
+    setTaskStartDialogHandlers(null);
+  }, [setTaskStartDialog, setTaskStartDialogHandlers]);
+
+  const handleDialogConfirm = useCallback(
+    (input: { userPrompt: string; skill: string }) => {
+      const sd = startDialogRef.current;
+      if (!sd) return;
+      setCurrentTask({
+        taskId: sd.taskId,
+        pageUrl: sd.pageUrl,
+        sessionId: null,
+        pageContext: sd.pageContext,
+        action: "running",
+        userPrompt: input.userPrompt,
+        skill: input.skill,
+      });
+      closeStartDialog();
+    },
+    [closeStartDialog],
+  );
+
+  const handleDialogCancel = useCallback(() => {
+    const sd = startDialogRef.current;
+    if (!sd) return;
+    setCurrentTask({
+      taskId: sd.taskId,
+      pageUrl: sd.pageUrl,
+      sessionId: null,
+      pageContext: sd.pageContext,
+      action: "pending",
+      skill: "",
+    });
+    closeStartDialog();
+  }, [closeStartDialog]);
+
+  const dialogHandlersRef = useRef({
+    onConfirm: handleDialogConfirm,
+    onCancel: handleDialogCancel,
+  });
+  dialogHandlersRef.current = {
+    onConfirm: handleDialogConfirm,
+    onCancel: handleDialogCancel,
+  };
+
+  const openStartDialog = useCallback(
+    (state: StartDialogState) => {
+      startDialogRef.current = state;
+      setTaskStartDialog({
+        requestId: state.requestId,
+        taskId: state.taskId,
+        pageUrl: state.pageUrl,
+        pageContext: state.pageContext,
+      });
+      setTaskStartDialogHandlers({
+        onConfirm: (input) => dialogHandlersRef.current.onConfirm(input),
+        onCancel: () => dialogHandlersRef.current.onCancel(),
+      });
+    },
+    [setTaskStartDialog, setTaskStartDialogHandlers],
+  );
+
+  useEffect(() => {
+    const req = analysisRequest;
+
+    if (!req?.requestId) return;
+
+    let cancelled = false;
+    upsertedTaskIdRef.current = null;
+    setResolving(true);
+    setResolveError(null);
+
+    void (async () => {
+      try {
+        const lookup = await window.webOperatorTaskSession.resolve({
+          pageUrl: req.pageUrl,
+        });
+        if (cancelled) return;
+        
+        if (lookup.record) {
+          upsertedTaskIdRef.current = lookup.taskId;
+          setCurrentTask({
+            taskId: lookup.taskId,
+            pageUrl: lookup.pageUrl,
+            sessionId: lookup.record.sessionId,
+            pageContext: req.pageContext,
+            action: "loading",
+            skill: lookup.record.skill,
+          });
+          closeStartDialog();
+        } else {
+          setCurrentTask(null);
+          openStartDialog({
+            requestId: req.requestId,
+            taskId: lookup.taskId,
+            pageUrl: req.pageUrl,
+            pageContext: req.pageContext,
+          });
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setCurrentTask(null);
+          setResolveError(e instanceof Error ? e.message : String(e));
+          console.error("[HermesTaskPanel] resolve failed:", e);
+        }
+      } finally {
+        if (!cancelled) setResolving(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisRequest?.requestId, closeStartDialog, openStartDialog]);
+
+  const handleTaskSessionReady = useCallback(
+    (input: {
+      taskId: string;
+      pageUrl: string;
+      sessionId: string;
+      pageContext: HermesPanelPageContext;
+      skill: string;
+    }) => {
+      if (upsertedTaskIdRef.current === input.taskId) return;
+      upsertedTaskIdRef.current = input.taskId;
+      void window.webOperatorTaskSession.upsert({
+        taskId: input.taskId,
+        pageUrl: input.pageUrl,
+        sessionId: input.sessionId,
+        pageContext: input.pageContext,
+        skill: input.skill,
+      });
+    },
+    [],
+  );
+
+  const activePageContext = currentTask?.pageContext ?? pageContext;
+  
   return (
-    <div className={`flex flex-col h-full min-h-0 ${className ?? ""}`}>
+    <div className={`relative flex flex-col h-full min-h-0 ${className ?? ""}`}>
+      {resolving ? (
+        <p className="px-3 py-2 text-xs text-neutral-500 shrink-0">正在解析任务会话…</p>
+      ) : null}
+
+      {resolveError ? (
+        <p className="px-3 py-2 text-xs text-red-400 shrink-0">{resolveError}</p>
+      ) : null}
+
       <WebOperatorHermesChatPanel
         className="flex-1 min-h-0"
-        pageContext={pageContext}
+        pageContext={activePageContext}
+        task={currentTask}
+        onTaskSessionReady={handleTaskSessionReady}
       />
-      {/*
-      <div className="flex-shrink-0 border-t border-neutral-700 max-h-40 overflow-y-auto">
-        <div className="px-3 py-2 border-b border-neutral-800">
-          <h4 className="text-xs font-medium text-neutral-400">Pending Actions</h4>
-        </div>
-        <div className="px-3 py-2 space-y-2">
-          {pendingActions.length === 0 ? (
-            <p className="text-xs text-neutral-500">No pending actions</p>
-          ) : (
-            pendingActions.map((action) => {
-              const isExpired = new Date(action.expiresAt) < new Date();
-              return (
-                <div
-                  key={action.pendingActionId}
-                  className="rounded border border-neutral-700 bg-neutral-800 p-2"
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <ShieldAlert
-                      size={12}
-                      className={isExpired ? "text-neutral-500" : "text-yellow-500"}
-                    />
-                    <span className="text-xs font-medium text-neutral-300">{action.action}</span>
-                    {isExpired && (
-                      <span className="text-xs text-neutral-500 ml-auto">Expired</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-neutral-400 mb-1">Selector: {action.selector}</p>
-                  <p className="text-xs text-neutral-400 mb-2 truncate">URL: {action.url}</p>
-                  {!isExpired && (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => confirmAction(action.pendingActionId)}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs"
-                      >
-                        <CheckCircle size={12} /> Confirm
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rejectAction(action.pendingActionId)}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white text-xs"
-                      >
-                        <XCircle size={12} /> Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-      */}
     </div>
   );
 }

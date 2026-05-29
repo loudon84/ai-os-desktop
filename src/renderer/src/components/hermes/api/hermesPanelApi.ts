@@ -9,12 +9,6 @@ import { HERMES_PANEL_DEFAULT_PROFILE } from "../constants";
 
 const P = HERMES_PANEL_DEFAULT_PROFILE;
 
-type HermesDefaultChatWithBuffers = typeof window.hermesDefaultChat & {
-  uploadAttachmentBuffers(
-    payload: UploadHermesAttachmentBuffersPayload,
-  ): Promise<UploadHermesAttachmentsResponse>;
-};
-
 /**
  * Thin wrapper over `window.hermesDefaultChat` for embed panels.
  * Intentionally omits session-model APIs — panels use global default model only.
@@ -26,8 +20,8 @@ export const hermesPanelApi = {
 
   uploadAttachmentBuffers(
     payload: Omit<UploadHermesAttachmentBuffersPayload, "profile">,
-  ) {
-    return (window.hermesDefaultChat as HermesDefaultChatWithBuffers).uploadAttachmentBuffers({
+  ): Promise<UploadHermesAttachmentsResponse> {
+    return window.hermesDefaultChat.uploadAttachmentBuffers({
       ...payload,
       profile: P,
     });

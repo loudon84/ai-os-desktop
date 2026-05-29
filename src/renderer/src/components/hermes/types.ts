@@ -45,3 +45,23 @@ export type HermesPanelPresetAction = {
   label: string;
   prompt: string;
 };
+
+export type HermesPanelTaskAction = "loading" | "running" | "pending";
+
+export type HermesPanelTaskInput = {
+  taskId: string;
+  pageUrl: string;
+  sessionId: string | null;
+  pageContext: HermesPanelPageContext;
+  action: HermesPanelTaskAction;
+  userPrompt?: string;
+  skill?: string;
+};
+
+export type HermesPanelTaskSessionReadyInput = {
+  taskId: string;
+  pageUrl: string;
+  sessionId: string;
+  pageContext: HermesPanelPageContext;
+  skill: string;
+};

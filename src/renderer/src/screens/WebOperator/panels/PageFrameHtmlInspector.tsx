@@ -5,11 +5,13 @@ import type {
   BrowserFrameSnapshot,
 } from "../../../../../shared/browser/browser-frame-contract";
 import { buildPageContextFromFrameHtml } from "../context/build-page-context";
-import { useWebOperatorPageContext } from "../context/use-web-operator-page-context";
+import { useWebOperatorPageContext } from "../context";
+import { derivePageUrl } from "../utils/derive-page-url";
 
 export interface PageFrameHtmlInspectorProps {
   selectedFrameId: string | null;
   frames: BrowserFrameSnapshot[];
+  onAnalyzeContent?: () => void;
 }
 
 function stringifySafe(value: unknown): string {
@@ -43,6 +45,7 @@ function extractBodyInnerHtml(html: string): string {
 export function PageFrameHtmlInspector({
   selectedFrameId,
   frames,
+  onAnalyzeContent,
 }: PageFrameHtmlInspectorProps): React.JSX.Element {
   const [selector, setSelector] = useState("");
   const [outer, setOuter] = useState(true);
@@ -50,15 +53,15 @@ export function PageFrameHtmlInspector({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BrowserFrameHtmlResult | null>(null);
 
-  const { setPageContext } = useWebOperatorPageContext();
+  const { setPageContext, requestHermesAnalysis } = useWebOperatorPageContext();
 
   const frame = useMemo(
     () => frames.find((f) => f.frameId === selectedFrameId) ?? null,
     [frames, selectedFrameId],
   );
 
-  const run = useCallback(async (): Promise<void> => {
-    if (!selectedFrameId) return;
+  const fetchFrameHtml = useCallback(async (): Promise<BrowserFrameHtmlResult | null> => {
+    if (!selectedFrameId) return null;
     const api = window.aiosBrowser as unknown as {
       getFrameHtml?: (input: {
         frameId: string;
@@ -68,7 +71,7 @@ export function PageFrameHtmlInspector({
       }) => Promise<BrowserFrameHtmlResult>;
     };
     if (typeof api.getFrameHtml !== "function") {
-      setResult({
+      const errResult: BrowserFrameHtmlResult = {
         ok: false,
         frameId: selectedFrameId,
         capturedAt: new Date().toISOString(),
@@ -77,31 +80,82 @@ export function PageFrameHtmlInspector({
           message:
             "window.aiosBrowser.getFrameHtml is not available. Please fully restart Electron dev process to reload preload.",
         },
-      });
-      return;
+      };
+      setResult(errResult);
+      return errResult;
     }
+    const next = await api.getFrameHtml({
+      frameId: selectedFrameId,
+      selector: selector.trim() || undefined,
+      outer,
+      maxLength,
+    });
+    setResult(next);
+    return next;
+  }, [maxLength, outer, selector, selectedFrameId]);
+
+  const applyPageContextFromResult = useCallback(
+    (next: BrowserFrameHtmlResult): void => {
+      if (!next.ok || !frame) return;
+      const excerpt = extractBodyInnerHtml(next.html ?? "");
+      const pageUrl = derivePageUrl({ frame, frames, result: next });
+      const ctx = buildPageContextFromFrameHtml({
+        frame,
+        result: next,
+        htmlExcerpt: excerpt,
+        pageUrl,
+      });
+      if (ctx) setPageContext(ctx);
+    },
+    [frame, frames, setPageContext],
+  );
+
+  const run = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      const next = await api.getFrameHtml({
-        frameId: selectedFrameId,
-        selector: selector.trim() || undefined,
-        outer,
-        maxLength,
-      });
-      setResult(next);
-      if (next.ok && frame) {
-        const excerpt = extractBodyInnerHtml(next.html ?? "");
-        const ctx = buildPageContextFromFrameHtml({
-          frame,
-          result: next,
-          htmlExcerpt: excerpt,
-        });
-        if (ctx) setPageContext(ctx);
-      }
+      const next = await fetchFrameHtml();
+      if (next) applyPageContextFromResult(next);
     } finally {
       setLoading(false);
     }
-  }, [frame, maxLength, outer, selector, selectedFrameId, setPageContext]);
+  }, [applyPageContextFromResult, fetchFrameHtml]);
+
+  const runAnalyze = useCallback(async (): Promise<void> => {
+    if (!selectedFrameId || !frame) return;
+
+    setLoading(true);
+    try {
+      let latest = result;
+      if (!latest?.ok) {
+        latest = await fetchFrameHtml();
+      }
+      if (!latest?.ok) return;
+
+      const excerpt = extractBodyInnerHtml(latest.html ?? "");
+      const pageUrl = derivePageUrl({ frame, frames, result: latest });
+      
+      const ctx = buildPageContextFromFrameHtml({
+        frame,
+        result: latest,
+        htmlExcerpt: excerpt,
+        pageUrl,
+      });
+      if (!ctx) return;
+
+      onAnalyzeContent?.();
+      requestHermesAnalysis({ pageUrl, pageContext: ctx });
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    frame,
+    frames,
+    fetchFrameHtml,
+    onAnalyzeContent,
+    requestHermesAnalysis,
+    result,
+    selectedFrameId,
+  ]);
 
   const displayHtml = useMemo(() => {
     if (!result?.ok || !result.html) return null;
@@ -133,15 +187,25 @@ export function PageFrameHtmlInspector({
           <FileCode2 size={14} className="text-neutral-500" />
           Frame HTML
         </p>
-        <button
-          type="button"
-          onClick={() => void run()}
-          disabled={loading || !selectedFrameId}
-          className="flex items-center gap-1 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 text-xs disabled:opacity-50 disabled:hover:bg-neutral-700"
-        >
-          <Play size={12} />
-          {loading ? "Getting…" : "Get HTML"}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void run()}
+            disabled={loading || !selectedFrameId}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 text-xs disabled:opacity-50 disabled:hover:bg-neutral-700"
+          >
+            <Play size={12} />
+            {loading ? "Getting…" : "Get HTML"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void runAnalyze()}
+            disabled={loading || !selectedFrameId}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-blue-800 hover:bg-blue-700 text-neutral-100 text-xs disabled:opacity-50"
+          >
+            分析内容
+          </button>
+        </div>
       </div>
 
       {frame ? (

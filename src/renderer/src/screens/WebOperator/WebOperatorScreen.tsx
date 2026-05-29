@@ -7,8 +7,9 @@ import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
 import "./web-operator.css";
 import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
-import { WebOperatorPageContextProvider } from "./context/WebOperatorPageContext";
+import { WebOperatorPageContextProvider, useWebOperatorPageContext } from "./context";
 import { WebOperatorPanels } from "./panels";
+import { WebOperatorTaskStartDialogHost } from "./WebOperatorTaskStartDialogHost";
 
 export interface WebOperatorScreenProps {
   focusedPanel?: string;
@@ -18,15 +19,20 @@ export interface WebOperatorScreenProps {
   onLayoutChange: (next: WebOperatorLayoutState) => void;
 }
 
-export function WebOperatorScreen({
+function WebOperatorScreenInner({
   focusedPanel = "browser-state",
   enabled = true,
   layout,
   onLayoutChange,
   onFocusedPanelChange,
 }: WebOperatorScreenProps): React.JSX.Element {
+  const { analysisRequest, taskStartDialog } = useWebOperatorPageContext();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [snapshotRefreshTrigger, setSnapshotRefreshTrigger] = useState(0);
+
+  const isTaskStartDialogOpen =
+    taskStartDialog != null &&
+    taskStartDialog.requestId === analysisRequest?.requestId;
 
   const { layoutRef, sideWidthPx, sideCollapsed, onHandlePointerDown } =
     useWebOperatorLayoutSplit({ layout, onLayoutChange });
@@ -60,7 +66,6 @@ export function WebOperatorScreen({
   } as React.CSSProperties;
 
   return (
-    <WebOperatorPageContextProvider>
     <div
       ref={layoutRef}
       className={`web-operator-layout${sideCollapsed ? " is-side-collapsed" : ""}`}
@@ -74,7 +79,7 @@ export function WebOperatorScreen({
         <WebContentsHost
           layerId={WEB_OPERATOR_LAYER_ID}
           className="web-operator-layout__viewport"
-          enabled={enabled}
+          enabled={enabled && !isTaskStartDialogOpen}
         />
       </div>
 
@@ -94,6 +99,7 @@ export function WebOperatorScreen({
             focusedPanel={focusedPanel}
             externalRefreshTrigger={snapshotRefreshTrigger}
             onRefreshSnapshot={() => void handleRefreshSnapshot()}
+            onFocusedPanelChange={onFocusedPanelChange}
           />
         </section>
       ) : null}
@@ -105,6 +111,14 @@ export function WebOperatorScreen({
         onTogglePanelsOpen={() => setCollapsed(!sideCollapsed)}
       />
     </div>
+  );
+}
+
+export function WebOperatorScreen(props: WebOperatorScreenProps): React.JSX.Element {
+  return (
+    <WebOperatorPageContextProvider>
+      <WebOperatorScreenInner {...props} />
+      <WebOperatorTaskStartDialogHost />
     </WebOperatorPageContextProvider>
   );
 }

@@ -596,13 +596,32 @@
 
 ---
 
+### web-operator-task-session-store.ts — V5.7.5 任务会话存储
+
+- **职责**: SQLite `~/.hermes/desktop/web-operator-task-session.db`；按 `pageUrl` 派生 `taskId`（`wot_` + sha256 前缀）；存 `sessionId`、序列化 `pageContext`、`skill`、状态
+- **核心方法**: `resolveTaskSession()`, `upsertTaskSession()`, `removeTaskSession()`
+- **注意**: **非** Hermes `state.db`；仅桌面控制面任务绑定
+
+### web-operator-task-session-ipc.ts — V5.7.5 任务会话 IPC
+
+- **IPC Channels**: `web-operator-task-session:resolve`, `web-operator-task-session:upsert`, `web-operator-task-session:remove`
+- **注册**: `src/main/index.ts` → `registerWebOperatorTaskSessionIpc()`
+
+### hermes-default-chat/ — V5.6+ Local Hermes Chat（Main）
+
+- **hermes-default-chat-ipc.ts**: `hermes-chat:*` 模型/附件/发送；与 legacy `hermesAPI` 共用 `chat-*` 事件
+- **hermes-default-chat-attachments.ts**: 附件落盘至 `profileHome(profile)/desktop/chat-attachments/<sessionId>/`
+- **hermes-session-model-store.ts**: `session-models.json`（Chat session 级模型；WebOperator 面板不使用）
+
+---
+
 ## 预加载层 (src/preload/)
 
 ### index.ts — 预加载脚本
 
-- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**、**`window.shellView`**
+- **职责**: 通过 contextBridge 暴露 `window.hermesAPI`、`window.hermesDefaultChat`、**`window.webOperatorTaskSession`**、`window.electron`、`window.aiosBrowser`、**`window.profileRuntime`**、**`window.profileEntry`**、**`window.aiosRuntime`**、**`window.shellView`**
 - **关键**: 将所有 IPC invoke/on 封装为 Promise/回调 API
-- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**, **shellView (9 方法: create/activate/setBounds/loadUrl/focus/hide/destroy/getState/getAll)**
+- **暴露对象**: hermesAPI (90+ 方法，含 getInstallerPrecheck、V1.4.1 windowControls、firstRunWizard、SSH 隧道、更新生命周期), **hermesDefaultChat (Local Hermes Chat + uploadAttachmentBuffers)**, **webOperatorTaskSession (resolve/upsert/remove)**, electron (标准 Electron API), aiosBrowser (13 方法 + 2 事件订阅), **profileRuntime (17 方法 + 1 事件)**, **profileEntry (5 方法)**, **aiosRuntime (11 方法 + 1 事件)**, **shellView (9 方法: create/activate/setBounds/loadUrl/focus/hide/destroy/getState/getAll)**
 
 ### browser-api.ts — Web Operator Preload API
 
@@ -634,6 +653,18 @@
 
 - **职责**: 封装 shell:view:* IPC 为 `window.shellView` API
 - **核心方法**: `create`, `activate`, `setBounds`, `loadUrl`, `focus`, `hide`, `destroy`, `getState`, `getAll`
+
+### hermes-default-chat-api.ts — V5.6+ Local Hermes Chat Preload API
+
+- **职责**: 封装 `hermes-chat:*` 为 `window.hermesDefaultChat`
+- **核心方法**: `listModels`, `getModelConfig`, `setModelConfig`, `getSessionModel`, `setSessionModel`, `uploadAttachments`, **`uploadAttachmentBuffers`**, `uploadDroppedAttachments`, `removeAttachment`, `sendMessage`, `abort`, `onChunk` / `onDone` / `onError` / `onToolProgress` / `onUsage`
+- **契约**: `src/shared/hermes-default-chat/hermes-default-chat-contract.ts`
+
+### web-operator-task-session-api.ts — V5.7.5 任务会话 Preload API
+
+- **职责**: 封装 `web-operator-task-session:*` 为 `window.webOperatorTaskSession`
+- **方法**: `resolve`, `upsert`, `remove`
+- **契约**: `src/shared/web-operator/web-operator-task-session-contract.ts`
 
 ---
 
@@ -683,7 +714,12 @@
 | Tools | screens/Tools/Tools.tsx | 工具集开关 |
 | Schedules | screens/Schedules/Schedules.tsx | Cron Job 管理 |
 | Gateway | screens/Gateway/Gateway.tsx | 16 个消息平台配置 |
-| WebOperator | screens/WebOperator/WebOperatorScreen.tsx | **V2.1** 三栏布局；`WebContentsHost` + `shellView.create`；mount 时 ensure layer |
+| WebOperator | screens/WebOperator/WebOperatorScreen.tsx | **V2.1** 三栏；**V5.7.5** `WebOperatorScreenInner` + 任务对话框时 `WebContentsHost enabled=false` |
+| **HermesTaskPanel** | **screens/WebOperator/HermesTaskPanel.tsx** | **V5.7.5** 任务流编排、`WebOperatorHermesChatPanel`、resolve/upsert task session |
+| **HermesTaskStartDialog** | **screens/WebOperator/HermesTaskStartDialog.tsx** | **V5.7.5** 分析前确认（仅【取消】【确认分析】关闭） |
+| **WebOperatorTaskStartDialogHost** | **screens/WebOperator/WebOperatorTaskStartDialogHost.tsx** | **V5.7.5** `createPortal` 全屏对话框宿主 |
+| **PageStructurePanel** | **screens/WebOperator/PageStructurePanel.tsx** | **V5.7** Frame 树 + `[分析内容]` 入口 |
+| **WebOperatorPageContext** | **screens/WebOperator/context/** | **V5.7.5** `globalThis` 单例 Context；`build-page-context.ts`、`derive-page-url.ts` |
 | **web-operator-constants.ts** | **screens/WebOperator/web-operator-constants.ts** | **V2.1** `WEB_OPERATOR_LAYER_ID` |
 | **BrowserToolbar** | **screens/WebOperator/BrowserToolbar.tsx** | **V2.1+** 单行地址栏；`aiosBrowser.open`（V2.2 经 adapter 单轨） |
 | **use-browser-actions.ts** | **screens/WebOperator/hooks/use-browser-actions.ts** | **V2.2** 薄封装 `window.aiosBrowser.*` |
@@ -723,6 +759,16 @@
 | 模块 | 文件 | 职责 |
 |---|---|---|
 | browser-partitions | `shared/shell/browser-partitions.ts` | `AIOS_HOME_PARTITION`、`WEB_OPERATOR_PARTITION`、`externalBrowserPartition()` |
+
+### components/hermes/ — V5.7.4+ WebOperator Hermes 侧栏
+
+| 模块 | 文件 | 职责 |
+|---|---|---|
+| WebOperatorHermesChatPanel | `components/hermes/panel/WebOperatorHermesChatPanel.tsx` | 侧栏聊天 UI（draft / task 模式） |
+| useWebOperatorHermesPanelChat | `components/hermes/hooks/useWebOperatorHermesPanelChat.ts` | 流式聊天、附件注入、任务自动首条发送 |
+| hermesPanelApi | `components/hermes/api/hermesPanelApi.ts` | 薄封装 `window.hermesDefaultChat`（面板用 `draft_weboperator`） |
+| inject-web-context-attachments | `components/hermes/lib/inject-web-context-attachments.ts` | 首轮上传 `web-context/*` buffer 附件 |
+| build-task-first-message | `components/hermes/lib/build-task-first-message.ts` | 任务模式首条 message 正文模板 |
 
 ### components/ — 共享组件
 
@@ -827,6 +873,12 @@ Layout → MainPage（props）→ MainTopBar + [DesktopSidebar 若 hasGlobalSeco
 | browser-contract.ts | Web Operator API 契约与类型定义 |
 | browser-errors.ts | Web Operator 错误码 |
 | browser-tool-schema.ts | Web Operator 工具 Schema 定义 |
+
+### web-operator/ — V5.7.5 任务会话契约
+
+| 文件 | 职责 |
+|---|---|
+| web-operator-task-session-contract.ts | `WebOperatorTaskSessionRecord`、`WebOperatorTaskPageContext`、`WebOperatorTaskSessionAPI` |
 
 ### shell/ — Shell View 与主界面布局契约
 

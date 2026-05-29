@@ -6,6 +6,7 @@ import {
   DEFAULT_PANEL_SYSTEM_PROMPT,
   HERMES_PANEL_DRAFT_SESSION_ID,
 } from "../constants";
+import { buildTaskFirstMessage } from "../lib/build-task-first-message";
 import { buildWebContextPrefix } from "../lib/build-web-context-prefix";
 import { injectWebContextAttachments } from "../lib/inject-web-context-attachments";
 import {
@@ -18,6 +19,8 @@ import type {
   HermesPanelMessage,
   HermesPanelPageContext,
   HermesPanelRunState,
+  HermesPanelTaskInput,
+  HermesPanelTaskSessionReadyInput,
   HermesPanelToolCall,
 } from "../types";
 
@@ -27,8 +30,10 @@ function newMessageId(): string {
 
 export function useWebOperatorHermesPanelChat(options: {
   pageContext: HermesPanelPageContext | null;
+  task?: HermesPanelTaskInput | null;
   presetSystemPrompt?: string;
   persistenceScopeKey?: string | null;
+  onTaskSessionReady?: (input: HermesPanelTaskSessionReadyInput) => void;
 }) {
   const [messages, setMessages] = useState<HermesPanelMessage[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
@@ -45,6 +50,9 @@ export function useWebOperatorHermesPanelChat(options: {
   const sessionIdRef = useRef<string | null>(null);
   const injectedRef = useRef(false);
   const pageContextRef = useRef(options.pageContext);
+  const taskRef = useRef(options.task);
+  const onTaskSessionReadyRef = useRef(options.onTaskSessionReady);
+  const autoRunKeyRef = useRef<string | null>(null);
   const persistenceKeyRef = useRef<string | null>(
     options.persistenceScopeKey
       ? scopeKeyWebOperatorPage(options.persistenceScopeKey)
@@ -52,6 +60,8 @@ export function useWebOperatorHermesPanelChat(options: {
   );
 
   pageContextRef.current = options.pageContext;
+  taskRef.current = options.task;
+  onTaskSessionReadyRef.current = options.onTaskSessionReady;
   persistenceKeyRef.current = options.persistenceScopeKey
     ? scopeKeyWebOperatorPage(options.persistenceScopeKey)
     : null;
@@ -96,26 +106,36 @@ export function useWebOperatorHermesPanelChat(options: {
         /* optional display */
       }),
       hermesPanelApi.onDone((sid) => {
-        setStreamingContent((current) => {
-          if (current) {
-            const msg: HermesPanelMessage = {
-              id: newMessageId(),
-              role: "assistant",
-              content: current,
-              timestamp: Date.now() / 1000,
-            };
-            setMessages((prev) => [...prev, msg]);
-          }
-          return "";
-        });
+        const pending = streamingRef.current;
+        if (pending) {
+          const msg: HermesPanelMessage = {
+            id: newMessageId(),
+            role: "assistant",
+            content: pending,
+            timestamp: Date.now() / 1000,
+          };
+          setMessages((prev) => [...prev, msg]);
+        }
+        setStreamingContent("");
         setRunState("idle");
         setToolCalls([]);
         setError(null);
         if (sid) {
           sessionIdRef.current = sid;
           setSessionId(sid);
-          const pk = persistenceKeyRef.current;
-          if (pk) setPanelSessionBinding(pk, sid);
+          const task = taskRef.current;
+          if (task) {
+            onTaskSessionReadyRef.current?.({
+              taskId: task.taskId,
+              pageUrl: task.pageUrl,
+              sessionId: sid,
+              pageContext: task.pageContext,
+              skill: task.skill ?? "",
+            });
+          } else {
+            const pk = persistenceKeyRef.current;
+            if (pk) setPanelSessionBinding(pk, sid);
+          }
         }
       }),
       hermesPanelApi.onError((err) => {
@@ -148,6 +168,7 @@ export function useWebOperatorHermesPanelChat(options: {
       setStreamingContent("");
       setRunState("idle");
       setToolCalls([]);
+      injectedRef.current = true;
     } catch (e) {
       setMessages([]);
       setError(e instanceof Error ? e.message : String(e));
@@ -157,6 +178,24 @@ export function useWebOperatorHermesPanelChat(options: {
   }, []);
 
   useEffect(() => {
+    const task = options.task;
+    if (task) {
+      if (task.action === "loading" && task.sessionId) {
+        void loadSessionHistory(task.sessionId);
+      } else if (task.action === "pending") {
+        sessionIdRef.current = null;
+        setSessionId(null);
+        setMessages([]);
+        injectedRef.current = false;
+      } else if (task.action === "running" && !task.sessionId) {
+        sessionIdRef.current = null;
+        setSessionId(null);
+        setMessages([]);
+        injectedRef.current = false;
+      }
+      return;
+    }
+
     const scope = options.persistenceScopeKey;
     if (!scope) {
       sessionIdRef.current = null;
@@ -173,11 +212,12 @@ export function useWebOperatorHermesPanelChat(options: {
       setMessages([]);
       injectedRef.current = false;
     }
-  }, [options.persistenceScopeKey, loadSessionHistory]);
+  }, [options.task, options.persistenceScopeKey, loadSessionHistory]);
 
   useEffect(() => {
+    if (options.task) return;
     injectedRef.current = false;
-  }, [options.persistenceScopeKey]);
+  }, [options.persistenceScopeKey, options.task]);
 
   const busy = runState === "creating" || runState === "streaming";
 
@@ -201,8 +241,11 @@ export function useWebOperatorHermesPanelChat(options: {
     if (runStateRef.current === "creating" || runStateRef.current === "streaming") {
       void cancel();
     }
-    const pk = persistenceKeyRef.current;
-    if (pk) clearPanelSessionBinding(pk);
+    const task = taskRef.current;
+    if (!task) {
+      const pk = persistenceKeyRef.current;
+      if (pk) clearPanelSessionBinding(pk);
+    }
     sessionIdRef.current = null;
     setSessionId(null);
     setMessages([]);
@@ -212,21 +255,24 @@ export function useWebOperatorHermesPanelChat(options: {
     setError(null);
     setRunState("idle");
     injectedRef.current = false;
+    autoRunKeyRef.current = null;
   }, [cancel]);
 
-  const send = useCallback(
-    async (userText: string) => {
+  const sendInternal = useCallback(
+    async (userText: string, opts?: { forceFirstMessage?: boolean; displayText?: string }) => {
       const trimmed = userText.trim();
       if (!trimmed || busy || restoring) return;
 
       const ctx = pageContextRef.current;
+      const task = taskRef.current;
       const prior = messagesRef.current.filter((m) => !m.isStreaming);
-      const isFirstUserMessage = prior.length === 0;
+      const isFirstUserMessage = opts?.forceFirstMessage ?? prior.length === 0;
 
+      const displayContent = opts?.displayText?.trim() || trimmed;
       const userMsg: HermesPanelMessage = {
         id: newMessageId(),
         role: "user",
-        content: trimmed,
+        content: displayContent,
         timestamp: Date.now() / 1000,
       };
       const nextMessages = [...prior, userMsg];
@@ -239,10 +285,11 @@ export function useWebOperatorHermesPanelChat(options: {
       setError(null);
 
       let attachmentIds: string[] = [];
-      const draftOrSession = sessionIdRef.current ?? HERMES_PANEL_DRAFT_SESSION_ID;
+      const resumeId =
+        sessionIdRef.current ?? task?.sessionId ?? HERMES_PANEL_DRAFT_SESSION_ID;
 
       if (isFirstUserMessage && ctx && !injectedRef.current) {
-        const inj = await injectWebContextAttachments(draftOrSession, ctx);
+        const inj = await injectWebContextAttachments(resumeId, ctx);
         if (!inj.ok) {
           setError(inj.error);
           setRunState("error");
@@ -257,7 +304,9 @@ export function useWebOperatorHermesPanelChat(options: {
       const systemLead = (options.presetSystemPrompt ?? DEFAULT_PANEL_SYSTEM_PROMPT).trim();
       const ctxPrefix = buildWebContextPrefix(ctx);
       const payloadMessage = isFirstUserMessage
-        ? `${systemLead}\n\n${ctxPrefix}[用户]\n${trimmed}`
+        ? task
+          ? `${systemLead}\n\n${trimmed}`
+          : `${systemLead}\n\n${ctxPrefix}[用户]\n${trimmed}`
         : trimmed;
 
       const history = nextMessages.map((m) => ({ role: m.role, content: m.content }));
@@ -265,7 +314,7 @@ export function useWebOperatorHermesPanelChat(options: {
       try {
         await hermesPanelApi.sendMessage({
           message: isFirstUserMessage ? payloadMessage : trimmed,
-          resumeSessionId: sessionIdRef.current ?? HERMES_PANEL_DRAFT_SESSION_ID,
+          resumeSessionId: resumeId,
           history: isFirstUserMessage ? undefined : history,
           attachment_ids: attachmentIds.length ? attachmentIds : undefined,
         });
@@ -276,6 +325,34 @@ export function useWebOperatorHermesPanelChat(options: {
     },
     [busy, restoring, options.presetSystemPrompt],
   );
+
+  const send = useCallback(
+    async (userText: string) => {
+      await sendInternal(userText);
+    },
+    [sendInternal],
+  );
+
+  useEffect(() => {
+    const task = options.task;
+    if (!task || task.action !== "running") return;
+
+    const autoRunKey = `${task.taskId}:${task.action}:${task.userPrompt ?? ""}:${task.skill ?? ""}`;
+    if (autoRunKeyRef.current === autoRunKey) return;
+    if (busy || restoring) return;
+
+    autoRunKeyRef.current = autoRunKey;
+
+    const message = buildTaskFirstMessage({
+      pageUrl: task.pageUrl,
+      pageContext: task.pageContext,
+      userPrompt: task.userPrompt,
+      skill: task.skill,
+    });
+
+    const displayText = task.userPrompt?.trim() || "请分析当前页面内容…";
+    void sendInternal(message, { forceFirstMessage: true, displayText });
+  }, [options.task, busy, restoring, sendInternal]);
 
   return {
     messages,

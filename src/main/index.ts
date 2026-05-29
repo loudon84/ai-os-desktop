@@ -182,6 +182,7 @@ import { generateId, getProfileByName, insertAuditEvent } from "./profile-runtim
 import { setupWorkspacesIPC } from "./workspaces-ipc";
 import { registerWorkspaceChatIpc } from "./workspace-chat/workspace-chat-ipc";
 import { registerHermesDefaultChatIpc } from "./hermes-default-chat/hermes-default-chat-ipc";
+import { registerWebOperatorTaskSessionIpc } from "./web-operator-task-session-ipc";
 import { setupProfileRoleIPC } from "./profile-role-ipc";
 import { registerFirstRunWizardIPC } from "./enterprise/first-run-wizard";
 import { setupEnterpriseInstallIpcEarly, setupEnterpriseInstallIPC } from "./enterprise/enterprise-ipc";
@@ -447,6 +448,12 @@ function setupIPC(): void {
       },
     });
   } catch { /* profile-runtime not available in early setup */ }
+
+  try {
+    registerWebOperatorTaskSessionIpc();
+  } catch (err) {
+    console.error("[WEB-OPERATOR-TASK-SESSION] Failed to register IPC:", err);
+  }
 
   try {
     registerMainPageStateIpc();

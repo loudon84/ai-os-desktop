@@ -16,7 +16,7 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
+  border-radius: 4px;
   background: var(--bg-primary);
 }
 
@@ -35,6 +35,10 @@
 .web-operator-panels__card--focused {
   border-color: var(--accent, #3b82f6);
   box-shadow: 0 0 0 1px var(--accent-subtle, rgba(59, 130, 246, 0.35));
+}
+
+.web-operator-panels__card--hidden {
+  display: none;
 }
 
 .web-operator-panels__card-body {

@@ -2,7 +2,7 @@ import { Sparkles, Trash2 } from "lucide-react";
 import { DEFAULT_PANEL_SYSTEM_PROMPT } from "../constants";
 import { useWebOperatorHermesPanelChat } from "../hooks/useWebOperatorHermesPanelChat";
 import { DEFAULT_WEB_OPERATOR_PRESET_ACTIONS } from "../lib/preset-actions";
-import type { HermesPanelPageContext, HermesPanelPresetAction } from "../types";
+import type { HermesPanelPageContext, HermesPanelPresetAction, HermesPanelTaskInput, HermesPanelTaskSessionReadyInput } from "../types";
 import { WebOperatorHermesPanelComposer } from "./WebOperatorHermesPanelComposer";
 import { WebOperatorHermesPanelMessageList } from "./WebOperatorHermesPanelMessageList";
 import { WebOperatorHermesPanelToolCard } from "./WebOperatorHermesPanelToolCard";
@@ -10,24 +10,30 @@ import "./web-operator-hermes-panel.css";
 
 export function WebOperatorHermesChatPanel({
   pageContext,
+  task = null,
+  onTaskSessionReady,
   presetActions = DEFAULT_WEB_OPERATOR_PRESET_ACTIONS,
   presetSystemPrompt = DEFAULT_PANEL_SYSTEM_PROMPT,
   className,
 }: {
   pageContext: HermesPanelPageContext | null;
+  task?: HermesPanelTaskInput | null;
+  onTaskSessionReady?: (input: HermesPanelTaskSessionReadyInput) => void;
   presetActions?: HermesPanelPresetAction[];
   presetSystemPrompt?: string;
   className?: string;
 }): React.JSX.Element {
   const chat = useWebOperatorHermesPanelChat({
-    pageContext,
+    pageContext: task?.pageContext ?? pageContext,
+    task,
     presetSystemPrompt,
-    persistenceScopeKey: pageContext?.scopeKey ?? null,
+    persistenceScopeKey: task ? null : (pageContext?.scopeKey ?? null),
+    onTaskSessionReady,
   });
 
   const hasContext = !!pageContext;
   const summary = pageContext?.summary ?? "未附加页面上下文（可先在 Page Structure 获取 HTML）";
-
+  
   return (
     <div className={`web-operator-hermes-panel${className ? ` ${className}` : ""}`}>
       <header className="web-operator-hermes-panel__header">
@@ -40,6 +46,7 @@ export function WebOperatorHermesChatPanel({
         {chat.defaultModelLabel ? (
           <p className="web-operator-hermes-panel__meta">模型：{chat.defaultModelLabel}（全局默认）</p>
         ) : null}
+        {/*
         <div className="web-operator-hermes-panel__actions">
           <button
             type="button"
@@ -50,8 +57,9 @@ export function WebOperatorHermesChatPanel({
             <Trash2 size={12} style={{ display: "inline", verticalAlign: "middle" }} /> 清空
           </button>
         </div>
+        */}
       </header>
-
+      {/*
       {presetActions.length > 0 ? (
         <div className="web-operator-hermes-panel__presets">
           {presetActions.map((a) => (
@@ -59,7 +67,7 @@ export function WebOperatorHermesChatPanel({
               key={a.label}
               type="button"
               className="web-operator-hermes-panel__btn"
-              disabled={chat.busy || chat.restoring || !hasContext}
+              disabled={chat.busy || chat.restoring || !hasContext || task?.action === "pending"}
               onClick={() => void chat.send(a.prompt)}
             >
               {a.label}
@@ -67,7 +75,7 @@ export function WebOperatorHermesChatPanel({
           ))}
         </div>
       ) : null}
-
+      */}
       <div className="web-operator-hermes-panel__body">
         {chat.error ? <div className="web-operator-hermes-panel__error">{chat.error}</div> : null}
 
@@ -92,7 +100,7 @@ export function WebOperatorHermesChatPanel({
 
       <WebOperatorHermesPanelComposer
         busy={chat.busy}
-        disabled={chat.restoring}
+        disabled={chat.restoring || task?.action === "pending"}
         onSend={(text) => void chat.send(text)}
         onCancel={() => void chat.cancel()}
       />

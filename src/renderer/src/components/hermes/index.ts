@@ -5,6 +5,9 @@ export type {
   HermesPanelPageContext,
   HermesPanelPageContextPayload,
   HermesPanelPresetAction,
+  HermesPanelTaskAction,
+  HermesPanelTaskInput,
+  HermesPanelTaskSessionReadyInput,
   HermesPanelToolCall,
 } from "./types";
 export { scopeKeyWebOperatorPage } from "./lib/web-operator-hermes-session-binding";

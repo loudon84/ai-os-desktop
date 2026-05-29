@@ -144,6 +144,14 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
   - **禁止** Chat 改 root 默认、**禁止**为 session 选模 restart Gateway、**禁止** Windows 下用 `hermes.exe` 作 Chat 回退（用 `python -m hermes_cli.main`）
 - **新会话**：`draft_default` → 首条 `chat-done` 后迁移到真实 `sessionId`
 
+**V5.7.5（WebOperator Page → Hermes 任务流）**：
+- **入口**：Page Structure `[分析内容]` → 切 Hermes Task 侧栏 → `HermesTaskStartDialog`（Portal 至 `document.body`，全屏遮罩；打开时 `WebContentsHost` `enabled=false` 避免 WebContentsView 盖住对话框）
+- **任务会话**：`window.webOperatorTaskSession` → `~/.hermes/desktop/web-operator-task-session.db`（按 `pageUrl` 解析/续聊；**非** Hermes `state.db`）
+- **Hermes 聊天**：`components/hermes/WebOperatorHermesChatPanel` → **仅** `window.hermesDefaultChat` + `hermesAPI.getSessionMessages`；`resumeSessionId` 占位 `draft_weboperator`；首轮 `uploadAttachmentBuffers`（`web-context/*`）+ `buildTaskFirstMessage` 正文
+- **页面上下文**：`WebOperatorPageContext`（`globalThis` 单例 Context 防 HMR 双实例）+ `derive-page-url.ts`（iframe `about:srcdoc` 稳定 URL）
+- **侧栏保活**：`WebOperatorPanels` 始终挂载 `hermes-task`，非激活时 CSS 隐藏，避免切 Tab 丢任务状态
+- PRD：[`prd/v5.7.5_hermes_integration.md`](../prd/v5.7.5_hermes_integration.md) · 契约：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § WebOperator Hermes Panel / Task Session
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -156,7 +164,12 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/main/migrations/` | **DB 迁移** — 迁移运行器 + 3 个迁移文件 | 按需扩展 |
 | `src/main/update/` | **更新生命周期** — update-lifecycle.ts | 按需扩展 |
 | `src/main/browser/` | Web Operator — **ShellBrowserViewAdapter** + BrowserController/SecurityGuard/AuditLogger/ToolBridge（`browser-view-manager.ts` legacy） | 按需扩展 |
-| `src/preload/` | 预加载桥接层 — **hermesAPI + smcShell + desktopAuth + desktopUserConfig + aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView + mainPageState** | 谨慎修改，影响全进程通信 |
+| `src/main/web-operator-task-session-*.ts` | **V5.7.5** 任务 ↔ Hermes session SQLite（`web-operator-task-session.db`） | 改 Page 分析任务流时必读 |
+| `src/preload/` | 预加载桥接层 — **hermesAPI + hermesDefaultChat + webOperatorTaskSession + smcShell + desktopAuth + desktopUserConfig + aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView + mainPageState** | 谨慎修改，影响全进程通信 |
+| `src/preload/web-operator-task-session-api.ts` | **V5.7.5** `window.webOperatorTaskSession` | 任务会话 resolve/upsert/remove |
+| `src/renderer/src/components/hermes/` | **V5.7.4+** WebOperator Hermes 侧栏聊天（`WebOperatorHermesChatPanel`、`useWebOperatorHermesPanelChat`） | 禁止引入 `workspaceChat` |
+| `src/renderer/src/screens/WebOperator/` | **V5.7.5** `HermesTaskPanel`、`HermesTaskStartDialog`、`WebOperatorTaskStartDialogHost`、Page Context | 分析内容入口与任务 UI |
+| `src/shared/web-operator/` | **V5.7.5** `web-operator-task-session-contract.ts` | IPC 共享类型 |
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |
 | `src/renderer/src/workspace/` | **V3.2** Workspace registry / tabs / `WorkspaceRenderer` 路由 | 顶栏 Tab 与 Outlet |

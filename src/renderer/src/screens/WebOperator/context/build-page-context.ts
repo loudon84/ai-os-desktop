@@ -14,15 +14,18 @@ export function buildPageContextFromFrameHtml(input: {
   frame: BrowserFrameSnapshot | null;
   result: BrowserFrameHtmlResult;
   htmlExcerpt: string;
+  /** Stable task URL (e.g. parent + fragment for about:srcdoc iframes). */
+  pageUrl?: string;
 }): HermesPanelPageContext | null {
-  const { frame, result, htmlExcerpt } = input;
+  const { frame, result, htmlExcerpt, pageUrl: pageUrlOverride } = input;
   if (!result.ok || !frame) return null;
 
-  const url = frame.url ?? result.url ?? "";
+  const url = pageUrlOverride?.trim() || (frame.url ?? result.url ?? "");
   const title = frame.title ?? result.title ?? "";
   const frameId = result.frameId ?? frame.frameId;
   const scopeKey = buildScopeKey(url, frameId);
-  const summary = `${title || "（无标题）"} · ${frame.origin ?? url}`;
+  const summary =
+    result.text?.trim() || `${title || "（无标题）"} · ${frame.origin ?? url}`;
 
   return {
     type: "web-operator",

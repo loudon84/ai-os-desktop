@@ -7,6 +7,7 @@ import type {
   HermesChatUsageEvent,
   HermesSessionModelBinding,
   SetHermesChatModelConfigPayload,
+  UploadHermesAttachmentBuffersPayload,
   UploadHermesAttachmentsPayload,
   UploadHermesAttachmentsResponse,
 } from "../shared/hermes-default-chat/hermes-default-chat-contract";
@@ -46,6 +47,12 @@ export const hermesDefaultChatApi = {
     payload: UploadHermesAttachmentsPayload,
   ): Promise<UploadHermesAttachmentsResponse> {
     return ipcRenderer.invoke("hermes-chat:upload-attachments", payload);
+  },
+
+  uploadAttachmentBuffers(
+    payload: UploadHermesAttachmentBuffersPayload,
+  ): Promise<UploadHermesAttachmentsResponse> {
+    return ipcRenderer.invoke("hermes-chat:upload-attachment-buffers", payload);
   },
 
   async uploadDroppedAttachments(

@@ -318,11 +318,13 @@ function Layout(): React.JSX.Element {
         return;
       }
 
-      navigation.navigateToView("web-operator");
+      queueMicrotask(() => {
+        navigation.navigateToView("web-operator");
 
-      if (action.focusedPanel) {
-        handleSecondaryPanelChange(action.focusedPanel);
-      }
+        if (action.focusedPanel) {
+          handleSecondaryPanelChange(action.focusedPanel);
+        }
+      });
     });
   }, [navigation, handleSecondaryPanelChange]);
 
