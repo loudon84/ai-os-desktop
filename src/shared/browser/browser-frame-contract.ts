@@ -47,6 +47,7 @@ export interface BrowserFrameHtmlResult {
   text?: string;
   capturedAt: string;
   truncated?: boolean;
+  source?: "frame-document" | "parent-srcdoc";
   error?: {
     code:
       | "WEB_CONTENTS_NOT_READY"

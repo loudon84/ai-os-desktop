@@ -7,6 +7,7 @@ import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
 import "./web-operator.css";
 import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
+import { WebOperatorPageContextProvider } from "./context/WebOperatorPageContext";
 import { WebOperatorPanels } from "./panels";
 
 export interface WebOperatorScreenProps {
@@ -59,6 +60,7 @@ export function WebOperatorScreen({
   } as React.CSSProperties;
 
   return (
+    <WebOperatorPageContextProvider>
     <div
       ref={layoutRef}
       className={`web-operator-layout${sideCollapsed ? " is-side-collapsed" : ""}`}
@@ -103,5 +105,6 @@ export function WebOperatorScreen({
         onTogglePanelsOpen={() => setCollapsed(!sideCollapsed)}
       />
     </div>
+    </WebOperatorPageContextProvider>
   );
 }

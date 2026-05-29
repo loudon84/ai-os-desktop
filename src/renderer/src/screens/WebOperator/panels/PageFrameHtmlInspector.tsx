@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { Copy, FileCode2, Play } from "lucide-react";
-import type { BrowserFrameSnapshot } from "../../../../../shared/browser/browser-frame-contract";
-import type { BrowserFrameHtmlResult } from "../../../../../shared/browser/browser-frame-contract";
+import type {
+  BrowserFrameHtmlResult,
+  BrowserFrameSnapshot,
+} from "../../../../../shared/browser/browser-frame-contract";
+import { buildPageContextFromFrameHtml } from "../context/build-page-context";
+import { useWebOperatorPageContext } from "../context/use-web-operator-page-context";
 
 export interface PageFrameHtmlInspectorProps {
   selectedFrameId: string | null;
@@ -19,7 +23,7 @@ function stringifySafe(value: unknown): string {
 /** Full-document HTML → body innerHTML only; fragments without <body> are unchanged. */
 function extractBodyInnerHtml(html: string): string {
   const trimmed = html.trim();
-  return trimmed;
+
   if (!trimmed || !/<body\b/i.test(trimmed)) {
     return html;
   }
@@ -45,6 +49,8 @@ export function PageFrameHtmlInspector({
   const [maxLength, setMaxLength] = useState(100_000);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BrowserFrameHtmlResult | null>(null);
+
+  const { setPageContext } = useWebOperatorPageContext();
 
   const frame = useMemo(
     () => frames.find((f) => f.frameId === selectedFrameId) ?? null,
@@ -83,10 +89,19 @@ export function PageFrameHtmlInspector({
         maxLength,
       });
       setResult(next);
+      if (next.ok && frame) {
+        const excerpt = extractBodyInnerHtml(next.html ?? "");
+        const ctx = buildPageContextFromFrameHtml({
+          frame,
+          result: next,
+          htmlExcerpt: excerpt,
+        });
+        if (ctx) setPageContext(ctx);
+      }
     } finally {
       setLoading(false);
     }
-  }, [maxLength, outer, selector, selectedFrameId]);
+  }, [frame, maxLength, outer, selector, selectedFrameId, setPageContext]);
 
   const displayHtml = useMemo(() => {
     if (!result?.ok || !result.html) return null;
@@ -169,6 +184,7 @@ export function PageFrameHtmlInspector({
           <div className="flex items-center justify-between px-2 py-1 border-b border-neutral-800">
             <p className="text-[11px] text-neutral-400">
               {result.ok ? "OK" : "ERROR"} · {result.capturedAt}
+              {result.source ? ` · ${result.source}` : ""}
               {result.truncated ? " · truncated" : ""}
             </p>
             <button

@@ -97,6 +97,20 @@ Preload：`src/preload/hermes-default-chat-api.ts`
 Env / Key：`src/main/config.ts` `readEnv()` + `src/main/hermes-model-env.ts`  
 架构约束：[`docs/ARCHITECTURE.md`](ARCHITECTURE.md) § **V5.6.4 Local Hermes Chat — 强制约束**
 
+### WebOperator Hermes Panel（v5.7.4）
+
+Renderer 公共组件：`src/renderer/src/components/hermes/`（`WebOperatorHermesChatPanel`）。  
+消费方：`src/renderer/src/screens/WebOperator/HermesTaskPanel.tsx`。
+
+| 规则 | 说明 |
+|------|------|
+| 传输 | **仅** `window.hermesDefaultChat` + `hermesAPI.getSessionMessages`（历史）；**禁止** Portal HTTP、`workspaceChat` |
+| 模型 | **不传** `model_id`；**禁止** `getSessionModel` / `setSessionModel`；`resumeSessionId` 占位用 `draft_weboperator`（与全页 `draft_default` 隔离）→ Main 走全局默认 `config.yaml` overlay |
+| Web 上下文 | `aiosBrowser.getFrameHtml` → `WebOperatorPageContext` → 首轮 `uploadAttachmentBuffers`（`web-context/*`）+ message prefix |
+| 会话续聊 | `localStorage` 键 `weboperator-hermes-panel-session-bindings`（`scopeKeyWebOperatorPage`） |
+
+PRD：[`prd/v5.7.4_sidepanel_hermes.md`](../prd/v5.7.4_sidepanel_hermes.md)
+
 ---
 
 ### 强制约束（MUST）— Chat 调模型与 API Key
@@ -279,6 +293,7 @@ Preload：`window.aiosBrowser`（`src/preload/browser-api.ts`）。Main：`src/m
 | `browser:select-option` | `{ target, value }` | `BrowserStructuredActionResult` |
 | `browser:scroll` | `BrowserScrollOptions` | `BrowserStructuredActionResult` |
 | `browser:screenshot-v2` | `BrowserScreenshotOptions?` | `BrowserStructuredScreenshotResult \| null` |
+| `browser:get-frame-html` | `BrowserFrameHtmlRequest` | `BrowserFrameHtmlResult` |
 | `browser:action-logs` | `limit?` | `BrowserActionLogEntry[]` |
 | `browser:clear-action-logs` | — | `{ ok: boolean }` |
 
@@ -290,6 +305,8 @@ Preload：`window.aiosBrowser`（`src/preload/browser-api.ts`）。Main：`src/m
 | `browser:action-logged` | `BrowserActionLogEntry` |
 
 **Shared DTO：** `src/shared/browser/browser-frame-contract.ts`、`browser-snapshot-contract.ts`、`browser-action-contract.ts`。
+
+**`browser:get-frame-html`（V5.7.3 hotfix）：** 请求 `BrowserFrameHtmlRequest`（`frameId` / `framePath` + 可选 `selector`、`outer`、`maxLength`）。返回 `BrowserFrameHtmlResult` 含 `source`：`frame-document`（子 frame 内 `executeJavaScript`）或 `parent-srcdoc`（`about:srcdoc` + sandbox iframe 时由父 frame 读取 `iframe[srcdoc]`，不在子 frame 执行脚本）。错误码含 `FRAME_SCRIPT_BLOCKED`、`ELEMENT_NOT_FOUND` 等。
 
 **Main 模块：** `browser-frame-inspector.ts`、`browser-dom-snapshot.ts`、`browser-element-locator.ts`、`browser-coordinate-resolver.ts`、`browser-action-log-store.ts`、`browser-v57-core.ts`（由 `BrowserController.v57` 委托）。
 

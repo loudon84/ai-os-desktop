@@ -179,6 +179,76 @@ const GET_FRAME_HTML_SCRIPT = (
 })()
 `;
 
+const GET_SRCDOC_HTML_FROM_PARENT_SCRIPT = (
+  childIndex: number,
+  selector: string | undefined,
+  outer: boolean,
+  maxLength: number,
+) => `
+(function() {
+  var frames = Array.from(document.querySelectorAll("iframe, frame"));
+  var iframe = frames[${childIndex}];
+
+  if (!iframe) {
+    return {
+      ok: false,
+      code: "FRAME_NOT_FOUND",
+      message: "iframe element not found in parent frame"
+    };
+  }
+
+  var srcdoc =
+    iframe.getAttribute("srcdoc") ||
+    iframe.srcdoc ||
+    "";
+
+  if (!srcdoc) {
+    return {
+      ok: false,
+      code: "ELEMENT_NOT_FOUND",
+      message: "iframe srcdoc is empty"
+    };
+  }
+
+  var html = srcdoc;
+  var text = "";
+
+  try {
+    var doc = new DOMParser().parseFromString(srcdoc, "text/html");
+
+    if (${selector ? "true" : "false"}) {
+      var node = doc.querySelector(${JSON.stringify(selector ?? "")});
+
+      if (!node) {
+        return {
+          ok: false,
+          code: "ELEMENT_NOT_FOUND",
+          message: "Element not found in iframe srcdoc"
+        };
+      }
+
+      html = ${outer ? "node.outerHTML" : "node.innerHTML"};
+      text = node.textContent || "";
+    } else {
+      text = doc.body ? doc.body.innerText : "";
+    }
+  } catch (error) {
+    text = "";
+  }
+
+  var truncated = html.length > ${maxLength};
+
+  return {
+    ok: true,
+    url: iframe.getAttribute("src") || "about:srcdoc",
+    title: iframe.getAttribute("title") || "",
+    html: html.slice(0, ${maxLength}),
+    text: text.slice(0, ${Math.min(maxLength, 20000)}),
+    truncated: truncated
+  };
+})()
+`;
+
 export class BrowserV57Core {
   readonly actionLogStore = new BrowserActionLogStore();
   private readonly frameInspector = new BrowserFrameInspector();
@@ -259,6 +329,111 @@ export class BrowserV57Core {
     return this.frameInspector.listFrames(wc);
   }
 
+  private isSrcdocFrame(frameMeta: BrowserFrameSnapshot): boolean {
+    return frameMeta.url === "about:srcdoc";
+  }
+
+  private async getFrameHtmlFromSrcdocParent(
+    wc: WebContents,
+    frameMeta: BrowserFrameSnapshot,
+    target: BrowserFrameHtmlRequest,
+  ): Promise<BrowserFrameHtmlResult | null> {
+    if (!this.isSrcdocFrame(frameMeta)) return null;
+    if (frameMeta.path.length === 0) return null;
+
+    const parentPath = frameMeta.path.slice(0, -1);
+    const childIndex = frameMeta.path[frameMeta.path.length - 1];
+
+    if (typeof childIndex !== "number") return null;
+
+    const parentFrame = this.frameInspector.resolveFrameByPath(wc, parentPath);
+    if (!parentFrame) {
+      return {
+        ok: false,
+        frameId: frameMeta.frameId,
+        url: frameMeta.url,
+        title: frameMeta.title,
+        selector: target.selector,
+        capturedAt: new Date().toISOString(),
+        source: "parent-srcdoc",
+        error: {
+          code: "FRAME_NOT_FOUND",
+          message: "Parent frame not found for srcdoc iframe",
+        },
+      };
+    }
+
+    const maxLength = target.maxLength ?? 100_000;
+
+    try {
+      const raw = (await parentFrame.executeJavaScript(
+        GET_SRCDOC_HTML_FROM_PARENT_SCRIPT(
+          childIndex,
+          target.selector,
+          target.outer !== false,
+          maxLength,
+        ),
+      )) as {
+        ok: boolean;
+        url?: string;
+        title?: string;
+        html?: string;
+        text?: string;
+        truncated?: boolean;
+        code?: BrowserActionErrorCode;
+        message?: string;
+      };
+
+      if (!raw.ok) {
+        const code =
+          raw.code === "FRAME_NOT_FOUND" || raw.code === "ELEMENT_NOT_FOUND"
+            ? raw.code
+            : "UNKNOWN_BROWSER_ERROR";
+
+        return {
+          ok: false,
+          frameId: frameMeta.frameId,
+          url: frameMeta.url,
+          title: frameMeta.title,
+          selector: target.selector,
+          capturedAt: new Date().toISOString(),
+          source: "parent-srcdoc",
+          error: {
+            code,
+            message: raw.message ?? "Read iframe srcdoc failed",
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        frameId: frameMeta.frameId,
+        url: raw.url ?? frameMeta.url,
+        title: raw.title ?? frameMeta.title,
+        selector: target.selector,
+        html: raw.html ?? "",
+        text: raw.text,
+        truncated: raw.truncated,
+        capturedAt: new Date().toISOString(),
+        source: "parent-srcdoc",
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        frameId: frameMeta.frameId,
+        url: frameMeta.url,
+        title: frameMeta.title,
+        selector: target.selector,
+        capturedAt: new Date().toISOString(),
+        source: "parent-srcdoc",
+        error: {
+          code: "FRAME_SCRIPT_BLOCKED",
+          message: (err as Error).message,
+        },
+      };
+    }
+  }
+
   async getFrameHtml(target: BrowserFrameHtmlRequest): Promise<BrowserFrameHtmlResult> {
     const startedAt = Date.now();
     const action: BrowserActionType = "getFrameHtml";
@@ -336,6 +511,28 @@ export class BrowserV57Core {
       };
     }
 
+    const srcdocResultEarly = await this.getFrameHtmlFromSrcdocParent(
+      wc,
+      frameMeta,
+      target,
+    );
+
+    if (srcdocResultEarly?.ok) {
+      this.log(
+        action,
+        target,
+        wrapResult(action, startedAt, {
+          ok: true,
+          frameId: frameMeta.frameId,
+          selector: target.selector,
+          url: srcdocResultEarly.url,
+          title: srcdocResultEarly.title,
+        }),
+      );
+
+      return srcdocResultEarly;
+    }
+
     try {
       const maxLength = target.maxLength ?? 100_000;
       const raw = (await frame.executeJavaScript(
@@ -394,6 +591,7 @@ export class BrowserV57Core {
         text: raw.text,
         truncated: raw.truncated,
         capturedAt: new Date().toISOString(),
+        source: "frame-document",
       };
 
       this.log(
@@ -410,8 +608,33 @@ export class BrowserV57Core {
 
       return result;
     } catch (err) {
-      const message = (err as Error).message;
+      const srcdocResult = await this.getFrameHtmlFromSrcdocParent(
+        wc,
+        frameMeta,
+        target,
+      );
+
+      if (srcdocResult?.ok) {
+        this.log(
+          action,
+          target,
+          wrapResult(action, startedAt, {
+            ok: true,
+            frameId: frameMeta.frameId,
+            selector: target.selector,
+            url: srcdocResult.url,
+            title: srcdocResult.title,
+          }),
+        );
+
+        return srcdocResult;
+      }
+
+      const message =
+        srcdocResult?.error?.message ?? (err as Error).message;
+
       const error = actionError("FRAME_SCRIPT_BLOCKED", message);
+
       this.log(
         action,
         target,
@@ -424,6 +647,7 @@ export class BrowserV57Core {
           error,
         }),
       );
+
       return {
         ok: false,
         frameId: frameMeta.frameId,
@@ -431,7 +655,11 @@ export class BrowserV57Core {
         title: frameMeta.title,
         selector: target.selector,
         capturedAt: new Date().toISOString(),
-        error: { code: "FRAME_SCRIPT_BLOCKED", message },
+        source: srcdocResult?.source,
+        error: {
+          code: "FRAME_SCRIPT_BLOCKED",
+          message,
+        },
       };
     }
   }
