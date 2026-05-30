@@ -13,7 +13,8 @@
     "crm.customer.open-ai-panel",
     "crm.quote.create-assist",
     "crm.order.risk-check",
-    "crm.page.snapshot-request"
+    "crm.page.snapshot-request",
+    "crm.page.ready"
   ],
   "routes": {
     "crm.context.submit": {
@@ -37,6 +38,11 @@
       "action": "open-web-operator-panel",
       "focusedPanel": "page-structure",
       "refreshSnapshot": true
+    },
+    "crm.page.ready": {
+      "action": "open-web-operator-panel",
+      "focusedPanel": "page-structure",
+      "refreshSnapshot": false
     }
   }
 }

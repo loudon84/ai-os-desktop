@@ -3,7 +3,8 @@ export type CrmBridgeEventType =
   | "crm.customer.open-ai-panel"
   | "crm.quote.create-assist"
   | "crm.order.risk-check"
-  | "crm.page.snapshot-request";
+  | "crm.page.snapshot-request"
+  | "crm.page.ready";
 
 export type CrmBridgeErrorCode =
   | "CRM_BRIDGE_DISABLED"
@@ -15,6 +16,8 @@ export type CrmBridgeErrorCode =
   | "WEB_OPERATOR_NOT_READY"
   | "ROUTE_NOT_FOUND"
   | "DUPLICATE_REQUEST"
+  | "COMMAND_ACK_TIMEOUT"
+  | "COMMAND_ACK_INVALID"
   | "UNKNOWN_ERROR";
 
 export interface CrmBridgeTrigger {
@@ -60,7 +63,10 @@ export type CrmDesktopCommandType =
   | "desktop.crm.focusField"
   | "desktop.crm.fillField"
   | "desktop.crm.scrollToSection"
-  | "desktop.crm.requestContext";
+  | "desktop.crm.requestContext"
+  | "desktop.crm.clickButton"
+  | "desktop.crm.runAction"
+  | "desktop.crm.pushJson";
 
 export interface CrmDesktopCommand {
   commandId: string;
@@ -70,9 +76,26 @@ export interface CrmDesktopCommand {
     fieldName?: string;
     entityId?: string;
     frameId?: string;
+    actionKey?: string;
   };
   payload?: Record<string, unknown>;
   createdAt: string;
+  /** true: wait for CRM JSSDK ack; false: fire-and-forget. */
+  expectAck?: boolean;
+  /** Default 8000ms when expectAck is true. */
+  timeoutMs?: number;
+}
+
+export interface CrmDesktopCommandAck {
+  commandId: string;
+  ok: boolean;
+  type: CrmDesktopCommandType;
+  action?: string;
+  message?: string;
+  data?: Record<string, unknown>;
+  errorCode?: string;
+  receivedAt: string;
+  completedAt: string;
 }
 
 export type CrmBridgeRouteAction =
@@ -120,4 +143,5 @@ export interface CrmBridgeOnEventPayload {
 export const CrmBridgeEvents = {
   ON_EVENT: "crm-bridge:on-event",
   COMMAND: "crm-bridge:command",
+  COMMAND_RESULT: "crm-bridge:command-result",
 } as const;

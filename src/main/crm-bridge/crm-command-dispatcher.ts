@@ -2,9 +2,11 @@ import { randomUUID } from "crypto";
 import type {
   CrmBridgeResult,
   CrmDesktopCommand,
+  CrmDesktopCommandType,
 } from "../../shared/crm-bridge/crm-bridge-contract";
 import { CrmBridgeEvents } from "../../shared/crm-bridge/crm-bridge-contract";
 import type { BrowserViewPort } from "../browser/browser-viewport";
+import { waitForCrmCommandResult } from "./crm-command-result-store";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,18 +33,33 @@ function normalizeCommand(raw: unknown): CrmDesktopCommand | null {
             typeof raw.target.entityId === "string" ? raw.target.entityId : undefined,
           frameId:
             typeof raw.target.frameId === "string" ? raw.target.frameId : undefined,
+          actionKey:
+            typeof raw.target.actionKey === "string" ? raw.target.actionKey : undefined,
         }
       : undefined,
     payload: isRecord(raw.payload) ? raw.payload : undefined,
     createdAt:
       typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
+    expectAck: typeof raw.expectAck === "boolean" ? raw.expectAck : undefined,
+    timeoutMs: typeof raw.timeoutMs === "number" ? raw.timeoutMs : undefined,
   };
 }
 
-export function dispatchCrmCommand(
+function shouldWaitForAck(command: CrmDesktopCommand): boolean {
+  if (command.expectAck === true) return true;
+  if (command.expectAck === false) return false;
+
+  return (
+    command.type === "desktop.crm.clickButton" ||
+    command.type === "desktop.crm.runAction" ||
+    command.type === "desktop.crm.pushJson"
+  );
+}
+
+export async function dispatchCrmCommand(
   commandInput: unknown,
   viewManager: BrowserViewPort,
-): CrmBridgeResult {
+): Promise<CrmBridgeResult & { data?: unknown }> {
   const command = normalizeCommand(commandInput);
   if (!command) {
     return {
@@ -65,12 +82,18 @@ export function dispatchCrmCommand(
 
   wc.send(CrmBridgeEvents.COMMAND, command);
 
-  return {
-    ok: true,
-    requestId: command.commandId,
-    action: "crm.command.sent",
-    message: "Command dispatched to CRM page",
-  };
-}
+  if (!shouldWaitForAck(command)) {
+    return {
+      ok: true,
+      requestId: command.commandId,
+      action: "crm.command.sent",
+      message: "Command dispatched to CRM page",
+    };
+  }
 
-// Keep validateCrmBridgeEventSchema import (command vs event mix-ups)
+  return waitForCrmCommandResult(
+    command.commandId,
+    command.type as CrmDesktopCommandType,
+    command.timeoutMs ?? 8000,
+  );
+}

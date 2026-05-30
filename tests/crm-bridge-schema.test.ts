@@ -34,5 +34,19 @@ describe("crm bridge schema", () => {
     const result = validateCrmBridgeEventSchema(raw);
     expect(result.ok).toBe(false);
   });
+
+  it("accepts crm.page.ready without user-click trigger", () => {
+    const raw = {
+      source: "crm-web",
+      sdkVersion: "0.3.0",
+      requestId: "req_ready",
+      type: "crm.page.ready",
+      page: { app: "crm", url: "https://crm.company.com/leads/1001" },
+      payload: { capabilities: ["pushJson", "runAction"] },
+    };
+    const result = validateCrmBridgeEventSchema(raw);
+    expect(result.ok).toBe(true);
+    expect(result.event?.type).toBe("crm.page.ready");
+  });
 });
 

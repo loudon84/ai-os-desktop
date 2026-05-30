@@ -348,12 +348,14 @@ Preload：`window.aiosBrowser`（`src/preload/browser-api.ts`）。Main：`src/m
 
 ---
 
-## CRM Desktop Bridge（V5.7.1）
+## CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge）
 
-CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src/preload/crm-bridge-preload.ts` 注入最小桥接 API：
+CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src/preload/crm-bridge-preload.ts` 注入最小桥接 API（`view-registry` 已为 `web-operator` 设置 `defaultPreload`）：
 
 - `window.CopilotDesktopCRM.emit(event)`：只允许在**真实用户点击**后的短时间窗口内提交（preload 本地校验），随后通过 IPC 进入 Main 二次校验。
+- `window.CopilotDesktopCRM.emitReady(event)`：**V5.7.6** — 页面 `crm.page.ready` 专用通道，**不**校验用户手势。
 - `crm-bridge:command`：Main 下发命令到 CRM 页面（preload 转发为 `window.postMessage`，由 CRM JSSDK 消费）。
+- **V5.7.6 handoff**：Hermes 工具 `crm.open_form_with_json` → 保存 pending handoff → 跳转 CRM URL → CRM `emitReady` → Main 自动 `pushJson` + `runAction` → JSSDK ack 回传工具结果。
 
 ### Main IPC（invoke）
 
@@ -362,7 +364,8 @@ CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src
 | `crm-bridge:emit` | `CrmBridgeEmitInput` | `CrmBridgeResult` |
 | `crm-bridge:list-events` | `limit?: number` | `CrmBridgeStoredEvent[]` |
 | `crm-bridge:get-last-event` | — | `CrmBridgeStoredEvent \| null` |
-| `crm-bridge:send-command` | `CrmDesktopCommand` | `CrmBridgeResult` |
+| `crm-bridge:send-command` | `CrmDesktopCommand` | `CrmBridgeResult & { data?: unknown }`（**V5.7.6** 可等待 ack） |
+| `crm-bridge:command-result` | `CrmDesktopCommandAck` | `CrmBridgeResult`（**V5.7.6** CRM JSSDK → preload → Main） |
 
 ### Main → Renderer event
 
@@ -374,9 +377,23 @@ CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src
 
 | Event | Payload |
 |-------|---------|
-| `crm-bridge:command` | `CrmDesktopCommand` |
+| `crm-bridge:command` | `CrmDesktopCommand`（含 `expectAck` / `timeoutMs` / `target.actionKey`） |
 
-**Shared DTO：** `src/shared/crm-bridge/*`。
+### Browser Tool Server（Hermes，`127.0.0.1:8765+`）
+
+**V5.7.6** 新增 CRM 工具（`BrowserToolBridge` + `browser-tool-schema.ts`）：
+
+| Tool | 说明 |
+|------|------|
+| `crm.get_context` | 返回最近一次 CRM bridge event |
+| `crm.click_button` | 派发 `desktop.crm.clickButton`（expectAck） |
+| `crm.run_action` | 派发 `desktop.crm.runAction`（expectAck） |
+| `crm.push_json` | 派发 `desktop.crm.pushJson`（expectAck） |
+| `crm.open_form_with_json` | 创建 handoff + 跳转 CRM URL，ready 后自动交付 |
+
+**Shared DTO：** `src/shared/crm-bridge/*`。**Main 模块：** `crm-handoff-store.ts`、`crm-handoff-orchestrator.ts`、`crm-command-result-store.ts`。
+
+**CRM JSSDK（页面侧）：** `resources/crm-bridge/hermes-crm-bridge-sdk.js`（全局 `window.CopilotCrm`）。
 
 **Renderer 路由（`open-renderer-route`）：** Main `routeAction.route` 由 `Layout.tsx` 解析为 `src/shared/crm-bridge/crm-renderer-routes.ts` 中的路径，并切换到 workspace `crm-workbench`（本地 React，非 Portal WebView）。当前路径：
 

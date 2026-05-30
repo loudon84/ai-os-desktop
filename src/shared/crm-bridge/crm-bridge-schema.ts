@@ -6,6 +6,7 @@ const ALLOWED_EVENT_TYPES = new Set<CrmBridgeEventType>([
   "crm.quote.create-assist",
   "crm.order.risk-check",
   "crm.page.snapshot-request",
+  "crm.page.ready",
 ]);
 
 const FORBIDDEN_PAYLOAD_KEYS = new Set([
@@ -65,12 +66,20 @@ export function validateCrmBridgeEventSchema(raw: unknown): CrmBridgeSchemaValid
     return { ok: false, message: "Invalid or missing event type" };
   }
 
-  if (!isRecord(raw.trigger) || raw.trigger.type !== "user-click") {
-    return { ok: false, message: "trigger.type must be user-click" };
-  }
+  const eventType = raw.type as CrmBridgeEventType;
+  const isPageReady = eventType === "crm.page.ready";
 
-  if (typeof raw.trigger.timestamp !== "string" || !raw.trigger.timestamp.trim()) {
-    return { ok: false, message: "trigger.timestamp is required" };
+  if (isPageReady) {
+    if (raw.trigger !== undefined && !isRecord(raw.trigger)) {
+      return { ok: false, message: "trigger must be an object when provided" };
+    }
+  } else {
+    if (!isRecord(raw.trigger) || raw.trigger.type !== "user-click") {
+      return { ok: false, message: "trigger.type must be user-click" };
+    }
+    if (typeof raw.trigger.timestamp !== "string" || !raw.trigger.timestamp.trim()) {
+      return { ok: false, message: "trigger.timestamp is required" };
+    }
   }
 
   if (!isRecord(raw.page) || raw.page.app !== "crm") {
@@ -90,17 +99,41 @@ export function validateCrmBridgeEventSchema(raw: unknown): CrmBridgeSchemaValid
     }
   }
 
+  const triggerTimestamp =
+    isRecord(raw.trigger) && typeof raw.trigger.timestamp === "string" && raw.trigger.timestamp.trim()
+      ? raw.trigger.timestamp
+      : new Date().toISOString();
+
   const event: CrmBridgeEvent = {
     source: "crm-web",
     sdkVersion: raw.sdkVersion,
     requestId: raw.requestId,
-    type: raw.type as CrmBridgeEventType,
-    trigger: {
-      type: "user-click",
-      elementId: typeof raw.trigger.elementId === "string" ? raw.trigger.elementId : undefined,
-      label: typeof raw.trigger.label === "string" ? raw.trigger.label : undefined,
-      timestamp: raw.trigger.timestamp,
-    },
+    type: eventType,
+    trigger: isPageReady
+      ? {
+          type: "user-click",
+          elementId:
+            isRecord(raw.trigger) && typeof raw.trigger.elementId === "string"
+              ? raw.trigger.elementId
+              : undefined,
+          label:
+            isRecord(raw.trigger) && typeof raw.trigger.label === "string"
+              ? raw.trigger.label
+              : undefined,
+          timestamp: triggerTimestamp,
+        }
+      : {
+          type: "user-click",
+          elementId:
+            isRecord(raw.trigger) && typeof raw.trigger.elementId === "string"
+              ? raw.trigger.elementId
+              : undefined,
+          label:
+            isRecord(raw.trigger) && typeof raw.trigger.label === "string"
+              ? raw.trigger.label
+              : undefined,
+          timestamp: triggerTimestamp,
+        },
     page: {
       app: "crm",
       entityType:

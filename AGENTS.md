@@ -230,14 +230,15 @@ browser.* back/forward/reload/getState/...
   → 同一 ShellBrowserViewAdapter WebContents（web-operator）
 ```
 
-### CRM Desktop Bridge（V5.7.1）
+### CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge）
 
 CRM 业务页面运行于 WebOperator WebContentsView 中，通过专用 preload `src/preload/crm-bridge-preload.ts` 建立**受控双向通道**：
 
 - CRM → Desktop：CRM JSSDK 在用户主动点击后提交 `CrmBridgeEvent`（preload 先校验用户手势；Main 再校验 origin / event type / payload size / requestId 去重），并可触发 Renderer 聚焦侧栏与刷新 snapshot。
-- Desktop → CRM：Renderer 通过 IPC 发送 `CrmDesktopCommand`，Main 转发到 WebOperator WebContents，由 preload 转为 `window.postMessage` 交由 CRM JSSDK 消费。
+- CRM → Desktop（ready）：**V5.7.6** `CopilotDesktopCRM.emitReady` / `crm.page.ready` 专用通道，不校验用户手势；Main `crm-handoff-orchestrator` 匹配 pending handoff 并自动 `pushJson` + `runAction`。
+- Desktop → CRM：Renderer 或 Hermes BrowserToolBridge 通过 IPC 发送 `CrmDesktopCommand`（含 expectAck），Main 转发到 WebOperator WebContents，由 preload 转为 `window.postMessage` 交由 CRM JSSDK 消费；JSSDK ack 经 `crm-bridge:command-result` 回传。
 
-入口模块：Main `src/main/crm-bridge/`；Shared DTO `src/shared/crm-bridge/`；SDK `packages/crm-desktop-jssdk/`；配置 `resources/crm-bridge/crm-bridge.config.json`（打包后位于 `process.resourcesPath`）。
+入口模块：Main `src/main/crm-bridge/`（含 handoff/command-result store）；Shared DTO `src/shared/crm-bridge/`；页面 SDK `resources/crm-bridge/hermes-crm-bridge-sdk.js`；配置 `resources/crm-bridge/crm-bridge.config.json`。
 
 ### Enterprise Install（V1.2.1）
 
@@ -516,6 +517,7 @@ npm run lint         # ESLint
 | **V5.6.4** | Hermes 多模型：`custom_providers` YAML 同步、session 级 Chat 模型、移除 Save as Default、发送不写 config | `prd/v5.6.4_hermes-chat.md`, `src/main/hermes-config/`, `hermes-session-model-store.ts` |
 | **V5.7** | **WebContentsView 浏览器核心**：Frame Tree、DOM Snapshot、iframe 元素定位/点击/输入、结构化动作日志；`browser:*` IPC；`PageStructurePanel` | `prd/v5.7_webcontentsview.md`, `src/main/browser/browser-v57-core.ts`, `screens/WebOperator/`, `docs/API_CONTRACTS.md` § Web Operator V5.7 |
 | **V5.7.5** | WebOperator `[分析内容]` → Hermes 任务流：`webOperatorTaskSession` IPC + `task_session` SQLite；`HermesTaskStartDialog`；iframe `pageUrl` 派生 | `prd/v5.7.5_hermes_integration.md`, `web-operator-task-session-*`, `HermesTaskPanel`, `components/hermes/` |
+| **V5.7.6** | **CRM Host Bridge**：handoff store + `crm.page.ready` 自动交付 + command ack；Hermes 工具 `crm.*`；JSSDK `hermes-crm-bridge-sdk.js`；`CrmEventPanel` 调试区 | `prd/v5.7.6_crm_host_bridge.md`, `crm-handoff-*`, `crm-command-result-store.ts`, `browser-tool-bridge.ts`, `CrmEventPanel.tsx` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

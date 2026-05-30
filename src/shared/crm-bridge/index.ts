@@ -7,6 +7,7 @@ export type {
   CrmBridgeResult,
   CrmDesktopCommandType,
   CrmDesktopCommand,
+  CrmDesktopCommandAck,
   CrmBridgeRouteAction,
   CrmBridgeRouteConfig,
   CrmBridgeRouteResult,

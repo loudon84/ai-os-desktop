@@ -1573,7 +1573,7 @@ app.whenReady().then(async () => {
 
       setupCrmBridge(controller, viewManager, mainWindow);
 
-      const toolBridge = new BrowserToolBridge(controller);
+      const toolBridge = new BrowserToolBridge(controller, viewManager);
       browserToolServer = new BrowserToolServer(toolBridge);
       browserToolServer.start().catch((err) => {
         console.error("[BROWSER] Tool server failed to start:", err);

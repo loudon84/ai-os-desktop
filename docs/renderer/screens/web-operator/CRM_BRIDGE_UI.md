@@ -26,6 +26,11 @@ Hook 返回：
 ```
 CrmEventPanel
   ├─ Header: "CRM Context" + Refresh + Copy + Send 按钮
+  ├─ CRM 调试区（V5.7.6）
+  │   ├─ actionKey / selector / jsonSchema / jsonPayload / targetUrl 输入
+  │   ├─ 测试点击按钮 / 测试推送 JSON / 测试运行动作
+  │   ├─ open_form_with_json 手工 payload（复制给 Hermes）
+  │   └─ Command result 展示
   ├─ 事件摘要
   │   ├─ type 标签（sky）
   │   ├─ origin
@@ -42,6 +47,9 @@ CrmEventPanel
 | **Refresh** | 调用 `refresh()` 重新获取最近事件 |
 | **Copy** | `navigator.clipboard.writeText(JSON.stringify(lastEvent))` |
 | **Send command** | 构造 `CrmDesktopCommand`（type: `"desktop.crm.showToast"`）→ `window.aiosBrowser.sendCrmCommand(command)` |
+| **测试点击按钮** | `desktop.crm.clickButton`（expectAck: true） |
+| **测试推送 JSON** | `desktop.crm.pushJson`（expectAck: true） |
+| **测试运行动作** | `desktop.crm.runAction`（expectAck: true） |
 | **Refresh snapshot** | 调用 `onRefreshSnapshot`（透传自 WebOperatorPanels → PageStructurePanel 刷新 snapshot） |
 
 ### 1.5 CrmDesktopCommand 构造

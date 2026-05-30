@@ -78,5 +78,68 @@ export const browserToolSchemas: BrowserToolSchema[] = [
       },
       required: ["selector"]
     }
+  },
+  {
+    name: "crm.get_context",
+    description: "Get the most recent CRM bridge event from the current WebOperator page.",
+    input_schema: { type: "object" }
+  },
+  {
+    name: "crm.click_button",
+    description: "Click a CRM page button by actionKey or selector fallback.",
+    input_schema: {
+      type: "object",
+      properties: {
+        actionKey: { type: "string", description: "Registered CRM action key" },
+        selector: { type: "string", description: "CSS selector fallback" },
+        entityId: { type: "string", description: "Optional entity id" },
+        payload: { type: "object", description: "Optional payload" }
+      }
+    }
+  },
+  {
+    name: "crm.run_action",
+    description: "Run a registered CRM action handler by actionKey.",
+    input_schema: {
+      type: "object",
+      properties: {
+        actionKey: { type: "string", description: "Registered CRM action key" },
+        entityId: { type: "string", description: "Optional entity id" },
+        payload: { type: "object", description: "Optional payload" }
+      },
+      required: ["actionKey"]
+    }
+  },
+  {
+    name: "crm.push_json",
+    description: "Push JSON handoff data to the current CRM page.",
+    input_schema: {
+      type: "object",
+      properties: {
+        schema: { type: "string", description: "Handoff schema name" },
+        entityType: { type: "string", description: "Optional entity type" },
+        entityId: { type: "string", description: "Optional entity id" },
+        handoffId: { type: "string", description: "Optional handoff id" },
+        data: { type: "object", description: "JSON payload" }
+      },
+      required: ["schema", "data"]
+    }
+  },
+  {
+    name: "crm.open_form_with_json",
+    description: "Navigate to CRM URL, deliver JSON on page ready, and open a form via actionKey.",
+    input_schema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Target CRM page URL" },
+        actionKey: { type: "string", description: "CRM action to open form" },
+        schema: { type: "string", description: "Handoff schema name" },
+        entityType: { type: "string", description: "Optional entity type" },
+        entityId: { type: "string", description: "Optional entity id" },
+        data: { type: "object", description: "JSON payload for form fill" },
+        ttlMs: { type: "number", description: "Handoff TTL in milliseconds" }
+      },
+      required: ["url", "actionKey", "schema", "data"]
+    }
   }
 ];

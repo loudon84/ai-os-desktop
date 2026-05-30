@@ -5,7 +5,12 @@ export type CrmBridgeAuditAction =
   | "crm.event.rejected"
   | "crm.event.routed"
   | "crm.command.sent"
-  | "crm.command.failed";
+  | "crm.command.completed"
+  | "crm.command.failed"
+  | "crm.handoff.ready"
+  | "crm.handoff.none"
+  | "crm.handoff.delivered"
+  | "crm.handoff.failed";
 
 export type CrmBridgeAuditStatus = "success" | "failed" | "blocked";
 

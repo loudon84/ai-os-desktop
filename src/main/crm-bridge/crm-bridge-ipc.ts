@@ -3,6 +3,7 @@ import type {
   CrmBridgeOnEventPayload,
   CrmBridgeResult,
   CrmBridgeStoredEvent,
+  CrmDesktopCommandAck,
 } from "../../shared/crm-bridge/crm-bridge-contract";
 import { CrmBridgeEvents } from "../../shared/crm-bridge/crm-bridge-contract";
 import type { ValidateCrmBridgeEventSuccess } from "./crm-bridge-security";
@@ -11,8 +12,30 @@ import type { BrowserViewPort } from "../browser/browser-viewport";
 import { validateCrmBridgeEvent } from "./crm-bridge-security";
 import { routeCrmBridgeEvent } from "./crm-event-router";
 import { dispatchCrmCommand } from "./crm-command-dispatcher";
+import { resolveCrmCommandResult } from "./crm-command-result-store";
+import { handleCrmPageReadyForHandoff } from "./crm-handoff-orchestrator";
 import { insertCrmBridgeEvent, listCrmBridgeEvents, getLastCrmBridgeEvent } from "./crm-event-store";
 import { logCrmBridgeAudit } from "./crm-bridge-audit";
+import type { CrmBridgeAuditAction } from "../../shared/crm-bridge/crm-bridge-errors";
+
+function toHandoffAuditAction(action?: string, ok?: boolean): CrmBridgeAuditAction {
+  if (action === "crm.handoff.none") return "crm.handoff.none";
+  if (action === "crm.handoff.delivered") return "crm.handoff.delivered";
+  if (action === "crm.handoff.failed") return "crm.handoff.failed";
+  return ok ? "crm.handoff.delivered" : "crm.handoff.failed";
+}
+
+function isValidCommandAck(raw: unknown): raw is CrmDesktopCommandAck {
+  if (!raw || typeof raw !== "object") return false;
+  const ack = raw as CrmDesktopCommandAck;
+  return (
+    typeof ack.commandId === "string" &&
+    typeof ack.ok === "boolean" &&
+    typeof ack.type === "string" &&
+    typeof ack.receivedAt === "string" &&
+    typeof ack.completedAt === "string"
+  );
+}
 
 export class CrmBridgeIPC {
   private registered = false;
@@ -104,6 +127,22 @@ export class CrmBridgeIPC {
         mainWindow.webContents.send(CrmBridgeEvents.ON_EVENT, payload);
       }
 
+      if (bridgeEvent.type === "crm.page.ready") {
+        void handleCrmPageReadyForHandoff({
+          readyEvent: stored,
+          viewManager: this.viewManager,
+        }).then((handoffResult) => {
+          logCrmBridgeAudit({
+            requestId: handoffResult.requestId,
+            eventType: bridgeEvent.type,
+            action: toHandoffAuditAction(handoffResult.action, handoffResult.ok),
+            status: handoffResult.ok ? "success" : "failed",
+            errorCode: handoffResult.errorCode,
+            message: handoffResult.message,
+          });
+        });
+      }
+
       return {
         ok: routeAction.ok,
         requestId: bridgeEvent.requestId,
@@ -121,15 +160,40 @@ export class CrmBridgeIPC {
     });
 
     ipcMain.handle("crm-bridge:send-command", async (_event, command) => {
-      const result = dispatchCrmCommand(command, this.viewManager);
+      const result = await dispatchCrmCommand(command, this.viewManager);
       logCrmBridgeAudit({
         requestId: result.requestId,
-        action: result.ok ? "crm.command.sent" : "crm.command.failed",
+        action: result.ok ? "crm.command.completed" : "crm.command.failed",
         status: result.ok ? "success" : "failed",
         errorCode: result.errorCode,
         message: result.message,
       });
       return result;
+    });
+
+    ipcMain.handle("crm-bridge:command-result", async (event, ack) => {
+      const wc = this.viewManager.getExternalWebContents();
+
+      if (!wc || wc.isDestroyed() || wc.id !== event.sender.id) {
+        return {
+          ok: false,
+          requestId: isValidCommandAck(ack) ? ack.commandId : "",
+          errorCode: "ORIGIN_NOT_ALLOWED",
+          message: "CRM command result sender is not active WebOperator view",
+        } satisfies CrmBridgeResult;
+      }
+
+      if (!isValidCommandAck(ack)) {
+        return {
+          ok: false,
+          requestId: "",
+          errorCode: "COMMAND_ACK_INVALID",
+          message: "Invalid CRM command ack",
+        } satisfies CrmBridgeResult;
+      }
+
+      resolveCrmCommandResult(ack);
+      return { ok: true, requestId: ack.commandId } satisfies CrmBridgeResult;
     });
 
     this.registered = true;
@@ -142,6 +206,7 @@ export class CrmBridgeIPC {
       "crm-bridge:list-events",
       "crm-bridge:get-last-event",
       "crm-bridge:send-command",
+      "crm-bridge:command-result",
     ];
     for (const ch of channels) {
       ipcMain.removeHandler(ch);
