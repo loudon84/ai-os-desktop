@@ -684,144 +684,22 @@
 - **远程预设**: Groq, DeepSeek, Together, Fireworks, Cerebras, Mistral
 - **Gateway 平台**: Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email, SMS, BlueBubbles, 钉钉, 飞书, 企微, 微信, Webhooks, HomeAssistant
 
-### screens/ — 页面组件
+### Renderer 子模块文档入口
 
-| 页面 | 文件 | 职责 |
+Renderer 详细文档已拆分到 [`docs/renderer/`](renderer/INDEX.md)，包括 Screens、组件族、Workspace 路由、Hooks 等。
+
+| 模块 | 文档 | 说明 |
 |---|---|---|
-| SplashScreen | screens/SplashScreen/SplashScreen.tsx | 启动品牌动画 |
-| Welcome | screens/Welcome/Welcome.tsx | 首次使用引导 |
-| Install | screens/Install/Install.tsx | 安装流程+进度（含 AgentSourceSelect） |
-| Setup | screens/Setup/Setup.tsx | API Key 配置向导 |
-| Layout | screens/Layout/Layout.tsx | **V2.2** 编排：`useExternalBrowserTabs`、`tabOrder`、`secondaryPanel` 状态；**不** import `DesktopSidebar` |
-| **MainPage** | **screens/MainPage/MainPage.tsx** | **V2.0** 一级桌面壳：TopBar + 条件 `DesktopSidebar` + Outlet + StatusBar + Modal/Drawer |
-| **MainTopBar** | **screens/MainPage/MainTopBar.tsx** | **V2.2** 顶栏：侧栏切换（仅 web-operator/office）、Tabs、external tab、Reload/Close、`WindowControls` |
-| **main-page-tabs.ts** | **screens/MainPage/main-page-tabs.ts** | **V2.1+** `buildMainWorkspaceTabs` / `isWorkspaceTabView`（含 external） |
-| **tab-order.ts** | **screens/MainPage/tab-order.ts** | **V3.2.1** `sortTabsByOrder` / `isDraggableTabId`；`FIXED_TAB_IDS` 由 registry `!draggable` 导出 |
-| **useExternalBrowserTabs.ts** | **screens/MainPage/useExternalBrowserTabs.ts** | **V3.2.1** external tab CRUD；`shellView.create` 传 `partition: externalBrowserPartition(id)` |
-| **MainViewTabs** | **screens/MainPage/MainViewTabs.tsx** | **V3.2.1** 固定 Tab = `resolveWorkspaceModule` 且 `!draggable`；可拖仅 `external-browser:*`（`@dnd-kit`） |
-| **MainProfileSwitch** | **screens/MainPage/MainProfileSwitch.tsx** | **V2.0** 当前 Profile + `ProfileSwitcherDropdown` |
-| **MainRuntimeIndicator** | **screens/MainPage/MainRuntimeIndicator.tsx** | **V2.0** 当前 Profile Gateway 状态（轮询 `profileRuntime.getRuntimeStatus()`） |
-| **RuntimeSetup** | **screens/RuntimeSetup/RuntimeSetupScreen.tsx** | **运行时诊断 + V1.4 NSIS Installer Precheck 卡片** |
-| Chat | screens/Chat/Chat.tsx | 消息输入/流式输出/工具进度/Usage |
-| Sessions | screens/Sessions/Sessions.tsx | 会话历史浏览/搜索 |
-| Agents | screens/Agents/Agents.tsx | 配置档案管理 |
-| Office | screens/Office/Office.tsx | Claw3D WebView |
-| Models | screens/Models/Models.tsx | 模型 CRUD |
-| Providers | screens/Providers/Providers.tsx | API 密钥/凭证池 |
-| Skills | screens/Skills/Skills.tsx | 技能浏览/安装/卸载 |
-| Soul | screens/Soul/Soul.tsx | SOUL.md 编辑器 |
-| Memory | screens/Memory/Memory.tsx | 记忆条目管理 |
-| Tools | screens/Tools/Tools.tsx | 工具集开关 |
-| Schedules | screens/Schedules/Schedules.tsx | Cron Job 管理 |
-| Gateway | screens/Gateway/Gateway.tsx | 16 个消息平台配置 |
-| WebOperator | screens/WebOperator/WebOperatorScreen.tsx | **V2.1** 三栏；**V5.7.5** `WebOperatorScreenInner` + 任务对话框时 `WebContentsHost enabled=false` |
-| **HermesTaskPanel** | **screens/WebOperator/HermesTaskPanel.tsx** | **V5.7.5** 任务流编排、`WebOperatorHermesChatPanel`、resolve/upsert task session |
-| **HermesTaskStartDialog** | **screens/WebOperator/HermesTaskStartDialog.tsx** | **V5.7.5** 分析前确认（仅【取消】【确认分析】关闭） |
-| **WebOperatorTaskStartDialogHost** | **screens/WebOperator/WebOperatorTaskStartDialogHost.tsx** | **V5.7.5** `createPortal` 全屏对话框宿主 |
-| **PageStructurePanel** | **screens/WebOperator/PageStructurePanel.tsx** | **V5.7** Frame 树 + `[分析内容]` 入口 |
-| **WebOperatorPageContext** | **screens/WebOperator/context/** | **V5.7.5** `globalThis` 单例 Context；`build-page-context.ts`、`derive-page-url.ts` |
-| **web-operator-constants.ts** | **screens/WebOperator/web-operator-constants.ts** | **V2.1** `WEB_OPERATOR_LAYER_ID` |
-| **BrowserToolbar** | **screens/WebOperator/BrowserToolbar.tsx** | **V2.1+** 单行地址栏；`aiosBrowser.open`（V2.2 经 adapter 单轨） |
-| **use-browser-actions.ts** | **screens/WebOperator/hooks/use-browser-actions.ts** | **V2.2** 薄封装 `window.aiosBrowser.*` |
-| **web-operator.css** | **screens/WebOperator/web-operator.css** | **V2.1** 布局 + `browser-toolbar*` 单行 chrome |
-| Settings | screens/Settings/Settings.tsx | 主题/语言/连接/更新/备份/诊断 |
-| **ProfileRuntime** | **screens/ProfileRuntime/ProfileRuntimeScreen.tsx** | **V1.1+V1.2 Profile Runtime 管理面板（Profile 列表/运行状态/启停控制/配置导入/日志查看/错误提示）** |
-| **LogViewer** | **screens/ProfileRuntime/LogViewer.tsx** | **V1.2 新增: Gateway 日志查看面板（实时/历史/级别过滤/自动滚动）** |
-| **AIOSHome** | **screens/AIOSHome/AIOSHomeScreen.tsx** | **Portal 首页（`WebContentsHost` layer `aios-home`、运行状态条）** |
-| **Workspaces** | **screens/Workspaces/index.tsx** | **V3.6.2** 三栏工作台入口（`WorkspacesScreen` → `WorkspacesShell`） |
-| **WorkspacesShell** | **screens/Workspaces/panels/WorkspacesShell.tsx** | 顶栏 `WorkspaceStatusCards` + 左 `WorkspacesSidebar`（可折叠）+ 中 `registry/workspace-pages` + 右 `WorkspaceRightPanel`（Inspector 四 tab） |
-| **WorkspacesSidebar** | **screens/Workspaces/components/WorkspacesSidebar.tsx** | 8 项导航（232px，lucide-react 图标，active 高亮） |
-| **ChatPanel** | **screens/Workspaces/panels/ChatPanel.tsx** | **V3.2** 侧栏内嵌聊天（`hermesAPI.sendMessage` + 流式） |
-| **pages/\*** | **screens/Workspaces/pages/\*/** | 从 hermes-desktop 克隆的子页面（Chat/Sessions/Skills/Tools/Memory/Providers/Models/Settings） |
-| **SettingsDrawer** | **screens/SettingsDrawer/SettingsDrawer.tsx** | **V3.2** 统一设置抽屉（Account / Runtime / Profiles / Config sync） |
-| **HermesRuntimePanel** | **screens/SettingsDrawer/HermesRuntimePanel.tsx** | **V3.2** Runtime 运维唯一 UI（Gateway / Profile Runtime） |
-| **ProfileWorkspace** | **screens/ProfileWorkspace/ProfileWorkspaceScreen.tsx** | **V1.1 specialist 独立工作台（独立 chat/skills/context/audit）** |
-
-### renderer/workspace/ — V3.2 Workspace 路由（V3.2.1 加固）
-
-| 模块 | 文件 | 职责 |
-|---|---|---|
-| workspace-registry | `workspace/workspace-registry.ts` | 4 静态 Workspace 元数据（`kind` / `draggable` / `shellLayerId`）；`web-operator`/`office` **不可拖** |
-| workspace-tabs | `workspace/workspace-tabs.ts` | `buildWorkspaceTabs`；`isWorkspaceTabView` 复用 `isStaticWorkspaceId` |
-| has-global-secondary-nav | `workspace/has-global-secondary-nav.ts` | `hasGlobalSecondaryNav(view)`：是否渲染全局 `DesktopSidebar` |
-| resolve-workspace | `workspace/resolve-workspace.ts` | View → Shell layerId |
-| WorkspaceRenderer | `components/workspace/WorkspaceRenderer.tsx` | **V3.2.1** `switch (module.kind)`；external → `WebViewWorkspace` |
-
-### shared/workspace/ — V3.2 契约
-
-| 模块 | 文件 | 职责 |
-|---|---|---|
-| workspace-contract | `shared/workspace/workspace-contract.ts` | `WorkspaceModule`、`WorkspaceSecondaryPanel` 类型 |
-| workspace-secondary-nav | `shared/workspace/workspace-secondary-nav.ts` | 各 Workspace 二级 panel 列表与 i18n key（`navigation.*`） |
-
-### shared/shell/ — V3.2.1 分区
-
-| 模块 | 文件 | 职责 |
-|---|---|---|
-| browser-partitions | `shared/shell/browser-partitions.ts` | `AIOS_HOME_PARTITION`、`WEB_OPERATOR_PARTITION`、`externalBrowserPartition()` |
-
-### components/hermes/ — V5.7.4+ WebOperator Hermes 侧栏
-
-| 模块 | 文件 | 职责 |
-|---|---|---|
-| WebOperatorHermesChatPanel | `components/hermes/panel/WebOperatorHermesChatPanel.tsx` | 侧栏聊天 UI（draft / task 模式） |
-| useWebOperatorHermesPanelChat | `components/hermes/hooks/useWebOperatorHermesPanelChat.ts` | 流式聊天、附件注入、任务自动首条发送 |
-| hermesPanelApi | `components/hermes/api/hermesPanelApi.ts` | 薄封装 `window.hermesDefaultChat`（面板用 `draft_weboperator`） |
-| inject-web-context-attachments | `components/hermes/lib/inject-web-context-attachments.ts` | 首轮上传 `web-context/*` buffer 附件 |
-| build-task-first-message | `components/hermes/lib/build-task-first-message.ts` | 任务模式首条 message 正文模板 |
-
-### components/ — 共享组件
-
-| 组件 | 文件 | 职责 |
-|---|---|---|
-| AgentMarkdown | components/AgentMarkdown.tsx | Markdown 渲染(代码高亮) |
-| ErrorBoundary | components/ErrorBoundary.tsx | React 错误边界 |
-| I18nProvider | components/I18nProvider.tsx | i18n Provider |
-| ThemeProvider | components/ThemeProvider.tsx | 主题 Provider(系统/亮/暗) |
-| RemoteNotice | components/RemoteNotice.tsx | 远程模式提示横幅 |
-| Versions | components/Versions.tsx | 版本信息展示 |
-| HermesLogo | components/common/HermesLogo.tsx | Logo 组件 |
-| AiOsWebAppHost | components/aios/AiOsWebAppHost.tsx | **@deprecated V1.9** Portal Web 应用宿主，由 WebContentsHost 替换 |
-| WebContentsHost | components/shell/WebContentsHost.tsx | **V1.9** 通用 View 承载组件（activate+ResizeObserver+setBounds+卸载hide+错误降级） |
-| PipMirrorFields | components/install/PipMirrorFields.tsx | V1.4.1 PyPI 镜像选择字段 |
-| InstallWizard | components/install-wizard/install-wizard.tsx | 安装向导组件 |
-| RuntimeGuard | components/runtime/RuntimeGuard.tsx | **V3.2.1** Portal Home 未就绪时：启动 Gateway +「打开设置」（`openSettingsDrawer("runtime")`） |
-| ProfileSwitcherDropdown | components/dropdowns/ProfileSwitcherDropdown.tsx | Profile 切换；**V3.2.1** `manageSettings` / `createProfile` i18n |
-| RuntimeStatusBar | components/runtime/RuntimeStatusBar.tsx | 运行时状态栏 |
-
-### components/layout/ — V2.0 Desktop Shell（二级导航与 Outlet）
-
-| 组件 | 文件 | 职责 |
-|---|---|---|
-| DesktopSidebar | components/layout/DesktopSidebar.tsx | **V2.1** 全局二级导航（web-operator/office）；由 **MainPage** 条件挂载，非 Layout |
-| WorkspaceOutlet | components/layout/WorkspaceOutlet.tsx | **V3.2** 委托 `WorkspaceRenderer`（按 `view` + `secondaryPanel` 渲染 Workspace） |
-| WindowControls | components/layout/WindowControls.tsx | Win/Linux 窗口按钮；**V2.0** 主界面挂于 `MainTopBar`；调用 `hermesAPI.windowControls`；macOS 返回 null |
-| StatusBar | components/layout/StatusBar.tsx | 底栏 24px：profile、连接模式、更新状态 |
-| ModalLayer | components/layout/ModalLayer.tsx | 全局 Modal 挂载点（占位） |
-| DrawerLayer | components/layout/DrawerLayer.tsx | 全局 Drawer 挂载点（占位） |
-| DesktopShell | components/layout/DesktopShell.tsx | **@legacy V1.4** 旧壳：sidebar + header + outlet；主链路已由 `MainPage` 替代，文件保留 |
-| PageHeader | components/layout/PageHeader.tsx | **@legacy V1.4** 全局页头（标题 + profile）；已从 `Layout` 移除，可供单页局部复用 |
-
-**V2.0 主界面组合关系**（PRD `prd/v2.0_mainpage.md`）：
-
-```
-Layout → MainPage（props）→ MainTopBar + [DesktopSidebar 若 hasGlobalSecondaryNav] + WorkspaceOutlet + StatusBar
-```
-
-### hooks/ — V1.4 从 Layout 抽离（V2.0 仍由 Layout 调用）
-
-| Hook | 文件 | 职责 |
-|---|---|---|
-| useDesktopNavigation | hooks/useDesktopNavigation.ts | view 状态、菜单事件、会话恢复、office lazy 标记 |
-| useUpdateState | hooks/useUpdateState.ts | 自动更新事件与下载进度 |
-| useRemoteMode | hooks/useRemoteMode.ts | 远程模式检测（随 view 刷新） |
-| useProfileEntries | hooks/useProfileEntries.ts | profileEntry 列表加载 |
-
-### types/ — V1.4 桌面壳类型
-
-| 文件 | 职责 |
-|---|---|
-| types/desktop-shell.ts | `View`、`NavItem`、`UpdateState`、`resolveViewTitleKey()` |
+| Screens | [`docs/renderer/screens/INDEX.md`](renderer/screens/INDEX.md) | 所有 Screen 页面（active / retained 标注） |
+| 组件族 | [`docs/renderer/components/INDEX.md`](renderer/components/INDEX.md) | layout / shell / hermes / workspace / install |
+| Workspace | [`docs/renderer/workspace/INDEX.md`](renderer/workspace/INDEX.md) | registry / renderer / secondary-nav |
+| Hooks | [`docs/renderer/HOOKS.md`](renderer/HOOKS.md) | 7 个 hooks 职责 |
+| 启动门控 | [`docs/renderer/APP_STARTUP.md`](renderer/APP_STARTUP.md) | App 路由 + useStartupGate |
+| 主布局 | [`docs/renderer/MAIN_LAYOUT.md`](renderer/MAIN_LAYOUT.md) | Layout / MainPage / MainTopBar |
+| Workspace 路由 | [`docs/renderer/WORKSPACE_ROUTING.md`](renderer/WORKSPACE_ROUTING.md) | WorkspaceRenderer / kind 分发 |
+| 状态与 Context | [`docs/renderer/STATE_AND_CONTEXT.md`](renderer/STATE_AND_CONTEXT.md) | 全局 UI 状态、KeepAlive、持久化 |
+| Preload API | [`docs/renderer/PRELOAD_API_USAGE.md`](renderer/PRELOAD_API_USAGE.md) | Renderer 可用 `window.*` 边界 |
+| 样式 | [`docs/renderer/STYLES.md`](renderer/STYLES.md) | CSS 策略 + 布局常量 |
 
 ---
 

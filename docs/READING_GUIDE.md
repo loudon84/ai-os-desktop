@@ -63,14 +63,18 @@
 
 ### 第六阶段：理解 UI 层
 
-39. `src/renderer/src/App.tsx` — 根组件（屏幕路由 + `useStartupGate`）
-40. `src/renderer/src/hooks/useStartupGate.ts` — splash → login → … 启动门控
-41. `src/renderer/src/constants.ts` — 常量定义
-42. `src/renderer/src/screens/Layout/Layout.tsx` — 主布局（MainPage 编排）
-43. `src/renderer/src/modules/auth/LoginScreen.tsx` — V3.3 登录 + bootstrap
-44. `src/renderer/src/screens/Chat/Chat.tsx` — 聊天页（最核心 UI）
-45. `src/renderer/src/components/layout/` — Desktop Shell 组件族
-46. 其他 screens/ 按需阅读
+Renderer 文档已拆分到 `docs/renderer/`，按需阅读：
+
+39. [`docs/renderer/INDEX.md`](renderer/INDEX.md) — Renderer 总入口
+40. [`docs/renderer/APP_STARTUP.md`](renderer/APP_STARTUP.md) — 启动门控与屏幕路由
+41. [`docs/renderer/MAIN_LAYOUT.md`](renderer/MAIN_LAYOUT.md) — Layout / MainPage / MainTopBar / WorkspaceOutlet
+42. [`docs/renderer/WORKSPACE_ROUTING.md`](renderer/WORKSPACE_ROUTING.md) — workspace-registry / WorkspaceRenderer 分发
+43. [`docs/renderer/STATE_AND_CONTEXT.md`](renderer/STATE_AND_CONTEXT.md) — 全局 UI 状态与 Context
+44. [`docs/renderer/PRELOAD_API_USAGE.md`](renderer/PRELOAD_API_USAGE.md) — Preload API 使用边界
+45. [`docs/renderer/screens/INDEX.md`](renderer/screens/INDEX.md) — Screens 索引（按 active/retained 分类）
+46. [`docs/renderer/components/INDEX.md`](renderer/components/INDEX.md) — 组件族索引
+
+需深入特定 Screen 时，阅读 `docs/renderer/screens/<Screen>.md`；WebOperator 额外有 `docs/renderer/screens/web-operator/` 子文档。
 
 ### 第七阶段：理解共享模块
 

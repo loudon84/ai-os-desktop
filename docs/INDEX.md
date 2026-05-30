@@ -185,6 +185,20 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `build/` | 构建资源（**installer.nsh**、**nsis/Include/RuntimePrecheck.nsh**、**VCRuntimeCheck.nsh**、**winget/**、**`scripts/deploy-copilot-serve.ps1`**） | NSIS / 运维部署脚本 |
 | `docs/` | 项目文档 | 按需更新 |
 
+## Renderer 文档
+
+Renderer 详细文档已拆分到 `docs/renderer/` 目录，按 `src/renderer/src` 功能边界组织：
+
+- [`docs/renderer/INDEX.md`](renderer/INDEX.md) — Renderer 总入口（顶层结构、启动链路、Workspace 模块）
+- [`docs/renderer/APP_STARTUP.md`](renderer/APP_STARTUP.md) — 启动门控与 App 路由（splash → login → … → main）
+- [`docs/renderer/MAIN_LAYOUT.md`](renderer/MAIN_LAYOUT.md) — MainPage / Layout / MainTopBar / WorkspaceOutlet
+- [`docs/renderer/WORKSPACE_ROUTING.md`](renderer/WORKSPACE_ROUTING.md) — WorkspaceRenderer / workspace-registry / kind 分发
+- [`docs/renderer/STATE_AND_CONTEXT.md`](renderer/STATE_AND_CONTEXT.md) — 全局 UI 状态、Context、KeepAlive、持久化
+- [`docs/renderer/PRELOAD_API_USAGE.md`](renderer/PRELOAD_API_USAGE.md) — Renderer 可用 `window.*` API 使用边界
+- [`docs/renderer/screens/INDEX.md`](renderer/screens/INDEX.md) — Screens 模块索引（active / retained 标注）
+- [`docs/renderer/components/INDEX.md`](renderer/components/INDEX.md) — 组件族索引
+- [`docs/renderer/workspace/INDEX.md`](renderer/workspace/INDEX.md) — Workspace 文档索引
+
 ## 开发前必须阅读
 
 1. docs/ARCHITECTURE.md — 架构总览与进程模型

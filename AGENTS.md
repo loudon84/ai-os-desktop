@@ -56,7 +56,8 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `resources/profiles/` | Profile 模板 + SOUL.md | Profile 种子配置 |
 | `resources/skills/` | 内置技能包 | 新技能 |
 | `tests/` | Vitest | 单测/集成测 |
-| `docs/` | 架构与契约文档 | 随功能更新契约 |
+| `docs/` | 架构、契约、Renderer 专项文档（见「文档体系」） | 随功能更新；见 `.cursor/rules/007-sync-project-docs.mdc` |
+| `prd/` | 版本 PRD（V2.x MainPage、V5.x Hermes/WebOperator 等） | 对应里程碑任务 |
 
 ## Preload 暴露的全局 API
 
@@ -351,19 +352,15 @@ AgentSourceSelect / install-wizard
 
 ### 功能/计划完成后：同步文档
 
-代码计划全部阶段完成或功能实现收尾时，执行 skill **`.agents/skills/sync-project-docs/SKILL.md`**（rule：`.cursor/rules/007-sync-project-docs.mdc`）：
+代码计划全部阶段完成或功能实现收尾时，**必须**执行 rule [`.cursor/rules/007-sync-project-docs.mdc`](.cursor/rules/007-sync-project-docs.mdc) 与 skill [`.agents/skills/sync-project-docs/SKILL.md`](.agents/skills/sync-project-docs/SKILL.md)：
 
-1. `git diff` 收集本次变更，分类影响（IPC / Preload / 路由 / 模块 / 版本）
-2. 按 skill 内 `doc-map.md` **增量**更新（仅改相关段落）：
-   - `AGENTS.md`
-   - `docs/INDEX.md`
-   - `docs/READING_GUIDE.md`
-   - `docs/ARCHITECTURE.md`
-   - `docs/API_CONTRACTS.md`
-3. 自检：文件路径存在、IPC channel 与源码一致、版本号与 INDEX 对齐
-4. 输出「文档同步摘要」后再宣告任务完成
+1. `git --no-pager diff --stat` / `--name-only` 收集变更
+2. 按 skill 内 [`doc-map.md`](.agents/skills/sync-project-docs/doc-map.md) 分类（IPC / Preload / 路由 / Screen / 版本）
+3. **增量**更新相关文档（见 rule 完整清单）；Renderer 变更时同步 `docs/renderer/` 对应页
+4. 自检：路径存在、IPC 与源码一致、`AGENTS.md` 与 `docs/INDEX.md` 版本行对齐
+5. 输出「文档同步摘要」后再宣告任务完成
 
-**跳过**：仅 typo/注释/格式化；用户明确说不要改文档。
+**跳过**：仅 typo/注释/格式化；用户明确说「不要改文档」。
 
 ## 技术栈与命令
 
@@ -410,13 +407,56 @@ npm run lint         # ESLint
 | Session 分区 | `shared/shell/browser-partitions.ts`, `shell/views/view-registry.ts` | 三分区策略常量与注册 |
 | Portal Runtime | `aios/aios-*.ts`, `runtime/portal-root-resolver.ts` | Portal frontend/backend 启停、Doctor、monorepo 路径解析 |
 
+## 文档体系
+
+> 完整索引见 [`docs/INDEX.md`](docs/INDEX.md)。功能收尾后按 [007-sync-project-docs](.cursor/rules/007-sync-project-docs.mdc) 增量同步。
+
+### 核心文档（Main / Preload / 契约）
+
+| 路径 | 作用 | 何时读 |
+|---|---|---|
+| [`docs/INDEX.md`](docs/INDEX.md) | 项目定位、版本特性、核心目录、Renderer 入口 | **每次**或首次 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 三层进程、Gateway、主界面布局演进 | 改架构 / 进程边界 |
+| [`docs/MODULES.md`](docs/MODULES.md) | Main / Preload / Renderer 模块职责 | 改模块边界（**007 rule 不自动同步**，需用户要求或边界变更时手动更新） |
+| [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) | IPC 完整契约（单一事实源） | 新/改 IPC channel |
+| [`docs/READING_GUIDE.md`](docs/READING_GUIDE.md) | 分阶段阅读顺序 + 功能域阅读链 | onboarding / 定位入口 |
+| [`docs/DO-NOT-TOUCH.md`](docs/DO-NOT-TOUCH.md) | 禁止擅自修改的核心文件 | 动 preload / hermes / i18n 前 |
+
+### Renderer 专项（`docs/renderer/`）
+
+| 路径 | 作用 |
+|---|---|
+| [`docs/renderer/INDEX.md`](docs/renderer/INDEX.md) | Renderer 总入口、Workspace 启用状态、分发逻辑 |
+| [`APP_STARTUP.md`](docs/renderer/APP_STARTUP.md) | splash → login → main 启动门控 |
+| [`MAIN_LAYOUT.md`](docs/renderer/MAIN_LAYOUT.md) | Layout / MainPage / MainTopBar / WorkspaceOutlet |
+| [`WORKSPACE_ROUTING.md`](docs/renderer/WORKSPACE_ROUTING.md) | workspace-registry / WorkspaceRenderer |
+| [`STATE_AND_CONTEXT.md`](docs/renderer/STATE_AND_CONTEXT.md) | mainPageState、Context、KeepAlive |
+| [`PRELOAD_API_USAGE.md`](docs/renderer/PRELOAD_API_USAGE.md) | Renderer 侧 `window.*` 使用边界 |
+| [`COMPONENTS.md`](docs/renderer/COMPONENTS.md) / [`HOOKS.md`](docs/renderer/HOOKS.md) / [`STYLES.md`](docs/renderer/STYLES.md) | 组件族 / Hooks / 样式策略 |
+| [`screens/INDEX.md`](docs/renderer/screens/INDEX.md) | Screen active/retained 分类 + 各 Screen 详情页 |
+| [`screens/web-operator/`](docs/renderer/screens/web-operator/) | WebOperator 子域（Page Context、Hermes Task、CRM Bridge 等） |
+| [`components/INDEX.md`](docs/renderer/components/INDEX.md) | layout / shell / hermes / workspace / install 组件族 |
+| [`workspace/INDEX.md`](docs/renderer/workspace/INDEX.md) | registry、secondary-nav、WorkspaceRenderer |
+
+### 辅助与历史
+
+| 路径 | 作用 |
+|---|---|
+| [`docs/code-assets/`](docs/code-assets/) | API / 组件 / 模式索引（辅助检索） |
+| [`docs/memory-bank/`](docs/memory-bank/) | 架构决策、踩坑、项目摘要 |
+| [`docs/specs/ui-spec-template.md`](docs/specs/ui-spec-template.md) | UI spec 模板 |
+| [`docs/superpowers/`](docs/superpowers/) | 发布/平台专项计划与 design spec |
+| [`prd/`](prd/) | 产品需求（与版本特性索引对齐） |
+
 ## 深入阅读顺序
 
-1. `docs/ARCHITECTURE.md` — 进程模型与 Gateway
-2. `docs/MODULES.md` — 模块边界
-3. `docs/API_CONTRACTS.md` — IPC 完整契约
-4. `docs/READING_GUIDE.md` — 按功能阅读路径
-5. `src/preload/index.ts` + `src/main/index.ts` — 通信全貌
+1. `docs/INDEX.md` — 项目全景与版本特性
+2. `docs/ARCHITECTURE.md` — 进程模型与 Gateway
+3. `docs/MODULES.md` — 模块边界
+4. `docs/API_CONTRACTS.md` — IPC 完整契约
+5. `docs/READING_GUIDE.md` — 按功能阅读路径
+6. `docs/renderer/INDEX.md` — 改 UI / Screen 时
+7. `src/preload/index.ts` + `src/main/index.ts` — 通信全貌
 
 按功能跳转：
 
