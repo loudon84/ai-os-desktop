@@ -18,21 +18,35 @@ export interface CrmBridgeConfigFile {
 
 const DEFAULT_CONFIG: CrmBridgeConfigFile = {
   enabled: true,
-  allowedOrigins: ["http://localhost:9527", "http://127.0.0.1:9527"],
+  allowedOrigins: [
+    "http://localhost:9527",
+    "http://127.0.0.1:9527",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ],
   payloadMaxBytes: 524288,
   trustedGestureWindowMs: 1500,
   allowedEventTypes: [
     "crm.context.submit",
+    "crm.product.context.submit",
     "crm.customer.open-ai-panel",
     "crm.quote.create-assist",
     "crm.order.risk-check",
     "crm.page.snapshot-request",
+    "crm.page.ready",
   ],
   routes: {
     "crm.context.submit": {
       action: "open-web-operator-panel",
       focusedPanel: "page-structure",
       refreshSnapshot: true,
+    },
+    "crm.product.context.submit": {
+      action: "open-web-operator-panel",
+      focusedPanel: "crm-context",
+      refreshSnapshot: false,
     },
   },
 };

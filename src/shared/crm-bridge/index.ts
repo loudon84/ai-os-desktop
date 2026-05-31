@@ -2,6 +2,9 @@ export type {
   CrmBridgeEventType,
   CrmBridgeErrorCode,
   CrmBridgeTrigger,
+  SupplierSupplyPayload,
+  ProductPayload,
+  CrmProductContextPayload,
   CrmPageContext,
   CrmBridgeEvent,
   CrmBridgeResult,
@@ -16,7 +19,11 @@ export type {
   CrmBridgeOnEventPayload,
 } from "./crm-bridge-contract";
 
-export { CrmBridgeEvents } from "./crm-bridge-contract";
+export {
+  CrmBridgeEvents,
+  ALLOWED_CRM_BRIDGE_EVENT_TYPES,
+  ALLOWED_CRM_DESKTOP_COMMAND_TYPES,
+} from "./crm-bridge-contract";
 
 export type {
   CrmBridgeAuditAction,

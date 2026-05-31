@@ -348,7 +348,7 @@ Preload：`window.aiosBrowser`（`src/preload/browser-api.ts`）。Main：`src/m
 
 ---
 
-## CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge）
+## CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge + V5.7.10 CRM-Lite Demo）
 
 CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src/preload/crm-bridge-preload.ts` 注入最小桥接 API（`view-registry` 已为 `web-operator` 设置 `defaultPreload`）：
 
@@ -404,6 +404,20 @@ CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src
 | `/crm/order-risk` | 订单风控 |
 
 配置见 `resources/crm-bridge/crm-bridge.config.json`；UI 入口 `src/renderer/src/screens/Crm/CrmWorkbenchScreen.tsx`。
+
+**V5.7.10 CRM-Lite 商品验证（`prd/v5.7.10_bridge_demo.md`）**：
+
+| 方向 | 类型 | 说明 |
+|------|------|------|
+| CRM → Desktop | `crm.product.context.submit` | 商品查看页「同步到 Electron」；`page.app` 可为 `crm-lite`；`payload.product` 必填（`ProductPayload`） |
+| Desktop → CRM | `desktop.crm.product.fillForm` | 填充商品新增页表单，不写 JSON |
+| Desktop → CRM | `desktop.crm.product.create` | 填充表单并调用 `/api/products` 写入 `data/products.json`（默认 `expectAck`） |
+
+**允许 origin（增量）**：`http://localhost:5178`、`http://127.0.0.1:5178`（与 `crm-bridge.config.json` / `crm-bridge-config.ts` DEFAULT 对齐）。
+
+**Renderer 调试**：`CrmEventPanel`（WebOperator 侧栏 `crm-context`）展示商品上下文卡片；按钮「填充表单到 CRM」「写入商品到 CRM」经 `window.aiosBrowser.sendCrmCommand`。
+
+**Shared 类型**：`ProductPayload`、`SupplierSupplyPayload`、`CrmProductContextPayload`（`src/shared/crm-bridge/crm-bridge-contract.ts`）。
 
 ---
 

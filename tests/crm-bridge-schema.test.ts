@@ -35,6 +35,55 @@ describe("crm bridge schema", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("accepts crm-lite product context submit", () => {
+    const raw = {
+      source: "crm-web",
+      sdkVersion: "0.1.0",
+      requestId: "req_product_1",
+      type: "crm.product.context.submit",
+      trigger: {
+        type: "user-click",
+        elementId: "btnSyncToElectron",
+        label: "同步到 Electron",
+        timestamp: new Date().toISOString(),
+      },
+      page: {
+        app: "crm-lite",
+        entityType: "product",
+        entityId: "p-100",
+        entityName: "Test Phone",
+        url: "http://localhost:5178/product-view.html?id=p-100",
+        title: "商品查看",
+      },
+      payload: {
+        product: {
+          sku: "SKU-001",
+          brand: "Brand",
+          model: "M1",
+          productName: "Test Product",
+          suppliers: [],
+        },
+      },
+    };
+    const result = validateCrmBridgeEventSchema(raw);
+    expect(result.ok).toBe(true);
+    expect(result.event?.page.app).toBe("crm-lite");
+  });
+
+  it("rejects crm.product.context.submit without payload.product", () => {
+    const raw = {
+      source: "crm-web",
+      sdkVersion: "0.1.0",
+      requestId: "req_product_2",
+      type: "crm.product.context.submit",
+      trigger: { type: "user-click", timestamp: new Date().toISOString() },
+      page: { app: "crm-lite", url: "http://localhost:5178/product-view.html" },
+      payload: {},
+    };
+    const result = validateCrmBridgeEventSchema(raw);
+    expect(result.ok).toBe(false);
+  });
+
   it("accepts crm.page.ready without user-click trigger", () => {
     const raw = {
       source: "crm-web",

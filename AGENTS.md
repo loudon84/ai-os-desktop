@@ -231,11 +231,12 @@ browser.* back/forward/reload/getState/...
   → 同一 ShellBrowserViewAdapter WebContents（web-operator）
 ```
 
-### CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge）
+### CRM Desktop Bridge（V5.7.1 + V5.7.6 Host Bridge + V5.7.10 CRM-Lite Demo）
 
 CRM 业务页面运行于 WebOperator WebContentsView 中，通过专用 preload `src/preload/crm-bridge-preload.ts` 建立**受控双向通道**：
 
-- CRM → Desktop：CRM JSSDK 在用户主动点击后提交 `CrmBridgeEvent`（preload 先校验用户手势；Main 再校验 origin / event type / payload size / requestId 去重），并可触发 Renderer 聚焦侧栏与刷新 snapshot。
+- CRM → Desktop：CRM JSSDK 在用户主动点击后提交 `CrmBridgeEvent`（preload 先校验用户手势；Main 再校验 origin / event type / payload size / requestId 去重），并可触发 Renderer 聚焦侧栏与刷新 snapshot。**V5.7.10**：`crm.product.context.submit` + `page.app: crm-lite` + `localhost:5178`（crm-lite demo）。
+- Desktop → CRM（商品）：`desktop.crm.product.fillForm` / `desktop.crm.product.create`（`CrmEventPanel` 测试按钮 → `aiosBrowser.sendCrmCommand`）。
 - CRM → Desktop（ready）：**V5.7.6** `CopilotDesktopCRM.emitReady` / `crm.page.ready` 专用通道，不校验用户手势；Main `crm-handoff-orchestrator` 匹配 pending handoff 并自动 `pushJson` + `runAction`。
 - Desktop → CRM：Renderer 或 Hermes BrowserToolBridge 通过 IPC 发送 `CrmDesktopCommand`（含 expectAck），Main 转发到 WebOperator WebContents，由 preload 转为 `window.postMessage` 交由 CRM JSSDK 消费；JSSDK ack 经 `crm-bridge:command-result` 回传。
 
@@ -521,6 +522,7 @@ npm run lint         # ESLint
 | **V5.7.5** | WebOperator `[分析内容]` → Hermes 任务流：`webOperatorTaskSession` IPC + `task_session` SQLite；`HermesTaskStartDialog`；iframe `pageUrl` 派生 | `prd/v5.7.5_hermes_integration.md`, `web-operator-task-session-*`, `HermesTaskPanel`, `components/hermes/` |
 | **V5.7.6** | **CRM Host Bridge**：handoff store + `crm.page.ready` 自动交付 + command ack；Hermes 工具 `crm.*`；JSSDK `hermes-crm-bridge-sdk.js`；`CrmEventPanel` 调试区 | `prd/v5.7.6_crm_host_bridge.md`, `crm-handoff-*`, `crm-command-result-store.ts`, `browser-tool-bridge.ts`, `CrmEventPanel.tsx` |
 | **V5.7.8** | **MainLayout 全局 Overlay**：`OverlayProvider` / `DialogLayer` / `DrawerLayer` / `NativeShellLayerGate`；阻塞型弹层打开时 hide WebContentsView，关闭后无刷新恢复 | `prd/v5.7.8_main_layout.md`, `components/overlay/*`, `Layout.tsx`, `WebContentsHost.tsx` |
+| **V5.7.10** | **CRM-Lite Bridge Demo**：`crm.product.context.submit` + `desktop.crm.product.fillForm/create`；`page.app` 支持 `crm-lite`；origin `localhost:5178`；`CrmEventPanel` 商品上下文与测试按钮 | `prd/v5.7.10_bridge_demo.md`, `src/shared/crm-bridge/`, `resources/crm-bridge/crm-bridge.config.json`, `CrmEventPanel.tsx` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

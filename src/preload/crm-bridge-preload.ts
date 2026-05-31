@@ -71,11 +71,45 @@ async function emitReady(event: unknown): Promise<{ ok: boolean; message?: strin
   }
 }
 
+function submitProductContext(
+  product: Record<string, unknown>,
+  options?: { triggerElementId?: string; triggerLabel?: string },
+): Promise<{ ok: boolean; message?: string }> {
+  const event = {
+    source: "crm-web",
+    sdkVersion: BRIDGE_VERSION,
+    requestId: `req_${Date.now()}`,
+    type: "crm.product.context.submit",
+    trigger: {
+      type: "user-click",
+      elementId: options?.triggerElementId,
+      label: options?.triggerLabel,
+      timestamp: new Date().toISOString(),
+    },
+    page: {
+      app: "crm-lite",
+      entityType: "product",
+      entityId: typeof product.id === "string" ? product.id : undefined,
+      entityName: typeof product.productName === "string" ? product.productName : undefined,
+      url: window.location.href,
+      title: document.title,
+    },
+    payload: { product },
+  };
+  return emit(event);
+}
+
 contextBridge.exposeInMainWorld("CopilotDesktopCRM", {
   version: BRIDGE_VERSION,
   isAvailable: () => true,
   emit,
   emitReady,
+});
+
+contextBridge.exposeInMainWorld("CopilotCrmDesktopSDK", {
+  version: BRIDGE_VERSION,
+  isAvailable: () => true,
+  submitProductContext,
 });
 
 window.addEventListener("message", (messageEvent) => {

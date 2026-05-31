@@ -63,6 +63,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **V5.7 WebContentsView**：`browser:*` IPC、Frame/DOM Snapshot、iframe 元素动作；`PageStructurePanel`；PRD `prd/v5.7_webcontentsview.md`
 - **V5.7.1 CRM Desktop Bridge**：CRM 页面主动上报 + Desktop 回控命令；Main `src/main/crm-bridge/`、Preload `src/preload/crm-bridge-preload.ts`、契约 `src/shared/crm-bridge/`、SDK `resources/crm-bridge/hermes-crm-bridge-sdk.js`；PRD `prd/v5.7.1_webFrame.md`
 - **V5.7.6 CRM Host Bridge**：Hermes `crm.open_form_with_json` handoff 链路 + command ack + `crm.page.ready` 自动交付；PRD `prd/v5.7.6_crm_host_bridge.md`
+- **V5.7.10 CRM-Lite Bridge Demo**：`crm-lite-layui-electron-demo`（`:5178`）商品双向验证；事件 `crm.product.context.submit`；命令 `desktop.crm.product.fillForm` / `desktop.crm.product.create`；`CrmEventPanel` 商品卡片 + 测试按钮；PRD `prd/v5.7.10_bridge_demo.md`
 - **工具栏 UI**：`BrowserToolbar` 单行布局（`web-operator.css` 中 `browser-toolbar*`）
 - **Lazy create**：`shell-view-ipc` 对 `web-operator` 与 `aios-home` 在 set-bounds 前自动创建
 

@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { ChildProcess, spawn } from "child_process";
 import { existsSync, readFileSync, appendFileSync, unlinkSync } from "fs";
 import { join } from "path";
@@ -14,6 +15,7 @@ import {
 import {
   getModelConfig,
   readEnv,
+  setEnvValue,
   getConnectionConfig,
   getFullConnectionConfig,
   syncGatewayModelSection,
@@ -188,6 +190,35 @@ platforms:
     appendFileSync(configPath, addition, "utf-8");
   } catch {
     /* non-fatal */
+  }
+}
+
+/**
+ * Gateway session continuation (`x-hermes-session-id`) requires Bearer auth.
+ * Auto-provision a local-only key so WebOperator / Local Hermes chat work out of the box.
+ * @returns true when a new key was written (gateway restart may be required).
+ */
+function ensureApiServerKey(profile?: string): boolean {
+  if (isRemoteMode()) return false;
+  const env = readEnv(profile);
+  if (env.API_SERVER_KEY?.trim()) return false;
+
+  const key = randomBytes(32).toString("hex");
+  setEnvValue("API_SERVER_KEY", key, profile);
+  const enabled = env.API_SERVER_ENABLED?.trim().toLowerCase();
+  if (!enabled || enabled === "false" || enabled === "0") {
+    setEnvValue("API_SERVER_ENABLED", "true", profile);
+  }
+  console.log("[Hermes] Auto-provisioned API_SERVER_KEY for local session continuation");
+  return true;
+}
+
+async function ensureLocalApiServerAuth(profile?: string): Promise<void> {
+  if (isRemoteMode()) return;
+  const keyCreated = ensureApiServerKey(profile);
+  if (keyCreated && isGatewayRunning()) {
+    await restartGatewayAsync(profile);
+    apiServerAvailable = null;
   }
 }
 
@@ -722,6 +753,7 @@ export async function sendMessage(
   };
 
   prepareChatProviderCredentials(profile);
+  await ensureLocalApiServerAuth(profile);
 
   // Remote mode: always use API, no CLI fallback
   if (isRemoteMode()) {
@@ -798,6 +830,7 @@ function ensureInitialized(): void {
   _initialized = true;
   if (!isRemoteMode()) {
     ensureApiServerConfig();
+    ensureApiServerKey();
   }
   startHealthPolling();
 }
@@ -837,6 +870,7 @@ let gatewayStartedByApp = false;
 
 export function startGateway(profile?: string): boolean {
   ensureInitialized();
+  ensureApiServerKey(profile);
   const configSynced = syncGatewayModelSection(profile);
   if (configSynced && isGatewayRunning()) {
     restartGateway(profile);

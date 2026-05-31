@@ -1,5 +1,6 @@
 export type CrmBridgeEventType =
   | "crm.context.submit"
+  | "crm.product.context.submit"
   | "crm.customer.open-ai-panel"
   | "crm.quote.create-assist"
   | "crm.order.risk-check"
@@ -27,9 +28,53 @@ export interface CrmBridgeTrigger {
   timestamp: string;
 }
 
+export interface SupplierSupplyPayload {
+  supplierId: string;
+  supplierName: string;
+  supplyPrice: number;
+  stockQty: number;
+  moq: number;
+  leadTimeDays: number;
+  status: string;
+  remark?: string;
+}
+
+export interface ProductPayload {
+  id?: string;
+  sku: string;
+  brand: string;
+  model: string;
+  productName: string;
+  series?: string;
+  os?: string;
+  chipset?: string;
+  screenSize?: string;
+  ram?: string;
+  storage?: string;
+  color?: string;
+  batteryMah?: number;
+  network?: string;
+  retailPrice?: number;
+  status?: string;
+  launchDate?: string;
+  description?: string;
+  suppliers?: SupplierSupplyPayload[];
+}
+
+export interface CrmProductContextPayload {
+  product: ProductPayload;
+}
+
 export interface CrmPageContext {
-  app: "crm";
-  entityType?: "customer" | "contact" | "lead" | "opportunity" | "quote" | "order";
+  app: "crm" | "crm-lite";
+  entityType?:
+    | "customer"
+    | "contact"
+    | "lead"
+    | "opportunity"
+    | "quote"
+    | "order"
+    | "product";
   entityId?: string;
   entityName?: string;
   url: string;
@@ -66,7 +111,35 @@ export type CrmDesktopCommandType =
   | "desktop.crm.requestContext"
   | "desktop.crm.clickButton"
   | "desktop.crm.runAction"
-  | "desktop.crm.pushJson";
+  | "desktop.crm.pushJson"
+  | "desktop.crm.product.fillForm"
+  | "desktop.crm.product.create";
+
+/** V5.7.10 crm-lite demo — allowed CRM → Desktop event types */
+export const ALLOWED_CRM_BRIDGE_EVENT_TYPES: readonly CrmBridgeEventType[] = [
+  "crm.context.submit",
+  "crm.product.context.submit",
+  "crm.customer.open-ai-panel",
+  "crm.quote.create-assist",
+  "crm.order.risk-check",
+  "crm.page.snapshot-request",
+  "crm.page.ready",
+] as const;
+
+/** V5.7.10 crm-lite demo — allowed Desktop → CRM command types */
+export const ALLOWED_CRM_DESKTOP_COMMAND_TYPES: readonly CrmDesktopCommandType[] = [
+  "desktop.crm.showToast",
+  "desktop.crm.highlightField",
+  "desktop.crm.focusField",
+  "desktop.crm.fillField",
+  "desktop.crm.scrollToSection",
+  "desktop.crm.requestContext",
+  "desktop.crm.clickButton",
+  "desktop.crm.runAction",
+  "desktop.crm.pushJson",
+  "desktop.crm.product.fillForm",
+  "desktop.crm.product.create",
+] as const;
 
 export interface CrmDesktopCommand {
   commandId: string;

@@ -1,13 +1,9 @@
 import type { CrmBridgeEvent, CrmBridgeEventType } from "./crm-bridge-contract";
+import { ALLOWED_CRM_BRIDGE_EVENT_TYPES } from "./crm-bridge-contract";
 
-const ALLOWED_EVENT_TYPES = new Set<CrmBridgeEventType>([
-  "crm.context.submit",
-  "crm.customer.open-ai-panel",
-  "crm.quote.create-assist",
-  "crm.order.risk-check",
-  "crm.page.snapshot-request",
-  "crm.page.ready",
-]);
+const ALLOWED_EVENT_TYPES = new Set<CrmBridgeEventType>(ALLOWED_CRM_BRIDGE_EVENT_TYPES);
+
+const ALLOWED_PAGE_APPS = new Set(["crm", "crm-lite"]);
 
 const FORBIDDEN_PAYLOAD_KEYS = new Set([
   "password",
@@ -82,8 +78,8 @@ export function validateCrmBridgeEventSchema(raw: unknown): CrmBridgeSchemaValid
     }
   }
 
-  if (!isRecord(raw.page) || raw.page.app !== "crm") {
-    return { ok: false, message: "page.app must be crm" };
+  if (!isRecord(raw.page) || typeof raw.page.app !== "string" || !ALLOWED_PAGE_APPS.has(raw.page.app)) {
+    return { ok: false, message: "page.app must be crm or crm-lite" };
   }
 
   if (typeof raw.page.url !== "string" || !raw.page.url.trim()) {
@@ -96,6 +92,16 @@ export function validateCrmBridgeEventSchema(raw: unknown): CrmBridgeSchemaValid
     }
     if (hasForbiddenSecrets(raw.payload)) {
       return { ok: false, message: "payload contains forbidden secret fields" };
+    }
+  }
+
+  if (eventType === "crm.product.context.submit") {
+    if (!isRecord(raw.payload) || !isRecord(raw.payload.product)) {
+      return { ok: false, message: "payload.product is required for crm.product.context.submit" };
+    }
+    const product = raw.payload.product;
+    if (typeof product.sku !== "string" || !product.sku.trim()) {
+      return { ok: false, message: "payload.product.sku is required" };
     }
   }
 
@@ -135,7 +141,7 @@ export function validateCrmBridgeEventSchema(raw: unknown): CrmBridgeSchemaValid
           timestamp: triggerTimestamp,
         },
     page: {
-      app: "crm",
+      app: raw.page.app as CrmBridgeEvent["page"]["app"],
       entityType:
         typeof raw.page.entityType === "string"
           ? (raw.page.entityType as CrmBridgeEvent["page"]["entityType"])

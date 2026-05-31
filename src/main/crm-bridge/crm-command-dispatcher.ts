@@ -52,7 +52,8 @@ function shouldWaitForAck(command: CrmDesktopCommand): boolean {
   return (
     command.type === "desktop.crm.clickButton" ||
     command.type === "desktop.crm.runAction" ||
-    command.type === "desktop.crm.pushJson"
+    command.type === "desktop.crm.pushJson" ||
+    command.type === "desktop.crm.product.create"
   );
 }
 

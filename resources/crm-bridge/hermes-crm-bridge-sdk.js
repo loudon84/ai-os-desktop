@@ -206,6 +206,23 @@
         };
       }
 
+      if (type === "desktop.crm.product.fillForm" || type === "desktop.crm.product.create") {
+        window.dispatchEvent(
+          new CustomEvent("crm-lite:desktop-command", {
+            detail: command,
+          }),
+        );
+        return {
+          commandId: command.commandId,
+          ok: true,
+          type: type,
+          action: type + ".dispatched",
+          message: "Product command dispatched to page listeners",
+          receivedAt: receivedAt,
+          completedAt: new Date().toISOString(),
+        };
+      }
+
       throw new Error("unsupported command type: " + type);
     } catch (error) {
       return {
