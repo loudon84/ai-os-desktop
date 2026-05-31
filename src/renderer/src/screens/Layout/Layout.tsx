@@ -10,6 +10,8 @@ import { resolveActiveShellLayerId } from "../MainPage/shell-layer-id";
 import type { View } from "../../types/desktop-shell";
 import { ModalLayer } from "../../components/layout/ModalLayer";
 import { DrawerLayer } from "../../components/layout/DrawerLayer";
+import { OverlayProvider } from "../../components/overlay/OverlayProvider";
+import { NativeShellLayerGateProvider } from "../../components/overlay/NativeShellLayerGate";
 import { ConfigDiffConfirmDrawer } from "../../modules/auth/ConfigDiffConfirmDrawer";
 import { SettingsDrawer } from "../SettingsDrawer/SettingsDrawer";
 import {
@@ -336,81 +338,88 @@ function Layout(): React.JSX.Element {
     );
   }
 
+  const hasLegacyBlockingDrawer =
+    settingsDrawerOpen || Boolean(pendingBootstrapDiff?.diff?.length);
+
   return (
-    <MainPage
-      activeProfile={navigation.activeProfile}
-      activeView={navigation.view}
-      profileEntries={profileEntries}
-      externalTabs={externalTabs}
-      tabOrder={workspaceOrder}
-      sidebarMode={sidebarMode}
-      metadataById={metadataById}
-      keepAliveEntries={keepAliveEntries}
-      canCloseActiveTab={canCloseActiveTab}
-      canNavigateShell={canNavigateShell}
-      canGoBack={activeMetadata?.canGoBack ?? false}
-      canGoForward={activeMetadata?.canGoForward ?? false}
-      onSidebarModeChange={setSidebarMode}
-      onNavigate={navigation.navigateToView}
-      onTabOrderChange={setWorkspaceOrder}
-      onCloseTab={handleCloseTab}
-      onRecoverTab={handleRecoverTab}
-      onOpenExternalTab={openExternalTab}
-      onReloadActiveTab={handleReloadActiveTab}
-      onStopActiveTab={handleStopActiveTab}
-      onBackActiveTab={handleBackActiveTab}
-      onForwardActiveTab={handleForwardActiveTab}
-      onCloseActiveTab={handleCloseActiveTab}
-      onOpenSettingsDrawer={openSettingsDrawer}
-      secondaryPanel={secondaryPanel}
-      onSecondaryPanelChange={handleSecondaryPanelChange}
-      updateState={updateState}
-      updateError={updateError}
-      updateVersion={updateVersion}
-      downloadPercent={downloadPercent}
-      onUpdate={handleUpdate}
-      outlet={
-        <WorkspaceOutlet
-          view={navigation.view}
+    <OverlayProvider legacyDrawerBlocking={hasLegacyBlockingDrawer}>
+      <NativeShellLayerGateProvider activeView={navigation.view}>
+        <MainPage
           activeProfile={navigation.activeProfile}
-          officeVisited={navigation.officeVisited}
+          activeView={navigation.view}
+          profileEntries={profileEntries}
+          externalTabs={externalTabs}
+          tabOrder={workspaceOrder}
+          sidebarMode={sidebarMode}
+          metadataById={metadataById}
+          keepAliveEntries={keepAliveEntries}
+          canCloseActiveTab={canCloseActiveTab}
+          canNavigateShell={canNavigateShell}
+          canGoBack={activeMetadata?.canGoBack ?? false}
+          canGoForward={activeMetadata?.canGoForward ?? false}
+          onSidebarModeChange={setSidebarMode}
           onNavigate={navigation.navigateToView}
-          onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
+          onTabOrderChange={setWorkspaceOrder}
+          onCloseTab={handleCloseTab}
+          onRecoverTab={handleRecoverTab}
+          onOpenExternalTab={openExternalTab}
+          onReloadActiveTab={handleReloadActiveTab}
+          onStopActiveTab={handleStopActiveTab}
+          onBackActiveTab={handleBackActiveTab}
+          onForwardActiveTab={handleForwardActiveTab}
+          onCloseActiveTab={handleCloseActiveTab}
+          onOpenSettingsDrawer={openSettingsDrawer}
           secondaryPanel={secondaryPanel}
           onSecondaryPanelChange={handleSecondaryPanelChange}
-          webOperatorLayout={webOperatorLayout}
-          onWebOperatorLayoutChange={handleWebOperatorLayoutChange}
-        />
-      }
-      statusBar={
-        <StatusBar
-          activeProfile={navigation.activeProfile}
-          remoteMode={remoteMode}
           updateState={updateState}
+          updateError={updateError}
+          updateVersion={updateVersion}
+          downloadPercent={downloadPercent}
+          onUpdate={handleUpdate}
+          outlet={
+            <WorkspaceOutlet
+              view={navigation.view}
+              activeProfile={navigation.activeProfile}
+              officeVisited={navigation.officeVisited}
+              onNavigate={navigation.navigateToView}
+              onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
+              secondaryPanel={secondaryPanel}
+              onSecondaryPanelChange={handleSecondaryPanelChange}
+              webOperatorLayout={webOperatorLayout}
+              onWebOperatorLayoutChange={handleWebOperatorLayoutChange}
+            />
+          }
+          statusBar={
+            <StatusBar
+              activeProfile={navigation.activeProfile}
+              remoteMode={remoteMode}
+              updateState={updateState}
+            />
+          }
+          modalLayer={<ModalLayer />}
+          drawerLayer={
+            <>
+              <DrawerLayer />
+              <SettingsDrawer
+                open={settingsDrawerOpen}
+                panel={settingsPanel}
+                activeProfile={navigation.activeProfile}
+                onPanelChange={setSettingsPanel}
+                onSelectProfile={navigation.handleSelectProfile}
+                onNavigate={navigation.navigateToView}
+                onClose={() => setSettingsDrawerOpen(false)}
+              />
+              <ConfigDiffConfirmDrawer
+                open={Boolean(pendingBootstrapDiff?.diff?.length)}
+                result={pendingBootstrapDiff}
+                onClose={() => setPendingBootstrapDiff(null)}
+                onApplied={() => setPendingBootstrapDiff(null)}
+              />
+            </>
+          }
         />
-      }
-      modalLayer={<ModalLayer />}
-      drawerLayer={
-        <>
-          <DrawerLayer />
-          <SettingsDrawer
-            open={settingsDrawerOpen}
-            panel={settingsPanel}
-            activeProfile={navigation.activeProfile}
-            onPanelChange={setSettingsPanel}
-            onSelectProfile={navigation.handleSelectProfile}
-            onNavigate={navigation.navigateToView}
-            onClose={() => setSettingsDrawerOpen(false)}
-          />
-          <ConfigDiffConfirmDrawer
-            open={Boolean(pendingBootstrapDiff?.diff?.length)}
-            result={pendingBootstrapDiff}
-            onClose={() => setPendingBootstrapDiff(null)}
-            onApplied={() => setPendingBootstrapDiff(null)}
-          />
-        </>
-      }
-    />
+      </NativeShellLayerGateProvider>
+    </OverlayProvider>
   );
 }
 

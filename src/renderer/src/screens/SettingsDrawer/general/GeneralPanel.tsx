@@ -144,27 +144,6 @@ export function GeneralPanel({ activeProfile }: GeneralPanelProps): React.JSX.El
   return (
     <div className="settings-drawer-scroll settings-drawer-padded">
       <div className="settings-container">
-        <section className="settings-section">
-          <div className="settings-section-title">Community</div>
-          <div className="settings-field">
-            <div className="settings-field-hint" style={{ marginBottom: 10 }}>
-              Join our Telegram group to ask questions, report issues, and chat with other Hermes
-              users.
-            </div>
-            <div className="settings-hermes-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => window.hermesAPI.openExternal(TELEGRAM_COMMUNITY_URL)}
-                title={TELEGRAM_COMMUNITY_URL}
-              >
-                <Send size={14} style={{ marginRight: 6 }} />
-                Join Telegram Community
-              </button>
-            </div>
-          </div>
-        </section>
-
         {openclawFound && !migrationDismissed ? (
           <div className="settings-migration-banner">
             <div className="settings-migration-header">

@@ -153,6 +153,12 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **侧栏保活**：`WebOperatorPanels` 始终挂载 `hermes-task`，非激活时 CSS 隐藏，避免切 Tab 丢任务状态
 - PRD：[`prd/v5.7.5_hermes_integration.md`](../prd/v5.7.5_hermes_integration.md) · 契约：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § WebOperator Hermes Panel / Task Session
 
+**V5.7.8（MainLayout 全局 Overlay + Native Layer Gate，PRD `prd/v5.7.8_main_layout.md`）**：
+- **OverlayProvider** / **DialogLayer** / **DrawerLayer** / **NativeShellLayerGate** — 统一管理阻塞型 Dialog/Drawer；`nativeBlocked` 驱动 `WebContentsHost.effectiveEnabled`
+- **legacyDrawerBlocking** — SettingsDrawer / ConfigDiffConfirmDrawer 仍由 Layout 直接挂载，通过 prop 接入 gate
+- **首帧 hide** — `NativeShellLayerGateProvider` 在 blocking 时主动 `shellView.hide(activeLayerId)`，避免 Drawer 打开瞬间被 WebContentsView 闪挡
+- **WebOperatorTaskStartDialog** — 本版保留 screen 级局部 `enabled && !isTaskStartDialogOpen`（方案 A）
+
 ## 核心目录
 
 | 目录 | 职责 | 是否允许修改 |
@@ -171,7 +177,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/renderer/src/components/hermes/` | **V5.7.4+** WebOperator Hermes 侧栏聊天（`WebOperatorHermesChatPanel`、`useWebOperatorHermesPanelChat`） | 禁止引入 `workspaceChat` |
 | `src/renderer/src/screens/WebOperator/` | **V5.7.5** `HermesTaskPanel`、`HermesTaskStartDialog`、`WebOperatorTaskStartDialogHost`、Page Context | 分析内容入口与任务 UI |
 | `src/shared/web-operator/` | **V5.7.5** `web-operator-task-session-contract.ts` | IPC 共享类型 |
-| `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
+| `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/overlay/**（V5.7.8）、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |
 | `src/renderer/src/workspace/` | **V3.2** Workspace registry / tabs / `WorkspaceRenderer` 路由 | 顶栏 Tab 与 Outlet |
 | `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |

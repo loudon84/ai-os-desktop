@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNativeShellLayerGate } from "../overlay/NativeShellLayerGate";
 import {
   getMainPageWorkspaceBottom,
   resolveWebContentsHostBounds,
@@ -28,6 +29,8 @@ export function WebContentsHost({
   const hiddenRef = useRef(true);
   const [error, setError] = useState(false);
   const { t } = useTranslation("shellView");
+  const { nativeBlocked } = useNativeShellLayerGate();
+  const effectiveEnabled = enabled && !nativeBlocked;
 
   const readBounds = useCallback(() => {
     const el = anchorRef.current ?? outerRef.current;
@@ -46,7 +49,7 @@ export function WebContentsHost({
   }, [layerId]);
 
   const syncBounds = useCallback(async (): Promise<boolean> => {
-    if (!enabled) {
+    if (!effectiveEnabled) {
       await hideLayer();
       return false;
     }
@@ -68,7 +71,7 @@ export function WebContentsHost({
       setError(true);
       return false;
     }
-  }, [enabled, hideLayer, readBounds, layerId]);
+  }, [effectiveEnabled, hideLayer, readBounds, layerId]);
 
   const syncBoundsWithRetry = useCallback(async (): Promise<void> => {
     if (await syncBounds()) return;
@@ -80,7 +83,7 @@ export function WebContentsHost({
   }, [syncBounds]);
 
   useLayoutEffect(() => {
-    if (!enabled) {
+    if (!effectiveEnabled) {
       void hideLayer();
       return;
     }
@@ -93,7 +96,7 @@ export function WebContentsHost({
     return () => {
       for (const timer of retryTimers) clearTimeout(timer);
     };
-  }, [enabled, hideLayer, layerId, syncBoundsWithRetry]);
+  }, [effectiveEnabled, hideLayer, layerId, syncBoundsWithRetry]);
 
   useEffect(() => {
     let disposed = false;

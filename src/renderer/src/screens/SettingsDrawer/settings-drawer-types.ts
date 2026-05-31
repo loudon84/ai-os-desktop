@@ -1,17 +1,17 @@
-export type SettingsDrawerPanel =
-  | "server"
-  | "general"
-  | "account"
+export type SettingsDrawerPanel =  
+  | "account"  
   | "runtime"
+  | "server"
   | "profiles"
+  | "general"  
   | "desktop";
 
-export const SETTINGS_DRAWER_PANELS: SettingsDrawerPanel[] = [
-  "server",
-  "general",
+export const SETTINGS_DRAWER_PANELS: SettingsDrawerPanel[] = [  
   "account",
   "runtime",
+  "server",
   "profiles",
+  "general",  
   "desktop",
 ];
 

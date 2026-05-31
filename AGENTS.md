@@ -49,6 +49,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `src/main/startup/` | **V3.3.1** `startup-decision.ts`、`startup-ipc.ts` | 启动门控（auth + bootstrap 前置） |
 | `src/preload/` | contextBridge：`hermesAPI`、`smcShell`、`desktopAuth`、`desktopUserConfig`、`aiosBrowser`、`profileRuntime`、`profileEntry`、`shellView` | API 桥接（影响面大） |
 | `src/renderer/src/screens/MainPage/` | **V2.0** 主界面壳：`MainPage`、`MainTopBar`、`MainViewTabs` 等 | 顶栏 / 工作区 Tabs |
+| `src/renderer/src/components/overlay/` | **V5.7.8** `OverlayProvider` / `DialogLayer` / `DrawerLayer` / `NativeShellLayerGate` | 全局弹层 + native layer gate |
 | `src/renderer/src/` | React UI：`screens/`、`components/`、`modules/auth/` | **主要 UI 开发区** |
 | `src/shared/shell/` | **`main-page-constants.ts`**、**`browser-partitions.ts`**、shell-view-contract、view-contract | 布局尺寸、Session 分区常量、ShellView 契约 |
 | `src/shared/workspace/` | **workspace-contract**、**workspace-secondary-nav** | Workspace 模块元数据、二级 panel 导航 |
@@ -484,6 +485,7 @@ npm run lint         # ESLint
 | 改安装 / runtime 路径（V5.3 / V5.4） | `electron-builder.yml` + `build/installer.nsh` → `install-location-resolver.ts` → `runtime/runtime-paths.ts` → `shim-manager.ts` |
 | 改 Portal 部署 / Settings Portal Runtime | `build/scripts/deploy-copilot-serve.ps1` → `PortalRuntimeSection.tsx` → `aios:get-portal-info` → `getAiOsPortalInfo()` |
 | 改 i18n | `src/shared/i18n/locales/<locale>/navigation.ts`（二级侧栏 + openSettings） |
+| 改全局 Dialog/Drawer / WebContentsView 遮挡 | `components/overlay/*` → `Layout.tsx` `legacyDrawerBlocking` → `WebContentsHost` `effectiveEnabled` |
 
 ## 版本特性索引
 
@@ -518,6 +520,7 @@ npm run lint         # ESLint
 | **V5.7** | **WebContentsView 浏览器核心**：Frame Tree、DOM Snapshot、iframe 元素定位/点击/输入、结构化动作日志；`browser:*` IPC；`PageStructurePanel` | `prd/v5.7_webcontentsview.md`, `src/main/browser/browser-v57-core.ts`, `screens/WebOperator/`, `docs/API_CONTRACTS.md` § Web Operator V5.7 |
 | **V5.7.5** | WebOperator `[分析内容]` → Hermes 任务流：`webOperatorTaskSession` IPC + `task_session` SQLite；`HermesTaskStartDialog`；iframe `pageUrl` 派生 | `prd/v5.7.5_hermes_integration.md`, `web-operator-task-session-*`, `HermesTaskPanel`, `components/hermes/` |
 | **V5.7.6** | **CRM Host Bridge**：handoff store + `crm.page.ready` 自动交付 + command ack；Hermes 工具 `crm.*`；JSSDK `hermes-crm-bridge-sdk.js`；`CrmEventPanel` 调试区 | `prd/v5.7.6_crm_host_bridge.md`, `crm-handoff-*`, `crm-command-result-store.ts`, `browser-tool-bridge.ts`, `CrmEventPanel.tsx` |
+| **V5.7.8** | **MainLayout 全局 Overlay**：`OverlayProvider` / `DialogLayer` / `DrawerLayer` / `NativeShellLayerGate`；阻塞型弹层打开时 hide WebContentsView，关闭后无刷新恢复 | `prd/v5.7.8_main_layout.md`, `components/overlay/*`, `Layout.tsx`, `WebContentsHost.tsx` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
 
 ---

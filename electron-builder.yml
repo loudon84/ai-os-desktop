@@ -14,6 +14,8 @@ asarUnpack:
   - resources/**
   - node_modules/better-sqlite3/**
 extraResources:
+  - from: build/icon.ico
+    to: icon.ico
   - from: resources/profiles/
     to: resources/profiles/
     filter:
@@ -32,6 +34,7 @@ extraResources:
       - "**/*"
 win:
   executableName: desktop
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:

@@ -231,17 +231,9 @@ export function MainTopBar({
           type="button"
           aria-label="Settings"
           title="Settings"
-          onClick={() => onOpenSettingsDrawer("server")}
-        >
-          <Settings size={15} />
-        </button>
-        <button
-          type="button"
-          aria-label="User"
-          title="User"
           onClick={() => onOpenSettingsDrawer("account")}
         >
-          <UserCircle size={15} />
+          <Settings size={15} />
         </button>
       </div>
 

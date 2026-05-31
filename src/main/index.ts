@@ -230,6 +230,11 @@ let dropdownManager: import("./shell/overlays/dropdown-manager").DropdownManager
 let trayManager: import("./shell/tray-manager").TrayManager | null = null;
 let isQuitting = false;
 
+function quitApp(): void {
+  isQuitting = true;
+  app.quit();
+}
+
 // 启动参数
 const launchArgs = {
   hidden: process.argv.includes("--hidden") || process.argv.includes("--tray"),
@@ -282,13 +287,16 @@ function createWindow(): void {
 
   // Phase 5: Close to tray instead of quitting
   mainWindow.on("close", (event) => {
-    // Check if app is actually quitting (via tray menu or app.quit())
-    // If not, just hide the window to tray
-    if (trayManager?.isCreated() && !isQuitting) {
+    if (isQuitting) return;
+
+    if (trayManager?.isCreated()) {
       event.preventDefault();
       mainWindow!.hide();
       console.log("[TRAY] Window hidden to tray");
+      return;
     }
+
+    console.warn("[TRAY] Tray is not available, window close will quit the app");
   });
 
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
@@ -411,8 +419,7 @@ function setupIPC(): void {
     });
 
     ipcMain.handle("app:quit", () => {
-      isQuitting = true;
-      app.quit();
+      quitApp();
     });
     
     console.log("[SETUP] Window control handlers registered directly");
@@ -1427,6 +1434,28 @@ app.whenReady().then(async () => {
 
   createWindow();
 
+  if (mainWindow) {
+    try {
+      trayManager = createTrayManager(
+        mainWindow,
+        undefined,
+        undefined,
+        () => {
+          quitApp();
+        },
+      );
+      trayManager.create();
+      setHealthStatusCallback((running) => {
+        trayManager?.setGatewayRunning(running);
+        console.log(`[TRAY] Gateway status changed: ${running ? "running" : "stopped"}`);
+      });
+      trayManager.setGatewayRunning(isGatewayRunning());
+      console.log("[TRAY] Tray initialized");
+    } catch (err) {
+      console.error("[TRAY] Failed to initialize tray:", err);
+    }
+  }
+
   let shellViewManager: ShellViewManager | null = null;
 
   // Register IPC handlers that require mainWindow (must be after createWindow)
@@ -1513,26 +1542,6 @@ app.whenReady().then(async () => {
     }
   }
 
-  // Initialize Tray (Phase 5)
-  if (mainWindow) {
-    try {
-      trayManager = createTrayManager(mainWindow);
-      trayManager?.create();
-      console.log("[TRAY] Tray initialized");
-      
-      // Connect gateway health status to tray
-      setHealthStatusCallback((running) => {
-        trayManager?.setGatewayRunning(running);
-        console.log(`[TRAY] Gateway status changed: ${running ? 'running' : 'stopped'}`);
-      });
-      
-      // Set initial gateway status
-      trayManager?.setGatewayRunning(isGatewayRunning());
-    } catch (err) {
-      console.error("[TRAY] Failed to initialize tray:", err);
-    }
-  }
-
   // Initialize Shortcut Manager (Phase 5)
   if (mainWindow) {
     try {
@@ -1616,14 +1625,19 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    stopGateway();
-    stopSshTunnel();
-    stopClaw3d();
-    if (browserToolServer) browserToolServer.stop();
-    teardownCrmBridge();
-    app.quit();
+  if (process.platform === "darwin") return;
+
+  if (trayManager?.isCreated() && !isQuitting) {
+    console.log("[TRAY] window-all-closed ignored because tray is active");
+    return;
   }
+
+  stopGateway();
+  stopSshTunnel();
+  stopClaw3d();
+  if (browserToolServer) browserToolServer.stop();
+  teardownCrmBridge();
+  app.quit();
 });
 
 app.on("before-quit", () => {

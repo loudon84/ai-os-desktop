@@ -69,13 +69,33 @@ Props：`activeProfile` / `remoteMode` / `updateState`
 
 **文件**：`ModalLayer.tsx`
 
-全局 Modal 挂载点占位组件（当前返回空 fragment，预留扩展）。
+兼容导出 `components/overlay/DialogLayer`。MainPage 仍使用 `modalLayer` prop 名称。
 
 ## DrawerLayer
 
 **文件**：`DrawerLayer.tsx`
 
-全局 Drawer 挂载点占位组件（当前返回空 fragment，预留扩展）。
+兼容导出 `components/overlay/DrawerLayer`。Layout 中 legacy `SettingsDrawer` / `ConfigDiffConfirmDrawer` 仍直接挂载，通过 `OverlayProvider.legacyDrawerBlocking` 接入 native gate。
+
+## overlay（V5.7.8）
+
+**目录**：`components/overlay/`
+
+全局 Overlay 系统，解决 WebContentsView 原生层遮挡 React Dialog/Drawer 的问题：
+
+```text
+Layout
+  └─ OverlayProvider (legacyDrawerBlocking)
+       └─ NativeShellLayerGateProvider (activeView)
+            └─ MainPage
+                 ├─ outlet → WebContentsHost (effectiveEnabled)
+                 ├─ modalLayer → DialogLayer
+                 └─ drawerLayer → DrawerLayer + legacy drawers
+```
+
+- `useDialog()` / `useDrawer()` — 业务打开阻塞型弹层
+- `nativeBlocked` — 任一 blocking dialog/drawer 或 legacy drawer 打开时为 true
+- 与 `useShellLayerVisibility` 职责分离：后者管 tab 切换，前者管 overlay 阻塞
 
 ## PageHeader
 

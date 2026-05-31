@@ -1,6 +1,5 @@
 import { Tray, Menu, nativeImage, BrowserWindow, app } from "electron";
-import { join } from "path";
-import { is } from "../utils/electron-toolkit-wrapper";
+import { resolveTrayIconPath } from "./tray-icon-path";
 
 /**
  * Tray 图标配置
@@ -46,7 +45,8 @@ export class TrayManager {
   constructor(
     mainWindow: BrowserWindow,
     iconConfig: TrayIconConfig,
-    menuConfig: TrayMenuConfig
+    menuConfig: TrayMenuConfig,
+    private readonly onQuit: () => void,
   ) {
     this.mainWindow = mainWindow;
     this.iconConfig = iconConfig;
@@ -120,7 +120,10 @@ export class TrayManager {
 
     const icon = nativeImage.createFromPath(iconPath);
 
-    // macOS: 设置为模板图标（随系统主题变化）
+    if (icon.isEmpty()) {
+      throw new Error(`[TRAY] Failed to load tray icon: ${iconPath}`);
+    }
+
     if (process.platform === "darwin") {
       icon.setTemplateImage(true);
     }
@@ -172,8 +175,7 @@ export class TrayManager {
       {
         label: this.menuConfig.quitLabel,
         click: () => {
-          // 真正退出应用
-          app.quit();
+          this.onQuit();
         },
       },
     ];
@@ -227,12 +229,15 @@ let trayManagerInstance: TrayManager | null = null;
 export function createTrayManager(
   mainWindow: BrowserWindow,
   iconConfig?: Partial<TrayIconConfig>,
-  menuConfig?: Partial<TrayMenuConfig>
+  menuConfig?: Partial<TrayMenuConfig>,
+  onQuit: () => void = () => app.quit(),
 ): TrayManager {
+  const trayIconPath = resolveTrayIconPath();
+
   const defaultIconConfig: TrayIconConfig = {
-    iconPath: join(__dirname, "../../resources/icon.png"),
-    macTemplateIconPath: join(__dirname, "../../resources/iconTemplate.png"),
-    windowsIconPath: join(__dirname, "../../resources/icon.ico"),
+    iconPath: trayIconPath,
+    macTemplateIconPath: trayIconPath,
+    windowsIconPath: trayIconPath,
     ...iconConfig,
   };
 
@@ -248,7 +253,8 @@ export function createTrayManager(
   trayManagerInstance = new TrayManager(
     mainWindow,
     defaultIconConfig,
-    defaultMenuConfig
+    defaultMenuConfig,
+    onQuit,
   );
   return trayManagerInstance;
 }

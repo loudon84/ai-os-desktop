@@ -17,6 +17,7 @@ ShellView / WebContentsView 适配层，负责将 React DOM 位置映射到 Elec
 | `layerId` | `string` | — | ShellView 层 ID（如 `"portal"` / `"web-operator"` / `"external-browser:uuid"`） |
 | `className` | `string?` | `"relative flex min-h-0 w-full flex-1 overflow-hidden"` | 容器 className |
 | `enabled` | `boolean?` | `true` | `false` 时调用 `shellView.hide()` 并跳过 setBounds（KeepAlive / Tab 切换） |
+| — | — | — | **V5.7.8**：读取 `useNativeShellLayerGate().nativeBlocked`，`effectiveEnabled = enabled && !nativeBlocked`；阻塞型 Overlay 打开时自动 hide，关闭后 `syncBoundsWithRetry` 恢复（不 reload） |
 
 ### 工作机制
 

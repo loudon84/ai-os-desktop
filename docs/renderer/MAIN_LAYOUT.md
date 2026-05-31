@@ -67,13 +67,19 @@ Layout 封装 ShellView 层导航操作，通过 `resolveActiveShellLayerId(view
 
 ```text
 Layout (hydrated?)
-  → <MainPage
-      outlet={<WorkspaceOutlet view={...} />}
-      statusBar={<StatusBar />}
-      modalLayer={<ModalLayer />}
-      drawerLayer={<DrawerLayer /> + <SettingsDrawer /> + <ConfigDiffConfirmDrawer />}
-    />
+  → <OverlayProvider legacyDrawerBlocking={settingsDrawerOpen || configDiffOpen}>
+       <NativeShellLayerGateProvider activeView={navigation.view}>
+         <MainPage
+           outlet={<WorkspaceOutlet view={...} />}
+           statusBar={<StatusBar />}
+           modalLayer={<ModalLayer />}   ← overlay/DialogLayer
+           drawerLayer={<DrawerLayer /> + <SettingsDrawer /> + <ConfigDiffConfirmDrawer />}
+         />
+       </NativeShellLayerGateProvider>
+     </OverlayProvider>
 ```
+
+**V5.7.8**：`legacyDrawerBlocking` 使 SettingsDrawer / ConfigDiffConfirmDrawer 打开时 `WebContentsHost` 自动 hide active shell layer；`NativeShellLayerGateProvider` 首帧 `useLayoutEffect` 兜底避免闪挡。
 
 **hydrated 前渲染空壳**，避免闪烁。
 

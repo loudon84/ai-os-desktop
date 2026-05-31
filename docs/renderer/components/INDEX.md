@@ -4,7 +4,8 @@ Renderer 层组件按职责划分为 5 个族：
 
 | 族 | 目录 | 职责 | 详细文档 |
 |---|---|---|---|
-| layout | `components/layout/` | 桌面布局壳层：侧栏、工作区出口、窗口控制、状态栏、弹层 | [layout.md](layout.md) |
+| layout | `components/layout/` | 桌面布局壳层：侧栏、工作区出口、窗口控制、状态栏、弹层兼容导出 | [layout.md](layout.md) |
+| overlay | `components/overlay/` | **V5.7.8** 全局 Dialog/Drawer 栈 + NativeShellLayerGate | 本节 |
 | shell | `components/shell/` | ShellView / WebContentsView 适配与原生层定位 | [shell.md](shell.md) |
 | hermes | `components/hermes/` | Hermes 聊天面板（WebOperator 侧栏嵌入） | [hermes.md](hermes.md) |
 | workspace | `components/workspace/` | Workspace 渲染分发（webview / composite / react / external） | [workspace.md](workspace.md) |
@@ -21,11 +22,24 @@ Renderer 层组件按职责划分为 5 个族：
 | `WorkspaceOutlet.tsx` | 组件 | `WorkspaceOutlet` — 委托 `WorkspaceRenderer` 的薄壳 |
 | `WindowControls.tsx` | 组件 | `WindowControls` — 最小化 / 最大化 / 关闭按钮（macOS 返回 null） |
 | `StatusBar.tsx` | 组件 | `StatusBar` — 底部状态栏（Profile / Mode / Update） |
-| `ModalLayer.tsx` | 组件 | `ModalLayer` — 全局 Modal 挂载点（占位） |
-| `DrawerLayer.tsx` | 组件 | `DrawerLayer` — 全局 Drawer 挂载点（占位） |
+| `ModalLayer.tsx` | 组件 | `ModalLayer` — 兼容导出 `overlay/DialogLayer` |
+| `DrawerLayer.tsx` | 组件 | `DrawerLayer` — 兼容导出 `overlay/DrawerLayer` |
 | `PageHeader.tsx` | 组件 | `PageHeader` — 页面标题头（legacy，主链路用 MainTopBar） |
 | `KeepAliveView.tsx` | 组件 | `KeepAliveView` — Tab 保活容器（display 切换而非卸载） |
 | `useKeepAliveRegistry.ts` | Hook | `useKeepAliveRegistry` — 保活视图注册表 |
+
+### overlay（8 文件，**V5.7.8**）
+
+| 文件 | 类型 | 导出 |
+|---|---|---|
+| `OverlayProvider.tsx` | Provider | 全局 Dialog/Drawer 状态 + `nativeBlocked` 计算 |
+| `DialogLayer.tsx` | 组件 | 全局 Dialog stack（z-index 60；首版 `confirm` / `danger-confirm`） |
+| `DrawerLayer.tsx` | 组件 | 全局 Drawer stack（z-index 50） |
+| `NativeShellLayerGate.tsx` | Provider + Hook | `useNativeShellLayerGate()` — 阻塞时隐藏 active WebContentsView |
+| `overlay-types.ts` | 类型 | `DialogDescriptor` / `DrawerDescriptor` / `OverlayState` / API 契约 |
+| `useDialog.ts` | Hook | `useDialog()` — promise 式打开/关闭 Dialog |
+| `useDrawer.ts` | Hook | `useDrawer()` — 打开/关闭 Drawer |
+| `useOverlayState.ts` | Hook | 内部读取 overlay 状态 |
 
 ### shell（2 文件）
 
