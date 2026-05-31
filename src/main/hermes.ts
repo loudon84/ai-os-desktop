@@ -548,9 +548,54 @@ async function sendMessageViaApi(
 
 const NOISE_PATTERNS = [/^[╭╰│╮╯─┌┐└┘┤├┬┴┼]/, /⚕\s*Hermes/];
 
+/** Windows venv ships pythonw.exe (GUI subsystem, no console). */
+function getHermesPythonw(): string | null {
+  if (process.platform !== "win32") return null;
+  const pythonw = getHermesPython().replace(/python\.exe$/i, "pythonw.exe");
+  return existsSync(pythonw) ? pythonw : null;
+}
+
+function spawnHermesGatewayProcess(
+  cliArgs: string[],
+  env: Record<string, string>,
+): ChildProcess {
+  const cwd = getHermesRepo();
+
+  if (process.platform === "win32") {
+    const pythonw = getHermesPythonw();
+    if (pythonw) {
+      // pythonw.exe has no console — safe with detached for background gateway.
+      return spawn(pythonw, ["-m", "hermes_cli.main", ...cliArgs], {
+        cwd,
+        env,
+        stdio: "ignore",
+        detached: true,
+        shell: false,
+      });
+    }
+    // CREATE_NO_WINDOW is ignored when detached:true on Windows; stay attached.
+    return spawn(getHermesPython(), ["-m", "hermes_cli.main", ...cliArgs], {
+      cwd,
+      env,
+      stdio: "ignore",
+      detached: false,
+      windowsHide: true,
+      shell: false,
+    });
+  }
+
+  return spawn(getHermesScript(), cliArgs, {
+    cwd,
+    env,
+    stdio: "ignore",
+    detached: true,
+    shell: false,
+  });
+}
+
 /**
- * Windows `hermes.exe` shim requires a console (prompt_toolkit). Electron has none —
- * spawn `python -m hermes_cli.main` instead.
+ * Windows `hermes.exe` / `python.exe` console shims may show a CMD window.
+ * Gateway: prefer `pythonw.exe`; CLI chat: `python -m hermes_cli.main` + windowsHide (attached).
  */
 function spawnHermesCli(
   cliArgs: string[],
@@ -895,12 +940,7 @@ export function startGateway(profile?: string): boolean {
     }
   }
 
-  gatewayProcess = spawn(getHermesScript(), ["gateway"], {
-    cwd: getHermesRepo(),
-    env: gatewayEnv,
-    stdio: "ignore",
-    detached: true,
-  });
+  gatewayProcess = spawnHermesGatewayProcess(["gateway"], gatewayEnv);
 
   gatewayProcess.unref();
 

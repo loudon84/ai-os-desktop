@@ -26,10 +26,10 @@ export function HermesRuntimeSettingsDrawer({
         className="settings-drawer-aside"
         style={{ maxWidth: "32rem" }}
         role="dialog"
-        aria-label="Hermes Runtime Settings"
+        aria-label="Hermes Runtime"
       >
         <header className="settings-drawer-header">
-          <h2 className="settings-drawer-title">Hermes Runtime Settings</h2>
+          <h2 className="settings-drawer-title">Hermes Runtime</h2>
           <button
             type="button"
             className="settings-drawer-close"

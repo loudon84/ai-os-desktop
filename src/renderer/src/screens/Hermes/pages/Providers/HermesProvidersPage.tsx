@@ -114,26 +114,6 @@ export default function HermesProvidersPage() {
           </section>
 
           <section className="hermes-providers-section">
-            <h3>{t("workspaces.hermes.providers.env")}</h3>
-            <ul className="hermes-env-list">
-              {envKeys.map((key) => (
-                <li key={key} className="hermes-env-list__item">
-                  <code>{key}</code>
-                  <input
-                    className="hermes-input"
-                    value={env[key] ?? ""}
-                    onChange={(e) => setEnv((prev) => ({ ...prev, [key]: e.target.value }))}
-                    onBlur={() => void hermesDefaultApi.providers.setEnv(key, env[key] ?? "")}
-                  />
-                </li>
-              ))}
-              {envKeys.length === 0 ? (
-                <li>{t("workspaces.hermes.providers.noEnvKeys")}</li>
-              ) : null}
-            </ul>
-          </section>
-
-          <section className="hermes-providers-section">
             <h3>{t("workspaces.hermes.providers.config")}</h3>
             <ul className="hermes-env-list">
               {HERMES_CONFIG_KEYS.map((key) => (
