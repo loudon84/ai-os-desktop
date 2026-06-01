@@ -129,6 +129,7 @@ import { BrowserAuditLogger } from "./browser/browser-audit";
 import { BrowserController } from "./browser/browser-controller";
 import { BrowserIPC } from "./browser/browser-ipc";
 import { setupCrmBridge, teardownCrmBridge } from "./crm-bridge";
+import { registerWebOperatorCrmPreloadSession } from "./crm-bridge/register-web-operator-preload";
 import { BrowserToolBridge } from "./browser/browser-tool-bridge";
 import { BrowserToolServer } from "./browser/browser-tool-server";
 import { profileHome } from "./utils";
@@ -1500,6 +1501,7 @@ app.whenReady().then(async () => {
     try {
       shellViewManager = new ShellViewManager(mainWindow);
       console.log("[SHELL] ShellViewManager initialized");
+      registerWebOperatorCrmPreloadSession();
     } catch (err) {
       console.error("[SHELL] Failed to initialize ShellViewManager:", err);
     }
@@ -1580,7 +1582,7 @@ app.whenReady().then(async () => {
       browserIPC = new BrowserIPC(controller, viewManager);
       browserIPC.register();
 
-      setupCrmBridge(controller, viewManager, mainWindow);
+      setupCrmBridge(controller, viewManager, mainWindow, shellViewManager);
 
       const toolBridge = new BrowserToolBridge(controller, viewManager);
       browserToolServer = new BrowserToolServer(toolBridge);

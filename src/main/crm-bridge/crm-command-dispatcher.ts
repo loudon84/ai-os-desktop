@@ -81,9 +81,22 @@ export async function dispatchCrmCommand(
     };
   }
 
+  const replyRequired = shouldWaitForAck(command);
+
   wc.send(CrmBridgeEvents.COMMAND, command);
 
-  if (!shouldWaitForAck(command)) {
+  // Redundant delivery: some WebContentsView builds miss preload IPC listeners.
+  const commandJson = JSON.stringify(command);
+  void wc
+    .executeJavaScript(
+      `(function(){ window.postMessage({ source: 'copilot-desktop', channel: 'crm.desktop.command', version: '0.2.0', command: ${commandJson}, replyRequired: ${replyRequired} }, window.location.origin); })();`,
+      true,
+    )
+    .catch((error) => {
+      console.warn("[CRM-BRIDGE] postMessage command fallback failed:", error);
+    });
+
+  if (!replyRequired) {
     return {
       ok: true,
       requestId: command.commandId,

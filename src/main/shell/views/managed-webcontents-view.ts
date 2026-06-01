@@ -7,6 +7,7 @@ import type {
   ShellViewOptions,
 } from "../../../shared/shell/view-contract";
 import type { ShellViewSnapshot } from "../../../shared/shell/shell-view-contract";
+import { assertPreloadExists } from "../../utils/preload-paths";
 import { viewRegistry } from "./view-registry";
 import { viewEventBus } from "./view-events";
 
@@ -62,7 +63,7 @@ export class ManagedWebContentsView {
 
     const registryEntry = viewRegistry.get(this.kind);
 
-    const sandbox = options?.sandbox ?? registryEntry?.defaultSandbox ?? true;
+    let sandbox = options?.sandbox ?? registryEntry?.defaultSandbox ?? true;
     const nodeIntegration =
       options?.nodeIntegration ??
       registryEntry?.defaultNodeIntegration ??
@@ -73,8 +74,14 @@ export class ManagedWebContentsView {
       true;
     const partition =
       options?.partition ?? registryEntry?.defaultPartition ?? undefined;
-    const preload =
+    let preload =
       options?.preload ?? registryEntry?.defaultPreload ?? undefined;
+
+    if (this.kind === "web-operator") {
+      sandbox = false;
+      preload = assertPreloadExists("crm-bridge-preload.js");
+      console.log("[CRM-BRIDGE] web-operator preload:", preload, "sandbox:", sandbox);
+    }
 
     const webPreferences: Electron.WebPreferences = {
       sandbox,
@@ -301,6 +308,12 @@ export class ManagedWebContentsView {
     if (!this.view) return;
 
     const wc = this.view.webContents;
+
+    if (this.kind === "web-operator") {
+      wc.on("preload-error", (_event, preloadPath, error) => {
+        console.error("[CRM-BRIDGE] preload-error:", preloadPath, error);
+      });
+    }
 
     wc.on("page-title-updated", (_event, title) => {
       this.title = title;

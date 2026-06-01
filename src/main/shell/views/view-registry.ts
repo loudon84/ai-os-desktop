@@ -48,7 +48,8 @@ export class ViewRegistry {
       kind: "web-operator",
       defaultLayer: "content",
       defaultPartition: WEB_OPERATOR_PARTITION,
-      defaultSandbox: true,
+      // sandbox:true breaks crm-bridge-preload on Windows WebContentsView
+      defaultSandbox: false,
       defaultContextIsolation: true,
       defaultPreload: crmBridgePreloadPath(),
     });

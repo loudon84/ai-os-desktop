@@ -24,7 +24,6 @@ async function ensureWebOperatorView(svm: ShellViewManager): Promise<void> {
     await svm.createView("web-operator", "web-operator", url, {
       layer: "content",
       partition: BROWSER_PARTITION,
-      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     });

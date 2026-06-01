@@ -19,7 +19,6 @@ export class ShellBrowserViewAdapter implements BrowserViewPort {
         {
           layer: "content",
           partition: BROWSER_PARTITION,
-          sandbox: true,
           contextIsolation: true,
           nodeIntegration: false,
         },

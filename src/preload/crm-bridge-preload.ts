@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { CrmBridgeEvents } from "../shared/crm-bridge/crm-bridge-contract";
 
+console.info("[CRM-BRIDGE-PRELOAD] script evaluating");
+
 const SDK_SOURCE = "copilot-crm-jssdk";
 const DESKTOP_SOURCE = "copilot-desktop";
 const EVENT_CHANNEL = "crm.desktop.bridge";
