@@ -419,6 +419,57 @@ CRM 页面运行在 WebOperator 的 WebContentsView 中，由专用 preload `src
 
 **Shared 类型**：`ProductPayload`、`SupplierSupplyPayload`、`CrmProductContextPayload`（`src/shared/crm-bridge/crm-bridge-contract.ts`）。
 
+### HostBridge v6.0（`prd/v6.0_hostBridge-JSSDK.md`）
+
+**新命名**：`CopilotHostBridge` / `CopilotHostBridgeSDK`；`host.bridge.submit` / `host.page.ready`；`desktop.host.form.fill`。
+
+**配置**：`app.getPath("userData")/bridge-config.json`（模板 `resources/crm-bridge/bridge-config.template.json`），加载逻辑 `src/main/crm-bridge/host-bridge-config.ts`。
+
+**页面 JSSDK**：`resources/crm-bridge/crm-lite-jssdk.js`（`submit` / `ready` / `onCommand` / `ack`）。
+
+#### Main IPC（invoke）
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `host-bridge:emit` | `HostBridgeEmitInput` | `HostBridgeResult` |
+| `host-bridge:page-ready` | `HostBridgeEmitInput` | `HostBridgeResult` |
+| `host-bridge:list-events` | `limit?: number` | `HostBridgeStoredEvent[]` |
+| `host-bridge:get-last-event` | — | `HostBridgeStoredEvent \| null` |
+| `host-bridge:send-command` | `HostDesktopCommand` | `HostBridgeResult` |
+| `host-bridge:command-result` | `HostDesktopCommandAck` | `HostBridgeResult` |
+| `host-bridge:get-config` | — | `HostBridgeConfigFile` |
+| `host-bridge:get-config-path` | — | `string` |
+| `host-bridge:reload-config` | — | `HostBridgeConfigFile` |
+| `host-bridge:open-config-file` | — | `{ ok: boolean }` |
+| `host-bridge:get-last-handoff` | — | `HostHandoffRecord \| null` |
+| `host-bridge:list-handoffs` | `limit?: number` | `HostHandoffRecord[]` |
+| `host-bridge:clear-handoff` | — | `{ ok: boolean }` |
+
+**兼容**：`crm-bridge:*` 同上表转发到 HostBridge handler。
+
+#### WebOperator 多页签 IPC
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `web-operator-tabs:list` | — | `WebOperatorTab[]` |
+| `web-operator-tabs:get-active` | — | `{ tab, activeTabId, layerId }` |
+| `web-operator-tabs:create` | `{ url, title?, kind?, activate? }` | `WebOperatorTab` |
+| `web-operator-tabs:activate` | `tabId` | `WebOperatorTab \| null` |
+| `web-operator-tabs:close` | `tabId` | `boolean` |
+| `web-operator-tabs:open-callback` | `{ requestId, formType, action, callbackUrl, handoffId }` | `WebOperatorTab` |
+
+#### Preload → Renderer（`window.aiosBrowser`）
+
+| 方法 | IPC |
+|------|-----|
+| `listHostBridgeEvents` / `getLastHostBridgeEvent` | `host-bridge:list-events` / `get-last-event` |
+| `sendHostCommand` | `host-bridge:send-command` |
+| `onHostBridgeEvent` | 监听 `host-bridge:on-event` |
+| `getHostBridgeConfig` / `reloadHostBridgeConfig` / `openHostBridgeConfigFile` | 配置管理 |
+| `listWebOperatorTabs` / `activateWebOperatorTab` / … | `web-operator-tabs:*` |
+
+**Renderer UI**：`HostBridgePanel`（侧栏 `host-context`）；`WebOperatorTabs`（多页签 + `WebContentsHost` 动态 `layerId`）。
+
 ---
 
 ## Windows 安装注册表（非 IPC）

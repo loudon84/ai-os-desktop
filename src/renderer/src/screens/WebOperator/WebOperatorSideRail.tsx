@@ -18,6 +18,7 @@ const PANEL_ICONS: Partial<
   Record<WorkspaceSecondaryPanel, React.ComponentType<{ size?: number }>>
 > = {
   "browser-state": Monitor,
+  "host-context": Building2,
   "crm-context": Building2,
   "hermes-task": Bot,
   "page-structure": ScanSearch,

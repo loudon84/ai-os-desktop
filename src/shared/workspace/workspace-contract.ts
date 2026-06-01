@@ -45,6 +45,7 @@ export type WorkspaceSecondaryPanel =
   | "memory"
   | "runtime"
   | "browser-state"
+  | "host-context"
   | "crm-context"
   | "hermes-task"
   | "page-structure"

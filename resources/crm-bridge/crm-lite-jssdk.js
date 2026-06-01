@@ -1,29 +1,61 @@
 /**
- * CRM-Lite demo page SDK (V5.7.10).
- * Page script + optional Main injector (crm-lite-jssdk.js) share this implementation.
+ * CRM-Lite demo page SDK (V6.0 HostBridge + legacy CRM compat).
  */
 (function () {
   "use strict";
 
   if (window.__copilotCrmLiteJssdkLoaded) return;
-  window.__copilotCrmLiteJssdkLoaded = true;
 
   var DESKTOP_SOURCE = "copilot-desktop";
-  var SDK_SOURCE = "copilot-crm-jssdk";
-  var COMMAND_CHANNEL = "crm.desktop.command";
-  var COMMAND_RESULT_CHANNEL = "crm.desktop.command.result";
+  var SDK_SOURCE = "copilot-host-jssdk";
+  var LEGACY_SDK_SOURCE = "copilot-crm-jssdk";
+  var HOST_COMMAND_CHANNEL = "host.desktop.command";
+  var LEGACY_COMMAND_CHANNEL = "crm.desktop.command";
+  var COMMAND_RESULT_CHANNEL = "host.desktop.command.result";
+  var LEGACY_COMMAND_RESULT_CHANNEL = "crm.desktop.command.result";
+  var HOST_SUBMIT_CHANNEL = "host.bridge.submit";
+  var HOST_READY_CHANNEL = "host.page.ready";
+  var PROTOCOL_VERSION = "6.0";
+  var SDK_VERSION = "6.0.0";
   var commandHandlers = [];
 
-  function isBridgeAvailable() {
-    return !!(
-      window.CopilotDesktopCRM &&
-      typeof window.CopilotDesktopCRM.isAvailable === "function" &&
-      window.CopilotDesktopCRM.isAvailable()
-    );
+  /** Electron preload 注入的 API（须在覆盖全局对象前捕获） */
+  var nativeHostBridge = window.CopilotHostBridge;
+  var nativeHostBridgeSdk = window.CopilotHostBridgeSDK;
+
+  /** 与 bridge-config.json / bridge-config.template.json 中 allowedSkills 对齐 */
+  var PRODUCT_SKILL_BY_ACTION = {
+    analytic: "crm-product-analytic",
+    view: "crm-product-analytic",
+    create: "crm-product-create",
+    edit: "crm-product-edit",
+  };
+
+  function resolveProductSkillName(action, skillName) {
+    if (skillName && typeof skillName === "string") return skillName;
+    return PRODUCT_SKILL_BY_ACTION[action] || undefined;
+  }
+
+  function isHostBridgeAvailable() {
+    if (nativeHostBridge && typeof nativeHostBridge.isAvailable === "function") {
+      try {
+        if (nativeHostBridge.isAvailable()) return true;
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+    if (window.CopilotDesktopCRM && typeof window.CopilotDesktopCRM.isAvailable === "function") {
+      try {
+        return window.CopilotDesktopCRM.isAvailable();
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+    return false;
   }
 
   function notifyBridgeStatus() {
-    var available = isBridgeAvailable();
+    var available = isHostBridgeAvailable();
     window.dispatchEvent(
       new CustomEvent("crm-lite:bridge-status", {
         detail: { available: available, mode: available ? "electron" : "browser" },
@@ -50,9 +82,9 @@
     if ("value" in el) el.value = String(value);
   }
 
-  function fillProductForm(product) {
-    if (!product || typeof product !== "object") return;
-    var fields = [
+  function fillProductForm(fields) {
+    if (!fields || typeof fields !== "object") return;
+    var keys = [
       "sku",
       "brand",
       "model",
@@ -71,11 +103,18 @@
       "launchDate",
       "description",
     ];
-    for (var i = 0; i < fields.length; i++) {
-      fillInput(fields[i], product[fields[i]]);
+    for (var i = 0; i < keys.length; i++) {
+      fillInput(keys[i], fields[keys[i]]);
+    }
+    if (typeof window.layui !== "undefined" && window.layui.form) {
+      try {
+        window.layui.form.render();
+      } catch (_e) {
+        /* ignore */
+      }
     }
     window.dispatchEvent(
-      new CustomEvent("crm-lite:product-filled", { detail: { product: product } }),
+      new CustomEvent("crm-lite:product-filled", { detail: { product: fields } }),
     );
   }
 
@@ -91,71 +130,78 @@
           "<tr><td>" +
           (row.supplierName || row.supplierId || "") +
           "</td><td>" +
-          (row.supplyPrice ?? "") +
+          (row.supplyPrice != null ? row.supplyPrice : "") +
           "</td><td>" +
-          (row.stockQty ?? "") +
+          (row.stockQty != null ? row.stockQty : "") +
           "</td></tr>"
         );
       })
       .join("");
   }
 
-  function parseApiBody(body) {
-    if (body && typeof body === "object" && body.data && typeof body.data === "object") {
-      return body.data;
+  function fillHostFormPayload(payload) {
+    if (!payload || typeof payload !== "object") return;
+    if (payload.fields) fillProductForm(payload.fields);
+    if (payload.subTables && payload.subTables.suppliers) {
+      renderSuppliers(payload.subTables.suppliers);
     }
-    return body;
-  }
-
-  async function createProduct(product) {
-    fillProductForm(product);
-    var res = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(product),
-    });
-    if (!res.ok) {
-      throw new Error("POST /api/products failed: " + res.status);
-    }
-    var body = await res.json();
-    var saved = parseApiBody(body);
-    return saved;
   }
 
   function postCommandAck(command, result, ok, errMessage) {
+    var now = new Date().toISOString();
+    var ackResult = {
+      ok: ok,
+      type: command.type,
+      action: result && result.action,
+      message: errMessage || (result && result.message),
+      data: result && result.data,
+      errorCode: ok ? undefined : "COMMAND_FAILED",
+    };
+    if (nativeHostBridgeSdk && typeof nativeHostBridgeSdk.ack === "function") {
+      nativeHostBridgeSdk.ack(command.commandId, ackResult);
+      return;
+    }
+    var ack = {
+      commandId: command.commandId,
+      receivedAt: now,
+      completedAt: now,
+      ok: ackResult.ok,
+      type: ackResult.type,
+      action: ackResult.action,
+      data: ackResult.data,
+      message: ackResult.message,
+      errorCode: ackResult.errorCode,
+    };
     window.postMessage(
-      {
-        source: SDK_SOURCE,
-        channel: COMMAND_RESULT_CHANNEL,
-        result: {
-          commandId: command.commandId,
-          ok: ok,
-          type: command.type,
-          action: result && result.action,
-          data: result && result.data,
-          message: errMessage,
-          errorCode: ok ? undefined : "COMMAND_FAILED",
-          receivedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
-      },
+      { source: SDK_SOURCE, channel: COMMAND_RESULT_CHANNEL, result: ack },
+      window.location.origin,
+    );
+    window.postMessage(
+      { source: LEGACY_SDK_SOURCE, channel: LEGACY_COMMAND_RESULT_CHANNEL, result: ack },
       window.location.origin,
     );
   }
 
   async function handleDesktopCommand(command) {
     var type = command && command.type;
-    var product = command && command.payload && command.payload.product;
     setReceiverLog(JSON.stringify(command, null, 2));
 
-    if (type === "desktop.crm.product.fillForm") {
-      fillProductForm(product);
-      return { ok: true, action: "crm.product.fillForm" };
+    if (
+      type === "desktop.host.form.fill" ||
+      type === "desktop.host.from.fill" ||
+      type === "desktop.crm.form.fill" ||
+      type === "desktop.crm.product.fillForm"
+    ) {
+      var payload = command.payload || {};
+      var fields = payload.fields || payload.product || payload;
+      fillHostFormPayload({ fields: fields, subTables: payload.subTables });
+      return { ok: true, action: "host.form.fill", message: "商品表单已填充" };
     }
 
     if (type === "desktop.crm.product.create") {
-      var data = await createProduct(product);
-      return { ok: true, action: "crm.product.create", data: data };
+      var product = command.payload && command.payload.product;
+      fillProductForm(product);
+      return { ok: true, action: "crm.product.create", data: { id: "mock-" + Date.now() } };
     }
 
     throw new Error("unsupported command: " + type);
@@ -179,86 +225,207 @@
     };
   }
 
-  function mockElectronCommand(command) {
+  function ack(commandId, result) {
+    if (nativeHostBridgeSdk && typeof nativeHostBridgeSdk.ack === "function") {
+      return nativeHostBridgeSdk.ack(commandId, result);
+    }
+    var now = new Date().toISOString();
+    var ackBody = {
+      commandId: commandId,
+      ok: result.ok,
+      type: result.type,
+      action: result.action,
+      message: result.message,
+      data: result.data,
+      errorCode: result.errorCode,
+      receivedAt: now,
+      completedAt: now,
+    };
     window.postMessage(
-      { source: DESKTOP_SOURCE, channel: COMMAND_CHANNEL, command: command },
+      { source: SDK_SOURCE, channel: COMMAND_RESULT_CHANNEL, result: ackBody },
       window.location.origin,
     );
   }
 
-  function submitProductContext(product, options) {
-    if (!window.CopilotDesktopCRM || typeof window.CopilotDesktopCRM.emit !== "function") {
-      window.postMessage(
-        {
-          source: SDK_SOURCE,
-          channel: "crm.desktop.bridge",
-          event: {
-            source: "crm-web",
-            sdkVersion: "0.2.0",
-            requestId: "req_" + Date.now(),
-            type: "crm.product.context.submit",
-            trigger: {
-              type: "user-click",
-              elementId: options && options.triggerElementId,
-              label: options && options.triggerLabel,
-              timestamp: new Date().toISOString(),
-            },
-            page: {
-              app: "crm-lite",
-              entityType: "product",
-              entityId: product && product.id,
-              entityName: product && product.productName,
-              url: window.location.href,
-              title: document.title,
-            },
-            payload: { product: product },
+  async function submit(input) {
+    var payload = Object.assign({}, input, {
+      skillName: resolveProductSkillName(input.action, input.skillName),
+    });
+    if (nativeHostBridge && typeof nativeHostBridge.submit === "function") {
+      return nativeHostBridge.submit(payload);
+    }
+
+    window.postMessage(
+      {
+        source: SDK_SOURCE,
+        channel: HOST_SUBMIT_CHANNEL,
+        event: {
+          source: "host-web",
+          protocolVersion: PROTOCOL_VERSION,
+          sdkVersion: SDK_VERSION,
+          requestId: "host_" + Date.now(),
+          type: "host.bridge.submit",
+          formType: payload.formType,
+          action: payload.action,
+          callbackUrl: payload.callbackUrl,
+          skillName: payload.skillName,
+          trigger: {
+            type: "user-click",
+            elementId: input.trigger && input.trigger.elementId,
+            label: input.trigger && input.trigger.label,
+            timestamp: new Date().toISOString(),
+          },
+          pageContext: payload.pageContext,
+        },
+      },
+      window.location.origin,
+    );
+
+    return {
+      ok: false,
+      requestId: "",
+      message: "Electron preload bridge not detected; postMessage fallback for local browser.",
+    };
+  }
+
+  async function ready(input) {
+    if (nativeHostBridge && typeof nativeHostBridge.ready === "function") {
+      return nativeHostBridge.ready(input);
+    }
+
+    window.postMessage(
+      {
+        source: SDK_SOURCE,
+        channel: HOST_READY_CHANNEL,
+        event: {
+          source: "host-web",
+          protocolVersion: PROTOCOL_VERSION,
+          sdkVersion: SDK_VERSION,
+          requestId: "host_ready_" + Date.now(),
+          type: "host.page.ready",
+          formType: input && input.formType,
+          action: input && input.action,
+          pageContext: {
+            app: (input && input.pageContext && input.pageContext.app) || "crm-lite",
+            url: (input && input.pageContext && input.pageContext.url) || window.location.href,
+            title: (input && input.pageContext && input.pageContext.title) || document.title,
+            entityType: input && input.pageContext && input.pageContext.entityType,
+            entityId: input && input.pageContext && input.pageContext.entityId,
+            entityName: input && input.pageContext && input.pageContext.entityName,
           },
         },
-        window.location.origin,
-      );
-      return Promise.resolve({
-        ok: false,
-        bridge: "postMessage-fallback",
-        message: "Electron preload bridge not detected; postMessage fallback emitted for local testing.",
-      });
-    }
-    var event = {
-      source: "crm-web",
-      sdkVersion: window.CopilotDesktopCRM.version || "0.2.0",
-      requestId: "req_" + Date.now(),
-      type: "crm.product.context.submit",
-      trigger: {
-        type: "user-click",
-        elementId: options && options.triggerElementId,
-        label: options && options.triggerLabel,
-        timestamp: new Date().toISOString(),
       },
-      page: {
+      window.location.origin,
+    );
+
+    return { ok: true, requestId: "", message: "ready emitted via postMessage fallback" };
+  }
+
+  function submitProductContext(product, options) {
+    return submit({
+      formType: "product",
+      action: "view",
+      skillName: PRODUCT_SKILL_BY_ACTION.view,
+      pageContext: {
         app: "crm-lite",
+        url: window.location.href,
+        title: document.title,
         entityType: "product",
         entityId: product && product.id,
         entityName: product && product.productName,
-        url: window.location.href,
-        title: document.title,
+        data: { product: product },
       },
-      payload: { product: product },
-    };
-    return window.CopilotDesktopCRM.emit(event);
+      trigger: {
+        elementId: options && options.triggerElementId,
+        label: options && options.triggerLabel,
+      },
+    });
   }
 
-  window.addEventListener("crm-lite:desktop-command", function (event) {
-    var command = event && event.detail;
-    if (!command) return;
-    dispatchCommandToHandlers(command);
-    void handleDesktopCommand(command).catch(function (err) {
-      setReceiverLog("command error: " + (err && err.message ? err.message : String(err)));
-    });
-  });
+  var hostBridgeApi = {
+    version: SDK_VERSION,
+    protocolVersion: PROTOCOL_VERSION,
+    isAvailable: isHostBridgeAvailable,
+    isDesktopAvailable: isHostBridgeAvailable,
+    submit: submit,
+    ready: ready,
+    onCommand: onCommand,
+    ack: ack,
+    submitProductContext: submitProductContext,
+    resolveProductSkillName: resolveProductSkillName,
+    PRODUCT_SKILL_BY_ACTION: PRODUCT_SKILL_BY_ACTION,
+  };
+
+  /** 勿覆盖 Electron preload 已注入的 CopilotHostBridge*，否则 isAvailable/ack 会失效 */
+  if (!nativeHostBridge) {
+    window.CopilotHostBridge = hostBridgeApi;
+    window.CopilotHostBridgeSDK = hostBridgeApi;
+  }
+
+  function registerOnCommand(handler) {
+    var offSdk = onCommand(handler);
+    var offNative =
+      nativeHostBridgeSdk && typeof nativeHostBridgeSdk.onCommand === "function"
+        ? nativeHostBridgeSdk.onCommand(handler)
+        : function () {};
+    return function () {
+      offSdk();
+      offNative();
+    };
+  }
+
+  function bridgeIsAvailable() {
+    return isHostBridgeAvailable();
+  }
+
+  var pageSdkApi = {
+    version: SDK_VERSION,
+    protocolVersion: PROTOCOL_VERSION,
+    isAvailable: bridgeIsAvailable,
+    isDesktopAvailable: bridgeIsAvailable,
+    submitProductContext: submitProductContext,
+    submit: submit,
+    ready: ready,
+    onCommand: registerOnCommand,
+    ack: ack,
+    resolveProductSkillName: resolveProductSkillName,
+    PRODUCT_SKILL_BY_ACTION: PRODUCT_SKILL_BY_ACTION,
+    mockElectronCommand: function (command) {
+      window.postMessage(
+        {
+          source: DESKTOP_SOURCE,
+          channel: HOST_COMMAND_CHANNEL,
+          command: command,
+          replyRequired: !!(command && (command.replyRequired || command.expectAck)),
+        },
+        window.location.origin,
+      );
+    },
+  };
+
+  /**
+   * contextBridge 暴露的 CopilotCrmDesktopSDK 在页面侧为只读，直接赋值会抛错并导致 inject 失败。
+   * 页面请优先使用 CopilotCrmLiteDemoSDK（或回退到 Preload 全局对象）。
+   */
+  var existingDesktopSdk = window.CopilotCrmDesktopSDK;
+  if (!existingDesktopSdk) {
+    window.CopilotCrmDesktopSDK = pageSdkApi;
+  } else {
+    window.CopilotCrmLiteDemoSDK = pageSdkApi;
+  }
+
+  window.__copilotCrmLiteJssdkLoaded = true;
 
   window.addEventListener("message", function (event) {
     if (event.origin !== window.location.origin) return;
     var msg = event.data;
-    if (!msg || msg.source !== DESKTOP_SOURCE || msg.channel !== COMMAND_CHANNEL) return;
+    if (!msg || msg.source !== DESKTOP_SOURCE) return;
+    if (
+      msg.channel !== HOST_COMMAND_CHANNEL &&
+      msg.channel !== LEGACY_COMMAND_CHANNEL
+    ) {
+      return;
+    }
     if (!msg.command) return;
 
     dispatchCommandToHandlers(msg.command);
@@ -268,17 +435,6 @@
         setReceiverLog("command ok: " + (msg.command.type || "") + "\n" + JSON.stringify(result, null, 2));
         if (msg.replyRequired) {
           postCommandAck(msg.command, result, true);
-        }
-        if (
-          msg.command.type === "desktop.crm.product.create" &&
-          result &&
-          result.data &&
-          result.data.id
-        ) {
-          setTimeout(function () {
-            window.location.href =
-              "/product-view.html?id=" + encodeURIComponent(String(result.data.id));
-          }, 200);
         }
       })
       .catch(function (err) {
@@ -290,14 +446,14 @@
       });
   });
 
-  window.CopilotCrmDesktopSDK = {
-    version: (window.CopilotDesktopCRM && window.CopilotDesktopCRM.version) || "0.2.0",
-    isAvailable: isBridgeAvailable,
-    isDesktopAvailable: isBridgeAvailable,
-    submitProductContext: submitProductContext,
-    onCommand: onCommand,
-    mockElectronCommand: mockElectronCommand,
-  };
+  window.addEventListener("message", function (event) {
+    if (event.origin !== window.location.origin) return;
+    var msg = event.data;
+    if (!msg || msg.source !== DESKTOP_SOURCE) return;
+    if (msg.channel === "host.desktop.ready" || msg.channel === "crm.desktop.ready") {
+      notifyBridgeStatus();
+    }
+  });
 
   notifyBridgeStatus();
   window.addEventListener("focus", notifyBridgeStatus);

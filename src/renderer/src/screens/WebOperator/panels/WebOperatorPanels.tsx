@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { BrowserStatePanel } from "../BrowserStatePanel";
-import { CrmEventPanel } from "../CrmEventPanel";
+import { HostBridgePanel } from "../HostBridgePanel";
 import { HermesTaskPanel } from "../HermesTaskPanel";
 import { PageStructurePanel } from "../PageStructurePanel";
 import { BrowserActionLog } from "../BrowserActionLog";
@@ -32,9 +32,9 @@ function renderPanelBody(
   switch (panelId) {
     case "browser-state":
       return <BrowserStatePanel className="web-operator-panels__content" />;
-    case "crm-context":
+    case "host-context":
       return (
-        <CrmEventPanel
+        <HostBridgePanel
           className="web-operator-panels__content"
           onRefreshSnapshot={props.onRefreshSnapshot}
         />
@@ -65,14 +65,15 @@ export function WebOperatorPanels({
   const activePanel = normalizeWebOperatorPanelId(focusedPanel);
 
   const stateRef = useRef<HTMLDivElement>(null);
-  const crmRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const hermesTaskRef = useRef<HTMLDivElement>(null);
   const structureRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   const panelRefs: PanelRefMap = {
     "browser-state": stateRef,
-    "crm-context": crmRef,
+    "host-context": hostRef,
+    "crm-context": hostRef,
     "hermes-task": hermesTaskRef,
     "page-structure": structureRef,
     "action-log": logRef,

@@ -3,6 +3,7 @@ import { WebContentsHost } from "../../components/shell/WebContentsHost";
 import type { WebOperatorLayoutState } from "../../../../shared/shell/main-page-state-contract";
 import { BrowserToolbar } from "./BrowserToolbar";
 import { WebOperatorSideRail } from "./WebOperatorSideRail";
+import { WebOperatorTabs } from "./WebOperatorTabs";
 import { useWebOperatorLayoutSplit } from "./hooks/useWebOperatorLayoutSplit";
 import { HANDLE_PX } from "./web-operator-layout-constants";
 import "./web-operator.css";
@@ -29,6 +30,7 @@ function WebOperatorScreenInner({
   const { analysisRequest, taskStartDialog } = useWebOperatorPageContext();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [snapshotRefreshTrigger, setSnapshotRefreshTrigger] = useState(0);
+  const [activeLayerId, setActiveLayerId] = useState(WEB_OPERATOR_LAYER_ID);
 
   const isTaskStartDialogOpen =
     taskStartDialog != null &&
@@ -76,8 +78,9 @@ function WebOperatorScreenInner({
           onRefreshSnapshot={() => void handleRefreshSnapshot()}
           snapshotLoading={snapshotLoading}
         />
+        <WebOperatorTabs onActiveLayerChange={setActiveLayerId} />
         <WebContentsHost
-          layerId={WEB_OPERATOR_LAYER_ID}
+          layerId={activeLayerId}
           className="web-operator-layout__viewport"
           enabled={enabled && !isTaskStartDialogOpen}
         />

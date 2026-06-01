@@ -52,3 +52,65 @@ export type {
   CrmRendererRouteId,
   CrmRendererRouteDefinition,
 } from "./crm-renderer-routes";
+
+export type {
+  HostBridgeAction,
+  HostBridgeEventType,
+  HostBridgeErrorCode,
+  HostBridgeTrigger,
+  HostBridgePageContext,
+  HostBridgeSubmitEvent,
+  HostPageReadyEvent,
+  HostBridgeEvent,
+  HostBridgeResult,
+  HostDesktopCommandType,
+  DesktopHostFormFillCommand,
+  HostDesktopCommand,
+  HostDesktopCommandAck,
+  HostSkillRunResult,
+  WebOperatorTabStatus,
+  WebOperatorTabKind,
+  WebOperatorTab,
+  HostHandoffStatus,
+  HostHandoffRecord,
+  HostBridgeRouteAction,
+  HostBridgeRouteConfig,
+  HostBridgeRouteResult,
+  HostBridgeStoredEvent,
+  HostBridgeStoredReadyEvent,
+  HostBridgeEmitInput,
+  HostBridgeOnEventPayload,
+  HostBridgeConfigFile,
+  HostBridgeSiteConfig,
+} from "./host-bridge-contract";
+
+export {
+  HOST_BRIDGE_PROTOCOL_VERSION,
+  HostBridgeEvents,
+  ALLOWED_HOST_BRIDGE_EVENT_TYPES,
+  ALLOWED_HOST_DESKTOP_COMMAND_TYPES,
+} from "./host-bridge-contract";
+
+export type {
+  HostBridgeAuditAction,
+  HostBridgeAuditStatus,
+  HostBridgeAuditRecord,
+} from "./host-bridge-errors";
+
+export { createHostBridgeError } from "./host-bridge-errors";
+
+export type { HostBridgeSchemaValidation } from "./host-bridge-schema";
+
+export {
+  validateHostBridgeEventSchema,
+  estimateHostPayloadBytes,
+  hasForbiddenSecrets,
+} from "./host-bridge-schema";
+
+export {
+  isLegacyCrmBridgeEvent,
+  adaptLegacyCrmEventToHost,
+  normalizeHostDesktopCommandType,
+  adaptLegacyCommandToHost,
+  hostEventToCrmBridgeEvent,
+} from "./host-bridge-legacy-adapter";

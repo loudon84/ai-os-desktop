@@ -5,6 +5,7 @@ import { isOriginAllowed, getCrmBridgeConfig } from "./crm-bridge-config";
 import type { BrowserViewPort } from "../browser/browser-viewport";
 import type { ShellViewManager } from "../shell/views/shell-view-manager";
 import { viewEventBus } from "../shell/views/view-events";
+import { tryDeliverHostHandoffAfterPageLoad } from "./host-handoff-orchestrator";
 import { ensureWebOperatorBridgeHealth } from "./web-operator-bridge-health";
 
 const injectedWebContentsIds = new Set<number>();
@@ -105,21 +106,51 @@ async function probeWebOperatorBridge(webContents: WebContents): Promise<void> {
 
 let injectorRegistered = false;
 
-export function setupCrmLitePageInjector(viewManager: BrowserViewPort): void {
+function attachWebOperatorWebContents(
+  shellViewManager: ShellViewManager | undefined,
+  viewManager: BrowserViewPort,
+  viewId?: string,
+): void {
+  if (viewId && shellViewManager) {
+    const wc = shellViewManager.getView(viewId)?.getWebContents();
+    if (wc) {
+      attachCrmLitePageInjector(wc);
+      return;
+    }
+  }
+
+  const wc = viewManager.getExternalWebContents();
+  if (wc) attachCrmLitePageInjector(wc);
+}
+
+export function setupCrmLitePageInjector(
+  viewManager: BrowserViewPort,
+  shellViewManager?: ShellViewManager,
+): void {
   if (injectorRegistered) return;
   injectorRegistered = true;
 
-  const attachIfWebOperator = (): void => {
-    const wc = viewManager.getExternalWebContents();
-    if (wc) attachCrmLitePageInjector(wc);
-  };
-
-  viewEventBus.on("view:created", ({ kind }) => {
-    if (kind === "web-operator") attachIfWebOperator();
+  viewEventBus.on("view:created", ({ id, kind }) => {
+    if (kind !== "web-operator") return;
+    attachWebOperatorWebContents(shellViewManager, viewManager, id);
   });
 
-  attachIfWebOperator();
+  if (shellViewManager) {
+    for (const view of shellViewManager.getAllViews()) {
+      if (view.getKind() === "web-operator") {
+        const wc = view.getWebContents();
+        if (wc) attachCrmLitePageInjector(wc);
+      }
+    }
+  } else {
+    attachWebOperatorWebContents(undefined, viewManager);
+  }
 }
+
+const BRIDGE_ACK_PROBE =
+  "Boolean(window.CopilotHostBridgeSDK && typeof window.CopilotHostBridgeSDK.ack === 'function')";
+const PAGE_SDK_PROBE =
+  "Boolean(window.__copilotCrmLiteJssdkLoaded && (window.CopilotCrmLiteDemoSDK || window.CopilotCrmDesktopSDK))";
 
 export async function injectCrmLiteJssdkIfNeeded(webContents: WebContents): Promise<void> {
   if (webContents.isDestroyed()) return;
@@ -132,8 +163,25 @@ export async function injectCrmLiteJssdkIfNeeded(webContents: WebContents): Prom
   if (!source) return;
 
   try {
+    const loaded = await webContents.executeJavaScript(PAGE_SDK_PROBE, true);
+    const bridgeOk = await webContents.executeJavaScript(BRIDGE_ACK_PROBE, true);
+
+    if (loaded && bridgeOk) {
+      void tryDeliverHostHandoffAfterPageLoad(webContents);
+      return;
+    }
+
+    if (loaded) {
+      await webContents.executeJavaScript(
+        "window.__copilotCrmLiteJssdkLoaded=false;",
+        true,
+      );
+      console.log("[CRM-BRIDGE] Re-injecting crm-lite-jssdk.js (repair stale page SDK) for", url);
+    }
+
     await webContents.executeJavaScript(source, true);
     console.log("[CRM-BRIDGE] Injected crm-lite-jssdk.js for", url);
+    void tryDeliverHostHandoffAfterPageLoad(webContents);
   } catch (error) {
     console.warn("[CRM-BRIDGE] Failed to inject crm-lite-jssdk.js:", error);
   }

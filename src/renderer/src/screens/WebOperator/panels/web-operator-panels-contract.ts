@@ -2,6 +2,7 @@ import type { WorkspaceSecondaryPanel } from "../../../../../shared/workspace/wo
 
 export type WebOperatorPanelId =
   | "browser-state"
+  | "host-context"
   | "crm-context"
   | "hermes-task"
   | "page-structure"
@@ -20,8 +21,8 @@ export const WEB_OPERATOR_PANEL_ORDER: WebOperatorPanelDefinition[] = [
     size: "md",
   },
   {
-    id: "crm-context",
-    labelKey: "navigation.crmContext",
+    id: "host-context",
+    labelKey: "navigation.hostContext",
     size: "md",
   },
   {
@@ -47,6 +48,7 @@ export function isWebOperatorPanelId(value: string): value is WebOperatorPanelId
 
 export function normalizeWebOperatorPanelId(value: string): WebOperatorPanelId {
   if (value === "screenshot") return "browser-state";
+  if (value === "crm-context") return "host-context";
   return isWebOperatorPanelId(value) ? value : "browser-state";
 }
 

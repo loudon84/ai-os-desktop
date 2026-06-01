@@ -14,7 +14,7 @@ export const SECONDARY_NAV_BY_WORKSPACE: Record<
   "task-workbench": [],
   "web-operator": [
     "browser-state",
-    "crm-context",
+    "host-context",
     "hermes-task",
     "page-structure",
     "action-log",
@@ -32,7 +32,8 @@ export const SECONDARY_PANEL_LABEL_KEYS: Record<WorkspaceSecondaryPanel, string>
   memory: "workspaces.tabs.memory",
   runtime: "workspaces.tabs.runtime",
   "browser-state": "navigation.browserState",
-  "crm-context": "navigation.crmContext",
+  "host-context": "navigation.hostContext",
+  "crm-context": "navigation.hostContext",
   "hermes-task": "navigation.hermesTask",
   "page-structure": "navigation.pageStructure",
   "action-log": "navigation.actionLog",

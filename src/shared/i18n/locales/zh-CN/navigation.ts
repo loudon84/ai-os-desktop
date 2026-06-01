@@ -16,6 +16,7 @@ export default {
   agents: "智能体",
   browserState: "浏览器状态",
   crmContext: "CRM 上下文",
+  hostContext: "Host 上下文",
   hermesTask: "Hermes 任务",
   crm: {
     workbench: "CRM 助手",

@@ -37,8 +37,15 @@ import type {
   CrmBridgeStoredEvent,
   CrmBridgeResult,
   CrmDesktopCommand,
+  HostBridgeOnEventPayload,
+  HostBridgeResult,
+  HostBridgeStoredEvent,
+  HostDesktopCommand,
+  HostHandoffRecord,
+  HostBridgeConfigFile,
+  WebOperatorTab,
 } from "../shared/crm-bridge";
-import { CrmBridgeEvents } from "../shared/crm-bridge";
+import { CrmBridgeEvents, HostBridgeEvents } from "../shared/crm-bridge";
 
 export interface AiosBrowserAPI {
   open(request: BrowserOpenRequest): Promise<BrowserOpenResult>;
@@ -81,11 +88,44 @@ export interface AiosBrowserAPI {
   onStateChanged(callback: (state: BrowserRuntimeState) => void): () => void;
   onActionLogged(callback: (log: BrowserActionLogEntry) => void): () => void;
 
-  /** v5.7.1 — CRM desktop bridge */
+  /** v5.7.1 — CRM desktop bridge (legacy) */
   listCrmEvents(limit?: number): Promise<CrmBridgeStoredEvent[]>;
   getLastCrmEvent(): Promise<CrmBridgeStoredEvent | null>;
   sendCrmCommand(command: CrmDesktopCommand): Promise<CrmBridgeResult>;
   onCrmEvent(callback: (payload: CrmBridgeOnEventPayload) => void): () => void;
+
+  /** v6.0 — HostBridge */
+  listHostBridgeEvents(limit?: number): Promise<HostBridgeStoredEvent[]>;
+  getLastHostBridgeEvent(): Promise<HostBridgeStoredEvent | null>;
+  sendHostCommand(
+    command: HostDesktopCommand,
+    tabLayerId?: string | null,
+  ): Promise<HostBridgeResult>;
+  onHostBridgeEvent(callback: (payload: HostBridgeOnEventPayload) => void): () => void;
+  getHostBridgeConfig(): Promise<HostBridgeConfigFile>;
+  getHostBridgeConfigPath(): Promise<string>;
+  reloadHostBridgeConfig(): Promise<HostBridgeConfigFile>;
+  openHostBridgeConfigFile(): Promise<{ ok: boolean }>;
+  getLastHostHandoff(): Promise<HostHandoffRecord | null>;
+  listHostHandoffs(limit?: number): Promise<HostHandoffRecord[]>;
+  clearHostHandoff(): Promise<{ ok: boolean }>;
+  listWebOperatorTabs(): Promise<WebOperatorTab[]>;
+  getActiveWebOperatorTab(): Promise<{
+    tab: WebOperatorTab | null;
+    activeTabId: string;
+    layerId: string;
+  }>;
+  activateWebOperatorTab(tabId: string): Promise<WebOperatorTab | null>;
+  closeWebOperatorTab(tabId: string): Promise<boolean>;
+  createWebOperatorTab(input: {
+    url: string;
+    title?: string;
+    kind?: WebOperatorTab["kind"];
+    activate?: boolean;
+  }): Promise<WebOperatorTab>;
+  onWebOperatorTabsChanged(
+    callback: (payload: { tabs: WebOperatorTab[]; activeTabId: string }) => void,
+  ): () => void;
 }
 
 export const aiosBrowser: AiosBrowserAPI = {
@@ -163,5 +203,38 @@ export const aiosBrowser: AiosBrowserAPI = {
     ): void => callback(payload);
     ipcRenderer.on(CrmBridgeEvents.ON_EVENT, handler);
     return () => ipcRenderer.removeListener(CrmBridgeEvents.ON_EVENT, handler);
+  },
+
+  listHostBridgeEvents: (limit?) => ipcRenderer.invoke("host-bridge:list-events", limit),
+  getLastHostBridgeEvent: () => ipcRenderer.invoke("host-bridge:get-last-event"),
+  sendHostCommand: (command, tabLayerId?: string | null) =>
+    ipcRenderer.invoke("host-bridge:send-command", command, tabLayerId ?? null),
+  onHostBridgeEvent: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: HostBridgeOnEventPayload,
+    ): void => callback(payload);
+    ipcRenderer.on(HostBridgeEvents.ON_EVENT, handler);
+    return () => ipcRenderer.removeListener(HostBridgeEvents.ON_EVENT, handler);
+  },
+  getHostBridgeConfig: () => ipcRenderer.invoke("host-bridge:get-config"),
+  getHostBridgeConfigPath: () => ipcRenderer.invoke("host-bridge:get-config-path"),
+  reloadHostBridgeConfig: () => ipcRenderer.invoke("host-bridge:reload-config"),
+  openHostBridgeConfigFile: () => ipcRenderer.invoke("host-bridge:open-config-file"),
+  getLastHostHandoff: () => ipcRenderer.invoke("host-bridge:get-last-handoff"),
+  listHostHandoffs: (limit?) => ipcRenderer.invoke("host-bridge:list-handoffs", limit),
+  clearHostHandoff: () => ipcRenderer.invoke("host-bridge:clear-handoff"),
+  listWebOperatorTabs: () => ipcRenderer.invoke("web-operator-tabs:list"),
+  getActiveWebOperatorTab: () => ipcRenderer.invoke("web-operator-tabs:get-active"),
+  activateWebOperatorTab: (tabId) => ipcRenderer.invoke("web-operator-tabs:activate", tabId),
+  closeWebOperatorTab: (tabId) => ipcRenderer.invoke("web-operator-tabs:close", tabId),
+  createWebOperatorTab: (input) => ipcRenderer.invoke("web-operator-tabs:create", input),
+  onWebOperatorTabsChanged: (callback) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: { tabs: WebOperatorTab[]; activeTabId: string },
+    ): void => callback(payload);
+    ipcRenderer.on(HostBridgeEvents.TABS_CHANGED, handler);
+    return () => ipcRenderer.removeListener(HostBridgeEvents.TABS_CHANGED, handler);
   },
 };
