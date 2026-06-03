@@ -521,4 +521,43 @@ Renderer：`screens/Hermes/pages/Models/HermesDefaultModelsSurface.tsx` 经 `her
 
 ---
 
+## Hermes MCP Registry（V6.1）
+
+Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过 `window.hermesAPI.mcp`（Preload `mcp-api.ts`）访问；token 明文不进入 Renderer。
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `mcp:list-servers` | `profile?` | `McpServer[]` |
+| `mcp:create-server` | `CreateMcpServerInput` | `McpServer` |
+| `mcp:update-server` | `id`, `UpdateMcpServerInput` | `McpServer` |
+| `mcp:delete-server` | `id` | `{ success: boolean }` |
+| `mcp:set-server-enabled` | `id`, `enabled` | `McpServer` |
+| `mcp:test-connection` | `id` | `McpConnectionTestResult` |
+| `mcp:sync-tools` | `id` | `McpToolSyncResult` |
+| `mcp:list-tools` | `ListMcpToolsInput?` | `McpTool[]` |
+| `mcp:set-tool-enabled` | `SetMcpToolEnabledInput` | `McpSkillBinding` |
+| `mcp:bind-tool` | `BindMcpToolInput` | `McpSkillBinding` |
+| `mcp:unbind-tool` | `UnbindMcpToolInput` | `{ success: boolean }` |
+| `mcp:check-bridge` | `profile` | `McpBridgeStatus` |
+| `mcp:install-bridge` | `profile` | `McpBridgeStatus` |
+| `mcp:invoke-test` | `McpInvokeToolInput` | `McpInvocationResult` |
+| `mcp:list-invocations` | `ListMcpInvocationsInput?` | `McpInvocation[]` |
+| `mcp:list-artifacts` | `invocationId` | `McpArtifact[]` |
+
+**Main 事件（Preload unsubscribe）**
+
+| Event | Payload |
+|-------|---------|
+| `mcp:event` | `McpRuntimeEvent` |
+| `mcp:server-status` | `McpServerStatusEvent` |
+| `mcp:invocation-event` | `McpInvocationEvent` |
+
+**Runtime Proxy**：Main `mcp-runtime-proxy.ts` 监听 `127.0.0.1:18781` — `GET /health`、`POST /mcp/skills/call`（供 `mcp-skill-bridge`）。
+
+**Legacy**：`list-mcp-servers` 仍读 Hermes `config.yaml` 的 `mcp_servers` 段，与 v6.1 registry 并存。
+
+**Renderer**：`screens/Hermes/pages/MCP/HermesMCPPage.tsx`；Hermes 左导航 `mcp`；页内 Tab：MCP 服务 / 技能 / 市场。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

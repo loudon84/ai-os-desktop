@@ -64,7 +64,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 
 | 全局对象 | 文件 | 用途 |
 |---|---|---|
-| `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等；**含 `windowControls`、`getInstallerPrecheck`** |
+| `window.hermesAPI` | `src/preload/index.ts` | 安装、配置、聊天、会话、模型、技能等；**含 `windowControls`、`getInstallerPrecheck`、`.mcp`（V6.1 MCP Registry）** |
 | `window.aiosBrowser` | `src/preload/browser-api.ts` | Web Operator（legacy 13 方法 + **V5.7** frame/snapshot/结构化动作 API + 事件） |
 | `window.profileRuntime` | `src/preload/profile-runtime-api.ts` | 多 Profile 运行时（20 方法，含日志/自动重启） |
 | `window.profileRole` | `src/preload/profile-role-api.ts` | **V4.0** 专家角色预设安装、角色库同步、role spec 查询/重编译 |
@@ -78,7 +78,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.webOperatorTaskSession` | `src/preload/web-operator-task-session-api.ts` | **V5.7.5** WebOperator Page→Hermes 任务会话（`task_session` SQLite） |
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
 
-类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`。
+类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`、**`src/shared/mcp/`（V6.1）**。
 
 ## 应用路由与 UI 结构
 
@@ -523,6 +523,8 @@ npm run lint         # ESLint
 | **V5.7.6** | **CRM Host Bridge**：handoff store + `crm.page.ready` 自动交付 + command ack；Hermes 工具 `crm.*`；JSSDK `hermes-crm-bridge-sdk.js`；`CrmEventPanel` 调试区 | `prd/v5.7.6_crm_host_bridge.md`, `crm-handoff-*`, `crm-command-result-store.ts`, `browser-tool-bridge.ts`, `CrmEventPanel.tsx` |
 | **V5.7.8** | **MainLayout 全局 Overlay**：`OverlayProvider` / `DialogLayer` / `DrawerLayer` / `NativeShellLayerGate`；阻塞型弹层打开时 hide WebContentsView，关闭后无刷新恢复 | `prd/v5.7.8_main_layout.md`, `components/overlay/*`, `Layout.tsx`, `WebContentsHost.tsx` |
 | **V5.7.10** | **CRM-Lite Bridge Demo**：`crm.product.context.submit` + `desktop.crm.product.fillForm/create`；`page.app` 支持 `crm-lite`；origin `localhost:5178`；`CrmEventPanel` 商品上下文与测试按钮 | `prd/v5.7.10_bridge_demo.md`, `src/shared/crm-bridge/`, `resources/crm-bridge/crm-bridge.config.json`, `CrmEventPanel.tsx` |
+| **V6.1** | **Hermes MCP Skill Gateway**：独立 `mcp` 左导航、`HermesMCPPage`、MCP registry DB、runtime proxy `:18781`、`mcp-skill-bridge`、`window.hermesAPI.mcp` | `prd/v6.1_mcp-skill-gateway.md`, `src/main/mcp/*`, `src/shared/mcp/*`, `screens/Hermes/pages/MCP/*`, `resources/skills/system/mcp-skill-bridge/` |
+| **V6.3** | **WebOperator HermesTaskStartDialog 组件化**：`HermesPanelSkill` / `HermesPanelSession`；HostBridge `requiredSkillName` 校验；session 续写 | `prd/v6.3_bridge-to-hermes.md`, `components/hermes/panel/HermesPanelSkill.tsx`, `HermesPanelSession.tsx`, `screens/WebOperator/HermesTaskStartDialog.tsx` |
 | **V6.0** | **HostBridge JSSDK 标准化** + **WebOperator 多页签**：`host.bridge.submit` / `host.page.ready` / `desktop.host.form.fill`；`bridge-config.json`（userData）；callbackUrl 新 tab + handoff 回填；`HostBridgePanel` | `prd/v6.0_hostBridge-JSSDK.md`, `src/main/crm-bridge/host-*`, `src/main/browser/web-operator-tabs.ts`, `HostBridgePanel.tsx`, `WebOperatorTabs.tsx` |
 | **V5.7.11** | **Hermes CLI Hide**：Windows default Gateway 启动隐藏 CMD 窗口；`spawnHermesGatewayProcess` 优先 `pythonw.exe`，fallback `python.exe` + `windowsHide`（非 detached） | `prd/v5.7.11_hermes-cli-hide.md`, `src/main/hermes.ts` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |

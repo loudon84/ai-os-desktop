@@ -124,6 +124,24 @@ Page Structure [分析内容]
 
 PRD：[`prd/v5.7.5_hermes_integration.md`](../prd/v5.7.5_hermes_integration.md) · IPC：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § WebOperator Hermes Panel / Task Session
 
+## Hermes MCP Skill Gateway（V6.1）
+
+Desktop 侧 MCP 注册表与运行时代理，供 Local Hermes Agent 经 bundled `mcp-skill-bridge` skill 调用外部 MCP tools。
+
+```
+HermesMCPPage → window.hermesAPI.mcp → mcp:* IPC → src/main/mcp/*
+  ├─ mcp-registry.db（~/.hermes/desktop/）
+  ├─ mcp-client-service（streamable_http / stdio）
+  ├─ mcp-tool-sync + mcp-skill-binding（wrapper SKILL + profile 绑定）
+  └─ mcp-runtime-proxy（127.0.0.1:18781 → tools/call）
+```
+
+- **Legacy 并存**：`list-mcp-servers` 仍读 Hermes `config.yaml` 的 `mcp_servers`；v6.1 registry 独立存储。
+- **Renderer**：Hermes 左导航 `mcp` → `HermesMCPPage`（页内：MCP 服务 / 技能 / 市场）。
+- **安全**：token 仅存 Main（safeStorage）；stdio 受控启动；profile 字段全链路透传。
+
+PRD：[`prd/v6.1_mcp-skill-gateway.md`](../prd/v6.1_mcp-skill-gateway.md) · IPC：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § Hermes MCP Registry
+
 ## Windows 安装 Runtime 布局（V5.3）
 
 安装根目录 `$INSTDIR` 下 runtime 采用三对象分层：

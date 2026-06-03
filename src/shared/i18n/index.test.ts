@@ -11,7 +11,7 @@ describe("shared i18n", () => {
   });
 
   it("returns zh-CN text when available", () => {
-    expect(t("welcome.title", "zh-CN")).toBe("欢迎使用 Hermes");
+    expect(t("welcome.title", "zh-CN")).toBe("欢迎使用 SMC-Copilot");
   });
 
   it("falls back to en when zh-CN key is missing", () => {

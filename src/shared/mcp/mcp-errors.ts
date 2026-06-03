@@ -1,0 +1,30 @@
+/** v6.1 — MCP Desktop error codes (Main → Renderer). */
+export const MCP_ERROR_CODES = {
+  SERVER_NOT_FOUND: "MCP_SERVER_NOT_FOUND",
+  SERVER_DISABLED: "MCP_SERVER_DISABLED",
+  SERVER_AUTH_FAILED: "MCP_SERVER_AUTH_FAILED",
+  SERVER_CONNECT_FAILED: "MCP_SERVER_CONNECT_FAILED",
+  TOOLS_LIST_FAILED: "MCP_TOOLS_LIST_FAILED",
+  TOOL_NOT_FOUND: "MCP_TOOL_NOT_FOUND",
+  TOOL_DISABLED: "MCP_TOOL_DISABLED",
+  TOOL_SCHEMA_INVALID: "MCP_TOOL_SCHEMA_INVALID",
+  ARGUMENT_INVALID: "MCP_ARGUMENT_INVALID",
+  PROFILE_NOT_BOUND: "MCP_PROFILE_NOT_BOUND",
+  BRIDGE_NOT_INSTALLED: "MCP_BRIDGE_NOT_INSTALLED",
+  PROXY_NOT_RUNNING: "MCP_PROXY_NOT_RUNNING",
+  INVOCATION_TIMEOUT: "MCP_INVOCATION_TIMEOUT",
+  TASK_FAILED: "MCP_TASK_FAILED",
+  ARTIFACT_NOT_FOUND: "MCP_ARTIFACT_NOT_FOUND",
+} as const;
+
+export type McpErrorCode = (typeof MCP_ERROR_CODES)[keyof typeof MCP_ERROR_CODES];
+
+export class McpServiceError extends Error {
+  readonly code: McpErrorCode;
+
+  constructor(code: McpErrorCode, message: string) {
+    super(message);
+    this.name = "McpServiceError";
+    this.code = code;
+  }
+}

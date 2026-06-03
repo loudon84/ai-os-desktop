@@ -213,6 +213,7 @@ import { ensureShims } from "./enterprise/shim-manager";
 import { registerBrowserToolServerStop } from "./update/update-lifecycle";
 import { initializeProfileRuntime, onBeforeQuit as profileRuntimeBeforeQuit } from "./profile-runtime-manager";
 import { onBeforeQuit as aiosBeforeQuit } from "./aios/aios-runtime-supervisor";
+import { registerMcpIpc, seedDefaultMcpServers, stopMcpRuntimeProxy } from "./mcp";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -455,6 +456,8 @@ function setupIPC(): void {
         currentChatAbort = v;
       },
     });
+    registerMcpIpc(() => mainWindow);
+    seedDefaultMcpServers();
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
@@ -1681,4 +1684,9 @@ app.on("before-quit", () => {
   stopSshTunnel();
   stopClaw3d();
   if (browserToolServer) browserToolServer.stop();
+  try {
+    stopMcpRuntimeProxy();
+  } catch {
+    /* best effort */
+  }
 });

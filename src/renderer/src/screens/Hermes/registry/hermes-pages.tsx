@@ -8,6 +8,7 @@ const MemoryPage = lazy(() => import("../pages/Memory/HermesMemoryPage"));
 const ProvidersPage = lazy(() => import("../pages/Providers/HermesProvidersPage"));
 const ModelsPage = lazy(() => import("../pages/Models/HermesModelsPage"));
 const ChatPage = lazy(() => import("../pages/Chat/HermesDefaultChatPage"));
+const McpPage = lazy(() => import("../pages/MCP/HermesMCPPage"));
 
 export type HermesPageKey = HermesNavItemKey;
 
@@ -15,6 +16,7 @@ export const HERMES_PAGE_REGISTRY: Record<HermesPageKey, ComponentType> = {
   chat: ChatPage,
   sessions: SessionsPage,
   skills: SkillsPage,
+  mcp: McpPage,
   tools: ToolsPage,
   memory: MemoryPage,
   providers: ProvidersPage,
