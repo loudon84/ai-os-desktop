@@ -10,7 +10,21 @@
       "enabled": true,
       "allowedOrigins": [
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://192.168.70.161:3000",
+        "http://192.168.70.161",
+        "http://192.168.70.161:8080"
+      ]
+    },
+    {
+      "siteId": "sdms-om",
+      "name": "SDMS Order Management",
+      "enabled": true,
+      "allowedOrigins": [
+        "http://192.168.70.161",
+        "http://192.168.70.161:3000",
+        "http://192.168.70.161:8080",
+        "http://localhost:8080"
       ]
     },
     {

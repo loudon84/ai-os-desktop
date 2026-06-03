@@ -56,6 +56,13 @@ export type HermesPanelTaskInput = {
   action: HermesPanelTaskAction;
   userPrompt?: string;
   skill?: string;
+  hostBridge?: {
+    requestId: string;
+    formType: string;
+    action: "create" | "edit" | "view" | "analytic";
+    callbackUrl?: string;
+    skillName: string;
+  };
 };
 
 export type HermesPanelTaskSessionReadyInput = {

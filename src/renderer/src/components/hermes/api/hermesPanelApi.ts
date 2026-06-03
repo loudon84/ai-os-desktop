@@ -3,6 +3,7 @@ import type {
   HermesChatSendPayload,
   HermesChatUsageEvent,
   UploadHermesAttachmentBuffersPayload,
+  UploadHermesAttachmentsPayload,
   UploadHermesAttachmentsResponse,
 } from "../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
 import { HERMES_PANEL_DEFAULT_PROFILE } from "../constants";
@@ -25,6 +26,23 @@ export const hermesPanelApi = {
       ...payload,
       profile: P,
     });
+  },
+
+  uploadAttachments(
+    payload: Omit<UploadHermesAttachmentsPayload, "profile">,
+  ): Promise<UploadHermesAttachmentsResponse> {
+    return window.hermesDefaultChat.uploadAttachments({ ...payload, profile: P });
+  },
+
+  uploadDroppedAttachments(
+    payload: Omit<UploadHermesAttachmentsPayload, "profile">,
+    files: FileList,
+  ): Promise<UploadHermesAttachmentsResponse> {
+    return window.hermesDefaultChat.uploadDroppedAttachments({ ...payload, profile: P }, files);
+  },
+
+  removeAttachment(attachmentId: string): Promise<{ ok: true }> {
+    return window.hermesDefaultChat.removeAttachment(P, attachmentId, P);
   },
 
   /** Never pass `model_id` — global default model via Main overlay. */

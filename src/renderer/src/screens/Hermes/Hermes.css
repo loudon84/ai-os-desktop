@@ -340,7 +340,7 @@
   padding: 4px 8px;
   border: none;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
@@ -716,12 +716,15 @@
 }
 
 .hermes-chat-bubble__content {
-  padding: 10px 14px;
+  padding: 10px;
   border-radius: var(--radius-md, 12px);
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;  
   word-break: break-word;
+  p {
+    margin-block-start: 0em!important;
+    margin-block-end: 0em!important;
+  }
 }
 
 .hermes-chat-bubble--user .hermes-chat-bubble__content {
@@ -943,12 +946,15 @@
   border-top: 1px solid var(--border);
   padding: 12px;
   background: var(--bg-primary);
+  box-sizing: border-box;
 }
 
 .hermes-webchat-input {
+  box-sizing: border-box;
   width: 100%;
   min-height: 44px;
   max-height: 160px;
+  padding: 6px;
   resize: vertical;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1227,6 +1233,159 @@
   flex: 1;
   min-width: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.hermes-skills-inner-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.hermes-skills-inner-tabs__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hermes-skills-inner-tabs__btn.is-active {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.hermes-skills-inner-tabs__count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.hermes-skills-inner-tabs__btn.is-active .hermes-skills-inner-tabs__count {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.hermes-skills-tab__toolbar {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.hermes-skills-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  margin: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.hermes-skills-search:focus-within {
+  border-color: var(--accent);
+}
+
+.hermes-skills-search__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.hermes-skills-search__input:focus {
+  outline: none;
+}
+
+.hermes-skills-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hermes-skills-card {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.hermes-skills-card__main {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hermes-skills-card__main.is-selected {
+  color: var(--accent, #3b82f6);
+}
+
+.hermes-skills-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hermes-skills-card__head strong {
+  font-size: 13px;
+}
+
+.hermes-skills-card__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hermes-skills-card__desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.hermes-skills-card__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  align-self: center;
 }
 
 .hermes-skills-layout__preview {
@@ -1305,6 +1464,131 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* v6.1 — Hermes MCP page */
+.hermes-mcp-page .hermes-mcp-inner-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.hermes-mcp-inner-tabs__btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.hermes-mcp-inner-tabs__btn.is-active {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.hermes-mcp-tab__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.hermes-mcp-server-list,
+.hermes-mcp-skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hermes-mcp-server-card,
+.hermes-mcp-skill-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.hermes-mcp-server-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.hermes-mcp-server-card__meta,
+.hermes-mcp-server-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.hermes-mcp-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.hermes-mcp-badge.is-ok {
+  color: var(--status-success, #16a34a);
+}
+
+.hermes-mcp-badge.is-error {
+  color: var(--status-error, #dc2626);
+}
+
+.hermes-mcp-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.hermes-mcp-bridge-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.hermes-mcp-schema-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 240px;
+  overflow: auto;
+}
+
+.hermes-mcp-schema-panel pre {
+  margin: 8px 0 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.hermes-mcp-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.hermes-mcp-invocations {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .hermes-models-form--inline {

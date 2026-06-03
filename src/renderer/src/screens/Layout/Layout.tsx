@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { WorkspaceOutlet } from "../../components/layout/WorkspaceOutlet";
 import { StatusBar } from "../../components/layout/StatusBar";
 import { useKeepAliveRegistry } from "../../components/layout/useKeepAliveRegistry";
+import { KeepAliveView } from "../../components/layout/KeepAliveView";
 import { MainPage } from "../MainPage/MainPage";
 import type { SidebarMode } from "../MainPage/main-page-types";
 import { useExternalBrowserTabs } from "../MainPage/useExternalBrowserTabs";
@@ -35,6 +36,7 @@ import type { StaticWorkspaceId } from "../../../../shared/workspace/workspace-c
 import { useShellLayerVisibility } from "../../hooks/useShellLayerVisibility";
 import type { CrmBridgeOnEventPayload } from "../../../../shared/crm-bridge";
 import { navigateCrmRendererRoute } from "../../crm-bridge/crm-renderer-navigation";
+import { WebOperatorScreen } from "../WebOperator/WebOperatorScreen";
 
 function isValidRestoredView(
   view: string | undefined,
@@ -341,6 +343,8 @@ function Layout(): React.JSX.Element {
   const hasLegacyBlockingDrawer =
     settingsDrawerOpen || Boolean(pendingBootstrapDiff?.diff?.length);
 
+  const isWebOperatorActive = navigation.view === "web-operator";
+
   return (
     <OverlayProvider legacyDrawerBlocking={hasLegacyBlockingDrawer}>
       <NativeShellLayerGateProvider activeView={navigation.view}>
@@ -377,17 +381,31 @@ function Layout(): React.JSX.Element {
           downloadPercent={downloadPercent}
           onUpdate={handleUpdate}
           outlet={
-            <WorkspaceOutlet
-              view={navigation.view}
-              activeProfile={navigation.activeProfile}
-              officeVisited={navigation.officeVisited}
-              onNavigate={navigation.navigateToView}
-              onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
-              secondaryPanel={secondaryPanel}
-              onSecondaryPanelChange={handleSecondaryPanelChange}
-              webOperatorLayout={webOperatorLayout}
-              onWebOperatorLayoutChange={handleWebOperatorLayoutChange}
-            />
+            <>
+              <KeepAliveView active={isWebOperatorActive}>
+                <WebOperatorScreen
+                  enabled={isWebOperatorActive}
+                  focusedPanel={secondaryPanel}
+                  onFocusedPanelChange={handleSecondaryPanelChange}
+                  layout={webOperatorLayout}
+                  onLayoutChange={handleWebOperatorLayoutChange}
+                />
+              </KeepAliveView>
+
+              {!isWebOperatorActive ? (
+                <WorkspaceOutlet
+                  view={navigation.view}
+                  activeProfile={navigation.activeProfile}
+                  officeVisited={navigation.officeVisited}
+                  onNavigate={navigation.navigateToView}
+                  onOpenSettingsDrawer={(panel) => openSettingsDrawer(panel ?? "server")}
+                  secondaryPanel={secondaryPanel}
+                  onSecondaryPanelChange={handleSecondaryPanelChange}
+                  webOperatorLayout={webOperatorLayout}
+                  onWebOperatorLayoutChange={handleWebOperatorLayoutChange}
+                />
+              ) : null}
+            </>
           }
           statusBar={
             <StatusBar

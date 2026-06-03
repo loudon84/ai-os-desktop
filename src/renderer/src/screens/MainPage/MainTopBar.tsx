@@ -175,38 +175,7 @@ export function MainTopBar({
             </form>
           ) : null}
         </div>
-
-        {canNavigateShell ? (
-          <>
-            <button
-              type="button"
-              aria-label="Back"
-              title="Back"
-              disabled={!canGoBack}
-              onClick={onBackActiveTab}
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <button
-              type="button"
-              aria-label="Forward"
-              title="Forward"
-              disabled={!canGoForward}
-              onClick={onForwardActiveTab}
-            >
-              <ChevronRight size={15} />
-            </button>
-            <button
-              type="button"
-              aria-label="Stop loading"
-              title="Stop loading"
-              onClick={onStopActiveTab}
-            >
-              <Square size={13} />
-            </button>
-          </>
-        ) : null}
-
+       
         <button
           type="button"
           aria-label="Reload tab"

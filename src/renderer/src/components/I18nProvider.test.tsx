@@ -71,6 +71,6 @@ describe("I18nProvider", () => {
     });
 
     expect(setLocale).toHaveBeenLastCalledWith("zh-CN");
-    expect(await screen.findByText("欢迎使用 Hermes")).toBeInTheDocument();
+    expect(await screen.findByText("欢迎使用 SMC-Copilot")).toBeInTheDocument();
   });
 });

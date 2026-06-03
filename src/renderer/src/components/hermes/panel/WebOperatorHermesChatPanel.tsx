@@ -101,6 +101,10 @@ export function WebOperatorHermesChatPanel({
       <WebOperatorHermesPanelComposer
         busy={chat.busy}
         disabled={chat.restoring || task?.action === "pending"}
+        attachments={chat.attachments}
+        onUploadAttachment={() => void chat.uploadAttachments()}
+        onUploadDroppedAttachments={(files) => void chat.uploadDroppedAttachments(files)}
+        onRemoveAttachment={(id) => void chat.removeAttachment(id)}
         onSend={(text) => void chat.send(text)}
         onCancel={() => void chat.cancel()}
       />

@@ -108,10 +108,9 @@ function CodeBlock({
           PreTag="div"
           customStyle={{
             margin: 0,
-            borderRadius: 0,
+            borderRadius: 2,
             fontSize: "13px",
             padding: "12px",
-            background: "transparent",
           }}
         >
           {code}

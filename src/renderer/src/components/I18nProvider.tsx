@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 import {
   APP_LOCALES,
@@ -31,8 +31,11 @@ setSharedLocale(initialLocale);
 export function I18nProvider({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }): React.JSX.Element {
+  // react-i18next hoists @types/react@18 in the monorepo; React 19 ReactNode includes bigint.
+  type I18nextChildren = Parameters<typeof I18nextProvider>[0]["children"];
+  const i18nChildren = children as unknown as I18nextChildren;
   const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export function I18nProvider({
 
   return (
     <I18nContext.Provider value={value}>
-      <I18nextProvider i18n={sharedI18n}>{children}</I18nextProvider>
+      <I18nextProvider i18n={sharedI18n}>{i18nChildren}</I18nextProvider>
     </I18nContext.Provider>
   );
 }

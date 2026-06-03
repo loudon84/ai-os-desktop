@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { HermesChatUsageEvent } from "../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
+import type {
+  HermesChatAttachmentMeta,
+  HermesChatUsageEvent,
+} from "../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
 import { formatChatError } from "../../../screens/Hermes/utils/formatChatError";
 import { hermesPanelApi } from "../api/hermesPanelApi";
 import {
@@ -43,8 +46,10 @@ export function useWebOperatorHermesPanelChat(options: {
   const [restoring, setRestoring] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [defaultModelLabel, setDefaultModelLabel] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<HermesChatAttachmentMeta[]>([]);
 
   const messagesRef = useRef<HermesPanelMessage[]>([]);
+  const attachmentsRef = useRef<HermesChatAttachmentMeta[]>([]);
   const runStateRef = useRef<HermesPanelRunState>("idle");
   const streamingRef = useRef("");
   const sessionIdRef = useRef<string | null>(null);
@@ -78,6 +83,42 @@ export function useWebOperatorHermesPanelChat(options: {
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  const resolveAttachmentSessionId = useCallback((): string => {
+    return sessionIdRef.current ?? taskRef.current?.sessionId ?? HERMES_PANEL_DRAFT_SESSION_ID;
+  }, []);
+
+  const uploadAttachments = useCallback(async () => {
+    const res = await hermesPanelApi.uploadAttachments({
+      session_id: resolveAttachmentSessionId(),
+    });
+    setAttachments((prev) => [...prev, ...res.attachments]);
+  }, [resolveAttachmentSessionId]);
+
+  const uploadDroppedAttachments = useCallback(
+    async (files: FileList) => {
+      if (files.length === 0) return;
+      const res = await hermesPanelApi.uploadDroppedAttachments(
+        { session_id: resolveAttachmentSessionId() },
+        files,
+      );
+      setAttachments((prev) => [...prev, ...res.attachments]);
+    },
+    [resolveAttachmentSessionId],
+  );
+
+  const removeAttachment = useCallback(async (id: string) => {
+    await hermesPanelApi.removeAttachment(id);
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  const clearAttachments = useCallback(() => {
+    setAttachments([]);
+    attachmentsRef.current = [];
+  }, []);
 
   useEffect(() => {
     void hermesPanelApi.getModelConfig().then((cfg) => {
@@ -256,19 +297,22 @@ export function useWebOperatorHermesPanelChat(options: {
     setRunState("idle");
     injectedRef.current = false;
     autoRunKeyRef.current = null;
-  }, [cancel]);
+    clearAttachments();
+  }, [cancel, clearAttachments]);
 
   const sendInternal = useCallback(
     async (userText: string, opts?: { forceFirstMessage?: boolean; displayText?: string }) => {
       const trimmed = userText.trim();
-      if (!trimmed || busy || restoring) return;
+      const hasUserAttachments = attachmentsRef.current.length > 0;
+      if ((!trimmed && !hasUserAttachments) || busy || restoring) return;
 
       const ctx = pageContextRef.current;
       const task = taskRef.current;
       const prior = messagesRef.current.filter((m) => !m.isStreaming);
       const isFirstUserMessage = opts?.forceFirstMessage ?? prior.length === 0;
 
-      const displayContent = opts?.displayText?.trim() || trimmed;
+      const displayContent =
+        opts?.displayText?.trim() || trimmed || (hasUserAttachments ? "(attachments)" : "");
       const userMsg: HermesPanelMessage = {
         id: newMessageId(),
         role: "user",
@@ -284,7 +328,7 @@ export function useWebOperatorHermesPanelChat(options: {
       setToolCalls([]);
       setError(null);
 
-      let attachmentIds: string[] = [];
+      let webContextAttachmentIds: string[] = [];
       const resumeId =
         sessionIdRef.current ?? task?.sessionId ?? HERMES_PANEL_DRAFT_SESSION_ID;
 
@@ -296,24 +340,28 @@ export function useWebOperatorHermesPanelChat(options: {
           return;
         }
         if (inj.attachmentIds.length > 0) {
-          attachmentIds = inj.attachmentIds;
+          webContextAttachmentIds = inj.attachmentIds;
           injectedRef.current = true;
         }
       }
 
+      const userAttachmentIds = attachmentsRef.current.map((a) => a.id);
+      const attachmentIds = [...webContextAttachmentIds, ...userAttachmentIds];
+
       const systemLead = (options.presetSystemPrompt ?? DEFAULT_PANEL_SYSTEM_PROMPT).trim();
       const ctxPrefix = buildWebContextPrefix(ctx);
+      const userLine = trimmed || (hasUserAttachments ? "(attachments)" : "");
       const payloadMessage = isFirstUserMessage
         ? task
-          ? `${systemLead}\n\n${trimmed}`
-          : `${systemLead}\n\n${ctxPrefix}[用户]\n${trimmed}`
-        : trimmed;
+          ? `${systemLead}\n\n${userLine}`
+          : `${systemLead}\n\n${ctxPrefix}[用户]\n${userLine}`
+        : userLine;
 
       const history = nextMessages.map((m) => ({ role: m.role, content: m.content }));
 
       try {
         await hermesPanelApi.sendMessage({
-          message: isFirstUserMessage ? payloadMessage : trimmed,
+          message: isFirstUserMessage ? payloadMessage : userLine,
           resumeSessionId: resumeId,
           history: isFirstUserMessage ? undefined : history,
           attachment_ids: attachmentIds.length ? attachmentIds : undefined,
@@ -348,6 +396,8 @@ export function useWebOperatorHermesPanelChat(options: {
       pageContext: task.pageContext,
       userPrompt: task.userPrompt,
       skill: task.skill,
+      sessionId: task.sessionId,
+      hostBridge: task.hostBridge,
     });
 
     const displayText = task.userPrompt?.trim() || "请分析当前页面内容…";
@@ -364,6 +414,10 @@ export function useWebOperatorHermesPanelChat(options: {
     runState,
     sessionId,
     defaultModelLabel,
+    attachments,
+    uploadAttachments,
+    uploadDroppedAttachments,
+    removeAttachment,
     send,
     cancel,
     clear,
