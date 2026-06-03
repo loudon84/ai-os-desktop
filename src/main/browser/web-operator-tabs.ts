@@ -142,6 +142,18 @@ export async function createWebOperatorTab(input: {
     throw new Error("WebOperator tab manager not initialized");
   }
 
+  const trimmedUrl = input.url.trim();
+  if (!trimmedUrl) {
+    throw new Error("web-operator-tabs:create requires a non-empty url");
+  }
+  try {
+    // Ensure we only load absolute URLs (Electron will throw ERR_INVALID_URL otherwise).
+    // eslint-disable-next-line no-new
+    new URL(trimmedUrl);
+  } catch {
+    throw new Error(`web-operator-tabs:create invalid url: ${trimmedUrl}`);
+  }
+
   const tabId = randomUUID();
   const layerId = webOperatorTabLayerId(tabId);
   const now = new Date().toISOString();
@@ -149,7 +161,7 @@ export async function createWebOperatorTab(input: {
   const tab: WebOperatorTab = {
     tabId,
     title: deriveTabTitle(input),
-    url: input.url,
+    url: trimmedUrl,
     status: "loading",
     kind: input.kind ?? "normal",
     hostBridge: input.hostBridge,
@@ -159,7 +171,7 @@ export async function createWebOperatorTab(input: {
 
   tabs.set(tabId, tab);
 
-  await shellViewManager.createView(layerId, "web-operator", input.url, {
+  await shellViewManager.createView(layerId, "web-operator", trimmedUrl, {
     layer: "content",
     partition: WEB_OPERATOR_PARTITION,
     contextIsolation: true,

@@ -7,6 +7,7 @@ import type { InstallerPrecheck } from "../shared/enterprise/enterprise-contract
 import type { RuntimeState } from "../shared/enterprise/runtime-state-contract";
 import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
 import type { CopilotServeAPI } from "../shared/copilot-serve/copilot-serve-contract";
+import type { HermesMcpAPI } from "../shared/mcp/mcp-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -543,6 +544,8 @@ interface HermesAPI {
   ) => () => void;
 
   getInstallerPrecheck: () => Promise<InstallerPrecheck | null>;
+
+  mcp: HermesMcpAPI;
 
   windowControls: WindowControlsAPI;
 

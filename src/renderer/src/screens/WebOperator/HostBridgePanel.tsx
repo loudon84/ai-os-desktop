@@ -1,6 +1,15 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ExternalLink, RefreshCw, Send, Trash2 } from "lucide-react";
-import type { HostBridgeResult, HostDesktopCommand } from "../../../../shared/crm-bridge";
+import type {
+  HostBridgeResult,
+  HostBridgeStoredEvent,
+  HostDesktopCommand,
+} from "../../../../shared/crm-bridge";
+import {
+  buildPageContextFromHostBridgeEvent,
+  resolveHostBridgePageUrl,
+} from "./context/build-page-context";
+import { useWebOperatorPageContext } from "./context";
 import { useHostBridgeEvents } from "./hooks/use-host-bridge-events";
 
 export interface HostBridgePanelProps {
@@ -15,6 +24,8 @@ function jsonStringifySafe(value: unknown): string {
     return String(value);
   }
 }
+
+const DEFAULT_CALLBACK_URL = "http://localhost:3000/product-form.html?action=create";
 
 const DEMO_FILL_FIELDS: Record<string, unknown> = {
   sku: "PHONE-ELECTRON-001",
@@ -31,8 +42,10 @@ export function HostBridgePanel({
   onRefreshSnapshot,
 }: HostBridgePanelProps): React.JSX.Element {
   const { lastEvent, lastHandoff, configPath, error, refresh } = useHostBridgeEvents();
+  const { requestHermesAnalysis } = useWebOperatorPageContext();
   const [sending, setSending] = useState(false);
   const [commandResult, setCommandResult] = useState<HostBridgeResult | null>(null);
+  const [callbackUrlDraft, setCallbackUrlDraft] = useState(DEFAULT_CALLBACK_URL);
 
   const ctxText = useMemo(() => {
     if (!lastEvent) return "";
@@ -94,21 +107,104 @@ export function HostBridgePanel({
   }, [lastEvent, runCommand]);
 
   const openCallbackTab = useCallback(async () => {
-    const url =
-      lastEvent?.callbackUrl ||
-      window.prompt("callbackUrl", "http://localhost:3000/product-form.html?action=create");
-    if (!url?.trim()) return;
+    const url = (lastEvent?.callbackUrl ?? callbackUrlDraft).trim();
+    if (!url) return;
     await window.aiosBrowser.createWebOperatorTab({
-      url: url.trim(),
+      url,
       kind: "host-callback",
       activate: true,
     });
-  }, [lastEvent]);
+  }, [lastEvent, callbackUrlDraft]);
+
+  const openCallbackTabDemo = useCallback(async () => {
+    const jsonData = {
+      tempType: [
+        {
+          custname: "天地伟业技术有限公司",
+          orderno: "POJS2502270017",
+          supname: "深圳市芯云科技有限公司",
+          deliverydate: "2025-03-10",
+          partno: "1B.3004",
+          partdesc: "芯片-视频 编解码 [SSC377]- QFN88-sigmastar -9mm*9mm",
+          quantity: "3",
+          price: "2080",
+          amount: "6240.00",
+        },
+        {
+          custname: "天地伟业技术有限公司",
+          orderno: "POJS2502270017",
+          supname: "深圳市芯云科技有限公司",
+          deliverydate: "2025-03-10",
+          partno: "1B.3004",
+          partdesc: "芯片-视频 编解码 [SSC338G]- BGA307-sigmastar",
+          quantity: "2",
+          price: "220",
+          amount: "440.00",
+        },
+      ],
+    };
+
+    const encoded = encodeURIComponent(JSON.stringify(jsonData));
+    const url = lastEvent?.origin + "/sdms/om/sdms_om_main/sdmsOmMain.do?method=addSoDesktop&tempType=" +
+      encoded;
+    
+    await window.aiosBrowser.createWebOperatorTab({
+      url,
+      kind: "host-callback",
+      activate: true,
+    });
+  }, [lastEvent, callbackUrlDraft]);
 
   const clearHandoff = useCallback(async () => {
     await window.aiosBrowser.clearHostHandoff();
     await refresh();
   }, [refresh]);
+
+  const triggerHermesAnalysis = useCallback(
+    (event: HostBridgeStoredEvent) => {
+      const pageUrl = resolveHostBridgePageUrl(event);
+      if (!pageUrl) return;
+      const pageContext = buildPageContextFromHostBridgeEvent(event);
+      requestHermesAnalysis({
+        pageUrl,
+        pageContext,
+        requiredSkillName: event.skillName,
+        formType: event.formType,
+        action: event.action,
+        callbackUrl: event.callbackUrl,
+        preferStartDialog: true,
+        hostBridgeRequestId: event.requestId,
+        force: false,
+      });
+    },
+    [requestHermesAnalysis],
+  );
+
+  const runAnalyze = useCallback(() => {
+    if (!lastEvent) return;
+    const pageUrl = resolveHostBridgePageUrl(lastEvent);
+    if (!pageUrl) return;
+    requestHermesAnalysis({
+      pageUrl,
+      pageContext: buildPageContextFromHostBridgeEvent(lastEvent),
+      requiredSkillName: lastEvent.skillName,
+      formType: lastEvent.formType,
+      action: lastEvent.action,
+      callbackUrl: lastEvent.callbackUrl,
+      preferStartDialog: true,
+      hostBridgeRequestId: lastEvent.requestId,
+      force: true,
+    });
+  }, [lastEvent, requestHermesAnalysis]);
+
+  const lastAutoAnalyzeRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lastEvent?.requestId) return;
+    if (lastAutoAnalyzeRequestIdRef.current === lastEvent.requestId) return;
+    lastAutoAnalyzeRequestIdRef.current = lastEvent.requestId;
+    triggerHermesAnalysis(lastEvent);
+  }, [lastEvent, triggerHermesAnalysis]);
 
   return (
     <div className={`flex flex-col h-full ${className ?? ""}`}>
@@ -160,13 +256,31 @@ export function HostBridgePanel({
             <ExternalLink size={12} />
             Open config
           </button>
+          {!lastEvent?.callbackUrl ? (
+            <input
+              type="url"
+              value={callbackUrlDraft}
+              onChange={(e) => setCallbackUrlDraft(e.target.value)}
+              placeholder="callbackUrl"
+              className="min-w-[12rem] flex-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-neutral-200"
+              aria-label="Callback URL"
+            />
+          ) : null}
           <button
             type="button"
-            disabled={sending}
+            disabled={sending || !(lastEvent?.callbackUrl ?? callbackUrlDraft).trim()}
             onClick={() => void openCallbackTab()}
             className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
           >
             Open callback tab
+          </button>
+          <button
+            type="button"
+            disabled={sending}
+            onClick={() => void openCallbackTabDemo()}
+            className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+          >
+            Open callback demo
           </button>
           <button
             type="button"
@@ -194,8 +308,17 @@ export function HostBridgePanel({
               Refresh snapshot
             </button>
           ) : null}
+          {ctxText ? (
+            <button
+              type="button"
+              onClick={runAnalyze}
+              className="px-2 py-1 rounded bg-blue-800 hover:bg-blue-700 text-neutral-100"
+            >
+              AI 分析
+            </button>
+            ): null}
         </div>
-
+          
         {lastEvent ? (
           <pre
             className="m-0 max-h-[200px] overflow-auto rounded border border-neutral-800 bg-neutral-900/40 p-2 font-mono text-[11px] leading-relaxed text-neutral-300 whitespace-pre"

@@ -53,6 +53,7 @@ export const hermesPanelApi = {
       resumeSessionId: input.resumeSessionId,
       history: input.history,
       attachment_ids: input.attachment_ids,
+      attachment_metas: input.attachment_metas,
     });
   },
 
@@ -78,5 +79,9 @@ export const hermesPanelApi = {
 
   onUsage(callback: (usage: HermesChatUsageEvent) => void) {
     return window.hermesDefaultChat.onUsage(callback);
+  },
+
+  readContactToOrderLastWebUrl(): Promise<{ url: string; path: string } | null> {
+    return window.hermesDefaultChat.readContactToOrderLastWebUrl(P);
   },
 };

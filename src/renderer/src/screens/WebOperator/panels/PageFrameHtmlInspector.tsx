@@ -11,7 +11,6 @@ import { derivePageUrl } from "../utils/derive-page-url";
 export interface PageFrameHtmlInspectorProps {
   selectedFrameId: string | null;
   frames: BrowserFrameSnapshot[];
-  onAnalyzeContent?: () => void;
 }
 
 function stringifySafe(value: unknown): string {
@@ -45,7 +44,6 @@ function extractBodyInnerHtml(html: string): string {
 export function PageFrameHtmlInspector({
   selectedFrameId,
   frames,
-  onAnalyzeContent,
 }: PageFrameHtmlInspectorProps): React.JSX.Element {
   const [selector, setSelector] = useState("");
   const [outer, setOuter] = useState(true);
@@ -142,7 +140,6 @@ export function PageFrameHtmlInspector({
       });
       if (!ctx) return;
 
-      onAnalyzeContent?.();
       requestHermesAnalysis({ pageUrl, pageContext: ctx });
     } finally {
       setLoading(false);
@@ -151,7 +148,6 @@ export function PageFrameHtmlInspector({
     frame,
     frames,
     fetchFrameHtml,
-    onAnalyzeContent,
     requestHermesAnalysis,
     result,
     selectedFrameId,

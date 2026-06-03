@@ -81,6 +81,8 @@ export type HermesChatSendPayload = {
   resumeSessionId?: string;
   history?: Array<{ role: string; content: string }>;
   attachment_ids?: string[];
+  /** Upload IPC 返回的元数据；index 未命中时 Main 用此拼 AttachmentMeta。 */
+  attachment_metas?: HermesChatAttachmentMeta[];
   model_id?: string;
 };
 

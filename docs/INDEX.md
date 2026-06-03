@@ -155,6 +155,17 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **侧栏保活**：`WebOperatorPanels` 始终挂载 `hermes-task`，非激活时 CSS 隐藏，避免切 Tab 丢任务状态
 - PRD：[`prd/v5.7.5_hermes_integration.md`](../prd/v5.7.5_hermes_integration.md) · 契约：[`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § WebOperator Hermes Panel / Task Session
 
+**V6.3（WebOperator HermesTaskStartDialog 组件化，PRD `prd/v6.3_bridge-to-hermes.md`）**：
+- **HermesPanelSkill** / **HermesPanelSession**：Dialog 可复用 skills / sessions 下拉组件；HostBridge `skillName` → `requiredSkillName` 统一校验
+- **Dialog 提交**：`onConfirm({ userPrompt, skill, sessionId })`；续写已有 session 或新建
+- **HostBridge 元信息**：`HermesPanelTaskInput.hostBridge` + `buildTaskFirstMessage` `[HostBridge]` 块
+
+**V6.1（Hermes MCP Skill Gateway，PRD `prd/v6.1_mcp-skill-gateway.md`）**：
+- **Registry**：`~/.hermes/desktop/mcp-registry.db`；Main `src/main/mcp/*`；Renderer `screens/Hermes/pages/MCP/`
+- **Preload**：`window.hermesAPI.mcp`（`mcp-api.ts`）；IPC `mcp:*` 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § Hermes MCP Registry
+- **Runtime**：本地 proxy `127.0.0.1:18781`；bundled `mcp-skill-bridge` skill 供 Hermes Agent 调用 Desktop MCP tools
+- **UI**：Hermes 左导航独立 `mcp` 页（保留 `skills`）；页内三分区：MCP 服务 / 技能绑定 / 市场（占位）
+
 **V5.7.8（MainLayout 全局 Overlay + Native Layer Gate，PRD `prd/v5.7.8_main_layout.md`）**：
 - **OverlayProvider** / **DialogLayer** / **DrawerLayer** / **NativeShellLayerGate** — 统一管理阻塞型 Dialog/Drawer；`nativeBlocked` 驱动 `WebContentsHost.effectiveEnabled`
 - **legacyDrawerBlocking** — SettingsDrawer / ConfigDiffConfirmDrawer 仍由 Layout 直接挂载，通过 prop 接入 gate
@@ -215,6 +226,13 @@ Renderer 详细文档已拆分到 `docs/renderer/` 目录，按 `src/renderer/sr
 3. docs/API_CONTRACTS.md — IPC 通信契约
 4. docs/READING_GUIDE.md — 代码阅读顺序
 5. AGENTS.md — Agent 编码速查指南
+
+## 功能域参考（Agent 按需加载）
+
+| 文档 | 何时读 | 触发词 |
+|------|--------|--------|
+| [`docs/HERMES_SKILLS.md`](HERMES_SKILLS.md) | 改 Skills 页、skill 安装/卸载、扫盘路径、`SKILL.md`、区分 bundled/installed/`resources/skills` | `HermesSkillsPage`、`listInstalledSkills`、`installSkill`、`profileHome/skills` |
+
 
 ## 技术栈
 

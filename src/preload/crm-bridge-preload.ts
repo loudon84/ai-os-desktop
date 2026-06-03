@@ -22,19 +22,19 @@ const LEGACY_READY_CHANNEL = "crm.desktop.ready";
 const READY_CHANNEL = "host.desktop.ready";
 const BRIDGE_VERSION = "6.0.0";
 const PROTOCOL_VERSION = "6.0";
-const USER_GESTURE_WINDOW_MS = 1500;
+const USER_GESTURE_WINDOW_MS = 3000;
 
 let lastTrustedClickAt = 0;
 
-window.addEventListener(
-  "click",
-  (event) => {
-    if (event.isTrusted) {
-      lastTrustedClickAt = Date.now();
-    }
-  },
-  true,
-);
+function markTrustedGesture(event: Event): void {
+  if (event.isTrusted) {
+    lastTrustedClickAt = Date.now();
+  }
+}
+
+for (const gestureEvent of ["pointerdown", "mousedown", "click"] as const) {
+  window.addEventListener(gestureEvent, markTrustedGesture, true);
+}
 
 function hasRecentTrustedGesture(): boolean {
   return Date.now() - lastTrustedClickAt <= USER_GESTURE_WINDOW_MS;
@@ -44,6 +44,20 @@ function assertTrustedGesture(): void {
   if (!hasRecentTrustedGesture()) {
     throw new Error("USER_GESTURE_REQUIRED");
   }
+}
+
+/** postMessage / emit 路径：本 frame 手势，或事件内 user-click 时间戳（iframe 场景） */
+function hasValidUserClickTrigger(event: unknown): boolean {
+  const trigger = (event as { trigger?: { type?: string; timestamp?: string } })?.trigger;
+  if (trigger?.type !== "user-click" || !trigger.timestamp) return false;
+  const ts = Date.parse(trigger.timestamp);
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts <= USER_GESTURE_WINDOW_MS;
+}
+
+function assertEmitAllowed(event: unknown): void {
+  if (hasRecentTrustedGesture() || hasValidUserClickTrigger(event)) return;
+  throw new Error("USER_GESTURE_REQUIRED");
 }
 
 function buildLocation() {
@@ -72,7 +86,7 @@ async function invokePageReady(event: unknown): Promise<HostBridgeResult> {
 
 async function emit(event: unknown): Promise<HostBridgeResult> {
   try {
-    assertTrustedGesture();
+    assertEmitAllowed(event);
     return await invokeEmit(event);
   } catch (error) {
     return {
@@ -128,7 +142,16 @@ async function submit(input: {
     },
     pageContext: input.pageContext,
   };
-  return emit(event);
+  try {
+    // submit() 由页面 click 处理器调用；iframe 内点击无法被 top frame preload 监听到
+    return await invokeEmit(event);
+  } catch (error) {
+    return {
+      ok: false,
+      requestId: event.requestId,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 async function ready(input?: {

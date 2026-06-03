@@ -21,7 +21,7 @@ export interface WebOperatorScreenProps {
 }
 
 function WebOperatorScreenInner({
-  focusedPanel = "browser-state",
+  focusedPanel = "",
   enabled = true,
   layout,
   onLayoutChange,

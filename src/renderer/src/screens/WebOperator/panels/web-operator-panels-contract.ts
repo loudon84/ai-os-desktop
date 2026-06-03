@@ -46,10 +46,15 @@ export function isWebOperatorPanelId(value: string): value is WebOperatorPanelId
   return WEB_OPERATOR_PANEL_ORDER.some((item) => item.id === value);
 }
 
-export function normalizeWebOperatorPanelId(value: string): WebOperatorPanelId {
+export function resolveWebOperatorPanelId(value: string | undefined): WebOperatorPanelId | null {
+  if (!value?.trim()) return null;
   if (value === "screenshot") return "browser-state";
-  if (value === "crm-context") return "host-context";
-  return isWebOperatorPanelId(value) ? value : "browser-state";
+  return isWebOperatorPanelId(value) ? value : null;
+}
+
+/** @deprecated Prefer resolveWebOperatorPanelId; invalid/empty falls back to browser-state. */
+export function normalizeWebOperatorPanelId(value: string): WebOperatorPanelId {
+  return resolveWebOperatorPanelId(value) ?? "browser-state";
 }
 
 export function toWorkspaceSecondaryPanel(value: WebOperatorPanelId): WorkspaceSecondaryPanel {

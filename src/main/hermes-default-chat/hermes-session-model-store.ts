@@ -7,6 +7,9 @@ import type { SavedModel } from "../models";
 /** Renderer draft chat before first message creates a real session id. */
 export const HERMES_DRAFT_SESSION_ID = "draft_default";
 
+/** WebOperator Hermes panel — must not use session-models.json or overlay config.yaml. */
+export const HERMES_PANEL_DRAFT_SESSION_ID = "draft_weboperator";
+
 type SessionModelStore = Record<string, HermesSessionModelBinding>;
 
 function storePath(profile?: string): string {
@@ -77,6 +80,9 @@ export function migrateSessionModelBinding(
   const sourceId = sourceSessionId.trim();
   const targetId = targetSessionId.trim();
   if (!sourceId || !targetId || sourceId === targetId) {
+    return null;
+  }
+  if (sourceId === HERMES_PANEL_DRAFT_SESSION_ID) {
     return null;
   }
 

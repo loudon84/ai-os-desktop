@@ -36,6 +36,7 @@ import { copilotServeApi } from "./copilot-serve-api";
 import { workspaceChatApi } from "./workspace-chat-api";
 import { hermesDefaultChatApi } from "./hermes-default-chat-api";
 import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
+import { mcpApi } from "./mcp-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -859,6 +860,8 @@ const hermesAPI = {
 
   getInstallerPrecheck: (): Promise<InstallerPrecheck | null> =>
     ipcRenderer.invoke("enterprise:get-installer-precheck"),
+
+  mcp: mcpApi,
 
   windowControls: {
     minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),

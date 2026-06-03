@@ -1,7 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Copy } from "lucide-react";
+import { normalizeMarkdownHref } from "../../../../../shared/hermes-panel/normalize-markdown-href";
 import AgentMarkdown from "../../AgentMarkdown";
 import type { HermesPanelMessage } from "../types";
+import { WebOperatorHermesPanelCallbackLink } from "./WebOperatorHermesPanelCallbackLink";
+
+function openHermesPanelLinkInWebOperator(href: string): void {
+  const trimmed = normalizeMarkdownHref(href);
+  if (!trimmed) return;
+  if (trimmed.startsWith("mailto:")) {
+    void window.hermesAPI.openExternal(trimmed);
+    return;
+  }
+  void window.aiosBrowser.createWebOperatorTab({
+    url: trimmed,
+    kind: "host-callback",
+    activate: true,
+  });
+}
 
 export function WebOperatorHermesPanelMessageList({
   messages,
@@ -13,6 +29,9 @@ export function WebOperatorHermesPanelMessageList({
   className?: string;
 }): React.JSX.Element {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const handleLinkClick = useCallback((href: string) => {
+    openHermesPanelLinkInWebOperator(href);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +52,15 @@ export function WebOperatorHermesPanelMessageList({
           {m.role === "assistant" ? (
             <div>
               {m.content ? (
-                <AgentMarkdown>{m.content}</AgentMarkdown>
+                <>
+                  <AgentMarkdown onLinkClick={handleLinkClick}>{m.content}</AgentMarkdown>
+                  
+                  <WebOperatorHermesPanelCallbackLink
+                    content={m.content}
+                    onOpen={openHermesPanelLinkInWebOperator}
+                  />
+                  
+                </>
               ) : (
                 <span className="text-neutral-500">（无输出）</span>
               )}
@@ -57,7 +84,7 @@ export function WebOperatorHermesPanelMessageList({
       ))}
       {showStreaming ? (
         <div className="web-operator-hermes-panel__bubble web-operator-hermes-panel__bubble--assistant">
-          <AgentMarkdown>{streamingContent}</AgentMarkdown>
+          <AgentMarkdown onLinkClick={handleLinkClick}>{streamingContent}</AgentMarkdown>
           <span className="web-operator-hermes-panel__streaming-cursor" />
         </div>
       ) : null}

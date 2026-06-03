@@ -108,7 +108,7 @@ function CodeBlock({
           PreTag="div"
           customStyle={{
             margin: 0,
-            borderRadius: 2,
+            borderRadius: 0,
             fontSize: "13px",
             padding: "12px",
           }}
@@ -122,8 +122,14 @@ function CodeBlock({
   );
 }
 
-// Shared Markdown renderer that opens links externally
-const AgentMarkdown = memo(function AgentMarkdown({ children }: { children: string }): React.JSX.Element {
+// Shared Markdown renderer; default link behavior opens externally.
+const AgentMarkdown = memo(function AgentMarkdown({
+  children,
+  onLinkClick,
+}: {
+  children: string;
+  onLinkClick?: (href: string) => void;
+}): React.JSX.Element {
   return (
     <Markdown
       remarkPlugins={[remarkGfm]}
@@ -142,7 +148,11 @@ const AgentMarkdown = memo(function AgentMarkdown({ children }: { children: stri
               } catch {
                 return;
               }
-              window.hermesAPI.openExternal(href);
+              if (onLinkClick) {
+                onLinkClick(href);
+              } else {
+                window.hermesAPI.openExternal(href);
+              }
             }}
           >
             {children}

@@ -2,6 +2,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -36,13 +37,34 @@ export function WebOperatorPageContextProvider({
     useState<WebOperatorTaskStartDialogState | null>(null);
   const [taskStartDialogHandlers, setTaskStartDialogHandlers] =
     useState<WebOperatorTaskStartDialogHandlers | null>(null);
+  /** 用户取消 Dialog 后，同一 JSSDK requestId 不再自动弹框 */
+  const dismissedHostBridgeRequestIdsRef = useRef(new Set<string>());
 
   const setPageContext = useCallback((ctx: HermesPanelPageContext | null) => {
     setPageContextState(ctx);
   }, []);
 
   const requestHermesAnalysis = useCallback(
-    (input: { pageUrl: string; pageContext: HermesPanelPageContext }) => {
+    (input: {
+      pageUrl: string;
+      pageContext: HermesPanelPageContext;
+      profile?: string;
+      requiredSkillName?: string;
+      formType?: string;
+      action?: "create" | "edit" | "view" | "analytic";
+      callbackUrl?: string;
+      preferStartDialog?: boolean;
+      hostBridgeRequestId?: string;
+      force?: boolean;
+    }) => {
+      const hostId = input.hostBridgeRequestId?.trim();
+      if (
+        !input.force &&
+        hostId &&
+        dismissedHostBridgeRequestIdsRef.current.has(hostId)
+      ) {
+        return;
+      }
       setPageContextState(input.pageContext);
       setPageUrl(input.pageUrl.trim());
       setAnalysisRequest({
@@ -50,10 +72,27 @@ export function WebOperatorPageContextProvider({
         pageUrl: input.pageUrl.trim(),
         pageContext: input.pageContext,
         createdAt: new Date().toISOString(),
+        profile: input.profile,
+        requiredSkillName: input.requiredSkillName,
+        formType: input.formType,
+        action: input.action,
+        callbackUrl: input.callbackUrl,
+        preferStartDialog: input.preferStartDialog,
+        hostBridgeRequestId: input.hostBridgeRequestId,
       });
     },
     [],
   );
+
+  const clearHermesAnalysisRequest = useCallback(() => {
+    setAnalysisRequest(null);
+  }, []);
+
+  const dismissHermesAnalysis = useCallback((hostBridgeRequestId?: string) => {
+    const id = hostBridgeRequestId?.trim();
+    if (id) dismissedHostBridgeRequestIdsRef.current.add(id);
+    setAnalysisRequest(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -66,6 +105,8 @@ export function WebOperatorPageContextProvider({
       setTaskStartDialog,
       setTaskStartDialogHandlers,
       requestHermesAnalysis,
+      clearHermesAnalysisRequest,
+      dismissHermesAnalysis,
     }),
     [
       pageContext,
@@ -75,6 +116,8 @@ export function WebOperatorPageContextProvider({
       taskStartDialogHandlers,
       setPageContext,
       requestHermesAnalysis,
+      clearHermesAnalysisRequest,
+      dismissHermesAnalysis,
     ],
   );
 

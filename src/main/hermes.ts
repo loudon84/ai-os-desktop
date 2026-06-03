@@ -24,7 +24,10 @@ import { getSshTunnelUrl, isSshTunnelActive, isSshTunnelHealthy, startSshTunnel 
 import { stripAnsi } from "./utils";
 import { buildUserMessageContent } from "./hermes-default-chat/hermes-default-chat-attachments";
 import { buildGatewayChatCompletionsBody } from "./hermes-default-chat/hermes-default-chat-request";
-import { resolveModelIdForSend } from "./hermes-default-chat/hermes-default-chat-models";
+import {
+  isWebOperatorPanelDraftSession,
+  resolveModelIdForSend,
+} from "./hermes-default-chat/hermes-default-chat-models";
 import {
   buildChatModelRoutingLog,
   logChatModelRouting,
@@ -34,6 +37,7 @@ import {
   overlayGatewayModelSectionForSession,
   syncCustomProvidersFromModels,
 } from "./hermes-config/hermes-config-yaml";
+import type { HermesChatAttachmentMeta } from "../shared/hermes-default-chat/hermes-default-chat-contract";
 
 const LOCAL_API_URL = "http://127.0.0.1:8642";
 
@@ -99,6 +103,7 @@ interface ChatHandle {
 
 export type HermesSendMessageOptions = {
   attachmentIds?: string[];
+  attachmentMetas?: HermesChatAttachmentMeta[];
   modelId?: string;
   sessionId?: string;
   selectedModel?: string;
@@ -256,6 +261,7 @@ async function sendMessageViaApi(
     message,
     profile,
     options?.attachmentIds ?? [],
+    options?.attachmentMetas,
   );
 
   // Build full conversation from history + current message (standard OpenAI format)
@@ -265,7 +271,9 @@ async function sendMessageViaApi(
   ];
 
   const saved = resolveModelIdForSend(options?.modelId, profile);
-  if (saved) {
+  const panelDraft = isWebOperatorPanelDraftSession(options?.sessionId);
+  // WebOperator 侧栏：仅 request 级 provider/base_url，禁止写 config.yaml `model:` 段。
+  if (saved && !panelDraft) {
     const overlayApplied = overlayGatewayModelSectionForSession(profile, saved);
     if (overlayApplied && routingMeta) {
       routingMeta.syncedConfig = true;

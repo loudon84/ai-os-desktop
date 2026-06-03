@@ -41,6 +41,7 @@ export const SECONDARY_PANEL_LABEL_KEYS: Record<WorkspaceSecondaryPanel, string>
 };
 
 export function defaultSecondaryPanel(workspaceId: StaticWorkspaceId): string | undefined {
+  if (workspaceId === "web-operator") return undefined;
   const items = SECONDARY_NAV_BY_WORKSPACE[workspaceId];
   return items[0];
 }

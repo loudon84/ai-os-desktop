@@ -8,6 +8,10 @@ import { useWebOperatorPageContext } from "./context";
 
 interface HermesTaskPanelProps {
   className?: string;
+  /** Dialog 确认（或免 Dialog 直接开任务）后切到 hermes-task 侧栏 */
+  onActivatePanel?: () => void;
+  /** Dialog 取消后切到的侧栏（HostBridge 流程回到 host-context） */
+  onCancelPanel?: () => void;
 }
 
 type StartDialogState = {
@@ -15,14 +19,29 @@ type StartDialogState = {
   taskId: string;
   pageUrl: string;
   pageContext: HermesPanelPageContext;
+  profile?: string;
+  requiredSkillName?: string;
+  formType?: string;
+  action?: "create" | "edit" | "view" | "analytic";
+  callbackUrl?: string;
+  hostBridgeRequestId?: string;
+  defaultSessionId?: string | null;
+  missingSkill?: boolean;
+  missingSkillMessage?: string;
 };
 
-export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.Element {
+export function HermesTaskPanel({
+  className,
+  onActivatePanel,
+  onCancelPanel,
+}: HermesTaskPanelProps): React.JSX.Element {
   const {
     pageContext,
     analysisRequest,
     setTaskStartDialog,
     setTaskStartDialogHandlers,
+    clearHermesAnalysisRequest,
+    dismissHermesAnalysis,
   } = useWebOperatorPageContext();
 
   const [currentTask, setCurrentTask] = useState<HermesPanelTaskInput | null>(null);
@@ -32,6 +51,13 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
   const startDialogRef = useRef<StartDialogState | null>(null);
   /** 每个 taskId 仅 upsert 一次（首次 chat-done 绑定 sessionId） */
   const upsertedTaskIdRef = useRef<string | null>(null);
+  const onActivatePanelRef = useRef(onActivatePanel);
+  const onCancelPanelRef = useRef(onCancelPanel);
+
+  useEffect(() => {
+    onActivatePanelRef.current = onActivatePanel;
+    onCancelPanelRef.current = onCancelPanel;
+  }, [onActivatePanel, onCancelPanel]);
 
   const closeStartDialog = useCallback(() => {
     startDialogRef.current = null;
@@ -40,45 +66,59 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
   }, [setTaskStartDialog, setTaskStartDialogHandlers]);
 
   const handleDialogConfirm = useCallback(
-    (input: { userPrompt: string; skill: string }) => {
+    (input: {
+      userPrompt: string;
+      skill: string;
+      sessionId: string | null;
+      callbackUrl?: string;
+    }) => {
       const sd = startDialogRef.current;
       if (!sd) return;
+      const resolvedCallbackUrl = input.callbackUrl?.trim() || sd.callbackUrl?.trim();
       setCurrentTask({
         taskId: sd.taskId,
         pageUrl: sd.pageUrl,
-        sessionId: null,
+        sessionId: input.sessionId,
         pageContext: sd.pageContext,
-        action: "running",
+        action: input.sessionId ? "loading" : "running",
         userPrompt: input.userPrompt,
         skill: input.skill,
+        hostBridge: sd.requiredSkillName
+          ? {
+              requestId: sd.hostBridgeRequestId ?? sd.requestId,
+              formType: sd.formType ?? "",
+              action: sd.action ?? "view",
+              callbackUrl: resolvedCallbackUrl,
+              skillName: sd.requiredSkillName,
+            }
+          : undefined,
       });
       closeStartDialog();
+      clearHermesAnalysisRequest();
+      onActivatePanelRef.current?.();
     },
-    [closeStartDialog],
+    [clearHermesAnalysisRequest, closeStartDialog],
   );
 
   const handleDialogCancel = useCallback(() => {
-    const sd = startDialogRef.current;
-    if (!sd) return;
-    setCurrentTask({
-      taskId: sd.taskId,
-      pageUrl: sd.pageUrl,
-      sessionId: null,
-      pageContext: sd.pageContext,
-      action: "pending",
-      skill: "",
-    });
+    const hostBridgeRequestId =
+      startDialogRef.current?.hostBridgeRequestId ?? analysisRequest?.hostBridgeRequestId;
+    dismissHermesAnalysis(hostBridgeRequestId);
     closeStartDialog();
-  }, [closeStartDialog]);
+    onCancelPanelRef.current?.();
+  }, [analysisRequest?.hostBridgeRequestId, closeStartDialog, dismissHermesAnalysis]);
 
   const dialogHandlersRef = useRef({
     onConfirm: handleDialogConfirm,
     onCancel: handleDialogCancel,
   });
-  dialogHandlersRef.current = {
-    onConfirm: handleDialogConfirm,
-    onCancel: handleDialogCancel,
-  };
+
+  useEffect(() => {
+    dialogHandlersRef.current = {
+      onConfirm: handleDialogConfirm,
+      onCancel: handleDialogCancel,
+    };
+  }, [handleDialogConfirm, handleDialogCancel]);
 
   const openStartDialog = useCallback(
     (state: StartDialogState) => {
@@ -88,6 +128,14 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
         taskId: state.taskId,
         pageUrl: state.pageUrl,
         pageContext: state.pageContext,
+        profile: state.profile,
+        requiredSkillName: state.requiredSkillName,
+        formType: state.formType,
+        action: state.action,
+        callbackUrl: state.callbackUrl,
+        defaultSessionId: state.defaultSessionId,
+        missingSkill: state.missingSkill,
+        missingSkillMessage: state.missingSkillMessage,
       });
       setTaskStartDialogHandlers({
         onConfirm: (input) => dialogHandlersRef.current.onConfirm(input),
@@ -104,17 +152,18 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
 
     let cancelled = false;
     upsertedTaskIdRef.current = null;
-    setResolving(true);
-    setResolveError(null);
 
     void (async () => {
+      setResolving(true);
+      setResolveError(null);
+
       try {
         const lookup = await window.webOperatorTaskSession.resolve({
           pageUrl: req.pageUrl,
         });
         if (cancelled) return;
-        
-        if (lookup.record) {
+
+        if (lookup.record && !req.preferStartDialog) {
           upsertedTaskIdRef.current = lookup.taskId;
           setCurrentTask({
             taskId: lookup.taskId,
@@ -123,8 +172,19 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
             pageContext: req.pageContext,
             action: "loading",
             skill: lookup.record.skill,
+            hostBridge: req.requiredSkillName
+              ? {
+                  requestId: req.requestId,
+                  formType: req.formType ?? "",
+                  action: req.action ?? "view",
+                  callbackUrl: req.callbackUrl,
+                  skillName: req.requiredSkillName,
+                }
+              : undefined,
           });
           closeStartDialog();
+          clearHermesAnalysisRequest();
+          onActivatePanelRef.current?.();
         } else {
           setCurrentTask(null);
           openStartDialog({
@@ -132,6 +192,13 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
             taskId: lookup.taskId,
             pageUrl: req.pageUrl,
             pageContext: req.pageContext,
+            profile: req.profile,
+            requiredSkillName: req.requiredSkillName,
+            formType: req.formType,
+            action: req.action,
+            callbackUrl: req.callbackUrl,
+            hostBridgeRequestId: req.hostBridgeRequestId,
+            defaultSessionId: req.preferStartDialog ? null : undefined,
           });
         }
       } catch (e) {
@@ -148,7 +215,7 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
     return () => {
       cancelled = true;
     };
-  }, [analysisRequest?.requestId, closeStartDialog, openStartDialog]);
+  }, [analysisRequest?.requestId, clearHermesAnalysisRequest, closeStartDialog, openStartDialog]);
 
   const handleTaskSessionReady = useCallback(
     (input: {
@@ -172,7 +239,7 @@ export function HermesTaskPanel({ className }: HermesTaskPanelProps): React.JSX.
   );
 
   const activePageContext = currentTask?.pageContext ?? pageContext;
-  
+
   return (
     <div className={`relative flex flex-col h-full min-h-0 ${className ?? ""}`}>
       {resolving ? (

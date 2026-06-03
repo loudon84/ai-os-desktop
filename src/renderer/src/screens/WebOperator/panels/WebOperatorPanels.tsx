@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { BrowserStatePanel } from "../BrowserStatePanel";
 import { HostBridgePanel } from "../HostBridgePanel";
 import { HermesTaskPanel } from "../HermesTaskPanel";
@@ -6,7 +6,7 @@ import { PageStructurePanel } from "../PageStructurePanel";
 import { BrowserActionLog } from "../BrowserActionLog";
 import { WebOperatorPanelCard } from "./WebOperatorPanelCard";
 import {
-  normalizeWebOperatorPanelId,
+  resolveWebOperatorPanelId,
   WEB_OPERATOR_PANEL_ORDER,
   type WebOperatorPanelId,
 } from "./web-operator-panels-contract";
@@ -27,6 +27,8 @@ function renderPanelBody(
     externalRefreshTrigger: number;
     onRefreshSnapshot: () => void;
     onFocusedPanelChange?: (panel: string) => void;
+    onActivateHermesTaskPanel: () => void;
+    onCancelToHostContextPanel: () => void;
   },
 ): React.ReactNode {
   switch (panelId) {
@@ -40,13 +42,18 @@ function renderPanelBody(
         />
       );
     case "hermes-task":
-      return <HermesTaskPanel className="web-operator-panels__content" />;
+      return (
+        <HermesTaskPanel
+          className="web-operator-panels__content"
+          onActivatePanel={props.onActivateHermesTaskPanel}
+          onCancelPanel={props.onCancelToHostContextPanel}
+        />
+      );
     case "page-structure":
       return (
         <PageStructurePanel
           externalRefreshTrigger={props.externalRefreshTrigger}
           className="web-operator-panels__content"
-          onAnalyzeContent={() => props.onFocusedPanelChange?.("hermes-task")}
         />
       );
     case "action-log":
@@ -62,7 +69,15 @@ export function WebOperatorPanels({
   onRefreshSnapshot,
   onFocusedPanelChange,
 }: WebOperatorPanelsProps): React.JSX.Element {
-  const activePanel = normalizeWebOperatorPanelId(focusedPanel);
+  const activateHermesTaskPanel = useCallback(() => {
+    onFocusedPanelChange?.("hermes-task");
+  }, [onFocusedPanelChange]);
+
+  const cancelToHostContextPanel = useCallback(() => {
+    onFocusedPanelChange?.("host-context");
+  }, [onFocusedPanelChange]);
+
+  const activePanel = resolveWebOperatorPanelId(focusedPanel);
 
   const stateRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -83,9 +98,12 @@ export function WebOperatorPanels({
     externalRefreshTrigger,
     onRefreshSnapshot,
     onFocusedPanelChange,
+    onActivateHermesTaskPanel: activateHermesTaskPanel,
+    onCancelToHostContextPanel: cancelToHostContextPanel,
   };
 
   useEffect(() => {
+    if (!activePanel) return;
     panelRefs[activePanel]?.current?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
@@ -96,7 +114,7 @@ export function WebOperatorPanels({
     <div className="web-operator-panels">
       {WEB_OPERATOR_PANEL_ORDER.map((panel) => {
         const isHermesTask = panel.id === "hermes-task";
-        const isActive = panel.id === activePanel;
+        const isActive = activePanel != null && panel.id === activePanel;
 
         if (!isHermesTask && !isActive) return null;
 

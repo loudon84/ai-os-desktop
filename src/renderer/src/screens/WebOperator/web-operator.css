@@ -99,6 +99,37 @@
   color: var(--text-primary, #e5e5e5);
 }
 
+.web-operator-tabs__compose {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.web-operator-tabs__compose-input {
+  width: min(280px, 40vw);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--bg-tertiary, #262626);
+  color: var(--text-primary, #e5e5e5);
+  font-size: 12px;
+}
+
+.web-operator-tabs__compose-go,
+.web-operator-tabs__compose-cancel {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #a3a3a3);
+}
+
+.web-operator-tabs__compose-go:hover,
+.web-operator-tabs__compose-cancel:hover {
+  background: var(--bg-tertiary, #262626);
+  color: var(--text-primary, #e5e5e5);
+}
+
 .web-operator-tabs__spin {
   animation: web-operator-tab-spin 0.8s linear infinite;
 }

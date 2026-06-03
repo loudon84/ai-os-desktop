@@ -13,6 +13,7 @@ import {
   SECONDARY_PANEL_LABEL_KEYS,
 } from "../../../../shared/workspace/workspace-secondary-nav";
 import type { WorkspaceSecondaryPanel } from "../../../../shared/workspace/workspace-contract";
+import { isWebOperatorPanelId } from "./panels/web-operator-panels-contract";
 
 const PANEL_ICONS: Partial<
   Record<WorkspaceSecondaryPanel, React.ComponentType<{ size?: number }>>
@@ -63,7 +64,8 @@ export function WebOperatorSideRail({
       <div className="web-operator-side-rail__nav">
         {panels.map((panel) => {
           const IconComponent = PANEL_ICONS[panel] ?? Monitor;
-          const active = focusedPanel === panel;
+          const active =
+            isWebOperatorPanelId(focusedPanel) && focusedPanel === panel;
           const label = t(SECONDARY_PANEL_LABEL_KEYS[panel]);
           return (
             <button

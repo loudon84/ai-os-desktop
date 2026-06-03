@@ -61,49 +61,71 @@ function parseSkillFrontmatter(content: string): {
   return result;
 }
 
+function appendInstalledSkill(
+  skills: InstalledSkill[],
+  input: { skillDir: string; folderName: string; category: string },
+): void {
+  const skillFile = join(input.skillDir, "SKILL.md");
+  if (!existsSync(skillFile)) return;
+
+  try {
+    const content = readFileSync(skillFile, "utf-8").slice(0, 4000);
+    const meta = parseSkillFrontmatter(content);
+    skills.push({
+      name: meta.name || input.folderName,
+      category: input.category,
+      description: meta.description || "",
+      path: input.skillDir,
+    });
+  } catch {
+    skills.push({
+      name: input.folderName,
+      category: input.category,
+      description: "",
+      path: input.skillDir,
+    });
+  }
+}
+
 /**
  * Walk the skills directory to find all installed skills.
- * Structure: skills/<category>/<skill-name>/SKILL.md
+ *
+ * Supported layouts:
+ * - `skills/<skill-name>/SKILL.md` (flat, e.g. contact_to_order)
+ * - `skills/<category>/<skill-name>/SKILL.md` (categorized)
  */
 export function listInstalledSkills(profile?: string): InstalledSkill[] {
   const skillsDir = join(profileHome(profile), "skills");
   if (!existsSync(skillsDir)) return [];
-
+  debugger;
   const skills: InstalledSkill[] = [];
 
   try {
-    const categories = readdirSync(skillsDir);
+    const topEntries = readdirSync(skillsDir);
 
-    for (const category of categories) {
-      const categoryPath = join(skillsDir, category);
-      if (!statSync(categoryPath).isDirectory()) continue;
+    for (const topName of topEntries) {
+      const topPath = join(skillsDir, topName);
+      if (!statSync(topPath).isDirectory()) continue;
 
-      const entries = readdirSync(categoryPath);
-      for (const entry of entries) {
-        const entryPath = join(categoryPath, entry);
-        if (!statSync(entryPath).isDirectory()) continue;
+      const directSkillFile = join(topPath, "SKILL.md");
+      if (existsSync(directSkillFile)) {
+        appendInstalledSkill(skills, {
+          skillDir: topPath,
+          folderName: topName,
+          category: "",
+        });
+        continue;
+      }
 
-        const skillFile = join(entryPath, "SKILL.md");
-        if (!existsSync(skillFile)) continue;
-
-        try {
-          const content = readFileSync(skillFile, "utf-8").slice(0, 4000);
-          const meta = parseSkillFrontmatter(content);
-
-          skills.push({
-            name: meta.name || entry,
-            category,
-            description: meta.description || "",
-            path: entryPath,
-          });
-        } catch {
-          skills.push({
-            name: entry,
-            category,
-            description: "",
-            path: entryPath,
-          });
-        }
+      const nested = readdirSync(topPath);
+      for (const skillFolder of nested) {
+        const skillDir = join(topPath, skillFolder);
+        if (!statSync(skillDir).isDirectory()) continue;
+        appendInstalledSkill(skills, {
+          skillDir,
+          folderName: skillFolder,
+          category: topName,
+        });
       }
     }
   } catch {

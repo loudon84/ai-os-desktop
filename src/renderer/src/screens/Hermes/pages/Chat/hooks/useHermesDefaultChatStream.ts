@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hermesDefaultApi } from "../../../api/hermesDefaultApi";
-import type { HermesChatUsageEvent } from "../../../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
+import type {
+  HermesChatAttachmentMeta,
+  HermesChatUsageEvent,
+} from "../../../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
 import type { HermesChatRunState, HermesMessage, HermesToolCall } from "../../../types";
 import { formatChatError } from "../../../utils/formatChatError";
 
@@ -19,7 +22,12 @@ export function useHermesDefaultChatStream(input: {
   lastError: string | null;
   lastUsage: HermesChatUsageEvent | null;
   historyLoadError: string | null;
-  send: (text: string, attachmentIds: string[], modelId: string | null) => Promise<void>;
+  send: (
+    text: string,
+    attachmentIds: string[],
+    modelId: string | null,
+    attachmentMetas?: HermesChatAttachmentMeta[],
+  ) => Promise<void>;
   cancel: () => Promise<void>;
   clearMessages: () => void;
   loadSessionHistory: (sid: string) => Promise<void>;
@@ -72,7 +80,10 @@ export function useHermesDefaultChatStream(input: {
       }),
       hermesDefaultApi.chat.onDone((sessionId) => {
         setStreamingContent((current) => {
-          if (current) {
+          // If we got a sessionId, the parent will switch session and
+          // `loadSessionHistory()` will replace messages from DB.
+          // Avoid appending a local assistant message that would race and duplicate.
+          if (!sessionId && current) {
             const msg: HermesMessage = {
               id: newId(),
               role: "assistant",
@@ -133,7 +144,12 @@ export function useHermesDefaultChatStream(input: {
   }, []);
 
   const send = useCallback(
-    async (text: string, attachmentIds: string[], modelId: string | null) => {
+    async (
+      text: string,
+      attachmentIds: string[],
+      modelId: string | null,
+      attachmentMetas?: HermesChatAttachmentMeta[],
+    ) => {
       const trimmed = text.trim();
       if (!trimmed && attachmentIds.length === 0) return;
       if (runStateRef.current === "streaming" || runStateRef.current === "creating") return;
@@ -158,12 +174,15 @@ export function useHermesDefaultChatStream(input: {
       console.info("[Hermes Chat] Renderer 发送", {
         model_id: modelId ?? "(未选)",
         resumeSessionId: activeSessionRef.current ?? "(新会话)",
+        attachment_ids: attachmentIds,
+        attachment_metas: attachmentMetas?.map((m) => m.storage_path),
       });
       await hermesDefaultApi.chat.sendMessage({
         message: trimmed,
         resumeSessionId: activeSessionRef.current ?? undefined,
         history,
         attachment_ids: attachmentIds,
+        attachment_metas: attachmentMetas?.length ? attachmentMetas : undefined,
         model_id: modelId ?? undefined,
       });
     },

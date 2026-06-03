@@ -29,6 +29,8 @@ import {
   getHermesChatModelConfig,
   setHermesChatModelConfig,
   resolveModelIdForSend,
+  resolveModelsPageDefaultSavedModel,
+  isWebOperatorPanelDraftSession,
 } from "./hermes-default-chat-models";
 import {
   pickAndUploadHermesAttachments,
@@ -41,6 +43,7 @@ import {
   HERMES_DRAFT_SESSION_ID,
   migrateSessionModelBinding,
 } from "./hermes-session-model-store";
+import { readContactToOrderLastWebUrl } from "../contact-to-order-web-url";
 
 export type HermesChatAbortRef = {
   current: (() => void) | null;
@@ -54,10 +57,18 @@ function resolveSendModelId(
 
   if (payload.model_id?.trim()) {
     const saved = resolveModelIdForSend(payload.model_id, profile);
-    if (saved) {
+    if (saved && !isWebOperatorPanelDraftSession(sessionKey)) {
       setSessionModel(sessionKey, saved, profile);
     }
     return { modelId: payload.model_id, saved };
+  }
+
+  if (isWebOperatorPanelDraftSession(sessionKey)) {
+    const globalSaved = resolveModelsPageDefaultSavedModel(profile);
+    if (globalSaved) {
+      return { modelId: globalSaved.id, saved: globalSaved };
+    }
+    return { modelId: undefined, saved: null };
   }
 
   const binding = getSessionModel(sessionKey, profile);
@@ -72,6 +83,10 @@ export function registerHermesDefaultChatIpc(
   getMainWindow: () => BrowserWindow | null,
   chatAbortRef: HermesChatAbortRef,
 ): void {
+  ipcMain.handle("contact-to-order:read-last-web-url", (_event, profile?: string) => {
+    return readContactToOrderLastWebUrl(profile);
+  });
+
   ipcMain.handle("hermes-chat:list-models", (_event, profile?: string) => {
     return listHermesChatModels(profile);
   });
@@ -227,6 +242,7 @@ export function registerHermesDefaultChatIpc(
       payload.history,
       {
         attachmentIds: payload.attachment_ids,
+        attachmentMetas: payload.attachment_metas,
         modelId,
         sessionId: payload.resumeSessionId,
         selectedModel: saved?.model,

@@ -21,6 +21,8 @@ export function ChatScrollArea({
   runState,
   lastError,
   lastUsage,
+  emptyTitle,
+  emptyHint,
 }: {
   messages: HermesMessage[];
   streamingContent: string;
@@ -28,6 +30,8 @@ export function ChatScrollArea({
   runState: HermesChatRunState;
   lastError: string | null;
   lastUsage?: HermesChatUsageEvent | null;
+  emptyTitle?: string;
+  emptyHint?: string;
 }): React.JSX.Element {
   const { t } = useI18n();
   const { containerRef, bottomRef } = useAutoScroll([
@@ -49,12 +53,14 @@ export function ChatScrollArea({
       {isEmpty ? (
         <div className="hermes-webchat-empty">
           <p className="hermes-webchat-empty-title">
-            {t("workspaces.hermes.chat.emptyTitle", { defaultValue: "Start a conversation" })}
+            {emptyTitle ??
+              t("workspaces.hermes.chat.emptyTitle", { defaultValue: "Start a conversation" })}
           </p>
           <p className="hermes-webchat-empty-hint">
-            {t("workspaces.hermes.chat.emptyHint", {
-              defaultValue: "Ask anything about your local Hermes gateway.",
-            })}
+            {emptyHint ??
+              t("workspaces.hermes.chat.emptyHint", {
+                defaultValue: "Ask anything about your local Hermes gateway.",
+              })}
           </p>
         </div>
       ) : null}

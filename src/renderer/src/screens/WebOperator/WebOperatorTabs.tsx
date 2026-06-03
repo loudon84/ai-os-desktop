@@ -11,6 +11,8 @@ function tabLayerId(tabId: string): string {
   return tabId === "default" ? WEB_OPERATOR_LAYER_ID : `web-operator-tab-${tabId}`;
 }
 
+const DEFAULT_NEW_TAB_URL = "http://localhost:3000/";
+
 function statusDotClass(status: WebOperatorTab["status"], kind: WebOperatorTab["kind"]): string {
   if (status === "loading") return "bg-amber-400 animate-pulse";
   if (status === "failed") return "bg-red-400";
@@ -23,6 +25,8 @@ export function WebOperatorTabs({
 }: WebOperatorTabsProps): React.JSX.Element {
   const [tabs, setTabs] = useState<WebOperatorTab[]>([]);
   const [activeTabId, setActiveTabId] = useState("default");
+  const [newTabUrl, setNewTabUrl] = useState(DEFAULT_NEW_TAB_URL);
+  const [composingNewTab, setComposingNewTab] = useState(false);
 
   const syncTabs = useCallback(async () => {
     const list = await window.aiosBrowser.listWebOperatorTabs();
@@ -59,24 +63,60 @@ export function WebOperatorTabs({
     [syncTabs],
   );
 
-  const handleNewTab = useCallback(async () => {
-    const url = window.prompt("Open URL in new WebOperator tab", "http://localhost:3000/");
-    if (!url?.trim()) return;
-    await window.aiosBrowser.createWebOperatorTab({ url: url.trim(), activate: true });
+  const startComposingNewTab = useCallback(() => {
+    setNewTabUrl(DEFAULT_NEW_TAB_URL);
+    setComposingNewTab(true);
+  }, []);
+
+  const cancelComposingNewTab = useCallback(() => {
+    setComposingNewTab(false);
+  }, []);
+
+  const submitNewTab = useCallback(async () => {
+    const url = newTabUrl.trim();
+    if (!url) return;
+    setComposingNewTab(false);
+    await window.aiosBrowser.createWebOperatorTab({ url, activate: true });
     await syncTabs();
-  }, [syncTabs]);
+  }, [newTabUrl, syncTabs]);
+
+  const newTabControls = composingNewTab ? (
+    <div className="web-operator-tabs__compose">
+      <input
+        type="url"
+        value={newTabUrl}
+        onChange={(e) => setNewTabUrl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") void submitNewTab();
+          if (e.key === "Escape") cancelComposingNewTab();
+        }}
+        className="web-operator-tabs__compose-input"
+        placeholder="https://"
+        aria-label="New tab URL"
+        autoFocus
+      />
+      <button type="button" className="web-operator-tabs__compose-go" onClick={() => void submitNewTab()}>
+        Open
+      </button>
+      <button type="button" className="web-operator-tabs__compose-cancel" onClick={cancelComposingNewTab}>
+        Cancel
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      className="web-operator-tabs__new"
+      onClick={startComposingNewTab}
+      title="New tab"
+    >
+      <Plus size={14} />
+    </button>
+  );
 
   if (tabs.length <= 1 && tabs.every((t) => t.tabId === "default" && !t.url)) {
     return (
       <div className="web-operator-tabs web-operator-tabs--empty">
-        <button
-          type="button"
-          className="web-operator-tabs__new"
-          onClick={() => void handleNewTab()}
-          title="New tab"
-        >
-          <Plus size={14} />
-        </button>
+        {newTabControls}
       </div>
     );
   }
@@ -121,14 +161,7 @@ export function WebOperatorTabs({
           </button>
         );
       })}
-      <button
-        type="button"
-        className="web-operator-tabs__new"
-        onClick={() => void handleNewTab()}
-        title="New tab"
-      >
-        <Plus size={14} />
-      </button>
+      {newTabControls}
     </div>
   );
 }

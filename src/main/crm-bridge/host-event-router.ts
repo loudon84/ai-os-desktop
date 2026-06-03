@@ -21,16 +21,13 @@ export async function routeHostBridgeEvent(
     params.event.action,
     params.event.skillName,
   );
-
-  if (!route) {
-    if (params.event.action === "view" || params.event.action === "analytic") {
-      return {
-        ok: true,
-        action: "open-web-operator-panel",
-        focusedPanel: "host-context",
-      };
-    }
-    return { ok: false, message: "No route configured for formType/action" };
+  debugger;
+  if (!route) {    
+    return {
+      ok: true,
+      action: "open-web-operator-panel",
+      focusedPanel: "host-context",
+    };    
   }
 
   if (route.refreshSnapshot) {

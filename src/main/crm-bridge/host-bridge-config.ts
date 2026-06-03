@@ -20,7 +20,23 @@ const DEFAULT_CONFIG: HostBridgeConfigFile = {
       siteId: "crm-lite",
       name: "CRM Lite Demo",
       enabled: true,
-      allowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
+      allowedOrigins: [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.70.161:3000",
+        "http://192.168.70.161",
+      ],
+    },
+    {
+      siteId: "sdms-om",
+      name: "SDMS Order Management",
+      enabled: true,
+      allowedOrigins: [
+        "http://192.168.70.161",
+        "http://192.168.70.161:3000",
+        "http://192.168.70.161:8080",
+        "http://localhost:8080",
+      ],
     },
   ],
   allowedFormTypes: ["product", "customer", "quote", "order", "supplier"],
@@ -116,6 +132,28 @@ function loadJsonFile(path: string): Partial<HostBridgeConfigFile> | null {
   }
 }
 
+type LegacyCrmBridgeConfigPartial = Partial<HostBridgeConfigFile> & {
+  allowedOrigins?: string[];
+};
+
+function applyLegacyAllowedOrigins(
+  config: HostBridgeConfigFile,
+  origins: string[],
+): HostBridgeConfigFile {
+  if (!origins.length) return config;
+
+  const mergedOrigins = [...new Set(origins.filter(Boolean))];
+  const sites = config.sites.map((site) => {
+    if (!site.enabled) return site;
+    return {
+      ...site,
+      allowedOrigins: [...new Set([...site.allowedOrigins, ...mergedOrigins])],
+    };
+  });
+
+  return { ...config, sites };
+}
+
 function mergeConfig(
   base: HostBridgeConfigFile,
   overlay: Partial<HostBridgeConfigFile> | null,
@@ -192,9 +230,12 @@ export function getHostBridgeConfig(): HostBridgeConfigFile {
   let loadedFrom: string | null = null;
 
   for (const path of configCandidatePaths()) {
-    const partial = loadJsonFile(path);
+    const partial = loadJsonFile(path) as LegacyCrmBridgeConfigPartial | null;
     if (partial) {
       config = mergeConfig(config, partial);
+      if (Array.isArray(partial.allowedOrigins) && !Array.isArray(partial.sites)) {
+        config = applyLegacyAllowedOrigins(config, partial.allowedOrigins);
+      }
       loadedFrom = path;
     }
   }

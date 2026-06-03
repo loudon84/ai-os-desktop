@@ -17,7 +17,7 @@
 | Layout | `screens/Layout/` | active | `App.tsx screen=main` |
 | MainPage | `screens/MainPage/` | active | `Layout.tsx` |
 | WebOperator | `screens/WebOperator/` | active | `WorkspaceRenderer`（registry `web-operator`） |
-| Hermes | `screens/Hermes/` | active | `WorkspaceRenderer`（registry `local-hermes`） |
+| Hermes | `screens/Hermes/` | active | `WorkspaceRenderer`（registry `local-hermes`）；**V6.1** 左导航 `mcp` → `pages/MCP/HermesMCPPage.tsx`（`window.hermesAPI.mcp`） |
 | CrmWorkbench | `screens/Crm/` | active | `WorkspaceRenderer`（registry `crm-workbench`） |
 | SettingsDrawer | `screens/SettingsDrawer/` | active | `Layout.tsx` drawer layer |
 

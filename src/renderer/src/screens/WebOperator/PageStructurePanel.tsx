@@ -11,13 +11,11 @@ interface PageStructurePanelProps {
   className?: string;
   /** Increment to trigger snapshot refresh from parent toolbar */
   externalRefreshTrigger?: number;
-  onAnalyzeContent?: () => void;
 }
 
 export function PageStructurePanel({
   className,
   externalRefreshTrigger = 0,
-  onAnalyzeContent,
 }: PageStructurePanelProps): React.JSX.Element {
   const {
     snapshot,
@@ -89,7 +87,6 @@ export function PageStructurePanel({
       <PageFrameHtmlInspector
         selectedFrameId={selectedFrameId}
         frames={snapshot?.frames ?? []}
-        onAnalyzeContent={onAnalyzeContent}
       />
       <ElementListPanel
         elements={filteredElements}

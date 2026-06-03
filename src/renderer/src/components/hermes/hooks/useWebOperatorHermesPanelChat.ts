@@ -233,6 +233,7 @@ export function useWebOperatorHermesPanelChat(options: {
         setSessionId(null);
         setMessages([]);
         injectedRef.current = false;
+        autoRunKeyRef.current = null;
       }
       return;
     }
@@ -345,7 +346,8 @@ export function useWebOperatorHermesPanelChat(options: {
         }
       }
 
-      const userAttachmentIds = attachmentsRef.current.map((a) => a.id);
+      const userAttachmentMetas = [...attachmentsRef.current];
+      const userAttachmentIds = userAttachmentMetas.map((a) => a.id);
       const attachmentIds = [...webContextAttachmentIds, ...userAttachmentIds];
 
       const systemLead = (options.presetSystemPrompt ?? DEFAULT_PANEL_SYSTEM_PROMPT).trim();
@@ -365,13 +367,17 @@ export function useWebOperatorHermesPanelChat(options: {
           resumeSessionId: resumeId,
           history: isFirstUserMessage ? undefined : history,
           attachment_ids: attachmentIds.length ? attachmentIds : undefined,
+          attachment_metas: userAttachmentMetas.length ? userAttachmentMetas : undefined,
         });
+        if (userAttachmentIds.length > 0) {
+          clearAttachments();
+        }
       } catch (e) {
         setError(formatChatError(e instanceof Error ? e.message : String(e)));
         setRunState("error");
       }
     },
-    [busy, restoring, options.presetSystemPrompt],
+    [busy, restoring, options.presetSystemPrompt, clearAttachments],
   );
 
   const send = useCallback(

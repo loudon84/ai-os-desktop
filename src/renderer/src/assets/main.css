@@ -34,7 +34,7 @@
   --code-bg: #1a1a1a;
   --scrollbar-thumb: #424242;
   --scrollbar-hover: #555555;
-  --selection: rgba(0, 63, 122, 0.4);
+  --selection: rgba(255, 255, 255);
 }
 
 /* ----- Light Theme ----- */
@@ -68,7 +68,7 @@
   --code-bg: #f5f5f5;
   --scrollbar-thumb: #d4d4d4;
   --scrollbar-hover: #bbbbbb;
-  --selection: rgba(0, 63, 122, 0.2);
+  --selection: rgba(255, 255, 255);
 }
 
 /* ----- Google Sans ----- */
@@ -4559,7 +4559,7 @@ body {
 }
 
 .models-card-header {
-  display: flex;
+  display: block;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
@@ -4579,18 +4579,20 @@ body {
 }
 
 .models-card-provider {
+  display: block;
   font-size: 10px;
   font-weight: 600;
   color: var(--accent-text);
   background: var(--accent-subtle);
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .models-card-model {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-secondary);
   font-family: var(--font-mono);
   margin-bottom: 4px;

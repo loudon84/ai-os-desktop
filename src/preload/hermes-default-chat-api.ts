@@ -155,4 +155,10 @@ export const hermesDefaultChatApi = {
   abort(): Promise<void> {
     return ipcRenderer.invoke("abort-chat");
   },
+
+  readContactToOrderLastWebUrl(
+    profile?: string,
+  ): Promise<{ url: string; path: string } | null> {
+    return ipcRenderer.invoke("contact-to-order:read-last-web-url", profile);
+  },
 };

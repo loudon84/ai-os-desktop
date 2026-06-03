@@ -1,6 +1,10 @@
 import { listModels, resolveSavedModelById, type SavedModel } from "../models";
 import { getModelConfig } from "../config";
-import { setDefaultHermesModel } from "../hermes-config/hermes-config-yaml";
+import {
+  readHermesConfig,
+  setDefaultHermesModel,
+} from "../hermes-config/hermes-config-yaml";
+import { HERMES_PANEL_DRAFT_SESSION_ID } from "./hermes-session-model-store";
 import type {
   HermesChatModel,
   HermesChatModelConfig,
@@ -69,4 +73,25 @@ export function resolveModelIdForSend(
 ): SavedModel | null {
   if (!modelId?.trim()) return null;
   return resolveSavedModelById(modelId);
+}
+
+export function isWebOperatorPanelDraftSession(sessionId: string | undefined): boolean {
+  return sessionId?.trim() === HERMES_PANEL_DRAFT_SESSION_ID;
+}
+
+/**
+ * Models 页 Set Default 写入的根级 `default:`（非 `model:` 段 overlay）。
+ * Gateway 推理实际读 `model.default`，侧栏发送不得再 overlay 污染该段。
+ */
+export function resolveModelsPageDefaultSavedModel(profile?: string): SavedModel | null {
+  const doc = readHermesConfig(profile);
+  const modelName = typeof doc.default === "string" ? doc.default.trim() : "";
+  if (!modelName) return null;
+
+  const models = listModels();
+  const exact = models.find((m) => m.model === modelName);
+  if (exact) return exact;
+
+  const provider = typeof doc.provider === "string" ? doc.provider.trim() : "";
+  return findSavedModel(models, { provider, model: modelName }) ?? null;
 }

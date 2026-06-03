@@ -1,27 +1,59 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import type { HermesPanelPageContext } from "../../components/hermes";
+import {
+  HermesPanelSession,
+  HermesPanelSkill,
+  type HermesPanelPageContext,
+  type HermesPanelSkillValidation,
+} from "../../components/hermes";
+import { HERMES_PANEL_DEFAULT_PROFILE } from "../../components/hermes/constants";
 import { buildPageContextSummary } from "./utils/page-context-summary";
 import "./HermesTaskStartDialog.css";
 
-type SkillOption = { label: string; value: string };
-
-const DEFAULT_SKILL: SkillOption = { label: "default", value: "" };
-
 export interface HermesTaskStartDialogProps {
   pageContext: HermesPanelPageContext;
-  onConfirm: (input: { userPrompt: string; skill: string }) => void;
+  pageUrl: string;
+  profile?: string;
+  requiredSkillName?: string;
+  formType?: string;
+  action?: "create" | "edit" | "view" | "analytic";
+  callbackUrl?: string;
+  defaultSessionId?: string | null;
+  missingSkill?: boolean;
+  missingSkillMessage?: string;
+  onConfirm: (input: {
+    userPrompt: string;
+    skill: string;
+    sessionId: string | null;
+    /** Host Bridge 传入的 callbackUrl，写入任务 hostBridge 与首条消息 SkillParamsJSON */
+    callbackUrl?: string;
+  }) => void;
   onCancel: () => void;
 }
 
 export function HermesTaskStartDialog({
   pageContext,
+  pageUrl,
+  profile,
+  requiredSkillName,
+  formType,
+  action,
+  callbackUrl,
+  defaultSessionId,
+  missingSkill,
+  missingSkillMessage,
   onConfirm,
   onCancel,
 }: HermesTaskStartDialogProps): React.JSX.Element {
   const [userPrompt, setUserPrompt] = useState("");
   const [skill, setSkill] = useState("");
-  const [skills, setSkills] = useState<SkillOption[]>([DEFAULT_SKILL]);
+  const [sessionId, setSessionId] = useState<string | null>(defaultSessionId ?? null);
+  const [skillValidation, setSkillValidation] = useState<HermesPanelSkillValidation>({
+    status: "idle",
+    installedSkills: [],
+  });
+
+  const canSubmit = !missingSkill && skillValidation.status === "valid" && !!skill;
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -42,29 +74,6 @@ export function HermesTaskStartDialog({
     return () => document.removeEventListener("keydown", blockEscape, true);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const installed = await window.hermesAPI.listInstalledSkills("default");
-        if (cancelled) return;
-        const options: SkillOption[] = [DEFAULT_SKILL];
-        for (const item of installed ?? []) {
-          const name = typeof item === "string" ? item : (item as { name?: string }).name;
-          if (name && name !== "default") {
-            options.push({ label: name, value: name });
-          }
-        }
-        setSkills(options);
-      } catch {
-        if (!cancelled) setSkills([DEFAULT_SKILL]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const summary = buildPageContextSummary(pageContext);
 
   return createPortal(
@@ -76,18 +85,37 @@ export function HermesTaskStartDialog({
     >
       <div className="hermes-task-start-dialog__panel">
         <h3 id="hermes-task-start-dialog-title" className="hermes-task-start-dialog__title">
-          Hermes 分析任务
+          启动任务
         </h3>
 
-        <label className="hermes-task-start-dialog__field">
-          <span className="hermes-task-start-dialog__label">当前页面内容</span>
-          <textarea
-            readOnly
-            value={summary}
-            rows={3}
-            className="hermes-task-start-dialog__textarea"
-          />
-        </label>
+        <div className="hermes-task-start-dialog__meta">
+          <p>
+            <span className="hermes-task-start-dialog__meta-label">页面：</span>
+            {summary}
+          </p>
+          {pageUrl ? (
+            <p>
+              <span className="hermes-task-start-dialog__meta-label">URL：</span>
+              {pageUrl}
+            </p>
+          ) : null}          
+          {requiredSkillName ? (
+            <p>
+              <span className="hermes-task-start-dialog__meta-label">skillName：</span>
+              {requiredSkillName}
+            </p>
+          ) : null}
+          {callbackUrl ? (
+            <p>
+              <span className="hermes-task-start-dialog__meta-label">callbackUrl：</span>
+              {callbackUrl}
+            </p>
+          ) : null}
+        </div>
+
+        {missingSkill && missingSkillMessage ? (
+          <p className="hermes-task-start-dialog__error">{missingSkillMessage}</p>
+        ) : null}
 
         <label className="hermes-task-start-dialog__field">
           <span className="hermes-task-start-dialog__label">用户提示词（可选）</span>
@@ -97,35 +125,50 @@ export function HermesTaskStartDialog({
             rows={3}
             placeholder="补充分析要求…"
             className="hermes-task-start-dialog__textarea"
+            disabled={!!missingSkill}
           />
         </label>
 
-        <label className="hermes-task-start-dialog__field">
-          <span className="hermes-task-start-dialog__label">技能</span>
-          <select
-            value={skill}
-            onChange={(e) => setSkill(e.target.value)}
-            className="hermes-task-start-dialog__select"
-          >
-            {skills.map((opt) => (
-              <option key={opt.value || "default"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <HermesPanelSkill
+          profile={profile ?? HERMES_PANEL_DEFAULT_PROFILE}
+          value={skill}
+          requiredSkillName={requiredSkillName}
+          allowDefault={false}
+          disabled={true}
+          onChange={setSkill}
+          onValidationChange={setSkillValidation}
+        />
+
+        <HermesPanelSession
+          profile={profile ?? HERMES_PANEL_DEFAULT_PROFILE}
+          value={sessionId}
+          days={7}
+          limit={100}
+          disabled={!!missingSkill}
+          onChange={setSessionId}
+        />
 
         <div className="hermes-task-start-dialog__actions">
           <button type="button" onClick={onCancel} className="hermes-task-start-dialog__btn">
-            取消
+            {missingSkill ? "关闭" : "取消"}
           </button>
-          <button
-            type="button"
-            onClick={() => onConfirm({ userPrompt: userPrompt.trim(), skill })}
-            className="hermes-task-start-dialog__btn hermes-task-start-dialog__btn--primary"
-          >
-            确认分析
-          </button>
+          {!missingSkill ? (
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() =>
+                onConfirm({
+                  userPrompt: userPrompt.trim(),
+                  skill,
+                  sessionId,
+                  callbackUrl: callbackUrl?.trim() || undefined,
+                })
+              }
+              className="hermes-task-start-dialog__btn hermes-task-start-dialog__btn--primary"
+            >
+              确认执行
+            </button>
+          ) : null}
         </div>
       </div>
     </div>,

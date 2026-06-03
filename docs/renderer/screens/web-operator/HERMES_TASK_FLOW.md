@@ -101,37 +101,40 @@
 | 键盘 | Escape 被拦截 | `addEventListener("keydown", blockEscape, true)` |
 | Dialog | 模态居中 | `role="dialog" aria-modal="true"` |
 
-**Dialog 内容**：
-- 当前页面内容摘要（只读 textarea，`buildPageContextSummary` 最多 100 字符）
+**Dialog 内容**（V6.3）：
+- 页面 / URL / formType / action / callbackUrl 元信息
 - 用户提示词（可编辑 textarea）
-- 技能选择（`hermesAPI.listInstalledSkills("default")` → select 下拉）
-- 取消 / 确认分析 按钮
+- **技能**：`HermesPanelSkill`（`requiredSkillName` 来自 HostBridge 时强制校验已安装 skill）
+- **会话**：`HermesPanelSession`（最近 7 天 sessions 或「新建会话」）
+- 取消 / 确认执行 按钮（skill 校验未通过时禁用提交）
+
+**HostBridge 入口**（V6.3+）：
+- `host.bridge.submit` 到达后 **自动** `requestHermesAnalysis`（按 JSSDK `requestId` 去重）；**不**切换侧栏（已移除 `onAnalyzeContent`）。
+- `preferStartDialog: true` → **始终**弹出 `HermesTaskStartDialog`（不因已有 `task_session` 直接续聊）。
+- **仅**在 Dialog「确认执行」后：`HermesTaskPanel.onActivatePanel` → `focusedPanel = hermes-task`，并 `setCurrentTask` 启动 Chat。
+- 取消 Dialog：`dismissHermesAnalysis(hostBridgeRequestId)` 清除 `analysisRequest` 并记录该 JSSDK `requestId` 已关闭（同事件不再自动弹框）；关闭弹层并切到 `host-context`。手动「AI 分析」传 `force: true` 可再次弹框。
+- Dialog 内 `HermesPanelSkill` 统一校验 `requiredSkillName`；选 **新建会话** 并确认 → `action: "running"`、`sessionId: null` → autoRun 发起新 Gateway 会话。
 
 ### 阶段 4：Dialog Confirm → Chat 发送
 
-1. `handleDialogConfirm` → `setCurrentTask({ action: "running", ... })` + `closeStartDialog()`
+1. `handleDialogConfirm` → `setCurrentTask({ action: "running" | "loading", sessionId, hostBridge?, ... })` + `closeStartDialog()`
 2. `closeStartDialog` → `setTaskStartDialog(null)` + `setTaskStartDialogHandlers(null)`
 3. `WebContentsHost` 恢复 `enabled=true`（原生层重新显示）
 4. `useWebOperatorHermesPanelChat` 检测 `task.action === "running"` → autoRun effect：
 
 #### autoRun 流程
 
-1. `buildTaskFirstMessage({ pageUrl, pageContext, userPrompt, skill })` 构建首次消息：
+1. `buildTaskFirstMessage({ pageUrl, pageContext, userPrompt, skill, sessionId, hostBridge? })` 构建首次消息：
    ```
-   [页面来源]
-   {pageUrl}
-   
-   [页面摘要]
-   {pageContext.summary}
-   
+   [HostBridge]（可选）
+   requestId / formType / action / callbackUrl / skillName
+
    [技能]
-   {skill || "default"}
-   
-   [页面内容]
-   {textExcerpt || htmlExcerpt}
-   
-   [用户补充要求]
-   {userPrompt || "请分析当前页面内容…"}
+   {skill}
+
+   [会话]
+   {sessionId || "new"}
+   ...
    ```
 2. `sendInternal(message, { forceFirstMessage: true, displayText })` 发送
 

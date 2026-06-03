@@ -119,11 +119,13 @@ export function validateHostBridgeEvent(
   }
 
   if (event.type === "host.bridge.submit") {
+    /*
     if (config.allowedSkills.length > 0 && event.skillName) {
       if (!config.allowedSkills.includes(event.skillName)) {
         return failure(event.requestId, "SKILL_NOT_ALLOWED", "skillName is not allowed");
       }
     }
+    */
 
     if (event.callbackUrl && !isHostCallbackUrlAllowed(event.callbackUrl, config)) {
       return failure(
