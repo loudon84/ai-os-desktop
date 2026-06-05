@@ -42,7 +42,7 @@ export function HostBridgePanel({
   onRefreshSnapshot,
 }: HostBridgePanelProps): React.JSX.Element {
   const { lastEvent, lastHandoff, configPath, error, refresh } = useHostBridgeEvents();
-  const { requestHermesAnalysis } = useWebOperatorPageContext();
+  const { currentTask, requestHermesAnalysis } = useWebOperatorPageContext();
   const [sending, setSending] = useState(false);
   const [commandResult, setCommandResult] = useState<HostBridgeResult | null>(null);
   const [callbackUrlDraft, setCallbackUrlDraft] = useState(DEFAULT_CALLBACK_URL);
@@ -161,11 +161,20 @@ export function HostBridgePanel({
   }, [refresh]);
 
   const triggerHermesAnalysis = useCallback(
-    (event: HostBridgeStoredEvent) => {
+    (event: HostBridgeStoredEvent, options?: { force?: boolean }) => {
       const pageUrl = resolveHostBridgePageUrl(event);
-      if (!pageUrl) return;
+      if (!pageUrl || !event.requestId?.trim()) return;
+      if (
+        !options?.force &&
+        currentTask?.source === "web-host-bridge" &&
+        currentTask?.requestId === event.requestId
+      ) {
+        return;
+      }
       const pageContext = buildPageContextFromHostBridgeEvent(event);
       requestHermesAnalysis({
+        source: "web-host-bridge",
+        requestId: event.requestId,
         pageUrl,
         pageContext,
         requiredSkillName: event.skillName,
@@ -174,10 +183,10 @@ export function HostBridgePanel({
         callbackUrl: event.callbackUrl,
         preferStartDialog: true,
         hostBridgeRequestId: event.requestId,
-        force: false,
+        force: options?.force ?? false,
       });
     },
-    [requestHermesAnalysis],
+    [currentTask?.source, currentTask?.requestId, requestHermesAnalysis],
   );
 
   const runAnalyze = useCallback(() => {
@@ -185,6 +194,8 @@ export function HostBridgePanel({
     const pageUrl = resolveHostBridgePageUrl(lastEvent);
     if (!pageUrl) return;
     requestHermesAnalysis({
+      source: "web-host-bridge",
+      requestId: lastEvent.requestId,
       pageUrl,
       pageContext: buildPageContextFromHostBridgeEvent(lastEvent),
       requiredSkillName: lastEvent.skillName,
@@ -203,7 +214,7 @@ export function HostBridgePanel({
     if (!lastEvent?.requestId) return;
     if (lastAutoAnalyzeRequestIdRef.current === lastEvent.requestId) return;
     lastAutoAnalyzeRequestIdRef.current = lastEvent.requestId;
-    triggerHermesAnalysis(lastEvent);
+    triggerHermesAnalysis(lastEvent, { force: false });
   }, [lastEvent, triggerHermesAnalysis]);
 
   return (

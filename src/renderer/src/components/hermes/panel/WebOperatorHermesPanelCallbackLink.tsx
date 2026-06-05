@@ -33,14 +33,15 @@ export function WebOperatorHermesPanelCallbackLink({
     return fileUrl ?? messageUrl;
   })();
 
-  if (!bestUrl) return null;
-
-  const normalized = normalizeMarkdownHref(bestUrl);
-  const fromFile = Boolean(fileUrl && bestUrl === fileUrl);
+  const normalized = bestUrl ? normalizeMarkdownHref(bestUrl) : "";
+  const fromFile = Boolean(fileUrl && bestUrl && bestUrl === fileUrl);
 
   const copyUrl = useCallback(async () => {
+    if (!normalized) return;
     await navigator.clipboard.writeText(normalized);
   }, [normalized]);
+
+  if (!bestUrl) return null;
 
   return (
     <div className="web-operator-hermes-panel__callback-link">

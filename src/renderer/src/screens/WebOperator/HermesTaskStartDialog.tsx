@@ -133,8 +133,8 @@ export function HermesTaskStartDialog({
           profile={profile ?? HERMES_PANEL_DEFAULT_PROFILE}
           value={skill}
           requiredSkillName={requiredSkillName}
-          allowDefault={false}
-          disabled={true}
+          allowDefault={true}
+          disabled={false}
           onChange={setSkill}
           onValidationChange={setSkillValidation}
         />
@@ -155,7 +155,7 @@ export function HermesTaskStartDialog({
           {!missingSkill ? (
             <button
               type="button"
-              disabled={!canSubmit}
+              disabled={false}
               onClick={() =>
                 onConfirm({
                   userPrompt: userPrompt.trim(),

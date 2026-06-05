@@ -50,12 +50,16 @@ export type HermesPanelTaskAction = "loading" | "running" | "pending";
 
 export type HermesPanelTaskInput = {
   taskId: string;
+  source: string;
+  requestId: string;
   pageUrl: string;
   sessionId: string | null;
   pageContext: HermesPanelPageContext;
   action: HermesPanelTaskAction;
   userPrompt?: string;
   skill?: string;
+  /** Dialog 选了「新建会话」— store/chat 不得复用旧 binding 或共享 draft。 */
+  createNewSession?: boolean;
   hostBridge?: {
     requestId: string;
     formType: string;
@@ -67,6 +71,8 @@ export type HermesPanelTaskInput = {
 
 export type HermesPanelTaskSessionReadyInput = {
   taskId: string;
+  source: string;
+  requestId: string;
   pageUrl: string;
   sessionId: string;
   pageContext: HermesPanelPageContext;

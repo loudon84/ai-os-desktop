@@ -54,11 +54,12 @@ export function WebOperatorHermesPanelMessageList({
               {m.content ? (
                 <>
                   <AgentMarkdown onLinkClick={handleLinkClick}>{m.content}</AgentMarkdown>
-                  
+                  {/* command by loudon: disable callback link
                   <WebOperatorHermesPanelCallbackLink
                     content={m.content}
                     onOpen={openHermesPanelLinkInWebOperator}
                   />
+                  */}
                   
                 </>
               ) : (

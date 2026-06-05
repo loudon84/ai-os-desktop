@@ -149,7 +149,7 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 
 **V5.7.5（WebOperator Page → Hermes 任务流）**：
 - **入口**：Page Structure `[分析内容]` → 切 Hermes Task 侧栏 → `HermesTaskStartDialog`（Portal 至 `document.body`，全屏遮罩；打开时 `WebContentsHost` `enabled=false` 避免 WebContentsView 盖住对话框）
-- **任务会话**：`window.webOperatorTaskSession` → `~/.hermes/desktop/web-operator-task-session.db`（按 `pageUrl` 解析/续聊；**非** Hermes `state.db`）
+- **任务会话**：`window.webOperatorTaskSession` → `~/.hermes/desktop/web-operator-task-session.db`（**v6.3.3** 按 `source + requestId` 解析/续聊；`pageUrl` 仅上下文；**非** Hermes `state.db`）
 - **Hermes 聊天**：`components/hermes/WebOperatorHermesChatPanel` → **仅** `window.hermesDefaultChat` + `hermesAPI.getSessionMessages`；`resumeSessionId` 占位 `draft_weboperator`；首轮 `uploadAttachmentBuffers`（`web-context/*`）+ `buildTaskFirstMessage` 正文
 - **页面上下文**：`WebOperatorPageContext`（`globalThis` 单例 Context 防 HMR 双实例）+ `derive-page-url.ts`（iframe `about:srcdoc` 稳定 URL）
 - **侧栏保活**：`WebOperatorPanels` 始终挂载 `hermes-task`，非激活时 CSS 隐藏，避免切 Tab 丢任务状态
@@ -159,6 +159,18 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **HermesPanelSkill** / **HermesPanelSession**：Dialog 可复用 skills / sessions 下拉组件；HostBridge `skillName` → `requiredSkillName` 统一校验
 - **Dialog 提交**：`onConfirm({ userPrompt, skill, sessionId })`；续写已有 session 或新建
 - **HostBridge 元信息**：`HermesPanelTaskInput.hostBridge` + `buildTaskFirstMessage` `[HostBridge]` 块
+
+**V6.3.1（WebOperator 任务 Chat 持久化 hotfix，PRD `prd/v6.3.1_hermes-task-persist-hotfix.md`）**：
+- **`currentTask` 提升 Context**：`WebOperatorPageContext`；`sessionStorage` 键 `weboperator-current-task-v1`（**v6.3.3** 升为 `v2`）
+- **冷启动**：`webOperatorTaskSession.getLastActive()`（IPC `get-last-active`）优先；无 record 再读 sessionStorage
+- **弹 Dialog 不清任务**；同 `source + requestId` 的 `requestHermesAnalysis` / HostBridge 自动分析可跳过（非 `force`）
+- **共享**：`src/shared/web-operator/build-task-id.ts`
+
+**V6.3.3（WebOperator Task Session 绑定键调整，PRD `prd/v6.3.3_task-to-session-request.md`）**：
+- **业务唯一键**：`source + requestId`（替代 `page_url UNIQUE`）；`taskId` 由 Main `buildTaskId(source, requestId)` 派生
+- **SQLite schema v2**：`UNIQUE(source, request_id)`；v1 库自动迁移（`legacy-page-url` + 旧 `page_url`）
+- **IPC**：`resolve/upsert` 必填 `source/requestId`；upsert **不传** `taskId`
+- **Renderer**：HostBridge `source=web-host-bridge`；手动分析 `source=manual`；`sessionStorage` 键 `weboperator-current-task-v2`
 
 **V6.1（Hermes MCP Skill Gateway，PRD `prd/v6.1_mcp-skill-gateway.md`）**：
 - **Registry**：`~/.hermes/desktop/mcp-registry.db`；Main `src/main/mcp/*`；Renderer `screens/Hermes/pages/MCP/`

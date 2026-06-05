@@ -27,8 +27,15 @@ export type WebOperatorTaskPageContext = {
   payload: WebOperatorTaskPageContextPayload;
 };
 
+export type WebOperatorTaskSessionIdentity = {
+  source: string;
+  requestId: string;
+};
+
 export type WebOperatorTaskSessionRecord = {
   taskId: string;
+  source: string;
+  requestId: string;
   pageUrl: string;
   sessionId: string;
   pageContext: WebOperatorTaskPageContext;
@@ -40,24 +47,42 @@ export type WebOperatorTaskSessionRecord = {
 
 export type WebOperatorTaskSessionLookupResult = {
   taskId: string;
-  pageUrl: string;
+  source: string;
+  requestId: string;
+  pageUrl?: string;
   record: WebOperatorTaskSessionRecord | null;
 };
 
 export type WebOperatorTaskSessionResolveInput = {
-  pageUrl: string;
+  source: string;
+  requestId: string;
+  pageUrl?: string;
 };
 
 export type WebOperatorTaskSessionUpsertInput = {
-  taskId: string;
+  source: string;
+  requestId: string;
   pageUrl: string;
   sessionId: string;
   pageContext: WebOperatorTaskPageContext;
   skill?: string;
+  /** User chose「新建会话」— drop prior binding for this source+requestId before insert. */
+  createNewSession?: boolean;
+};
+
+export type WebOperatorTaskSessionPrepareNewInput = {
+  source: string;
+  requestId: string;
+};
+
+export type WebOperatorTaskSessionGetLastActiveResult = {
+  record: WebOperatorTaskSessionRecord | null;
 };
 
 export interface WebOperatorTaskSessionAPI {
   resolve(input: WebOperatorTaskSessionResolveInput): Promise<WebOperatorTaskSessionLookupResult>;
   upsert(input: WebOperatorTaskSessionUpsertInput): Promise<WebOperatorTaskSessionRecord>;
+  prepareNewSession(input: WebOperatorTaskSessionPrepareNewInput): Promise<{ ok: true }>;
   remove(taskId: string): Promise<{ ok: true }>;
+  getLastActive(): Promise<WebOperatorTaskSessionGetLastActiveResult>;
 }

@@ -3,6 +3,7 @@ import type {
   HermesChatAttachmentMeta,
   HermesChatUsageEvent,
 } from "../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
+import { buildWebOperatorPanelDraftSessionId } from "../../../../../shared/web-operator/web-operator-panel-draft-session";
 import { formatChatError } from "../../../screens/Hermes/utils/formatChatError";
 import { hermesPanelApi } from "../api/hermesPanelApi";
 import {
@@ -168,6 +169,8 @@ export function useWebOperatorHermesPanelChat(options: {
           if (task) {
             onTaskSessionReadyRef.current?.({
               taskId: task.taskId,
+              source: task.source,
+              requestId: task.requestId,
               pageUrl: task.pageUrl,
               sessionId: sid,
               pageContext: task.pageContext,
@@ -331,7 +334,11 @@ export function useWebOperatorHermesPanelChat(options: {
 
       let webContextAttachmentIds: string[] = [];
       const resumeId =
-        sessionIdRef.current ?? task?.sessionId ?? HERMES_PANEL_DRAFT_SESSION_ID;
+        sessionIdRef.current ??
+        task?.sessionId ??
+        (task?.createNewSession && task.taskId
+          ? buildWebOperatorPanelDraftSessionId(task.taskId)
+          : HERMES_PANEL_DRAFT_SESSION_ID);
 
       if (isFirstUserMessage && ctx && !injectedRef.current) {
         const inj = await injectWebContextAttachments(resumeId, ctx);

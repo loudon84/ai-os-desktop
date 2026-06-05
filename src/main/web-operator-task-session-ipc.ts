@@ -1,9 +1,12 @@
 import { ipcMain } from "electron";
 import type {
+  WebOperatorTaskSessionPrepareNewInput,
   WebOperatorTaskSessionResolveInput,
   WebOperatorTaskSessionUpsertInput,
 } from "../shared/web-operator/web-operator-task-session-contract";
 import {
+  getLastActiveTaskSession,
+  prepareNewTaskSession,
   removeTaskSession,
   resolveTaskSession,
   upsertTaskSession,
@@ -13,20 +16,42 @@ export function registerWebOperatorTaskSessionIpc(): void {
   ipcMain.handle(
     "web-operator-task-session:resolve",
     (_event, input: WebOperatorTaskSessionResolveInput) => {
-      if (!input?.pageUrl || typeof input.pageUrl !== "string") {
-        throw new Error("pageUrl is required");
+      if (!input?.source || typeof input.source !== "string") {
+        throw new Error("source is required");
       }
-      return resolveTaskSession(input.pageUrl);
+      if (!input?.requestId || typeof input.requestId !== "string") {
+        throw new Error("requestId is required");
+      }
+      return resolveTaskSession(input);
     },
   );
 
   ipcMain.handle(
     "web-operator-task-session:upsert",
     (_event, input: WebOperatorTaskSessionUpsertInput) => {
-      if (!input?.taskId || !input?.pageUrl || !input?.sessionId || !input?.pageContext) {
-        throw new Error("taskId, pageUrl, sessionId, and pageContext are required");
+      if (
+        !input?.source ||
+        !input?.requestId ||
+        !input?.pageUrl ||
+        !input?.sessionId ||
+        !input?.pageContext
+      ) {
+        throw new Error("source, requestId, pageUrl, sessionId, and pageContext are required");
       }
       return upsertTaskSession(input);
+    },
+  );
+
+  ipcMain.handle(
+    "web-operator-task-session:prepare-new",
+    (_event, input: WebOperatorTaskSessionPrepareNewInput) => {
+      if (!input?.source || typeof input.source !== "string") {
+        throw new Error("source is required");
+      }
+      if (!input?.requestId || typeof input.requestId !== "string") {
+        throw new Error("requestId is required");
+      }
+      return prepareNewTaskSession(input);
     },
   );
 
@@ -36,5 +61,9 @@ export function registerWebOperatorTaskSessionIpc(): void {
     }
     removeTaskSession(taskId);
     return { ok: true as const };
+  });
+
+  ipcMain.handle("web-operator-task-session:get-last-active", () => {
+    return getLastActiveTaskSession();
   });
 }

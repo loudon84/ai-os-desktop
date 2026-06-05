@@ -139,6 +139,7 @@ export function HermesPanelSkill({
     : options;
 
   const invalidRequiredSkill =
+    value !==  "" &&
     requiredSkillName &&
     !options.some((item) => matchSkillName(requiredSkillName, item));
 

@@ -1,12 +1,20 @@
 import {
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import type { HermesPanelPageContext } from "../../../components/hermes";
+import type { HermesPanelPageContext, HermesPanelTaskInput } from "../../../components/hermes";
+import {
+  clearCurrentTaskSnapshot,
+  readCurrentTaskSnapshot,
+  recordToTaskInput,
+  taskInputFromSnapshot,
+  writeCurrentTaskSnapshot,
+} from "../lib/web-operator-current-task-cache";
 import { WebOperatorPageContextReact } from "./web-operator-page-context-instance";
 import type {
   WebOperatorHermesAnalysisRequest,
@@ -24,6 +32,15 @@ export type {
 
 export { WebOperatorPageContextReact } from "./web-operator-page-context-instance";
 
+function applyTaskPageContext(
+  task: HermesPanelTaskInput,
+  setPageContextState: (ctx: HermesPanelPageContext | null) => void,
+  setPageUrl: (url: string | null) => void,
+): void {
+  setPageContextState(task.pageContext);
+  setPageUrl(task.pageUrl.trim());
+}
+
 export function WebOperatorPageContextProvider({
   children,
 }: {
@@ -31,14 +48,54 @@ export function WebOperatorPageContextProvider({
 }): React.JSX.Element {
   const [pageContext, setPageContextState] = useState<HermesPanelPageContext | null>(null);
   const [pageUrl, setPageUrl] = useState<string | null>(null);
+  const [currentTask, setCurrentTaskState] = useState<HermesPanelTaskInput | null>(null);
   const [analysisRequest, setAnalysisRequest] =
     useState<WebOperatorHermesAnalysisRequest | null>(null);
   const [taskStartDialog, setTaskStartDialog] =
     useState<WebOperatorTaskStartDialogState | null>(null);
   const [taskStartDialogHandlers, setTaskStartDialogHandlers] =
     useState<WebOperatorTaskStartDialogHandlers | null>(null);
+  const taskSessionUpsertedIdRef = useRef<string | null>(null);
+  const hydrateStartedRef = useRef(false);
   /** 用户取消 Dialog 后，同一 JSSDK requestId 不再自动弹框 */
   const dismissedHostBridgeRequestIdsRef = useRef(new Set<string>());
+
+  const setCurrentTask = useCallback((task: HermesPanelTaskInput | null) => {
+    setCurrentTaskState(task);
+    if (task) {
+      writeCurrentTaskSnapshot(task);
+      applyTaskPageContext(task, setPageContextState, setPageUrl);
+    } else {
+      clearCurrentTaskSnapshot();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hydrateStartedRef.current) return;
+    hydrateStartedRef.current = true;
+
+    void (async () => {
+      try {
+        const last = await window.webOperatorTaskSession.getLastActive();
+        if (last.record) {
+          const task = recordToTaskInput(last.record);
+          setCurrentTaskState(task);
+          writeCurrentTaskSnapshot(task);
+          applyTaskPageContext(task, setPageContextState, setPageUrl);
+          return;
+        }
+
+        const snap = readCurrentTaskSnapshot();
+        if (snap) {
+          const task = taskInputFromSnapshot(snap);
+          setCurrentTaskState(task);
+          applyTaskPageContext(task, setPageContextState, setPageUrl);
+        }
+      } catch (e) {
+        console.warn("[WebOperatorPageContext] hydrate currentTask failed:", e);
+      }
+    })();
+  }, []);
 
   const setPageContext = useCallback((ctx: HermesPanelPageContext | null) => {
     setPageContextState(ctx);
@@ -48,6 +105,8 @@ export function WebOperatorPageContextProvider({
     (input: {
       pageUrl: string;
       pageContext: HermesPanelPageContext;
+      source?: string;
+      requestId?: string;
       profile?: string;
       requiredSkillName?: string;
       formType?: string;
@@ -65,11 +124,30 @@ export function WebOperatorPageContextProvider({
       ) {
         return;
       }
+
+      const source = (input.source ?? "manual").trim();
+      const requestId =
+        input.requestId?.trim() ??
+        input.hostBridgeRequestId?.trim() ??
+        `wo-analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const normalizedUrl = input.pageUrl.trim();
+      if (
+        !input.force &&
+        currentTask?.source === source &&
+        currentTask?.requestId === requestId
+      ) {
+        setPageContextState(input.pageContext);
+        setPageUrl(normalizedUrl);
+        return;
+      }
+
       setPageContextState(input.pageContext);
-      setPageUrl(input.pageUrl.trim());
+      setPageUrl(normalizedUrl);
       setAnalysisRequest({
-        requestId: `wo-analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        pageUrl: input.pageUrl.trim(),
+        source,
+        requestId,
+        pageUrl: normalizedUrl,
         pageContext: input.pageContext,
         createdAt: new Date().toISOString(),
         profile: input.profile,
@@ -81,7 +159,7 @@ export function WebOperatorPageContextProvider({
         hostBridgeRequestId: input.hostBridgeRequestId,
       });
     },
-    [],
+    [currentTask?.source, currentTask?.requestId],
   );
 
   const clearHermesAnalysisRequest = useCallback(() => {
@@ -98,6 +176,9 @@ export function WebOperatorPageContextProvider({
     () => ({
       pageContext,
       pageUrl,
+      currentTask,
+      setCurrentTask,
+      taskSessionUpsertedIdRef,
       analysisRequest,
       taskStartDialog,
       taskStartDialogHandlers,
@@ -111,6 +192,8 @@ export function WebOperatorPageContextProvider({
     [
       pageContext,
       pageUrl,
+      currentTask,
+      setCurrentTask,
       analysisRequest,
       taskStartDialog,
       taskStartDialogHandlers,

@@ -1,10 +1,10 @@
 import { listModels, resolveSavedModelById, type SavedModel } from "../models";
 import { getModelConfig } from "../config";
+import { isWebOperatorPanelDraftSession as isWebOperatorPanelDraftSessionShared } from "../../shared/web-operator/web-operator-panel-draft-session";
 import {
   readHermesConfig,
   setDefaultHermesModel,
 } from "../hermes-config/hermes-config-yaml";
-import { HERMES_PANEL_DRAFT_SESSION_ID } from "./hermes-session-model-store";
 import type {
   HermesChatModel,
   HermesChatModelConfig,
@@ -76,7 +76,7 @@ export function resolveModelIdForSend(
 }
 
 export function isWebOperatorPanelDraftSession(sessionId: string | undefined): boolean {
-  return sessionId?.trim() === HERMES_PANEL_DRAFT_SESSION_ID;
+  return isWebOperatorPanelDraftSessionShared(sessionId);
 }
 
 /**

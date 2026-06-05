@@ -1,6 +1,8 @@
-import type { HermesPanelPageContext } from "../../../components/hermes";
+import type { HermesPanelPageContext, HermesPanelTaskInput } from "../../../components/hermes";
+import type { MutableRefObject } from "react";
 
 export type WebOperatorHermesAnalysisRequest = {
+  source: string;
   requestId: string;
   pageUrl: string;
   pageContext: HermesPanelPageContext;
@@ -43,6 +45,10 @@ export type WebOperatorTaskStartDialogHandlers = {
 export type WebOperatorPageContextValue = {
   pageContext: HermesPanelPageContext | null;
   pageUrl: string | null;
+  currentTask: HermesPanelTaskInput | null;
+  setCurrentTask: (task: HermesPanelTaskInput | null) => void;
+  /** 每个 taskId 仅 upsert 一次（首次 chat-done） */
+  taskSessionUpsertedIdRef: MutableRefObject<string | null>;
   analysisRequest: WebOperatorHermesAnalysisRequest | null;
   taskStartDialog: WebOperatorTaskStartDialogState | null;
   taskStartDialogHandlers: WebOperatorTaskStartDialogHandlers | null;
@@ -52,6 +58,8 @@ export type WebOperatorPageContextValue = {
   requestHermesAnalysis: (input: {
     pageUrl: string;
     pageContext: HermesPanelPageContext;
+    source?: string;
+    requestId?: string;
     profile?: string;
     requiredSkillName?: string;
     formType?: string;

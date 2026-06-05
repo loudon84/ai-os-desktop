@@ -20,7 +20,9 @@
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ WebOperatorPageContext                                      │
-│   analysisRequest = { requestId, pageUrl, pageContext, ... }│
+│   currentTask（v6.3.1 Context + sessionStorage 快照）        │
+│   analysisRequest = { source, requestId, pageUrl, ... }     │
+│   mount hydrate: getLastActive → 否则 sessionStorage        │
 └─────────────────────────────────────────────────────────────┘
                           │
                           ▼
@@ -28,7 +30,7 @@
 │ HermesTaskPanel                                            │
 │   useEffect([analysisRequest?.requestId])                   │
 │     │                                                       │
-│     ├─ webOperatorTaskSession.resolve({ pageUrl })          │
+│     ├─ webOperatorTaskSession.resolve({ source, requestId })│
 │     │                                                       │
 │     ├─ 有已绑定 session ──→ action: "loading"               │
 │     │   └─ loadSessionHistory(sessionId)                    │
@@ -80,7 +82,7 @@
 
 **触发**：`analysisRequest?.requestId` 变化
 
-1. 调用 `window.webOperatorTaskSession.resolve({ pageUrl })` 查找已有任务
+1. 调用 `window.webOperatorTaskSession.resolve({ source, requestId, pageUrl })` 查找已有任务（v6.3.3 按 `source + requestId`）
 2. **有 record**（已绑定 sessionId）：
    - 设置 `currentTask = { action: "loading", sessionId }`
    - `WebOperatorHermesChatPanel` 检测 `task.action === "loading"` → `loadSessionHistory(sessionId)`
@@ -153,8 +155,34 @@
 3. `onDone` → 将 streaming 追加为 assistant message → `runState = "idle"` → 调用 `onTaskSessionReady`（task 模式）或 `setPanelSessionBinding`（draft 模式）
 4. `onError` → 设置 error + `runState = "error"`
 
-**持久化**：`webOperatorTaskSession.upsert({ taskId, pageUrl, sessionId, pageContext, skill })` 写入 SQLite（Main 侧 task_session 表）。
+**持久化**：`webOperatorTaskSession.upsert({ source, requestId, pageUrl, sessionId, pageContext, skill })` 写入 SQLite（Main 侧 `task_session` 表；`taskId` 由 Main 内部派生）。
+
+## v6.3.3 — 任务会话绑定键（source + requestId）
+
+| 机制 | 说明 |
+|------|------|
+| 业务唯一键 | `source + requestId`（非 `pageUrl`）；同页面不同 JSSDK 请求可创建多条 `task_session` |
+| `taskId` | Main `buildTaskId(source, requestId)`；Renderer **不**向 upsert 传入 `taskId` |
+| `source` 约定 | `manual`（Page Structure）、`web-host-bridge`（HostBridge）、`legacy-page-url`（v1 迁移） |
+| `resolve` | `HermesTaskPanel` 收到 `analysisRequest` 后 `resolve({ source, requestId, pageUrl })` |
+| HostBridge | `requestHermesAnalysis({ source: "web-host-bridge", requestId: event.requestId, ... })` |
+
+PRD：[`prd/v6.3.3_task-to-session-request.md`](../../../../prd/v6.3.3_task-to-session-request.md)
+
+## v6.3.1 — 任务 Chat 恢复（Context + hydrate）
+
+| 机制 | 说明 |
+|------|------|
+| `currentTask` | 存放在 `WebOperatorPageContext`（非 `HermesTaskPanel` 本地 state），侧栏折叠卸载 Panel 后仍保留 |
+| `sessionStorage` | 键 `weboperator-current-task-v2`（含 `source/requestId`）；`setCurrentTask` 时写入；有 `sessionId` 时快照为 `action: "loading"` |
+| 冷启动 hydrate | `WebOperatorPageContextProvider` mount：`getLastActive()` → 有 record 则 `recordToTaskInput`；否则读 sessionStorage |
+| 弹 Dialog | **不** `setCurrentTask(null)`；确认后覆盖 `currentTask` |
+| `requestHermesAnalysis` 守卫 | 同 `source + requestId` 且非 `force` 时仅更新 pageContext，不新建 `analysisRequest` |
+| HostBridge 自动分析 | 同活跃 `source + requestId` 时跳过 `triggerHermesAnalysis`（与 Context 守卫双保险） |
+| Chat remount | `hermes-task` 隐藏保活或折叠后 remount：`task.action=loading` + `sessionId` → `loadSessionHistory` |
+
+PRD：[`prd/v6.3.1_hermes-task-persist-hotfix.md`](../../../../prd/v6.3.1_hermes-task-persist-hotfix.md)
 
 ## Dialog Cancel 路径
 
-Cancel 时 `handleDialogCancel` 设置 `currentTask = { action: "pending" }`，Chat 进入 pending 状态（composer disabled），用户可在 HermesTaskPanel 中继续对话或重新触发分析。
+Cancel 时 `handleDialogCancel` 仅 `dismissHermesAnalysis` + 关闭 Dialog + 切到 `host-context`；**不**清空 `currentTask`，Hermes Task 侧栏 Chat 保持。

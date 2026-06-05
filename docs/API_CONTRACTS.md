@@ -107,27 +107,34 @@ Renderer 公共组件：`src/renderer/src/components/hermes/`（`WebOperatorHerm
 | 传输 | **仅** `window.hermesDefaultChat` + `hermesAPI.getSessionMessages`（历史）；**禁止** Portal HTTP、`workspaceChat` |
 | 模型 | **不传** `model_id`；**禁止** `getSessionModel` / `setSessionModel`；`resumeSessionId` 占位用 `draft_weboperator`（与全页 `draft_default` 隔离）→ Main 走全局默认 `config.yaml` overlay |
 | Web 上下文 | `aiosBrowser.getFrameHtml` → `WebOperatorPageContext` → 首轮 `hermesDefaultChat.uploadAttachmentBuffers`（`web-context/*`）+ `buildTaskFirstMessage` / `buildWebContextPrefix` |
-| 会话续聊 | v5.7.5：`window.webOperatorTaskSession` → `~/.hermes/desktop/web-operator-task-session.db`（`page_url` 唯一）；v5.7.4 legacy `localStorage` 键 `weboperator-hermes-panel-session-bindings` 保留文件但非主路径 |
+| 会话续聊 | v5.7.5+：`window.webOperatorTaskSession` → `~/.hermes/desktop/web-operator-task-session.db`；**v6.3.3** 业务键 `source + requestId`（`page_url` 仅上下文）；v5.7.4 legacy `localStorage` 键 `weboperator-hermes-panel-session-bindings` 保留文件但非主路径 |
 | 历史消息 | `window.hermesAPI.getSessionMessages(sessionId)` | 恢复已有 Hermes session 时 |
 
 PRD：[`prd/v5.7.4_sidepanel_hermes.md`](../prd/v5.7.4_sidepanel_hermes.md) · v5.7.5：[`prd/v5.7.5_hermes_integration.md`](../prd/v5.7.5_hermes_integration.md)
 
-### WebOperator Task Session（v5.7.5）
+### WebOperator Task Session（v5.7.5 + v6.3.3）
 
-Page Structure `[分析内容]` → `HermesTaskPanel` 按 `pageUrl` 解析/创建 Hermes 任务会话。
+Page Structure `[分析内容]` / HostBridge JSSDK → `HermesTaskPanel` 按 **`source + requestId`** 解析/创建 Hermes 任务会话；`pageUrl` 仅作页面上下文字段。
 
 Main：`src/main/web-operator-task-session-store.ts` + `web-operator-task-session-ipc.ts`  
 Preload：`src/preload/web-operator-task-session-api.ts`  
 契约：`src/shared/web-operator/web-operator-task-session-contract.ts`  
-DB：`~/.hermes/desktop/web-operator-task-session.db`（**非** Hermes `state.db`）
+`taskId`：`src/shared/web-operator/build-task-id.ts` — `wot_` + sha256(`${source}:${requestId}`).slice(0,32)  
+DB：`~/.hermes/desktop/web-operator-task-session.db`（**非** Hermes `state.db`）；schema v2：`UNIQUE(source, request_id)`；v1 库自动迁移（`legacy-page-url` + 旧 `page_url`）
 
 | Channel | Direction | Args | Returns | Notes |
 |---------|-----------|------|---------|-------|
-| `web-operator-task-session:resolve` | invoke | `{ pageUrl: string }` | `WebOperatorTaskSessionLookupResult` | `taskId = wot_` + sha256(pageUrl) 前 32 位 |
-| `web-operator-task-session:upsert` | invoke | `WebOperatorTaskSessionUpsertInput` | `WebOperatorTaskSessionRecord` | 首次 `chat-done` 后写入 |
+| `web-operator-task-session:resolve` | invoke | `{ source: string, requestId: string, pageUrl?: string }` | `WebOperatorTaskSessionLookupResult` | `taskId` 由 Main 派生；按 `source + requestId` 查询 |
+| `web-operator-task-session:upsert` | invoke | `{ source, requestId, pageUrl, sessionId, pageContext, skill?, createNewSession? }` | `WebOperatorTaskSessionRecord` | **不传** `taskId`；`createNewSession` 时清除旧 binding 后新建 |
+| `web-operator-task-session:prepare-new` | invoke | `{ source, requestId }` | `{ ok: true }` | Dialog 选「新建会话」时立即清除该 identity 的旧 `task_session` 行 |
 | `web-operator-task-session:remove` | invoke | `taskId: string` | `{ ok: true }` | |
+| `web-operator-task-session:get-last-active` | invoke | — | `WebOperatorTaskSessionGetLastActiveResult` | **v6.3.1** `status=active`，`ORDER BY updated_at DESC LIMIT 1` |
 
-Preload：`window.webOperatorTaskSession.resolve / upsert / remove`
+Preload：`window.webOperatorTaskSession.resolve / upsert / remove / getLastActive`
+
+**source 约定**：`manual`（Page Structure 分析）、`web-host-bridge`（HostBridge JSSDK）、`legacy-page-url`（v1 迁移行）。
+
+**v6.3.1**：`WebOperatorPageContext.currentTask` + `sessionStorage`；**v6.3.3** 键升为 `weboperator-current-task-v2`（含 `source/requestId`）；Provider mount 时 SQLite `getLastActive` 优先，无 record 再读 sessionStorage。
 
 ### Preload：`window.hermesDefaultChat`（WebOperator 相关子集）
 
