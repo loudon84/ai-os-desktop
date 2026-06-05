@@ -26,7 +26,8 @@ WebOperator 侧栏嵌入的 Hermes 聊天面板，用于对当前网页内容进
 | 组件 | 文件 | 职责 |
 |---|---|---|
 | `WebOperatorHermesPanelComposer` | `panel/WebOperatorHermesPanelComposer.tsx` | 输入框 + 附件 tray（点击/拖拽上传、删除 chip）+ 发送/停止；支持附件-only 发送 |
-| `WebOperatorHermesPanelMessageList` | `panel/WebOperatorHermesPanelMessageList.tsx` | 消息列表渲染（user / assistant / streaming） |
+| `WebOperatorHermesPanelMessageList` | `panel/WebOperatorHermesPanelMessageList.tsx` | 消息列表渲染（user / assistant / streaming）；assistant 下挂 `HostFormFillActionButton`（V6.3.4） |
+| `HostFormFillActionButton` | `panel/host-form-fill/HostFormFillActionButton.tsx` | 解析 `host_form_fill` artifact，调用 `HostBridgeCommandContext.runCommand` 写回表单（V6.3.4） |
 | `WebOperatorHermesPanelToolCard` | `panel/WebOperatorHermesPanelToolCard.tsx` | 工具调用进度卡片 |
 | `HermesPanelSkill` | `panel/HermesPanelSkill.tsx` | 已安装 skills 下拉 + `requiredSkillName` 校验（V6.3） |
 | `HermesPanelSession` | `panel/HermesPanelSession.tsx` | 最近 7 天 sessions 下拉 +「新建会话」（V6.3） |

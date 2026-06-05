@@ -27,6 +27,7 @@ import { resolveHostCommandResult } from "./host-command-result-store";
 import { routeHostBridgeEvent } from "./host-event-router";
 import {
   getLastHostBridgeEvent,
+  getLastHostBridgeReadyEvent,
   insertHostBridgeReadyEvent,
   insertHostBridgeSubmitEvent,
   listHostBridgeEvents,
@@ -230,6 +231,10 @@ export class HostBridgeIPC {
 
     ipcMain.handle("host-bridge:get-last-event", async () => {
       return getLastHostBridgeEvent();
+    });
+
+    ipcMain.handle("host-bridge:get-last-ready-event", async () => {
+      return getLastHostBridgeReadyEvent();
     });
 
     ipcMain.handle("crm-bridge:list-events", async (_event, limit = 20) => {

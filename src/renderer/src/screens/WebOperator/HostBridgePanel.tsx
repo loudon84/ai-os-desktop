@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ExternalLink, RefreshCw, Send, Trash2 } from "lucide-react";
-import type {
-  HostBridgeResult,
-  HostBridgeStoredEvent,
-  HostDesktopCommand,
-} from "../../../../shared/crm-bridge";
+import type { HostBridgeStoredEvent } from "../../../../shared/crm-bridge";
 import {
   buildPageContextFromHostBridgeEvent,
   resolveHostBridgePageUrl,
 } from "./context/build-page-context";
 import { useWebOperatorPageContext } from "./context";
+import { useHostBridgeCommand } from "./host-bridge/HostBridgeCommandContext";
 import { useHostBridgeEvents } from "./hooks/use-host-bridge-events";
 
 export interface HostBridgePanelProps {
@@ -41,28 +38,15 @@ export function HostBridgePanel({
   className,
   onRefreshSnapshot,
 }: HostBridgePanelProps): React.JSX.Element {
-  const { lastEvent, lastHandoff, configPath, error, refresh } = useHostBridgeEvents();
+  const { lastHandoff, configPath, error, refresh } = useHostBridgeEvents();
+  const { lastEvent, runCommand, sending, lastCommandResult: commandResult } = useHostBridgeCommand();
   const { currentTask, requestHermesAnalysis } = useWebOperatorPageContext();
-  const [sending, setSending] = useState(false);
-  const [commandResult, setCommandResult] = useState<HostBridgeResult | null>(null);
   const [callbackUrlDraft, setCallbackUrlDraft] = useState(DEFAULT_CALLBACK_URL);
 
   const ctxText = useMemo(() => {
     if (!lastEvent) return "";
     return jsonStringifySafe(lastEvent);
   }, [lastEvent]);
-
-  const runCommand = useCallback(async (command: HostDesktopCommand) => {
-    setSending(true);
-    try {
-      const active = await window.aiosBrowser.getActiveWebOperatorTab();
-      const layerId = active?.layerId ?? null;
-      const result = await window.aiosBrowser.sendHostCommand(command, layerId);
-      setCommandResult(result);
-    } finally {
-      setSending(false);
-    }
-  }, []);
 
   const copyContext = useCallback(async () => {
     if (!ctxText) return;

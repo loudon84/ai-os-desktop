@@ -200,7 +200,8 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 | `src/preload/` | 预加载桥接层 — **hermesAPI + hermesDefaultChat + webOperatorTaskSession + smcShell + desktopAuth + desktopUserConfig + aiosBrowser + profileRuntime + profileEntry + aiosRuntime + shellView + mainPageState** | 谨慎修改，影响全进程通信 |
 | `src/preload/web-operator-task-session-api.ts` | **V5.7.5** `window.webOperatorTaskSession` | 任务会话 resolve/upsert/remove |
 | `src/renderer/src/components/hermes/` | **V5.7.4+** WebOperator Hermes 侧栏聊天（`WebOperatorHermesChatPanel`、`useWebOperatorHermesPanelChat`） | 禁止引入 `workspaceChat` |
-| `src/renderer/src/screens/WebOperator/` | **V5.7.5** `HermesTaskPanel`、`HermesTaskStartDialog`、`WebOperatorTaskStartDialogHost`、Page Context | 分析内容入口与任务 UI |
+| `src/renderer/src/screens/WebOperator/` | **V5.7.5** `HermesTaskPanel`、`HermesTaskStartDialog`、`WebOperatorTaskStartDialogHost`、Page Context；**V6.3.4** `host-bridge/HostBridgeCommandContext` | 分析内容入口与任务 UI；Hermes→Host 表单写回 |
+| `src/renderer/src/components/hermes/panel/host-form-fill/` | **V6.3.4** `extractHostFormFillArtifact`、`normalizeProductFillFields`、`HostFormFillActionButton` | Hermes assistant 消息解析 + 写回按钮 |
 | `src/shared/web-operator/` | **V5.7.5** `web-operator-task-session-contract.ts` | IPC 共享类型 |
 | `src/renderer/` | 渲染进程 — **screens/MainPage/**（V2.0 主壳）、**components/layout/**、**components/overlay/**（V5.7.8）、**components/install/PipMirrorFields**、**components/shell/WebContentsHost**、**hooks/**、**types/desktop-shell.ts** | 主要开发区 |
 | `src/shared/` | 共享模块 — i18n（4 语言 × 22 模块）+ browser/profile-runtime/enterprise/aios/shell/**workspace** 契约；**`shell/browser-partitions.ts`**、**`workspace/workspace-secondary-nav.ts`** | 谨慎修改 |

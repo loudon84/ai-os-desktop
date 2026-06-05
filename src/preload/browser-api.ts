@@ -40,6 +40,7 @@ import type {
   HostBridgeOnEventPayload,
   HostBridgeResult,
   HostBridgeStoredEvent,
+  HostBridgeStoredReadyEvent,
   HostDesktopCommand,
   HostHandoffRecord,
   HostBridgeConfigFile,
@@ -97,6 +98,7 @@ export interface AiosBrowserAPI {
   /** v6.0 — HostBridge */
   listHostBridgeEvents(limit?: number): Promise<HostBridgeStoredEvent[]>;
   getLastHostBridgeEvent(): Promise<HostBridgeStoredEvent | null>;
+  getLastHostBridgeReadyEvent(): Promise<HostBridgeStoredReadyEvent | null>;
   sendHostCommand(
     command: HostDesktopCommand,
     tabLayerId?: string | null,
@@ -207,6 +209,7 @@ export const aiosBrowser: AiosBrowserAPI = {
 
   listHostBridgeEvents: (limit?) => ipcRenderer.invoke("host-bridge:list-events", limit),
   getLastHostBridgeEvent: () => ipcRenderer.invoke("host-bridge:get-last-event"),
+  getLastHostBridgeReadyEvent: () => ipcRenderer.invoke("host-bridge:get-last-ready-event"),
   sendHostCommand: (command, tabLayerId?: string | null) =>
     ipcRenderer.invoke("host-bridge:send-command", command, tabLayerId ?? null),
   onHostBridgeEvent: (callback) => {

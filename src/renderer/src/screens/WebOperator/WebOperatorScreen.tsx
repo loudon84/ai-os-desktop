@@ -9,6 +9,7 @@ import { HANDLE_PX } from "./web-operator-layout-constants";
 import "./web-operator.css";
 import { WEB_OPERATOR_LAYER_ID } from "./web-operator-constants";
 import { WebOperatorPageContextProvider, useWebOperatorPageContext } from "./context";
+import { HostBridgeCommandProvider } from "./host-bridge/HostBridgeCommandContext";
 import { WebOperatorPanels } from "./panels";
 import { WebOperatorTaskStartDialogHost } from "./WebOperatorTaskStartDialogHost";
 
@@ -120,8 +121,10 @@ function WebOperatorScreenInner({
 export function WebOperatorScreen(props: WebOperatorScreenProps): React.JSX.Element {
   return (
     <WebOperatorPageContextProvider>
-      <WebOperatorScreenInner {...props} />
-      <WebOperatorTaskStartDialogHost />
+      <HostBridgeCommandProvider>
+        <WebOperatorScreenInner {...props} />
+        <WebOperatorTaskStartDialogHost />
+      </HostBridgeCommandProvider>
     </WebOperatorPageContextProvider>
   );
 }

@@ -311,3 +311,43 @@
   flex-wrap: wrap;
   gap: 0.375rem;
 }
+
+.web-operator-hermes-panel__form-fill-action {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #404040;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.web-operator-hermes-panel__btn--fill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #0c4a6e;
+  border-color: #0369a1;
+}
+
+.web-operator-hermes-panel__btn--fill:hover:not(:disabled) {
+  background: #075985;
+}
+
+.web-operator-hermes-panel__form-fill-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.web-operator-hermes-panel__form-fill-hint--warn {
+  color: #fbbf24;
+}
+
+.web-operator-hermes-panel__form-fill-hint--success {
+  color: #4ade80;
+}
+
+.web-operator-hermes-panel__form-fill-hint--error {
+  color: #f87171;
+}

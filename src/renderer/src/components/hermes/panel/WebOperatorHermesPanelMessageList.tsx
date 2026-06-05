@@ -4,6 +4,7 @@ import { normalizeMarkdownHref } from "../../../../../shared/hermes-panel/normal
 import AgentMarkdown from "../../AgentMarkdown";
 import type { HermesPanelMessage } from "../types";
 import { WebOperatorHermesPanelCallbackLink } from "./WebOperatorHermesPanelCallbackLink";
+import { HostFormFillActionButton } from "./host-form-fill/HostFormFillActionButton";
 
 function openHermesPanelLinkInWebOperator(href: string): void {
   const trimmed = normalizeMarkdownHref(href);
@@ -54,13 +55,13 @@ export function WebOperatorHermesPanelMessageList({
               {m.content ? (
                 <>
                   <AgentMarkdown onLinkClick={handleLinkClick}>{m.content}</AgentMarkdown>
-                  {/* command by loudon: disable callback link
+                  {/* #command by loudon: disable callback link
                   <WebOperatorHermesPanelCallbackLink
                     content={m.content}
                     onOpen={openHermesPanelLinkInWebOperator}
                   />
                   */}
-                  
+                  <HostFormFillActionButton content={m.content} />
                 </>
               ) : (
                 <span className="text-neutral-500">（无输出）</span>
@@ -86,6 +87,7 @@ export function WebOperatorHermesPanelMessageList({
       {showStreaming ? (
         <div className="web-operator-hermes-panel__bubble web-operator-hermes-panel__bubble--assistant">
           <AgentMarkdown onLinkClick={handleLinkClick}>{streamingContent}</AgentMarkdown>
+          <HostFormFillActionButton content={streamingContent} />
           <span className="web-operator-hermes-panel__streaming-cursor" />
         </div>
       ) : null}

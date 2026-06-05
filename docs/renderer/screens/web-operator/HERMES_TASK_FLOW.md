@@ -157,6 +157,27 @@
 
 **持久化**：`webOperatorTaskSession.upsert({ source, requestId, pageUrl, sessionId, pageContext, skill })` 写入 SQLite（Main 侧 `task_session` 表；`taskId` 由 Main 内部派生）。
 
+## v6.3.4 — Hermes Chat 写回 HostBridge 表单
+
+```
+Hermes assistant 回复（含 ```host_form_fill JSON```）
+  → WebOperatorHermesPanelMessageList 解析 artifact
+  → 显示「写回当前表单」按钮（用户确认）
+  → HostBridgeCommandContext.runCommand()
+  → desktop.host.form.fill → Web 页面 ack
+```
+
+| 机制 | 说明 |
+|------|------|
+| artifact 格式 | assistant 消息末尾 ` ```host_form_fill\n{ type, formType, action, fields, subTables }\n``` ` |
+| 解析 | `extractHostFormFillArtifact`；多代码块取最后一个；非法 JSON 不影响聊天展示 |
+| 字段标准化 | `normalizeProductFillFields`（价格/电池/日期/状态） |
+| 写回入口 | `HostFormFillActionButton` 挂在每条 assistant 消息下 |
+| command 复用 | `HostBridgeCommandProvider` 包裹 WebOperator；`HostBridgePanel` 与 Hermes Panel 共用 `runCommand` |
+| 不依赖 callbackURL | 写回走 Renderer → `aiosBrowser.sendHostCommand`，非 HTTP callback |
+
+PRD：[`prd/v6.3.4_weboperator-hermes-host-form-fill.md`](../../../../prd/v6.3.4_weboperator-hermes-host-form-fill.md)
+
 ## v6.3.3 — 任务会话绑定键（source + requestId）
 
 | 机制 | 说明 |
