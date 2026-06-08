@@ -19,6 +19,10 @@ import {
   readStoredSession,
   writeStoredSession,
 } from "./token-store";
+import {
+  onMcpSkillGatewayLoginSuccess,
+  onMcpSkillGatewayLogout,
+} from "../mcp-skill-gateway-runtime";
 
 async function buildAuthState() {
   const endpointConfig = readAuthEndpointConfig();
@@ -55,8 +59,13 @@ export function registerAuthIpc(): void {
     });
     await writeStoredSession(session);
     updateTokenInjectionPolicy(endpoint, true);
-    await signInPortalWithCredentials(endpoint.aiosHomeUrl, input.email, input.password);
+    await signInPortalWithCredentials(
+      endpoint.aiosHomeUrl,
+      input.account ?? input.email ?? "",
+      input.password,
+    );
     await refreshPortalView();
+    void onMcpSkillGatewayLoginSuccess();
     return toPublicState(session, endpoint);
   });
 
@@ -73,6 +82,7 @@ export function registerAuthIpc(): void {
     const endpoint = readAuthEndpointConfig();
     await clearStoredSession();
     await clearPortalSession(endpoint?.aiosHomeUrl);
+    void onMcpSkillGatewayLogout();
     return toPublicState(null, endpoint);
   });
 

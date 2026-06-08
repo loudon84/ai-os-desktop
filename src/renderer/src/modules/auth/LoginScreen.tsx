@@ -20,7 +20,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
   const { setAuthState, setPendingBootstrapDiff, pendingBootstrapDiff, refreshAuth } =
     useAuth();
   const [endpoint, setEndpoint] = useState<AuthEndpointConfig>(getDefaultAuthEndpointConfig());
-  const [email, setEmail] = useState(readLastLoginEmail);
+  const [account, setAccount] = useState(readLastLoginEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapping, setBootstrapping] = useState(false);
@@ -101,10 +101,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
       await window.desktopAuth.saveEndpointConfig(endpoint);
       const state = await window.desktopAuth.login({
         endpointConfig: endpoint,
-        email,
+        account,
         password,
       });
-      saveLastLoginEmail(email);
+      saveLastLoginEmail(account);
       setAuthState(state);
       await runBootstrap();
     } catch (err) {
@@ -162,9 +162,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps): React.JSX.Element 
         </details>
 
         <LoginForm
-          email={email}
+          account={account}
           password={password}
-          onEmailChange={setEmail}
+          onAccountChange={setAccount}
           onPasswordChange={setPassword}
           onSubmit={(e) => void handleSubmit(e)}
           error={error}

@@ -567,4 +567,39 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 
 ---
 
+## MCP Skill Gateway Runtime（V6.4 / V6.4.1）
+
+将 nodeskclaw `/api/v1/hermes/mcp` 经 Desktop 本地 Proxy 注册为 Hermes `mcp_servers.mcp_skill_gateway`。Renderer 经 `window.mcpSkillGatewayRuntime`（Preload `mcp-skill-gateway-runtime-api.ts`）访问；**accessToken 不写入 config.yaml**，仅 Proxy 注入 `Authorization`。
+
+**V6.4.1 配置单一源**：远程 backend 不再存于 `McpSkillGatewayRuntimeConfig`；统一从登录时写入的 `AuthEndpointConfig.backendUrl`（`auth-endpoint-config.json`）派生 `backendBaseUrl` / `remoteMcpUrl`。测试默认 backend：`http://192.168.0.118:4510`。
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `mcp-skill-gateway-runtime:get-status` | — | `McpSkillGatewayRuntimeStatus`（含 `backendBaseUrl`、`remoteMcpUrl`、`localProxyUrl`） |
+| `mcp-skill-gateway-runtime:get-config` | — | `McpSkillGatewayRuntimeConfig`（**无** `backendBaseUrl`） |
+| `mcp-skill-gateway-runtime:save-config` | `Partial<McpSkillGatewayRuntimeConfig>` | `McpSkillGatewayRuntimeConfig` |
+| `mcp-skill-gateway-runtime:start-proxy` | — | `McpSkillGatewayActionResult` |
+| `mcp-skill-gateway-runtime:stop-proxy` | — | `McpSkillGatewayActionResult` |
+| `mcp-skill-gateway-runtime:restart-proxy` | — | `McpSkillGatewayActionResult` |
+| `mcp-skill-gateway-runtime:test-proxy` | — | `McpSkillGatewayHealthResult` |
+| `mcp-skill-gateway-runtime:test-remote-mcp` | — | `McpGatewayRemoteTestResult`（经 Local Proxy `tools/list`） |
+| `mcp-skill-gateway-runtime:register-to-profile` | `profile` | `McpSkillGatewayRegisterResult`（含 `urlMatched` / `backendMatched` / `ready`） |
+| `mcp-skill-gateway-runtime:unregister-from-profile` | `profile` | `McpSkillGatewayRegisterResult` |
+| `mcp-skill-gateway-runtime:list-profile-registrations` | — | `McpSkillGatewayProfileRegistration[]`（含一致性字段） |
+| `mcp-skill-gateway-runtime:read-proxy-logs` | `lines?` | `string` |
+
+**本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（返回 `backendBaseUrl` / `remoteMcpUrl` / `localMcpUrl`）、`POST /mcp`（JSON-RPC 透传 + Bearer 注入）。
+
+**Hermes 注册**：写入 `~/.hermes/config.yaml` 或 `~/.hermes/profiles/<name>/config.yaml` 的 `mcp_servers.mcp_skill_gateway`（`type: http`，`url: http://127.0.0.1:<port>/mcp`）；禁止写入远程 backend URL 或 token。
+
+**生命周期**：登录成功自动启动 Proxy + 注册 default（可配置）；退出登录停止 Proxy；`before-quit` 停止 Proxy。
+
+**认证（V6.4.1）**：`window.desktopAuth.login({ endpointConfig, account, password })` → Main `POST {backendUrl}/api/v1/auth/account-login` → `GET /auth/me` 校验 `current_org_id` + `portal_org_role`；`LoginInput.email` 仅兼容旧 UI。
+
+**契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`、`src/shared/auth/auth-contract.ts`
+
+**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（Consistency check）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

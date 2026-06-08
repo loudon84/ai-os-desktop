@@ -16,6 +16,8 @@ export default {
   configDiffCancel: "Cancel",
   checkingSession: "Checking session…",
   account: "Account",
+  accountPlaceholder: "Email / phone / username",
+  accountRequired: "Account is required",
   brandTitle: "SMC-Copilot",
   brandSubtitle:
     "Sign in to your Portal Auth API (below). The desktop injects a Bearer token and syncs a portal session cookie so the embedded Portal Home tab skips /login. This is not Hermes Gateway login.",

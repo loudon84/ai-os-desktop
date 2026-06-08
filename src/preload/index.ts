@@ -37,6 +37,7 @@ import { workspaceChatApi } from "./workspace-chat-api";
 import { hermesDefaultChatApi } from "./hermes-default-chat-api";
 import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
 import { mcpApi } from "./mcp-api";
+import { mcpSkillGatewayRuntimeApi } from "./mcp-skill-gateway-runtime-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -894,6 +895,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("workspaceChat", workspaceChatApi);
     contextBridge.exposeInMainWorld("hermesDefaultChat", hermesDefaultChatApi);
     contextBridge.exposeInMainWorld("webOperatorTaskSession", webOperatorTaskSessionApi);
+    contextBridge.exposeInMainWorld("mcpSkillGatewayRuntime", mcpSkillGatewayRuntimeApi);
   } catch (error) {
     console.error(error);
   }
@@ -930,4 +932,6 @@ if (process.contextIsolated) {
   window.hermesDefaultChat = hermesDefaultChatApi;
   // @ts-ignore (define in dts)
   window.webOperatorTaskSession = webOperatorTaskSessionApi;
+  // @ts-ignore (define in dts)
+  window.mcpSkillGatewayRuntime = mcpSkillGatewayRuntimeApi;
 }

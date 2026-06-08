@@ -2,8 +2,8 @@
 
 | Stage | Status |
 |---|---|
-| hostbridge-auto-dialog | done |
+| v6.4-mcp-skill-gateway | done |
 
 ## Notes
-- HostBridge `host.bridge.submit` 自动 `requestHermesAnalysis` + `preferStartDialog`。
-- 新建会话确认后 autoRun 重置 `autoRunKeyRef` 保证新 Chat 发送。
+- V6.4 MCP Skill Gateway Runtime 已实现：Proxy `127.0.0.1:48742`、Hermes `mcp_servers.mcp_skill_gateway` 注册、12 IPC、`window.mcpSkillGatewayRuntime`、Hermes 左导航 `mcpGateway` 页。
+- typecheck 通过；新增 8 项 vitest 通过。

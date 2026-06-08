@@ -24,7 +24,12 @@ export function normalizePrefix(prefix: string): string {
   return value.replace(/\/+$/, "") || "/";
 }
 
-export type AuthUrlPath = "login" | "refresh" | "me" | "logout";
+export type AuthUrlPath =
+  | "login"
+  | "account-login"
+  | "refresh"
+  | "me"
+  | "logout";
 
 export function buildAuthUrl(config: AuthEndpointConfig, path: AuthUrlPath): string {
   return `${normalizeBaseUrl(config.backendUrl)}${normalizePrefix(config.authPrefix)}/${path}`;
@@ -57,7 +62,7 @@ export function isValidHttpUrl(url: string): boolean {
 
 export function normalizeEndpointConfig(input: AuthEndpointConfig): AuthEndpointConfig {
   return {
-    backendUrl: normalizeBaseUrl(input.backendUrl),
+    backendUrl: normalizeBackendBaseUrl(input.backendUrl),
     authPrefix: normalizePrefix(input.authPrefix),
     aiosHomeUrl: normalizeBaseUrl(input.aiosHomeUrl),
   };
@@ -65,8 +70,8 @@ export function normalizeEndpointConfig(input: AuthEndpointConfig): AuthEndpoint
 
 export function getDefaultAuthEndpointConfig(): AuthEndpointConfig {
   return {
-    backendUrl: "http://127.0.0.1:8000",
+    backendUrl: "http://192.168.0.118:4510",
     authPrefix: "/api/v1/auth",
-    aiosHomeUrl: "http://127.0.0.1:3000",
+    aiosHomeUrl: "http://192.168.0.118:4517",
   };
 }

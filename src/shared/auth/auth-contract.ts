@@ -6,9 +6,13 @@ export interface AuthEndpointConfig {
 
 export interface LoginInput {
   endpointConfig: AuthEndpointConfig;
-  /** Portal Auth API expects a valid email address */
-  email: string;
+  account?: string;
   password: string;
+  /**
+   * Legacy compatibility.
+   * Do not use in new UI.
+   */
+  email?: string;
 }
 
 export interface DesktopAuthUser {
@@ -16,6 +20,17 @@ export interface DesktopAuthUser {
   username: string;
   displayName?: string;
   tenantId?: string;
+
+  email?: string;
+  phone?: string;
+  avatarUrl?: string;
+
+  currentOrgId?: string;
+  orgRole?: string | null;
+  portalOrgRole?: string | null;
+
+  isSuperAdmin?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface DesktopAuthState {

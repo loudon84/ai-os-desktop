@@ -3,9 +3,9 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useI18n } from "../../../components/useI18n";
 
 export interface LoginFormProps {
-  email: string;
+  account: string;
   password: string;
-  onEmailChange: (value: string) => void;
+  onAccountChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   error: string | null;
@@ -14,14 +14,10 @@ export interface LoginFormProps {
   onExit?: () => void;
 }
 
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
 export function LoginForm({
-  email,
+  account,
   password,
-  onEmailChange,
+  onAccountChange,
   onPasswordChange,
   onSubmit,
   error,
@@ -31,18 +27,18 @@ export function LoginForm({
 }: LoginFormProps): React.JSX.Element {
   const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
-  const [emailTouched, setEmailTouched] = useState(false);
+  const [accountTouched, setAccountTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
 
-  const emailInvalid = emailTouched && email.trim().length > 0 && !isValidEmail(email);
+  const accountInvalid = accountTouched && account.trim().length === 0;
   const passwordInvalid = passwordTouched && password.length > 0 && password.length < 4;
   const formDisabled = disabled || busy;
 
   const handleSubmit = (e: FormEvent): void => {
     e.preventDefault();
-    setEmailTouched(true);
+    setAccountTouched(true);
     setPasswordTouched(true);
-    if (!email.trim() || !isValidEmail(email) || password.length < 4) {
+    if (!account.trim() || password.length < 4) {
       return;
     }
     onSubmit(e);
@@ -53,25 +49,25 @@ export function LoginForm({
       {error ? <div className="login-error-banner">{error}</div> : null}
 
       <div className="login-field">
-        <label htmlFor="login-email" className="login-field-label">
-          {t("auth.email")}
+        <label htmlFor="login-account" className="login-field-label">
+          {t("auth.account")}
         </label>
         <div className="login-input-wrap">
           <input
-            id="login-email"
-            type="email"
-            className={`login-field-input${emailInvalid ? " login-field-input--invalid" : ""}`}
-            value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
-            autoComplete="email"
+            id="login-account"
+            type="text"
+            className={`login-field-input${accountInvalid ? " login-field-input--invalid" : ""}`}
+            value={account}
+            onChange={(e) => onAccountChange(e.target.value)}
+            onBlur={() => setAccountTouched(true)}
+            autoComplete="username"
             required
             disabled={formDisabled}
-            placeholder="you@example.com"
+            placeholder={t("auth.accountPlaceholder")}
           />
         </div>
-        {emailInvalid ? (
-          <p className="login-field-error">{t("auth.invalidEmail")}</p>
+        {accountInvalid ? (
+          <p className="login-field-error">{t("auth.accountRequired")}</p>
         ) : null}
       </div>
 

@@ -4,6 +4,14 @@ import type {
   StoredAuthSession,
 } from "../../shared/auth/auth-contract";
 import { buildAuthUrl } from "./auth-url";
+import {
+  assertMember,
+  mapNodeDeskClawSession,
+  type NodeDeskClawLoginResponse,
+  type NodeDeskClawTokenResponse,
+  type NodeDeskClawUserInfo,
+  unwrapNodeDeskClawResponse,
+} from "./nodeskclaw-auth-response";
 
 export interface AuthClient {
   login(input: LoginInput): Promise<StoredAuthSession>;
@@ -19,39 +27,27 @@ function useMockAuth(): boolean {
   return process.env.HERMES_USE_MOCK_AUTH === "true";
 }
 
-interface LoginResponseUser {
-  id?: string;
-  userId?: string;
-  username?: string;
-  email?: string;
-  displayName?: string;
-  tenantId?: string;
-}
-
-interface LoginResponseBody {
-  accessToken?: string;
-  access_token?: string;
-  refreshToken?: string;
-  refresh_token?: string;
-  expiresAt?: string;
-  expires_at?: string;
-  tokenType?: string;
-  token_type?: string;
-  user?: LoginResponseUser;
+function resolveAccount(input: LoginInput): string {
+  const account = input.account?.trim() || input.email?.trim();
+  if (!account) {
+    throw new Error("Account is required");
+  }
+  return account;
 }
 
 class MockAuthClient implements AuthClient {
   async login(input: LoginInput): Promise<StoredAuthSession> {
-    if (!input.email.trim()) {
-      throw new Error("Email is required");
-    }
+    const account = resolveAccount(input);
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     return {
       user: {
         id: "mock-user-1",
-        username: input.email,
-        displayName: input.email,
-        tenantId: "default-tenant",
+        username: account,
+        displayName: account,
+        tenantId: "default-org",
+        currentOrgId: "default-org",
+        portalOrgRole: "member",
+        orgRole: "member",
       },
       expiresAt: expires,
       accessToken: "mock-access-token",
@@ -65,7 +61,11 @@ class MockAuthClient implements AuthClient {
     refreshToken: string,
   ): Promise<StoredAuthSession> {
     if (!refreshToken) throw new Error("Missing refresh token");
-    return this.login({ endpointConfig: _endpointConfig, email: "mock@example.com", password: "" });
+    return this.login({
+      endpointConfig: _endpointConfig,
+      account: "mock@example.com",
+      password: "",
+    });
   }
 
   async logout(_endpointConfig: AuthEndpointConfig, _accessToken: string): Promise<void> {
@@ -86,14 +86,35 @@ function formatAuthError(status: number, text: string): string {
   return `Login failed: ${status} — ${text}`;
 }
 
+async function fetchMe(
+  endpointConfig: AuthEndpointConfig,
+  accessToken: string,
+): Promise<NodeDeskClawUserInfo> {
+  const res = await fetch(buildAuthUrl(endpointConfig, "me"), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(formatAuthError(res.status, text));
+  }
+
+  const body = await res.json();
+  return unwrapNodeDeskClawResponse<NodeDeskClawUserInfo>(body);
+}
+
 class HttpAuthClient implements AuthClient {
   async login(input: LoginInput): Promise<StoredAuthSession> {
-    const url = buildAuthUrl(input.endpointConfig, "login");
+    const account = resolveAccount(input);
+    const url = buildAuthUrl(input.endpointConfig, "account-login");
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: input.email.trim(),
+        account,
         password: input.password,
       }),
     });
@@ -101,8 +122,11 @@ class HttpAuthClient implements AuthClient {
       const text = await res.text().catch(() => "");
       throw new Error(formatAuthError(res.status, text));
     }
-    const body = (await res.json()) as LoginResponseBody;
-    return mapLoginResponse(body);
+    const body = await res.json();
+    const loginData = unwrapNodeDeskClawResponse<NodeDeskClawLoginResponse>(body);
+    const me = await fetchMe(input.endpointConfig, loginData.access_token);
+    assertMember(me);
+    return mapNodeDeskClawSession(loginData, me);
   }
 
   async refresh(
@@ -119,8 +143,20 @@ class HttpAuthClient implements AuthClient {
       const text = await res.text().catch(() => "");
       throw new Error(formatAuthError(res.status, text));
     }
-    const body = (await res.json()) as LoginResponseBody;
-    return mapLoginResponse(body);
+    const body = await res.json();
+    const token = unwrapNodeDeskClawResponse<NodeDeskClawTokenResponse>(body);
+    const me = await fetchMe(endpointConfig, token.access_token);
+    assertMember(me);
+    return mapNodeDeskClawSession(
+      {
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        token_type: token.token_type,
+        expires_in: token.expires_in,
+        user: me,
+      },
+      me,
+    );
   }
 
   async logout(endpointConfig: AuthEndpointConfig, accessToken: string): Promise<void> {
@@ -135,30 +171,6 @@ class HttpAuthClient implements AuthClient {
       /* best-effort */
     });
   }
-}
-
-function mapLoginResponse(body: LoginResponseBody): StoredAuthSession {
-  const accessToken = body.accessToken ?? body.access_token;
-  const user = body.user;
-  const userId = user?.id ?? user?.userId;
-  const username = user?.username ?? user?.email;
-
-  if (!accessToken || !userId || !username) {
-    throw new Error("Invalid login response from server");
-  }
-
-  return {
-    accessToken,
-    refreshToken: body.refreshToken ?? body.refresh_token,
-    expiresAt: body.expiresAt ?? body.expires_at,
-    tokenType: "Bearer",
-    user: {
-      id: userId,
-      username,
-      displayName: user?.displayName,
-      tenantId: user?.tenantId,
-    },
-  };
 }
 
 let client: AuthClient | null = null;

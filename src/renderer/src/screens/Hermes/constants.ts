@@ -27,6 +27,7 @@ export type HermesNavItemKey =
   | "sessions"
   | "skills"
   | "mcp"
+  | "mcpGateway"
   | "tools"
   | "memory"
   | "providers"
@@ -37,6 +38,7 @@ export const HERMES_NAV_ITEMS = [
   { key: "sessions", labelI18nKey: "workspaces.nav.sessions", icon: "History" },
   { key: "skills", labelI18nKey: "workspaces.nav.skills", icon: "Sparkles" },
   { key: "mcp", labelI18nKey: "workspaces.nav.mcp", icon: "Plug" },
+  { key: "mcpGateway", labelI18nKey: "workspaces.nav.mcpGateway", icon: "Globe" },
   { key: "tools", labelI18nKey: "workspaces.nav.tools", icon: "Wrench" },
   { key: "memory", labelI18nKey: "workspaces.nav.memory", icon: "Brain" },
   { key: "providers", labelI18nKey: "workspaces.nav.providers", icon: "Server" },

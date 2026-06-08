@@ -16,6 +16,8 @@ export default {
   configDiffCancel: "取消",
   checkingSession: "正在检查会话…",
   account: "账户",
+  accountPlaceholder: "邮箱 / 手机号 / 用户名",
+  accountRequired: "请输入账号",
   brandTitle: "SMC-Copilot",
   brandSubtitle:
     "在下方填写 Portal 后端与 Auth API 前缀并完成验证。登录成功后会将令牌注入 Portal Home，并同步门户会话 Cookie，避免内嵌页再次进入 /login。此登录不是 Hermes Gateway 登录。",

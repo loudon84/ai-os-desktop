@@ -178,6 +178,13 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Runtime**：本地 proxy `127.0.0.1:18781`；bundled `mcp-skill-bridge` skill 供 Hermes Agent 调用 Desktop MCP tools
 - **UI**：Hermes 左导航独立 `mcp` 页（保留 `skills`）；页内三分区：MCP 服务 / 技能绑定 / 市场（占位）
 
+**V6.4（MCP Skill Gateway Desktop Runtime，PRD `prd/v6.4_mcp-skill-gateway-desktop.md`）**：
+- **链路**：Hermes Agent → `http://127.0.0.1:48742/mcp` → Desktop Proxy（Bearer 注入）→ nodeskclaw `/api/v1/hermes/mcp`
+- **Main**：`src/main/mcp-skill-gateway-runtime/*`；配置 `userData/mcp-skill-gateway-runtime-config.json`；Hermes 写入 `mcp_servers.mcp_skill_gateway`（**禁止** config.yaml 存 token）
+- **Preload**：`window.mcpSkillGatewayRuntime`；IPC `mcp-skill-gateway-runtime:*` 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § MCP Skill Gateway Runtime
+- **生命周期**：登录启动 Proxy + 可选自动注册 default；退出登录 / `before-quit` 停止 Proxy
+- **UI**：Hermes 左导航 `mcpGateway` → `pages/McpGateway/HermesMcpGatewayPage.tsx`
+
 **V5.7.8（MainLayout 全局 Overlay + Native Layer Gate，PRD `prd/v5.7.8_main_layout.md`）**：
 - **OverlayProvider** / **DialogLayer** / **DrawerLayer** / **NativeShellLayerGate** — 统一管理阻塞型 Dialog/Drawer；`nativeBlocked` 驱动 `WebContentsHost.effectiveEnabled`
 - **legacyDrawerBlocking** — SettingsDrawer / ConfigDiffConfirmDrawer 仍由 Layout 直接挂载，通过 prop 接入 gate

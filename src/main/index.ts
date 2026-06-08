@@ -214,6 +214,11 @@ import { registerBrowserToolServerStop } from "./update/update-lifecycle";
 import { initializeProfileRuntime, onBeforeQuit as profileRuntimeBeforeQuit } from "./profile-runtime-manager";
 import { onBeforeQuit as aiosBeforeQuit } from "./aios/aios-runtime-supervisor";
 import { registerMcpIpc, seedDefaultMcpServers, stopMcpRuntimeProxy } from "./mcp";
+import {
+  autoStartMcpSkillGatewayIfReady,
+  registerMcpSkillGatewayRuntimeIpc,
+  stopMcpSkillGatewayProxy,
+} from "./mcp-skill-gateway-runtime";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -458,6 +463,7 @@ function setupIPC(): void {
     });
     registerMcpIpc(() => mainWindow);
     seedDefaultMcpServers();
+    registerMcpSkillGatewayRuntimeIpc();
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
@@ -1488,6 +1494,18 @@ app.whenReady().then(async () => {
     }
 
     try {
+      void autoStartMcpSkillGatewayIfReady()
+        .then(() => {
+          console.log("[MCP-SKILL-GATEWAY] auto-start completed");
+        })
+        .catch((err) => {
+          console.warn("[MCP-SKILL-GATEWAY] auto-start skipped:", err);
+        });
+    } catch (err) {
+      console.error("[MCP-SKILL-GATEWAY] Failed to auto-start:", err);
+    }
+
+    try {
       registerUserConfigIpc(mainWindow);
     } catch (err) {
       console.error("[USER-CONFIG] Failed to register user-config IPC:", err);
@@ -1686,6 +1704,11 @@ app.on("before-quit", () => {
   if (browserToolServer) browserToolServer.stop();
   try {
     stopMcpRuntimeProxy();
+  } catch {
+    /* best effort */
+  }
+  try {
+    stopMcpSkillGatewayProxy();
   } catch {
     /* best effort */
   }

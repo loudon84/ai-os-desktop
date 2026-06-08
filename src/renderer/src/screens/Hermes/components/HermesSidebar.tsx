@@ -1,6 +1,7 @@
 import {
   Box,
   Brain,
+  Globe,
   History,
   MessageSquare,
   PanelLeftClose,
@@ -19,6 +20,7 @@ const ICONS: Record<string, typeof MessageSquare> = {
   History,
   Sparkles,
   Plug,
+  Globe,
   Wrench,
   Brain,
   Server,

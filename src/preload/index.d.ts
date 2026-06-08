@@ -8,6 +8,7 @@ import type { RuntimeState } from "../shared/enterprise/runtime-state-contract";
 import type { AiOsAPI, AiOsRuntimeSnapshot } from "../shared/aios/aios-contract";
 import type { CopilotServeAPI } from "../shared/copilot-serve/copilot-serve-contract";
 import type { HermesMcpAPI } from "../shared/mcp/mcp-contract";
+import type { McpSkillGatewayRuntimeAPI } from "../shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract";
 
 interface InstallStatus {
   installed: boolean;
@@ -733,6 +734,7 @@ declare global {
     desktopAuth: import("../shared/auth/auth-contract").DesktopAuthAPI;
     desktopUserConfig: import("../shared/user-config/user-config-contract").UserConfigAPI;
     copilotServe: CopilotServeAPI;
+    mcpSkillGatewayRuntime: McpSkillGatewayRuntimeAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

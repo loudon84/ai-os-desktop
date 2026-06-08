@@ -1597,3 +1597,128 @@
   gap: 8px;
   align-items: center;
 }
+
+/* v6.4 — MCP Skill Gateway page */
+.hermes-mcp-gateway-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hermes-mcp-gateway-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hermes-mcp-gateway-banner.is-ready {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.hermes-mcp-gateway-banner.is-mismatch {
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.hermes-mcp-gateway-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.hermes-mcp-gateway-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.hermes-mcp-gateway-section h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hermes-mcp-gateway-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.hermes-mcp-gateway-section__head h3 {
+  margin: 0;
+}
+
+.hermes-mcp-gateway-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.hermes-mcp-gateway-section .hermes-dl-row dd code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.hermes-mcp-gateway-section .hermes-mcp-switch {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.hermes-mcp-gateway-reg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.hermes-mcp-gateway-reg-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-primary);
+}
+
+.hermes-mcp-gateway-reg-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hermes-mcp-gateway-reg-card__path {
+  margin: 8px 0 0;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.hermes-mcp-gateway-reg-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hermes-mcp-gateway-logs {
+  margin-top: 0;
+  max-height: 240px;
+}

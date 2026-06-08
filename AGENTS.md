@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（… + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| 版本 | 0.3.6（… + **V6.4.1 MCP Backend Desktop** + **V6.4 MCP Skill Gateway Runtime**） |
 | appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -46,6 +46,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `src/main/window/` | V1.4.1 窗口 IPC（`registerWindowIpc`） | 标题栏按钮 |
 | `src/main/shell/` | **main-window-controller.ts**（默认 1280×800）、ShellView、菜单、`portal-view-coordinator` | 主窗口尺寸、壳层 IPC |
 | `src/main/auth/` | **V3.3** Auth Client、Token Vault、Endpoint Config、Header 注入 | Portal 登录 + Bearer 注入 |
+| `src/main/mcp-skill-gateway-runtime/` | **V6.4** nodeskclaw MCP Skill Gateway 本地 Proxy + Hermes `config.yaml` 注册 | MCP Gateway 远程桥接 |
 | `src/main/user-config/` | **V3.3** 本地 bootstrap apply / diff / applier | 登录后桌面配置落盘 |
 | `src/main/startup/` | **V3.3.1** `startup-decision.ts`、`startup-ipc.ts` | 启动门控（auth + bootstrap 前置） |
 | `src/preload/` | contextBridge：`hermesAPI`、`smcShell`、`desktopAuth`、`desktopUserConfig`、`aiosBrowser`、`profileRuntime`、`profileEntry`、`shellView` | API 桥接（影响面大） |
@@ -78,8 +79,9 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.workspaceChat` | `src/preload/workspace-chat-api.ts` | **team_v1.8** Workspaces Chat（resolve / 模型 / 附件 / send SSE）；见 `docs/API_CONTRACTS.md` § Workspace Chat |
 | `window.webOperatorTaskSession` | `src/preload/web-operator-task-session-api.ts` | **V5.7.5** WebOperator Page→Hermes 任务会话（`task_session` SQLite） |
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
+| `window.mcpSkillGatewayRuntime` | `src/preload/mcp-skill-gateway-runtime-api.ts` | **V6.4** MCP Skill Gateway Runtime（Proxy 启停、Hermes 注册、远程 MCP 健康检查）；**不向 Renderer 暴露 token** |
 
-类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`、**`src/shared/mcp/`（V6.1）**。
+类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`、**`src/shared/mcp/`（V6.1）**、**`src/shared/mcp-skill-gateway-runtime/`（V6.4）**。
 
 ## 应用路由与 UI 结构
 
@@ -530,6 +532,8 @@ npm run lint         # ESLint
 | **V6.3.1** | **WebOperator 任务 Chat 持久化 hotfix**：`currentTask` 提升 Context + `sessionStorage`；`getLastActive` IPC；mount hydrate；弹 Dialog 不清任务 | `prd/v6.3.1_hermes-task-persist-hotfix.md`, `context/WebOperatorPageContext.tsx`, `lib/web-operator-current-task-cache.ts`, `web-operator-task-session-store.ts` |
 | **V6.3.3** | **WebOperator Task Session 绑定键调整**：`source + requestId` 替代 `pageUrl` 唯一键；schema v2 + v1 迁移；Main 派生 `taskId`；HostBridge `web-host-bridge` | `prd/v6.3.3_task-to-session-request.md`, `web-operator-task-session-*`, `shared/web-operator/build-task-id.ts`, `HermesTaskPanel.tsx`, `HostBridgePanel.tsx` |
 | **V6.3.4** | **WebOperator Hermes→Host 表单写回**：Hermes 输出 `host_form_fill` artifact；Panel「写回当前表单」按钮；`HostBridgeCommandContext` 共享 `runCommand`；`desktop.host.form.fill` | `prd/v6.3.4_weboperator-hermes-host-form-fill.md`, `host-bridge/HostBridgeCommandContext.tsx`, `components/hermes/panel/host-form-fill/*`, `WebOperatorHermesPanelMessageList.tsx` |
+| **V6.4** | **MCP Skill Gateway Desktop Runtime**：本地 Proxy `:48742` → nodeskclaw `/api/v1/hermes/mcp`；Bearer 仅 Proxy 注入；Hermes `mcp_servers.mcp_skill_gateway` 注册；`window.mcpSkillGatewayRuntime` | `prd/v6.4_mcp-skill-gateway-desktop.md`, `src/main/mcp-skill-gateway-runtime/*`, `src/shared/mcp-skill-gateway-runtime/*`, `screens/Hermes/pages/McpGateway/*` |
+| **V6.4.1** | **MCP Backend Desktop**：nodeskclaw `account-login` + `/auth/me` member 校验；`AuthEndpointConfig.backendUrl` 为唯一远程 backend 源（测试默认 `http://192.168.0.118:4510`）；MCP Proxy / Test remote MCP / 页面一致性检查统一派生 | `prd/v6.4.1_mcp-backend-desktop.md`, `src/main/auth/nodeskclaw-auth-response.ts`, `src/main/auth/auth-client.ts`, `LoginForm.tsx`, `HermesMcpGatewayPage.tsx` |
 | **V6.0** | **HostBridge JSSDK 标准化** + **WebOperator 多页签**：`host.bridge.submit` / `host.page.ready` / `desktop.host.form.fill`；`bridge-config.json`（userData）；callbackUrl 新 tab + handoff 回填；`HostBridgePanel` | `prd/v6.0_hostBridge-JSSDK.md`, `src/main/crm-bridge/host-*`, `src/main/browser/web-operator-tabs.ts`, `HostBridgePanel.tsx`, `WebOperatorTabs.tsx` |
 | **V5.7.11** | **Hermes CLI Hide**：Windows default Gateway 启动隐藏 CMD 窗口；`spawnHermesGatewayProcess` 优先 `pythonw.exe`，fallback `python.exe` + `windowsHide`（非 detached） | `prd/v5.7.11_hermes-cli-hide.md`, `src/main/hermes.ts` |
 | **V3.0** | View 收敛、初版 LoginGate + mock Auth/Bootstrap（V3.3 取代） | `modules/auth/`, `main/auth/`, `main/user-config/`, `auth-api.ts`, `user-config-api.ts` |
