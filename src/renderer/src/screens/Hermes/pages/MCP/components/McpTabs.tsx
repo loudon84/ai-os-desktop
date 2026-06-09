@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { McpServer } from "../../../../../../../shared/mcp/mcp-contract";
+import type { McpServer, McpToolSyncResult } from "../../../../../../../shared/mcp/mcp-contract";
 import { HERMES_DEFAULT_PROFILE } from "../../../constants";
 
 type Props = {
@@ -28,7 +28,25 @@ export function McpServersTab({ servers, onRefresh }: Props) {
     setBusyId(id);
     setMessage(null);
     try {
-      await fn();
+      const result = await fn();
+      if (result && typeof result === "object" && "ok" in result) {
+        const sync = result as McpToolSyncResult;
+        if (sync.ok) {
+          setMessage(
+            t("workspaces.hermes.mcp.syncSuccess", {
+              count: sync.toolsCount,
+              status: sync.status ?? "connected",
+            }),
+          );
+        } else {
+          setMessage(
+            t("workspaces.hermes.mcp.syncFailed", {
+              code: sync.error?.code ?? "unknown",
+              message: sync.error?.message ?? "",
+            }),
+          );
+        }
+      }
       onRefresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));

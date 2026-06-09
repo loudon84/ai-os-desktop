@@ -1,5 +1,4 @@
 import {
-  getCachedAccessToken,
   readStoredSession,
   readStoredSessionSync,
 } from "../auth/token-store";
@@ -9,14 +8,20 @@ import {
   resolveBackendBaseUrl,
   resolveLocalMcpUrl,
   resolveRemoteMcpUrl,
+  resolveRemoteMcpUrlAsync,
   saveMcpSkillGatewayConfig,
 } from "./mcp-skill-gateway-config";
 import {
   getMcpSkillGatewayProxyLastError,
+  getMcpProxyLastStructuredError,
+  getMcpProxyRuntimeState,
   isMcpSkillGatewayProxyRunning,
+  refreshMcpSkillGatewayProxyConfigFull,
   startMcpSkillGatewayProxy,
   stopMcpSkillGatewayProxy,
 } from "./mcp-skill-gateway-proxy";
+import { getMcpAuthState } from "./mcp-token-provider";
+import { isMcpToolsCacheStale, readMcpToolsCache } from "./mcp-tools-cache";
 import {
   listMcpSkillGatewayProfileRegistrations,
   registerMcpSkillGatewayToHermes,
@@ -76,6 +81,7 @@ export async function onMcpSkillGatewayLoginSuccess(): Promise<void> {
     if (config.autoStartProxy) {
       await startMcpSkillGatewayProxy(config.localProxyPort);
     }
+    await refreshMcpSkillGatewayProxyConfigFull();
     await testMcpSkillGatewayProxy();
     await testRemoteMcpSkillGateway();
     if (config.autoRegisterToHermes && config.registeredProfiles.includes("default")) {
@@ -102,14 +108,18 @@ export async function onMcpSkillGatewayLogout(): Promise<void> {
   stopMcpSkillGatewayProxy();
 }
 
-export function buildMcpSkillGatewayRuntimeStatus() {
+export async function buildMcpSkillGatewayRuntimeStatus() {
   const config = getMcpSkillGatewayConfig();
-  const token = getCachedAccessToken();
+  const auth = getMcpAuthState();
   const session = readStoredSessionSync();
   const registrations = listMcpSkillGatewayProfileRegistrations();
   const proxyRunning = isMcpSkillGatewayProxyRunning();
   const lastError = getMcpSkillGatewayProxyLastError();
   const backendBaseUrl = resolveBackendBaseUrl();
+  const remoteMcpUrl = await resolveRemoteMcpUrlAsync();
+  const proxyState = getMcpProxyRuntimeState();
+  const structuredError = getMcpProxyLastStructuredError();
+  const cache = readMcpToolsCache();
 
   return {
     enabled: config.enabled,
@@ -118,15 +128,29 @@ export function buildMcpSkillGatewayRuntimeStatus() {
       : lastError
         ? ("failed" as const)
         : ("stopped" as const),
-    loggedIn: Boolean(token),
+    loggedIn: auth.tokenPresent,
     userDisplayName:
       session?.user.displayName ?? session?.user.username ?? null,
     backendBaseUrl,
-    remoteMcpUrl: resolveRemoteMcpUrl(),
+    remoteMcpUrl,
     localProxyUrl: resolveLocalMcpUrl(config.localProxyPort),
     mcpEndpointPath: config.mcpEndpointPath,
     lastError,
     registeredProfileCount: registrations.filter((r) => r.registered && r.enabled).length,
     hermesRestartRequired: false,
+    gatewayStatus: auth.tokenPresent ? proxyState.status : ("unauthorized" as const),
+    toolCount: proxyState.toolCount || cache?.tools.length || 0,
+    lastSyncAt: cache?.lastSyncAt ?? null,
+    cacheStale: isMcpToolsCacheStale(cache),
+    diagnostics: {
+      backendReachable: Boolean(backendBaseUrl),
+      localProxyReachable: proxyRunning,
+      tokenPresent: auth.tokenPresent,
+      initialized: proxyState.initialized,
+      lastSyncAt: cache?.lastSyncAt ?? null,
+      cacheStale: isMcpToolsCacheStale(cache),
+    },
+    lastStructuredError: structuredError,
+    gatewayName: cache?.server.name ?? "Coding MCP Gateway",
   };
 }

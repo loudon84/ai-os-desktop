@@ -12,6 +12,7 @@ import {
   rowToMcpServer,
 } from "./mcp-db";
 import { deleteMcpToken, hasMcpToken, storeMcpToken } from "./mcp-token-store";
+import { BACKEND_GATEWAY_SERVER_IDS, localMcpProxyUrl } from "./mcp-gateway-utils";
 
 function now(): string {
   return new Date().toISOString();
@@ -222,4 +223,18 @@ export function updateServerStatus(
 
 export function hashToolSchema(toolName: string, schema: unknown): string {
   return createHash("sha256").update(`${toolName}:${JSON.stringify(schema ?? {})}`).digest("hex").slice(0, 16);
+}
+
+/** Migrate legacy gateway preset rows to Local Proxy + desktop_token auth. */
+export function normalizeBackendGatewayServer(serverId: string): void {
+  if (!BACKEND_GATEWAY_SERVER_IDS.has(serverId)) return;
+  const current = getServer(serverId);
+  if (!current) return;
+  const expectedUrl = localMcpProxyUrl();
+  if (current.url === expectedUrl && current.authType === "desktop_token") return;
+  updateServer(serverId, {
+    url: expectedUrl,
+    authType: "desktop_token",
+    description: current.description ?? "Backend MCP Skills Gateway via Local Proxy",
+  });
 }

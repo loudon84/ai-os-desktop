@@ -20,10 +20,19 @@ export function resolveBackendBaseUrl(): string {
   return normalizeBackendBaseUrl(endpoint.backendUrl);
 }
 
+/** Sync fallback when descriptor cache is cold; prefer `resolveRemoteMcpUrlAsync()`. */
 export function resolveRemoteMcpUrl(): string {
   const backend = resolveBackendBaseUrl();
   if (!backend) return "";
-  return `${backend}/api/v1/hermes/mcp`;
+  const config = getMcpSkillGatewayConfig();
+  const path = config.mcpEndpointPath || DEFAULT_MCP_SKILL_GATEWAY_CONFIG.mcpEndpointPath;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${backend.replace(/\/+$/, "")}${normalizedPath}`;
+}
+
+export async function resolveRemoteMcpUrlAsync(): Promise<string> {
+  const { resolveRemoteMcpUrlFromDescriptor } = await import("./mcp-backend-descriptor");
+  return resolveRemoteMcpUrlFromDescriptor();
 }
 
 export function resolveLocalMcpUrl(port?: number): string {

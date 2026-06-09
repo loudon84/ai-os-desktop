@@ -62,6 +62,14 @@ export const DEFAULT_MCP_SKILL_GATEWAY_CONFIG: McpSkillGatewayRuntimeConfig = {
   updatedAt: "",
 };
 
+export type McpSkillGatewayConnectionStatus =
+  | "connected"
+  | "degraded"
+  | "unauthorized"
+  | "forbidden"
+  | "offline"
+  | "misconfigured";
+
 export interface McpSkillGatewayRuntimeStatus {
   enabled: boolean;
   proxyStatus: McpSkillGatewayProxyStatus;
@@ -74,6 +82,26 @@ export interface McpSkillGatewayRuntimeStatus {
   lastError: string | null;
   registeredProfileCount: number;
   hermesRestartRequired: boolean;
+  gatewayStatus?: McpSkillGatewayConnectionStatus;
+  gatewayName?: string;
+  toolCount?: number;
+  lastSyncAt?: string | null;
+  cacheStale?: boolean;
+  diagnostics?: {
+    backendReachable: boolean;
+    localProxyReachable: boolean;
+    tokenPresent: boolean;
+    initialized: boolean;
+    lastSyncAt: string | null;
+    cacheStale?: boolean;
+  };
+  lastStructuredError?: {
+    code: string;
+    message: string;
+    httpStatus?: number;
+    upstreamUrl?: string;
+    cause?: string;
+  } | null;
 }
 
 export interface McpSkillGatewayHealthResult {
@@ -98,6 +126,7 @@ export interface McpGatewayRemoteTestResult {
   jsonrpcErrorCode?: number;
   error?: string;
   errorCode?: McpSkillGatewayDesktopErrorCode;
+  gatewayStatus?: McpSkillGatewayConnectionStatus;
 }
 
 export interface McpSkillGatewayActionResult {

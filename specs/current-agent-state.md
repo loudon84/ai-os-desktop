@@ -2,8 +2,8 @@
 
 | Stage | Status |
 |---|---|
-| v6.4-mcp-skill-gateway | done |
+| v6.5-genehub-hermes-skill-sync | done |
 
 ## Notes
-- V6.4 MCP Skill Gateway Runtime 已实现：Proxy `127.0.0.1:48742`、Hermes `mcp_servers.mcp_skill_gateway` 注册、12 IPC、`window.mcpSkillGatewayRuntime`、Hermes 左导航 `mcpGateway` 页。
-- typecheck 通过；新增 8 项 vitest 通过。
+- V6.5：GeneHub 连接（`system/info.genehub`）、`window.genehubRuntime`、device/profile 注册、Bundle 安装链、Skill Center 四 Tab；登录后 auto-init + heartbeat。
+- typecheck 通过；GeneHub 相关 7 项 vitest（12 cases）通过。

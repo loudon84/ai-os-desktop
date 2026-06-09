@@ -1,23 +1,34 @@
-import { getCachedAccessToken } from "../auth/token-store";
 import type {
   McpGatewayRemoteTestResult,
+  McpSkillGatewayConnectionStatus,
   McpSkillGatewayHealthResult,
 } from "../../shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract";
 import {
   getMcpSkillGatewayConfig,
   resolveBackendBaseUrl,
   resolveLocalMcpUrl,
-  resolveRemoteMcpUrl,
+  resolveRemoteMcpUrlAsync,
 } from "./mcp-skill-gateway-config";
 import {
+  getMcpProxyRuntimeState,
   getMcpSkillGatewayProxyUrl,
   isMcpSkillGatewayProxyRunning,
 } from "./mcp-skill-gateway-proxy";
+import { getMcpAuthState } from "./mcp-token-provider";
+
+function mapProxyStatus(status: string | undefined): McpSkillGatewayConnectionStatus {
+  if (status === "connected") return "connected";
+  if (status === "unauthorized") return "unauthorized";
+  if (status === "forbidden") return "forbidden";
+  if (status === "offline") return "offline";
+  if (status === "misconfigured") return "misconfigured";
+  return "degraded";
+}
 
 export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthResult> {
   const config = getMcpSkillGatewayConfig();
   const backendBaseUrl = resolveBackendBaseUrl();
-  const remoteMcpUrl = resolveRemoteMcpUrl();
+  const remoteMcpUrl = await resolveRemoteMcpUrlAsync();
   const localMcpUrl = resolveLocalMcpUrl(config.localProxyPort);
 
   if (!isMcpSkillGatewayProxyRunning()) {
@@ -25,7 +36,7 @@ export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthR
       ok: false,
       service: "mcp-skill-gateway-proxy",
       status: "stopped",
-      loggedIn: Boolean(getCachedAccessToken()),
+      loggedIn: getMcpAuthState().tokenPresent,
       backendBaseUrl,
       remoteMcpUrl,
       localMcpUrl,
@@ -39,30 +50,31 @@ export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthR
     const res = await fetch(`${getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "")}/health`);
     const body = (await res.json()) as {
       ok?: boolean;
-      status?: string;
       loggedIn?: boolean;
       backendBaseUrl?: string;
       remoteMcpUrl?: string;
       localMcpUrl?: string;
-      target?: string;
+      mcp?: { status?: string; toolCount?: number };
+      backend?: { ok?: boolean };
     };
+    const gatewayStatus = mapProxyStatus(body.mcp?.status);
     return {
-      ok: res.ok && body.ok !== false,
+      ok: res.ok && body.backend?.ok !== false,
       service: "mcp-skill-gateway-proxy",
-      status: body.status ?? "running",
+      status: gatewayStatus,
       loggedIn: Boolean(body.loggedIn),
       backendBaseUrl: body.backendBaseUrl || backendBaseUrl,
       remoteMcpUrl: body.remoteMcpUrl || remoteMcpUrl,
       localMcpUrl: body.localMcpUrl || localMcpUrl,
-      target: body.target || config.mcpEndpointPath,
+      target: config.mcpEndpointPath,
       error: res.ok ? undefined : `Health check failed (${res.status})`,
     };
   } catch (err) {
     return {
       ok: false,
       service: "mcp-skill-gateway-proxy",
-      status: "failed",
-      loggedIn: Boolean(getCachedAccessToken()),
+      status: "offline",
+      loggedIn: getMcpAuthState().tokenPresent,
       backendBaseUrl,
       remoteMcpUrl,
       localMcpUrl,
@@ -76,10 +88,10 @@ export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthR
 export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestResult> {
   const config = getMcpSkillGatewayConfig();
   const backendBaseUrl = resolveBackendBaseUrl();
-  const remoteMcpUrl = resolveRemoteMcpUrl();
+  const remoteMcpUrl = await resolveRemoteMcpUrlAsync();
   const localProxyUrl = resolveLocalMcpUrl(config.localProxyPort);
 
-  if (!getCachedAccessToken()) {
+  if (!getMcpAuthState().tokenPresent) {
     return {
       ok: false,
       localProxyUrl,
@@ -87,6 +99,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       remoteMcpUrl,
       error: "Desktop login required",
       errorCode: "MCP_GATEWAY_NOT_LOGGED_IN",
+      gatewayStatus: "unauthorized",
     };
   }
 
@@ -98,6 +111,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       remoteMcpUrl: "",
       error: "Backend endpoint not configured",
       errorCode: "MCP_GATEWAY_BACKEND_NOT_CONFIGURED",
+      gatewayStatus: "misconfigured",
     };
   }
 
@@ -109,50 +123,50 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       remoteMcpUrl,
       error: "Proxy is not running",
       errorCode: "MCP_GATEWAY_PROXY_NOT_RUNNING",
+      gatewayStatus: "offline",
     };
   }
 
   try {
-    const res = await fetch(localProxyUrl, {
+    const base = getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "");
+    const res = await fetch(`${base}/debug/probe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: "desktop-test-tools-list",
-        method: "tools/list",
-        params: {},
-      }),
+      body: "{}",
     });
 
     const body = (await res.json()) as {
-      result?: { tools?: unknown[] };
-      error?: { code?: number; message?: string };
+      ok?: boolean;
+      status?: string;
+      toolCount?: number;
+      error?: { code?: string; message?: string };
+      lastError?: { code?: string; message?: string };
     };
 
-    if (body.error) {
+    const gatewayStatus = mapProxyStatus(body.status ?? body.lastError?.code?.replace("MCP_", "").toLowerCase());
+
+    if (!body.ok) {
       return {
         ok: false,
         localProxyUrl,
         backendBaseUrl,
         remoteMcpUrl,
-        jsonrpcErrorCode: body.error.code,
-        error: body.error.message ?? "Remote MCP request failed",
+        error: body.lastError?.message ?? body.error?.message ?? "Remote MCP request failed",
         errorCode:
-          body.error.code === -32013
+          body.lastError?.code === "MCP_UNAUTHORIZED"
             ? "MCP_GATEWAY_REMOTE_UNAUTHORIZED"
             : "MCP_GATEWAY_REMOTE_UNREACHABLE",
+        gatewayStatus,
       };
     }
 
-    const toolCount = Array.isArray(body.result?.tools) ? body.result.tools.length : undefined;
     return {
-      ok: res.ok,
+      ok: true,
       localProxyUrl,
       backendBaseUrl,
       remoteMcpUrl,
-      toolCount,
-      error: res.ok ? undefined : `Remote MCP check failed (${res.status})`,
-      errorCode: res.ok ? undefined : "MCP_GATEWAY_REMOTE_UNREACHABLE",
+      toolCount: body.toolCount ?? getMcpProxyRuntimeState().toolCount,
+      gatewayStatus: "connected",
     };
   } catch (err) {
     return {
@@ -162,6 +176,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       remoteMcpUrl,
       error: err instanceof Error ? err.message : String(err),
       errorCode: "MCP_GATEWAY_REMOTE_UNREACHABLE",
+      gatewayStatus: "offline",
     };
   }
 }

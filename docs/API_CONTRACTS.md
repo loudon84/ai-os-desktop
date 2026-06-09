@@ -540,7 +540,7 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 | `mcp:delete-server` | `id` | `{ success: boolean }` |
 | `mcp:set-server-enabled` | `id`, `enabled` | `McpServer` |
 | `mcp:test-connection` | `id` | `McpConnectionTestResult` |
-| `mcp:sync-tools` | `id` | `McpToolSyncResult` |
+| `mcp:sync-tools` | `id` | `McpToolSyncResult`（v6.4.1：`ok` / `status` / `error` / `diagnostics`；backend gateway preset 经 Local Proxy + Desktop token，失败不抛裸 `fetch failed`） |
 | `mcp:list-tools` | `ListMcpToolsInput?` | `McpTool[]` |
 | `mcp:set-tool-enabled` | `SetMcpToolEnabledInput` | `McpSkillBinding` |
 | `mcp:bind-tool` | `BindMcpToolInput` | `McpSkillBinding` |
@@ -588,7 +588,18 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 | `mcp-skill-gateway-runtime:list-profile-registrations` | — | `McpSkillGatewayProfileRegistration[]`（含一致性字段） |
 | `mcp-skill-gateway-runtime:read-proxy-logs` | `lines?` | `string` |
 
-**本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（返回 `backendBaseUrl` / `remoteMcpUrl` / `localMcpUrl`）、`POST /mcp`（JSON-RPC 透传 + Bearer 注入）。
+**本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（`self` / `backend` / `mcp` 分项）、`POST /admin/config`、`GET /debug/last-error`、`POST /debug/probe`、`POST /mcp`（auto-initialize + Bearer 注入）。
+
+**Descriptor**：Main `mcp-backend-descriptor.ts` — `GET {backendUrl}/api/v1/system/info` → `mcp.endpoint` 合成 `upstreamUrl`（缓存 60s）。
+
+**Tools 缓存**：`~/.hermes/desktop/mcp-tools-cache.json`（sync 成功覆盖，失败保留旧缓存，不含 token）。
+
+**Windows 验收**：
+
+```bash
+curl http://127.0.0.1:48742/health
+curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d "{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"method\":\"tools/list\",\"params\":{}}"
+```
 
 **Hermes 注册**：写入 `~/.hermes/config.yaml` 或 `~/.hermes/profiles/<name>/config.yaml` 的 `mcp_servers.mcp_skill_gateway`（`type: http`，`url: http://127.0.0.1:<port>/mcp`）；禁止写入远程 backend URL 或 token。
 
@@ -599,6 +610,37 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 **契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`、`src/shared/auth/auth-contract.ts`
 
 **Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（Consistency check）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
+
+---
+
+## GeneHub Runtime（V6.5）
+
+nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 安装任务、下载 Bundle、写入本机 Hermes `skills/` 与 `scripts/`、回传状态。**禁止** Renderer 传入任意 URL 或本地路径；**无**上传/发布/审核入口。
+
+**配置单一源**：`AuthEndpointConfig.backendUrl` → `GET /api/v1/system/info` → `genehub` descriptor → `apiBaseUrl`；Bearer 仅 Main 注入。
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `genehub:get-connection` | `forceRefresh?` | `GeneHubConnection` |
+| `genehub:probe-connection` | — | `GeneHubConnection`（强制刷新 descriptor + health） |
+| `genehub:initialize` | — | `GeneHubInitializeResult`（device/profile 注册 + sync） |
+| `genehub:get-config` | — | `GeneHubRuntimeConfig` |
+| `genehub:list-authorized-skills` | `{ profileId? }` | `GeneHubSkill[]` |
+| `genehub:list-pending-jobs` | `{ profileId? }` | `InstallJob[]` |
+| `genehub:create-install-job` | `{ profileId?, geneSlug, action }` | `InstallJob` |
+| `genehub:install-job` | `jobId` | `GeneHubActionResult` |
+| `genehub:update-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
+| `genehub:uninstall-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
+| `genehub:sync-installed-skills` | `{ profileId? }` | `GeneHubActionResult` |
+| `genehub:get-install-logs` | `limit?` | `InstallLogEntry[]` |
+
+**Main 模块**：`src/main/genehub/`（`genehub-client.ts`、`skill-install-worker.ts`、`hermes-skill-writer.ts`、`genehub-scheduler.ts` 等）。
+
+**生命周期**：登录成功 `onGeneHubLoginSuccess` → `initializeGeneHub` + 定时 heartbeat/pending jobs；logout / `before-quit` 停止 scheduler。
+
+**契约**：`src/shared/genehub/genehub-contract.ts`、`src/shared/genehub/genehub-errors.ts`
+
+**Renderer**：`screens/Hermes/pages/GeneHub/GeneHubSkillCenterPage.tsx`；Local Hermes 左导航 `skillCenter`（与本地 `skills` 页并存）。
 
 ---
 

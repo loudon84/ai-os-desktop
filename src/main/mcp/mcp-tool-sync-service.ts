@@ -1,14 +1,67 @@
-import type { McpToolSyncResult } from "../../shared/mcp/mcp-contract";
+import type { McpGatewayConnectionStatus, McpToolSyncResult } from "../../shared/mcp/mcp-contract";
 import { MCP_ERROR_CODES, McpServiceError } from "../../shared/mcp/mcp-errors";
+import { fetchMcpBackendDescriptor } from "../mcp-skill-gateway-runtime/mcp-backend-descriptor";
+import { resolveLocalMcpUrl } from "../mcp-skill-gateway-runtime/mcp-skill-gateway-config";
+import { getMcpProxyRuntimeState } from "../mcp-skill-gateway-runtime/mcp-skill-gateway-proxy";
+import { getMcpAuthState } from "../mcp-skill-gateway-runtime/mcp-token-provider";
+import {
+  isMcpToolsCacheStale,
+  readMcpToolsCache,
+  writeMcpToolsCache,
+} from "../mcp-skill-gateway-runtime/mcp-tools-cache";
 import { generateMcpId, getMcpDb, insertAuditMcpEvent } from "./mcp-db";
-import { listToolsFromServer } from "./mcp-client-service";
-import { getServer, hashToolSchema, updateServerStatus } from "./mcp-server-registry";
+import { listToolsFromServer, type McpGatewayListToolsError } from "./mcp-client-service";
+import { isBackendGatewayServer, localMcpProxyUrl } from "./mcp-gateway-utils";
+import { getServer, hashToolSchema, normalizeBackendGatewayServer, updateServerStatus } from "./mcp-server-registry";
 
 function now(): string {
   return new Date().toISOString();
 }
 
+function buildFailureResult(
+  serverId: string,
+  gatewayError: McpGatewayListToolsError,
+  upstreamUrl?: string,
+): McpToolSyncResult {
+  const cache = readMcpToolsCache();
+  const proxyState = getMcpProxyRuntimeState();
+  return {
+    ok: false,
+    serverId,
+    added: 0,
+    updated: 0,
+    removed: 0,
+    toolsCount: cache?.tools.length ?? 0,
+    status: gatewayError.status,
+    server: {
+      id: serverId,
+      name: getServer(serverId)?.name ?? serverId,
+      transport: "streamable_http",
+      upstreamUrl: upstreamUrl ?? proxyState.upstreamUrl,
+      localProxyUrl: localMcpProxyUrl(),
+    },
+    diagnostics: {
+      backendReachable: gatewayError.status !== "offline",
+      localProxyReachable: gatewayError.code !== "MCP_LOCAL_PROXY_UNREACHABLE",
+      tokenPresent: getMcpAuthState().tokenPresent,
+      initialized: proxyState.initialized,
+      lastSyncAt: cache?.lastSyncAt ?? null,
+      cacheStale: isMcpToolsCacheStale(cache),
+    },
+    error: {
+      code: gatewayError.code,
+      message: gatewayError.message,
+      upstreamUrl: gatewayError.upstreamUrl,
+      localProxyUrl: gatewayError.localProxyUrl,
+      httpStatus: gatewayError.httpStatus,
+      cause: gatewayError.cause,
+    },
+  };
+}
+
 export async function syncTools(serverId: string): Promise<McpToolSyncResult> {
+  normalizeBackendGatewayServer(serverId);
+
   const server = getServer(serverId);
   if (!server) {
     throw new McpServiceError(MCP_ERROR_CODES.SERVER_NOT_FOUND, `Server not found: ${serverId}`);
@@ -17,17 +70,54 @@ export async function syncTools(serverId: string): Promise<McpToolSyncResult> {
     throw new McpServiceError(MCP_ERROR_CODES.SERVER_DISABLED, "Enable server before syncing tools");
   }
 
+  const descriptorResult = isBackendGatewayServer(server)
+    ? await fetchMcpBackendDescriptor()
+    : null;
+
   let remoteTools;
   try {
     remoteTools = await listToolsFromServer(server);
   } catch (err) {
+    const gatewayError =
+      err instanceof McpServiceError && "gatewayError" in err
+        ? (err as McpServiceError & { gatewayError?: McpGatewayListToolsError }).gatewayError
+        : undefined;
+
+    if (gatewayError) {
+      updateServerStatus(serverId, "sync_failed", {
+        lastError: `${gatewayError.code}: ${gatewayError.message}`,
+      });
+      return buildFailureResult(
+        serverId,
+        gatewayError,
+        descriptorResult?.descriptor?.upstreamUrl,
+      );
+    }
+
     updateServerStatus(serverId, "sync_failed", {
       lastError: err instanceof Error ? err.message : String(err),
     });
-    throw new McpServiceError(
-      MCP_ERROR_CODES.TOOLS_LIST_FAILED,
-      err instanceof Error ? err.message : "tools/list failed",
-    );
+
+    const message = err instanceof Error ? err.message : "tools/list failed";
+    const status: McpGatewayConnectionStatus =
+      err instanceof McpServiceError && err.code === MCP_ERROR_CODES.UNAUTHORIZED
+        ? "unauthorized"
+        : "degraded";
+
+    return {
+      ok: false,
+      serverId,
+      added: 0,
+      updated: 0,
+      removed: 0,
+      toolsCount: readMcpToolsCache()?.tools.length ?? 0,
+      status,
+      error: {
+        code:
+          err instanceof McpServiceError ? err.code : MCP_ERROR_CODES.TOOLS_LIST_FAILED,
+        message,
+      },
+    };
   }
 
   const db = getMcpDb();
@@ -98,11 +188,52 @@ export async function syncTools(serverId: string): Promise<McpToolSyncResult> {
 
   insertAuditMcpEvent("mcp.tools.synced", { serverId, added, updated, removed });
 
+  const upstreamUrl =
+    descriptorResult?.descriptor?.upstreamUrl ?? getMcpProxyRuntimeState().upstreamUrl;
+  const proxyState = getMcpProxyRuntimeState();
+
+  if (isBackendGatewayServer(server)) {
+    writeMcpToolsCache({
+      lastSyncAt: ts,
+      server: {
+        name: descriptorResult?.descriptor?.name ?? server.name,
+        transport: "streamable_http",
+        upstreamUrl: upstreamUrl || localMcpProxyUrl(),
+      },
+      tools: remoteTools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
+    });
+  }
+
   return {
+    ok: true,
     serverId,
     added,
     updated,
     removed,
     toolsCount: remoteTools.length,
+    status: "connected",
+    server: isBackendGatewayServer(server)
+      ? {
+          id: serverId,
+          name: server.name,
+          transport: "streamable_http",
+          upstreamUrl: upstreamUrl || "",
+          localProxyUrl: resolveLocalMcpUrl(),
+        }
+      : undefined,
+    diagnostics: isBackendGatewayServer(server)
+      ? {
+          backendReachable: true,
+          localProxyReachable: true,
+          tokenPresent: getMcpAuthState().tokenPresent,
+          initialized: proxyState.initialized,
+          lastSyncAt: ts,
+          cacheStale: false,
+        }
+      : undefined,
   };
 }

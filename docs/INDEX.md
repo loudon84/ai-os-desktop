@@ -185,6 +185,19 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **生命周期**：登录启动 Proxy + 可选自动注册 default；退出登录 / `before-quit` 停止 Proxy
 - **UI**：Hermes 左导航 `mcpGateway` → `pages/McpGateway/HermesMcpGatewayPage.tsx`
 
+**V6.4.1 Hotfix（MCP Gateway 联调，PRD `prd/v6.4.1_hotfix_mcp-backend-desktop.md`）**：
+- **Descriptor**：`GET /api/v1/system/info` → 动态 `mcp.endpoint`（`mcp-backend-descriptor.ts`）
+- **Sync**：`mcp:sync-tools` 对 gateway preset 经 Local Proxy；结构化 `McpToolSyncResult`（`ok` / `status` / `error`）
+- **Proxy 增强**：`/admin/config`、`/debug/probe`、auto-initialize、分项 `/health`
+- **缓存**：`~/.hermes/desktop/mcp-tools-cache.json`
+
+**V6.5（GeneHub Hermes Skill Sync，PRD `prd/v6.5_genehub-hermes-skill-sync.md`）**：
+- **角色**：Desktop 为企业 GeneHub 本地安装执行器（拉取授权 Skill / 安装任务 → Bundle 校验写入 → 状态回传）；**无**上传/发布/审核
+- **连接**：`GET /api/v1/system/info` → `genehub` descriptor；`genehub:get-connection` / `probe-connection`
+- **Main**：`src/main/genehub/*`；本地 installed 元数据 `{hermesHome}/genehub/installed/`；安装日志 `userData/genehub/install-logs.jsonl`
+- **Preload**：`window.genehubRuntime`；IPC `genehub:*` 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § GeneHub Runtime
+- **UI**：Local Hermes 左导航 `skillCenter` → `pages/GeneHub/GeneHubSkillCenterPage.tsx`（可安装 / 已安装 / 待安装 / 日志）
+
 **V5.7.8（MainLayout 全局 Overlay + Native Layer Gate，PRD `prd/v5.7.8_main_layout.md`）**：
 - **OverlayProvider** / **DialogLayer** / **DrawerLayer** / **NativeShellLayerGate** — 统一管理阻塞型 Dialog/Drawer；`nativeBlocked` 驱动 `WebContentsHost.effectiveEnabled`
 - **legacyDrawerBlocking** — SettingsDrawer / ConfigDiffConfirmDrawer 仍由 Layout 直接挂载，通过 prop 接入 gate

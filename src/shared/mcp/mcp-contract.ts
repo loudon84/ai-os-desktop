@@ -29,7 +29,34 @@ export type McpInvocationStatus =
   | "cancelled"
   | "timeout";
 
-export type McpAuthType = "none" | "bearer";
+export type McpAuthType = "none" | "bearer" | "desktop_token";
+
+export type McpGatewayConnectionStatus =
+  | "connected"
+  | "degraded"
+  | "unauthorized"
+  | "forbidden"
+  | "offline"
+  | "misconfigured";
+
+export interface McpSyncErrorDetail {
+  code: string;
+  message: string;
+  upstreamUrl?: string;
+  localProxyUrl?: string;
+  httpStatus?: number;
+  responseBody?: string;
+  cause?: string;
+}
+
+export interface McpSyncDiagnostics {
+  backendReachable: boolean;
+  localProxyReachable: boolean;
+  tokenPresent: boolean;
+  initialized: boolean;
+  lastSyncAt: string | null;
+  cacheStale?: boolean;
+}
 
 export interface McpServer {
   id: string;
@@ -204,11 +231,22 @@ export interface McpConnectionTestResult {
 }
 
 export interface McpToolSyncResult {
+  ok: boolean;
   serverId: string;
   added: number;
   updated: number;
   removed: number;
   toolsCount: number;
+  status?: McpGatewayConnectionStatus;
+  server?: {
+    id: string;
+    name: string;
+    transport: McpTransport;
+    upstreamUrl: string;
+    localProxyUrl: string;
+  };
+  diagnostics?: McpSyncDiagnostics;
+  error?: McpSyncErrorDetail;
 }
 
 export interface McpBridgeStatus {

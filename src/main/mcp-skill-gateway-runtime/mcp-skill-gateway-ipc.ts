@@ -11,6 +11,7 @@ import {
 } from "./mcp-skill-gateway-config";
 import {
   restartMcpSkillGatewayProxy,
+  refreshMcpSkillGatewayProxyConfigFull,
   startMcpSkillGatewayProxy,
   stopMcpSkillGatewayProxy,
 } from "./mcp-skill-gateway-proxy";
@@ -87,6 +88,7 @@ export function registerMcpSkillGatewayRuntimeIpc(): void {
     try {
       await requireLoggedIn();
       await restartMcpSkillGatewayProxy();
+      await refreshMcpSkillGatewayProxyConfigFull();
       return { ok: true } satisfies McpSkillGatewayActionResult;
     } catch (err) {
       return toActionResult(err);

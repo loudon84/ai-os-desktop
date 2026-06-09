@@ -219,6 +219,11 @@ import {
   registerMcpSkillGatewayRuntimeIpc,
   stopMcpSkillGatewayProxy,
 } from "./mcp-skill-gateway-runtime";
+import {
+  autoInitializeGeneHubIfReady,
+  registerGeneHubIpc,
+  stopGeneHubScheduler,
+} from "./genehub";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -464,6 +469,7 @@ function setupIPC(): void {
     registerMcpIpc(() => mainWindow);
     seedDefaultMcpServers();
     registerMcpSkillGatewayRuntimeIpc();
+    registerGeneHubIpc();
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
@@ -1506,6 +1512,18 @@ app.whenReady().then(async () => {
     }
 
     try {
+      void autoInitializeGeneHubIfReady()
+        .then(() => {
+          console.log("[GENEHUB] auto-init completed");
+        })
+        .catch((err) => {
+          console.warn("[GENEHUB] auto-init skipped:", err);
+        });
+    } catch (err) {
+      console.error("[GENEHUB] Failed to auto-init:", err);
+    }
+
+    try {
       registerUserConfigIpc(mainWindow);
     } catch (err) {
       console.error("[USER-CONFIG] Failed to register user-config IPC:", err);
@@ -1668,6 +1686,9 @@ app.on("before-quit", () => {
   isQuitting = true;
 
   stopHealthPolling();
+  try {
+    stopGeneHubScheduler();
+  } catch { /* best effort */ }
   if (currentChatAbort) {
     currentChatAbort();
     currentChatAbort = null;

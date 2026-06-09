@@ -23,6 +23,7 @@ import {
   onMcpSkillGatewayLoginSuccess,
   onMcpSkillGatewayLogout,
 } from "../mcp-skill-gateway-runtime";
+import { onGeneHubLoginSuccess, onGeneHubLogout } from "../genehub";
 
 async function buildAuthState() {
   const endpointConfig = readAuthEndpointConfig();
@@ -66,6 +67,7 @@ export function registerAuthIpc(): void {
     );
     await refreshPortalView();
     void onMcpSkillGatewayLoginSuccess();
+    void onGeneHubLoginSuccess();
     return toPublicState(session, endpoint);
   });
 
@@ -83,6 +85,7 @@ export function registerAuthIpc(): void {
     await clearStoredSession();
     await clearPortalSession(endpoint?.aiosHomeUrl);
     void onMcpSkillGatewayLogout();
+    onGeneHubLogout();
     return toPublicState(null, endpoint);
   });
 

@@ -30,6 +30,25 @@ function InfoRow({ label, value }: InfoRowProps) {
   );
 }
 
+function gatewayStatusClass(status?: string): string {
+  if (status === "connected") return "hermes-badge hermes-badge--running";
+  if (status === "unauthorized" || status === "forbidden") return "hermes-badge hermes-badge--error";
+  if (status === "offline" || status === "misconfigured") return "hermes-badge hermes-badge--stopped";
+  return "hermes-badge hermes-badge--starting";
+}
+
+function gatewayStatusLabel(status: string | undefined, t: (key: string) => string): string {
+  const map: Record<string, string> = {
+    connected: t("workspaces.hermes.mcpGateway.gatewayStatusConnected"),
+    degraded: t("workspaces.hermes.mcpGateway.gatewayStatusDegraded"),
+    unauthorized: t("workspaces.hermes.mcpGateway.gatewayStatusUnauthorized"),
+    forbidden: t("workspaces.hermes.mcpGateway.gatewayStatusForbidden"),
+    offline: t("workspaces.hermes.mcpGateway.gatewayStatusOffline"),
+    misconfigured: t("workspaces.hermes.mcpGateway.gatewayStatusMisconfigured"),
+  };
+  return map[status ?? ""] ?? status ?? "—";
+}
+
 export default function HermesMcpGatewayPage() {
   const { t } = useTranslation();
   const {
@@ -53,6 +72,8 @@ export default function HermesMcpGatewayPage() {
   const [authState, setAuthState] = useState<Awaited<
     ReturnType<typeof window.desktopAuth.getState>
   > | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const loadAuth = useCallback(async () => {
     const state = await window.desktopAuth.getState();
@@ -91,6 +112,32 @@ export default function HermesMcpGatewayPage() {
   const yesNo = (value: boolean) =>
     value ? t("workspaces.hermes.mcpGateway.yes") : t("workspaces.hermes.mcpGateway.no");
 
+  const syncGatewayTools = useCallback(async () => {
+    setSyncMessage(null);
+    try {
+      const result = await window.hermesAPI.mcp.syncTools("coding-gateway");
+      if (result.ok) {
+        setSyncMessage(
+          t("workspaces.hermes.mcpGateway.syncSuccess", {
+            count: result.toolsCount,
+          }),
+        );
+      } else {
+        setSyncMessage(
+          t("workspaces.hermes.mcpGateway.syncFailed", {
+            code: result.error?.code ?? "unknown",
+            message: result.error?.message ?? "",
+          }),
+        );
+      }
+      await refresh();
+    } catch (err) {
+      setSyncMessage(err instanceof Error ? err.message : String(err));
+    }
+  }, [refresh, t]);
+
+  const gatewayStatus = status?.gatewayStatus ?? (status?.loggedIn ? "offline" : "unauthorized");
+
   return (
     <div className="hermes-page hermes-mcp-gateway-page">
       <header className="hermes-page__header">
@@ -110,6 +157,75 @@ export default function HermesMcpGatewayPage() {
 
       {loading ? <p className="hermes-muted">{t("workspaces.hermes.common.loading")}</p> : null}
       {error ? <p className="hermes-page__error">{error}</p> : null}
+      {syncMessage ? <p className="hermes-muted">{syncMessage}</p> : null}
+
+      <section className="hermes-mcp-gateway-section hermes-mcp-gateway-status-card">
+        <h3>{status?.gatewayName ?? t("workspaces.hermes.mcpGateway.gatewayCardTitle")}</h3>
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.gatewayTransport")}
+          value="streamable_http"
+        />
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.gatewayStatus")}
+          value={
+            <span className={gatewayStatusClass(gatewayStatus)}>
+              {gatewayStatusLabel(gatewayStatus, t)}
+            </span>
+          }
+        />
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.gatewayTools")}
+          value={status?.toolCount ?? 0}
+        />
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.gatewayLastSync")}
+          value={status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : "—"}
+        />
+        {status?.lastStructuredError ? (
+          <InfoRow
+            label={t("workspaces.hermes.mcpGateway.gatewayError")}
+            value={
+              <code>
+                {status.lastStructuredError.code}: {status.lastStructuredError.message}
+              </code>
+            }
+          />
+        ) : null}
+        {status?.cacheStale ? (
+          <p className="hermes-muted">{t("workspaces.hermes.mcpGateway.gatewayCacheStale")}</p>
+        ) : null}
+        <div className="hermes-mcp-gateway-section__actions">
+          <button
+            type="button"
+            className="hermes-btn-ghost"
+            disabled={actionPending}
+            onClick={() => void testRemoteMcp()}
+          >
+            {t("workspaces.hermes.mcpGateway.gatewayProbe")}
+          </button>
+          <button
+            type="button"
+            className="hermes-btn-primary"
+            disabled={actionPending}
+            onClick={() => void syncGatewayTools()}
+          >
+            {t("workspaces.hermes.mcpGateway.gatewaySyncTools")}
+          </button>
+          <button
+            type="button"
+            className="hermes-btn-ghost"
+            disabled={actionPending}
+            onClick={() => setShowDiagnostics((v) => !v)}
+          >
+            {t("workspaces.hermes.mcpGateway.gatewayDiagnostics")}
+          </button>
+        </div>
+        {showDiagnostics && status?.diagnostics ? (
+          <pre className="hermes-panel-pre hermes-mcp-gateway-logs">
+            {JSON.stringify(status.diagnostics, null, 2)}
+          </pre>
+        ) : null}
+      </section>
 
       <div
         className={`hermes-mcp-gateway-banner${consistencyReady ? " is-ready" : " is-mismatch"}`}

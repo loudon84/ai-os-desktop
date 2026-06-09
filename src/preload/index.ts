@@ -38,6 +38,7 @@ import { hermesDefaultChatApi } from "./hermes-default-chat-api";
 import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
 import { mcpApi } from "./mcp-api";
 import { mcpSkillGatewayRuntimeApi } from "./mcp-skill-gateway-runtime-api";
+import { genehubRuntimeApi } from "./genehub-runtime-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -934,4 +935,6 @@ if (process.contextIsolated) {
   window.webOperatorTaskSession = webOperatorTaskSessionApi;
   // @ts-ignore (define in dts)
   window.mcpSkillGatewayRuntime = mcpSkillGatewayRuntimeApi;
+  // @ts-ignore (define in dts)
+  window.genehubRuntime = genehubRuntimeApi;
 }

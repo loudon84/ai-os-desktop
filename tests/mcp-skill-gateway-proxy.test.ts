@@ -31,6 +31,7 @@ vi.mock("../src/main/auth/auth-endpoint-config-store", () => ({
 
 vi.mock("../src/main/auth/token-store", () => ({
   getCachedAccessToken: vi.fn(() => null as string | null),
+  readStoredSessionSync: vi.fn(() => null),
 }));
 
 import { getCachedAccessToken } from "../src/main/auth/token-store";
@@ -42,10 +43,37 @@ import {
   stopMcpSkillGatewayProxy,
 } from "../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy";
 
+const originalFetch = globalThis.fetch;
+
 beforeEach(() => {
   mkdirSync(TEST_USER_DATA, { recursive: true });
   stopMcpSkillGatewayProxy();
   vi.mocked(getCachedAccessToken).mockReturnValue(null);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("http://127.0.0.1:")) {
+        return originalFetch(input, init);
+      }
+      if (url.includes("/api/v1/system/info")) {
+        return {
+          ok: true,
+          json: async () => ({
+            mcp: {
+              endpoint: "/api/v1/mcp",
+              healthEndpoint: "/api/v1/mcp/health",
+              name: "Coding MCP Gateway",
+            },
+          }),
+        } as Response;
+      }
+      if (url.includes("/api/v1/mcp/health")) {
+        return { ok: true, json: async () => ({ ok: true }) } as Response;
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    }) as typeof fetch,
+  );
 });
 
 afterEach(() => {
@@ -56,21 +84,42 @@ afterEach(() => {
 });
 
 describe("mcp-skill-gateway proxy", () => {
-  it("returns health with backend and remote MCP URLs", async () => {
+  it("returns enhanced health with self/backend/mcp sections", async () => {
     await startMcpSkillGatewayProxy(48799);
 
     const res = await fetch("http://127.0.0.1:48799/health");
     const body = (await res.json()) as {
-      backendBaseUrl?: string;
-      remoteMcpUrl?: string;
-      localMcpUrl?: string;
+      self?: { ok?: boolean; port?: number };
+      backend?: { ok?: boolean; baseUrl?: string };
+      mcp?: { status?: string };
       loggedIn?: boolean;
+      localMcpUrl?: string;
     };
 
-    expect(body.backendBaseUrl).toBe("http://192.168.0.118:4510");
-    expect(body.remoteMcpUrl).toBe("http://192.168.0.118:4510/api/v1/hermes/mcp");
+    expect(body.self?.ok).toBe(true);
+    expect(body.self?.port).toBe(48799);
+    expect(body.backend?.baseUrl).toBe("http://192.168.0.118:4510");
+    expect(body.mcp?.status).toBe("unauthorized");
     expect(body.localMcpUrl).toBe("http://127.0.0.1:48799/mcp");
     expect(body.loggedIn).toBe(false);
+  });
+
+  it("accepts POST /admin/config on localhost", async () => {
+    await startMcpSkillGatewayProxy(48799);
+
+    const res = await fetch("http://127.0.0.1:48799/admin/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        upstreamUrl: "http://192.168.0.118:4510/api/v1/mcp",
+        transport: "streamable_http",
+        protocolVersion: "2025-06-18",
+      }),
+    });
+
+    const body = (await res.json()) as { ok?: boolean; config?: { upstreamUrl?: string } };
+    expect(body.ok).toBe(true);
+    expect(body.config?.upstreamUrl).toBe("http://192.168.0.118:4510/api/v1/mcp");
   });
 
   it("returns -32010 when desktop is not logged in", async () => {
@@ -87,9 +136,12 @@ describe("mcp-skill-gateway proxy", () => {
       }),
     });
 
-    const body = (await res.json()) as { error?: { code?: number; message?: string } };
+    const body = (await res.json()) as {
+      error?: { code?: number; message?: string; data?: { errorCode?: string } };
+    };
     expect(body.error?.code).toBe(MCP_SKILL_GATEWAY_JSONRPC_ERRORS.NOT_LOGGED_IN);
     expect(body.error?.message).toBe("Desktop login required");
+    expect(body.error?.data?.errorCode).toBe("MCP_UNAUTHORIZED");
   });
 
   it("reports MCP_GATEWAY_PROXY_PORT_IN_USE when port is occupied", async () => {

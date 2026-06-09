@@ -1,5 +1,6 @@
 import { getMcpDb } from "./mcp-db";
-import { createServer, getServer } from "./mcp-server-registry";
+import { createServer, getServer, normalizeBackendGatewayServer, updateServer } from "./mcp-server-registry";
+import { BACKEND_GATEWAY_SERVER_IDS, localMcpProxyUrl } from "./mcp-gateway-utils";
 
 const PRESETS = [
   {
@@ -15,30 +16,30 @@ const PRESETS = [
   {
     id: "writer-gateway",
     name: "Writer MCP Gateway",
-    description: "Remote Writer MCP Skills Gateway",
+    description: "Backend MCP Skills Gateway via Local Proxy",
     transport: "streamable_http" as const,
-    url: "https://agent.superic.com/api/v1/hermes/mcp",
-    authType: "bearer" as const,
+    url: localMcpProxyUrl(),
+    authType: "desktop_token" as const,
     enabled: false,
     profileScope: ["writer", "default"],
   },
   {
     id: "finance-gateway",
     name: "Finance MCP Gateway",
-    description: "Remote Finance MCP Skills Gateway",
+    description: "Backend MCP Skills Gateway via Local Proxy",
     transport: "streamable_http" as const,
-    url: "https://agent.superic.com/api/v1/hermes/mcp",
-    authType: "bearer" as const,
+    url: localMcpProxyUrl(),
+    authType: "desktop_token" as const,
     enabled: false,
     profileScope: ["finance", "default"],
   },
   {
     id: "coding-gateway",
     name: "Coding MCP Gateway",
-    description: "Remote Coding MCP Skills Gateway",
+    description: "Backend MCP Skills Gateway via Local Proxy",
     transport: "streamable_http" as const,
-    url: "https://agent.superic.com/api/v1/hermes/mcp",
-    authType: "bearer" as const,
+    url: localMcpProxyUrl(),
+    authType: "desktop_token" as const,
     enabled: false,
     profileScope: ["coding", "default"],
   },
@@ -47,7 +48,12 @@ const PRESETS = [
 export function seedDefaultMcpServers(): void {
   getMcpDb();
   for (const preset of PRESETS) {
-    if (getServer(preset.id)) continue;
+    if (getServer(preset.id)) {
+      if (BACKEND_GATEWAY_SERVER_IDS.has(preset.id)) {
+        normalizeBackendGatewayServer(preset.id);
+      }
+      continue;
+    }
     try {
       createServer({
         id: preset.id,
