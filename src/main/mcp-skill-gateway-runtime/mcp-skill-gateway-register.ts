@@ -16,6 +16,7 @@ import {
   resolveBackendBaseUrl,
   resolveLocalMcpUrl,
 } from "./mcp-skill-gateway-config";
+import { mcpRegistrationUrlsMatch } from "./mcp-profile-url";
 import { testMcpSkillGatewayProxy } from "./mcp-skill-gateway-health";
 import { isMcpSkillGatewayProxyRunning } from "./mcp-skill-gateway-proxy";
 import { McpSkillGatewayError } from "./mcp-skill-gateway-errors";
@@ -51,8 +52,8 @@ function readMcpServerEntry(
   };
 }
 
-function buildProxyUrl(port: number): string {
-  return resolveLocalMcpUrl(port);
+function buildProxyUrl(port: number, profile: string): string {
+  return resolveLocalMcpUrl(port, profile);
 }
 
 async function ensureProfileExists(profile: string): Promise<void> {
@@ -68,8 +69,9 @@ async function ensureProfileExists(profile: string): Promise<void> {
 
 async function assertRegistrationPreconditions(
   localProxyPort: number,
+  profile: string,
 ): Promise<{ expectedUrl: string; backendMatched: boolean }> {
-  const expectedUrl = buildProxyUrl(localProxyPort);
+  const expectedUrl = buildProxyUrl(localProxyPort, profile);
   const authBackend = resolveBackendBaseUrl();
 
   if (!authBackend) {
@@ -112,11 +114,11 @@ function buildRegistrationState(
   localProxyPort: number,
   backendMatched: boolean,
 ): McpSkillGatewayProfileRegistration {
-  const expectedUrl = buildProxyUrl(localProxyPort);
+  const expectedUrl = buildProxyUrl(localProxyPort, profile);
   const url = entry?.url ?? null;
   const registered = entry != null;
   const enabled = Boolean(entry?.enabled);
-  const urlMatched = url === expectedUrl;
+  const urlMatched = mcpRegistrationUrlsMatch(url, expectedUrl, profile);
 
   return {
     profile,
@@ -141,12 +143,15 @@ export async function registerMcpSkillGatewayToHermes(input: {
   await ensureProfileExists(profile);
 
   const configPath = configPathForProfile(profile);
-  const expectedUrl = buildProxyUrl(input.localProxyPort);
+  const expectedUrl = buildProxyUrl(input.localProxyPort, profile);
 
   try {
     let backendMatched = Boolean(resolveBackendBaseUrl());
     if (input.enabled) {
-      const preconditions = await assertRegistrationPreconditions(input.localProxyPort);
+      const preconditions = await assertRegistrationPreconditions(
+        input.localProxyPort,
+        profile,
+      );
       backendMatched = preconditions.backendMatched;
     }
 

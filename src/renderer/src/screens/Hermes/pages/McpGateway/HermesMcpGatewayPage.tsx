@@ -8,6 +8,7 @@ import { McpGatewayLogsPanel } from "./McpGatewayLogsPanel";
 import { McpGatewayRegistrationPanel } from "./McpGatewayRegistrationPanel";
 import { McpGatewayToolsPreview } from "./McpGatewayToolsPreview";
 import { McpGatewayGeneHubRegistrationCard } from "./McpGatewayGeneHubRegistrationCard";
+import { McpGatewayServerAuthorizationPanel } from "./McpGatewayServerAuthorizationPanel";
 
 function proxyBadgeClass(status: string): string {
   if (status === "running") return "hermes-badge hermes-badge--running";
@@ -160,6 +161,14 @@ export default function HermesMcpGatewayPage() {
     },
     [authState, config?.managementRoutes],
   );
+
+  const openApprovalCenter = useCallback(async () => {
+    const state = authState ?? (await window.desktopAuth.getState());
+    const home = state.endpointConfig?.aiosHomeUrl?.replace(/\/+$/, "");
+    if (!home) return;
+    const url = `${home}/mcp/approvals`;
+    await window.shellView.loadUrl("portal", url);
+  }, [authState]);
 
   const yesNo = (value: boolean) =>
     value ? t("workspaces.hermes.mcpGateway.yes") : t("workspaces.hermes.mcpGateway.no");
@@ -327,6 +336,18 @@ export default function HermesMcpGatewayPage() {
         lastSyncAt={status?.lastSyncAt}
         onRefresh={() => void listRemoteTools(true)}
       />
+
+      {config?.showServerAuthorizationPanel !== false ? (
+        <McpGatewayServerAuthorizationPanel
+          tools={remoteTools}
+          loading={toolsLoading}
+          cacheStale={status?.cacheStale}
+          pending={actionPending}
+          onRefresh={() => void listRemoteTools(true)}
+          onOpenApprovalCenter={() => void openApprovalCenter()}
+          onCopyDiagnosticsReport={() => void copyDiagnosticsReport()}
+        />
+      ) : null}
 
       <McpGatewayInvokeTestPanel
         tools={remoteTools}

@@ -1,4 +1,4 @@
-/** v6.6.1 — MCP Gateway operations (diagnostics, tools preview, invoke test, logs). */
+/** v6.6.1 + v6.7 — MCP Gateway operations (diagnostics, tools preview, invoke test, logs). */
 
 import type { McpSkillGatewayDesktopErrorCode } from "./mcp-skill-gateway-runtime-contract";
 
@@ -17,7 +17,11 @@ export type McpGatewayOperationsErrorCode =
   | "MCP_OP_TOOL_CALL_FAILED"
   | "MCP_OP_PROFILE_NOT_REGISTERED"
   | "MCP_OP_HERMES_RESTART_REQUIRED"
-  | "MCP_OP_INVALID_JSON_ARGUMENTS";
+  | "MCP_OP_INVALID_JSON_ARGUMENTS"
+  | "MCP_OP_TOOL_APPROVAL_REQUIRED"
+  | "MCP_OP_TOOL_GRANT_REVOKED"
+  | "MCP_OP_TOOL_GRANT_EXPIRED"
+  | "MCP_OP_TOOL_CONSTRAINT_VIOLATION";
 
 /** Map v6.6 MCP_DIAG_* codes to v6.6.1 MCP_OP_* for external surfaces. */
 export const MCP_DIAG_TO_OP_ERROR: Record<string, McpGatewayOperationsErrorCode> = {
@@ -49,6 +53,14 @@ export function toOperationsErrorCode(
 export type McpGatewayToolCategory = "hermes" | "genehub" | "system" | "unknown";
 export type McpGatewayToolPermission = "read" | "write" | "admin";
 export type McpGatewayRiskLevel = "low" | "medium" | "high";
+export type McpGatewayApprovalMode = "none" | "server";
+export type McpGatewayGrantStatus =
+  | "active"
+  | "missing"
+  | "pending"
+  | "revoked"
+  | "expired"
+  | "disabled";
 
 export interface DiagnosticCheck {
   step: string;
@@ -75,6 +87,14 @@ export interface McpGatewayToolPreview {
   enabled: boolean;
   source: "nodeskclaw";
   lastSyncedAt: string;
+  /** v6.7 — server-side approval metadata from nodeskclaw tools/list */
+  approvalMode?: McpGatewayApprovalMode;
+  requiresApproval?: boolean;
+  authorized?: boolean;
+  grantStatus?: McpGatewayGrantStatus;
+  grantId?: string;
+  approvalRequestId?: string;
+  expiresAt?: string | null;
 }
 
 export interface McpGatewayDiagnosticsResult {
@@ -113,6 +133,10 @@ export interface McpGatewayInvokeTestResult {
   resultTruncated?: boolean;
   errorCode?: McpGatewayOperationsErrorCode | McpSkillGatewayDesktopErrorCode;
   errorMessage?: string;
+  /** v6.7 — server authorization outcome from nodeskclaw tools/call */
+  approvalRequired?: boolean;
+  approvalRequestId?: string;
+  grantStatus?: string;
 }
 
 export type McpGatewayProxyLogLevel = "info" | "warn" | "error";
@@ -126,4 +150,9 @@ export interface McpGatewayProxyLogEntry {
   durationMs?: number;
   errorCode?: string | number;
   message?: string;
+  /** v6.7 — approval / grant context for tools/call failures */
+  toolName?: string;
+  approvalRequestId?: string;
+  grantId?: string;
+  grantStatus?: string;
 }

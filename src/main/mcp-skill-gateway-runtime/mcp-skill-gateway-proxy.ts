@@ -20,11 +20,17 @@ import {
 import { McpSkillGatewayError } from "./mcp-skill-gateway-errors";
 import { writeMcpSkillGatewayLog } from "./mcp-skill-gateway-log";
 import { getMcpAccessToken } from "./mcp-token-provider";
+import { getDeviceIdentity } from "../genehub/device-identity";
+import { parseProfileFromMcpUrl } from "./mcp-profile-url";
+import {
+  extractApprovalErrorContext,
+  mapToolApprovalErrorToOp,
+} from "./mcp-approval-errors";
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 60_000;
 const CLIENT_NAME = "smc-copilot-desktop";
-const CLIENT_VERSION = "v6.4.1_hotfix_mcp-desktop";
+const CLIENT_VERSION = "v6.7_mcp-write-tools-approval";
 
 export type McpProxyConnectionStatus =
   | "connected"
@@ -153,11 +159,16 @@ function mapHttpStatusToErrorCode(status: number): string {
   return "MCP_GATEWAY_REQUEST_FAILED";
 }
 
-function authHeaders(token: string): Record<string, string> {
+function contextHeaders(token: string, profileName: string): Record<string, string> {
+  const identity = getDeviceIdentity();
   return {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
     Authorization: `Bearer ${token}`,
+    "X-NoDeskClaw-Desktop-Device-Id": identity.deviceFingerprint,
+    "X-NoDeskClaw-Hermes-Profile": profileName,
+    "X-NoDeskClaw-Client": "copilot-desktop",
+    "X-NoDeskClaw-MCP-Proxy-Version": "v6.7",
   };
 }
 
@@ -197,13 +208,14 @@ async function forwardJsonRpc(
   target: string,
   token: string,
   body: McpJsonRpcRequest,
+  profileName: string,
 ): Promise<{ ok: boolean; status: number; json: unknown; raw: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const remoteRes = await fetch(target, {
       method: "POST",
-      headers: authHeaders(token),
+      headers: contextHeaders(token, profileName),
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -233,7 +245,7 @@ function nextId(): number {
   return rpcId;
 }
 
-async function ensureInitialized(token: string, upstream: string): Promise<void> {
+async function ensureInitialized(token: string, upstream: string, profileName: string): Promise<void> {
   if (sessionInitialized) return;
   const initBody: McpJsonRpcRequest = {
     jsonrpc: "2.0",
@@ -245,7 +257,7 @@ async function ensureInitialized(token: string, upstream: string): Promise<void>
       clientInfo: runtimeConfig.clientInfo,
     },
   };
-  const result = await forwardJsonRpc(upstream, token, initBody);
+  const result = await forwardJsonRpc(upstream, token, initBody, profileName);
   if (!result.ok) {
     const code = mapHttpStatusToErrorCode(result.status);
     recordError({
@@ -293,6 +305,39 @@ async function probeBackendHealth(descriptor: McpBackendDescriptor | undefined):
   } catch {
     return { ok: false, baseUrl: backendBaseUrl, health: "unreachable" };
   }
+}
+
+function extractToolNameFromCall(body: McpJsonRpcRequest): string | undefined {
+  if (body.method !== "tools/call") return undefined;
+  const params = body.params;
+  if (!params || typeof params !== "object") return undefined;
+  const name = (params as Record<string, unknown>).name;
+  return typeof name === "string" ? name : undefined;
+}
+
+function logToolApprovalError(
+  method: string,
+  jsonrpcId: unknown,
+  durationMs: number,
+  errorPayload: unknown,
+  toolName?: string,
+): void {
+  const ctx = extractApprovalErrorContext(errorPayload, toolName);
+  if (!ctx) return;
+  const opCode = mapToolApprovalErrorToOp(ctx.errorCode);
+  writeMcpSkillGatewayLog({
+    time: new Date().toISOString(),
+    level: "warn",
+    method,
+    jsonrpcId: jsonrpcId as string | number | null,
+    durationMs,
+    errorCode: opCode ?? ctx.errorCode,
+    message: `MCP tool authorization: ${ctx.errorCode}`,
+    toolName: ctx.toolName,
+    approvalRequestId: ctx.approvalRequestId,
+    grantId: ctx.grantId,
+    grantStatus: ctx.grantStatus,
+  });
 }
 
 export function getMcpSkillGatewayProxyUrl(): string {
@@ -497,13 +542,19 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
     try {
       const upstream = await resolveUpstreamUrl();
-      await ensureInitialized(token, upstream);
-      const listResult = await forwardJsonRpc(upstream, token, {
-        jsonrpc: "2.0",
-        id: nextId(),
-        method: "tools/list",
-        params: {},
-      });
+      const profileName = parseProfileFromMcpUrl(url.toString());
+      await ensureInitialized(token, upstream, profileName);
+      const listResult = await forwardJsonRpc(
+        upstream,
+        token,
+        {
+          jsonrpc: "2.0",
+          id: nextId(),
+          method: "tools/list",
+          params: {},
+        },
+        profileName,
+      );
       if (!listResult.ok) {
         const code = mapHttpStatusToErrorCode(listResult.status);
         recordError({
@@ -609,11 +660,13 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   }
 
   try {
+    const profileName = parseProfileFromMcpUrl(url.toString());
     if (parsed.method !== "initialize") {
-      await ensureInitialized(token, upstream);
+      await ensureInitialized(token, upstream, profileName);
     }
 
-    const result = await forwardJsonRpc(upstream, token, parsed);
+    const result = await forwardJsonRpc(upstream, token, parsed, profileName);
+    const toolName = extractToolNameFromCall(parsed);
 
     if (result.status === 401) {
       recordError({
@@ -708,6 +761,19 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       }
     }
 
+    if (parsed.method === "tools/call") {
+      const callResult = result.json as { error?: unknown };
+      if (callResult?.error) {
+        logToolApprovalError(
+          parsed.method,
+          parsed.id,
+          Date.now() - started,
+          callResult.error,
+          toolName,
+        );
+      }
+    }
+
     sendJson(res, 200, result.json);
     writeMcpSkillGatewayLog({
       time: new Date().toISOString(),
@@ -716,6 +782,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       jsonrpcId: parsed.id as string | number | null,
       remoteStatus: result.status,
       durationMs: Date.now() - started,
+      ...(toolName ? { toolName } : {}),
     });
   } catch (err) {
     const cause = err instanceof Error ? err.message : String(err);

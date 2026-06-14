@@ -100,6 +100,22 @@ export function McpGatewayInvokeTestPanel({ tools, pending, result, onRun }: Pro
               {t("workspaces.hermes.mcpGateway.invokeTestResultTruncated")}
             </p>
           ) : null}
+          {result.approvalRequired ? (
+            <p className="hermes-page__error">
+              {t("workspaces.hermes.mcpGateway.invokeTestApprovalRequired")}
+              {result.approvalRequestId ? (
+                <span>
+                  {" "}
+                  <code>{result.approvalRequestId}</code>
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          {result.grantStatus === "revoked" ? (
+            <p className="hermes-page__error">
+              {t("workspaces.hermes.mcpGateway.invokeTestGrantRevoked")}
+            </p>
+          ) : null}
           {result.result != null ? (
             <pre className="hermes-panel-pre hermes-mcp-gateway-logs">
               {JSON.stringify(result.result, null, 2)}

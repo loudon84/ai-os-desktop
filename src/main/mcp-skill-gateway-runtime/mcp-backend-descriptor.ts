@@ -15,6 +15,8 @@ export interface McpBackendDescriptor {
   protocolVersion: string;
   upstreamUrl: string;
   backendBaseUrl: string;
+  /** v6.7 — Portal path for MCP tool approval center */
+  approvalCenterPath: string;
 }
 
 export interface McpBackendDescriptorResult {
@@ -34,6 +36,7 @@ interface SystemInfoMcpBlock {
   healthEndpoint?: string;
   requiresAuth?: boolean;
   protocolVersion?: string;
+  approvalCenterPath?: string;
 }
 
 let cachedDescriptor: McpBackendDescriptor | null = null;
@@ -115,6 +118,7 @@ export async function fetchMcpBackendDescriptor(
       protocolVersion: mcp.protocolVersion?.trim() || "2025-06-18",
       upstreamUrl: joinUrl(backendBaseUrl, mcp.endpoint.trim()),
       backendBaseUrl,
+      approvalCenterPath: mcp.approvalCenterPath?.trim() || "/mcp/approvals",
     };
 
     cachedDescriptor = descriptor;
@@ -139,4 +143,19 @@ export async function resolveRemoteMcpUrlFromDescriptor(): Promise<string> {
   const backend = resolveBackendBaseUrl();
   if (!backend) return "";
   return joinUrl(backend, "/api/v1/hermes/mcp");
+}
+
+const DEFAULT_APPROVAL_CENTER_PATH = "/mcp/approvals";
+
+export async function resolveApprovalCenterUrl(): Promise<string | null> {
+  const { readAuthEndpointConfig } = await import("../auth/auth-endpoint-config-store");
+  const endpoint = readAuthEndpointConfig();
+  const home = endpoint?.aiosHomeUrl?.replace(/\/+$/, "");
+  if (!home) return null;
+
+  const descriptorResult = await fetchMcpBackendDescriptor();
+  const path =
+    descriptorResult.descriptor?.approvalCenterPath?.trim() || DEFAULT_APPROVAL_CENTER_PATH;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${home}${normalizedPath}`;
 }

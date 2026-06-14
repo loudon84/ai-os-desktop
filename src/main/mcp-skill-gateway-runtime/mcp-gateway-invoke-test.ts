@@ -9,6 +9,11 @@ import {
 import { getMcpAuthState } from "./mcp-token-provider";
 import { inferToolPermission } from "./mcp-tools-cache";
 import { writeMcpSkillGatewayLog } from "./mcp-skill-gateway-log";
+import { getMcpSkillGatewayConfig } from "./mcp-skill-gateway-config";
+import {
+  extractApprovalErrorContext,
+  mapToolApprovalErrorToOp,
+} from "./mcp-approval-errors";
 
 const MAX_RESULT_BYTES = 256 * 1024;
 
@@ -97,20 +102,24 @@ export async function invokeRemoteMcpTool(
   }
 
   if (permission !== "read") {
-    writeMcpSkillGatewayLog({
-      time: new Date().toISOString(),
-      level: "warn",
-      method: "tools/call",
-      message: `Invoke test blocked ${permission} tool: ${toolName}`,
-    });
-    return {
-      ok: false,
-      toolName,
-      permission,
-      durationMs: Date.now() - started,
-      errorCode: "MCP_OP_TOOL_PERMISSION_DENIED",
-      errorMessage: `Write/admin tools are not available in invoke test until v6.9 approval flow: ${toolName}`,
-    };
+    const config = getMcpSkillGatewayConfig();
+    if (!config.allowWriteToolInvokeTest) {
+      writeMcpSkillGatewayLog({
+        time: new Date().toISOString(),
+        level: "warn",
+        method: "tools/call",
+        message: `Invoke test blocked ${permission} tool: ${toolName}`,
+        toolName,
+      });
+      return {
+        ok: false,
+        toolName,
+        permission,
+        durationMs: Date.now() - started,
+        errorCode: "MCP_OP_TOOL_PERMISSION_DENIED",
+        errorMessage: `Write/admin tools are not available in invoke test UI (v6.7 server authorization): ${toolName}`,
+      };
+    }
   }
 
   try {
@@ -131,26 +140,37 @@ export async function invokeRemoteMcpTool(
 
     const body = (await res.json()) as {
       result?: unknown;
-      error?: { code?: number; message?: string };
+      error?: { code?: number; message?: string; data?: Record<string, unknown> };
     };
     const durationMs = Date.now() - started;
+    const approvalCtx = body.error ? extractApprovalErrorContext(body.error, toolName) : null;
 
     if (!res.ok || body.error) {
+      const opCode = approvalCtx
+        ? mapToolApprovalErrorToOp(approvalCtx.errorCode)
+        : "MCP_OP_TOOL_CALL_FAILED";
       writeMcpSkillGatewayLog({
         time: new Date().toISOString(),
         level: "error",
         method: "tools/call",
         durationMs,
-        errorCode: "MCP_OP_TOOL_CALL_FAILED",
+        errorCode: opCode ?? "MCP_OP_TOOL_CALL_FAILED",
         message: body.error?.message ?? `tools/call failed (${res.status})`,
+        toolName,
+        approvalRequestId: approvalCtx?.approvalRequestId,
+        grantId: approvalCtx?.grantId,
+        grantStatus: approvalCtx?.grantStatus,
       });
       return {
         ok: false,
         toolName,
         permission,
         durationMs,
-        errorCode: "MCP_OP_TOOL_CALL_FAILED",
+        errorCode: opCode ?? "MCP_OP_TOOL_CALL_FAILED",
         errorMessage: body.error?.message ?? `tools/call failed (${res.status})`,
+        approvalRequired: approvalCtx?.approvalRequired,
+        approvalRequestId: approvalCtx?.approvalRequestId,
+        grantStatus: approvalCtx?.grantStatus,
       };
     }
 

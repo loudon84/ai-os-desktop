@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type {
+  McpGatewayApprovalMode,
+  McpGatewayGrantStatus,
   McpGatewayRiskLevel,
   McpGatewayToolCategory,
   McpGatewayToolPermission,
@@ -20,7 +22,7 @@ import {
 import { getMcpAuthState } from "./mcp-token-provider";
 import { McpSkillGatewayError } from "./mcp-skill-gateway-errors";
 
-const CACHE_VERSION = "v6.6.1";
+const CACHE_VERSION = "v6.7";
 const STALE_AFTER_MS = 60_000;
 
 const READ_ONLY_TOOLS = new Set([
@@ -95,13 +97,50 @@ function legacyCachePath(): string {
   return join(profileHome(), "desktop", "mcp-tools-cache.json");
 }
 
-function mapRawTool(raw: Record<string, unknown>, lastSyncedAt: string): McpGatewayToolPreview {
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readGrantStatus(value: unknown): McpGatewayGrantStatus | undefined {
+  const raw = readOptionalString(value);
+  if (
+    raw === "active" ||
+    raw === "missing" ||
+    raw === "pending" ||
+    raw === "revoked" ||
+    raw === "expired" ||
+    raw === "disabled"
+  ) {
+    return raw;
+  }
+  return undefined;
+}
+
+function readApprovalMode(value: unknown): McpGatewayApprovalMode | undefined {
+  const raw = readOptionalString(value);
+  if (raw === "none" || raw === "server") return raw;
+  return undefined;
+}
+
+export function mapRawTool(raw: Record<string, unknown>, lastSyncedAt: string): McpGatewayToolPreview {
   const name = typeof raw.name === "string" ? raw.name : "";
   const permission = inferToolPermission(name);
   const inputSchema =
     raw.inputSchema && typeof raw.inputSchema === "object" && !Array.isArray(raw.inputSchema)
       ? (raw.inputSchema as Record<string, unknown>)
       : {};
+  const approvalMode = readApprovalMode(raw.approvalMode);
+  const requiresApproval =
+    typeof raw.requiresApproval === "boolean" ? raw.requiresApproval : undefined;
+  const authorized = typeof raw.authorized === "boolean" ? raw.authorized : undefined;
+  const grantStatus = readGrantStatus(raw.grantStatus);
+  const grantId = readOptionalString(raw.grantId);
+  const approvalRequestId = readOptionalString(raw.approvalRequestId);
+  const expiresAt =
+    raw.expiresAt === null
+      ? null
+      : readOptionalString(raw.expiresAt) ?? undefined;
+
   return {
     name,
     description: typeof raw.description === "string" ? raw.description : "",
@@ -112,6 +151,13 @@ function mapRawTool(raw: Record<string, unknown>, lastSyncedAt: string): McpGate
     source: "nodeskclaw",
     enabled: true,
     lastSyncedAt,
+    approvalMode,
+    requiresApproval,
+    authorized,
+    grantStatus,
+    grantId,
+    approvalRequestId,
+    expiresAt,
   };
 }
 

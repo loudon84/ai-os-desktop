@@ -4,6 +4,11 @@ import type {
   McpGatewayToolCategory,
   McpGatewayToolPreview,
 } from "../../../../../../shared/mcp-skill-gateway-runtime/mcp-gateway-operations-contract";
+import {
+  grantStatusBadgeClass,
+  grantStatusLabel,
+  toolAuthorizationHint,
+} from "./mcp-gateway-authorization-ui";
 
 type Props = {
   tools: McpGatewayToolPreview[];
@@ -79,10 +84,20 @@ export function McpGatewayToolsPreview({ tools, loading, lastSyncAt, onRefresh }
                   <strong>{tool.name}</strong>
                   <span className="hermes-mcp-badge">{permissionLabel(tool.permission, t)}</span>
                   <span className="hermes-mcp-badge">{riskLabel(tool.riskLevel, t)}</span>
+                  <span className={grantStatusBadgeClass(tool.grantStatus)}>
+                    {grantStatusLabel(tool, t)}
+                  </span>
                 </div>
                 {tool.description ? <p className="hermes-muted">{tool.description}</p> : null}
-                {tool.permission !== "read" ? (
-                  <p className="hermes-muted">{t("workspaces.hermes.mcpGateway.invokeReadOnlyHint")}</p>
+                {toolAuthorizationHint(tool, t) ? (
+                  <p className="hermes-page__error">{toolAuthorizationHint(tool, t)}</p>
+                ) : null}
+                {tool.permission !== "read" && tool.requiresApproval ? (
+                  <p className="hermes-muted">
+                    {tool.grantStatus === "active" || tool.authorized
+                      ? t("workspaces.hermes.mcpGateway.toolAuthorized")
+                      : t("workspaces.hermes.mcpGateway.toolApprovalRequired")}
+                  </p>
                 ) : null}
                 {Object.keys(tool.inputSchema).length > 0 ? (
                   <>

@@ -7,6 +7,7 @@ import {
   DEFAULT_MCP_SKILL_GATEWAY_CONFIG,
   type McpSkillGatewayRuntimeConfig,
 } from "../../shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract";
+import { buildProfileScopedMcpUrl } from "./mcp-profile-url";
 
 function configPath(): string {
   return join(app.getPath("userData"), "mcp-skill-gateway-runtime-config.json");
@@ -35,9 +36,13 @@ export async function resolveRemoteMcpUrlAsync(): Promise<string> {
   return resolveRemoteMcpUrlFromDescriptor();
 }
 
-export function resolveLocalMcpUrl(port?: number): string {
+export function resolveLocalMcpUrl(port?: number, profile?: string): string {
   const resolvedPort = port ?? DEFAULT_MCP_SKILL_GATEWAY_CONFIG.localProxyPort;
-  return `http://127.0.0.1:${resolvedPort}/mcp`;
+  const config = getMcpSkillGatewayConfig();
+  return buildProfileScopedMcpUrl(resolvedPort, {
+    profile: profile ?? "default",
+    profileScoped: config.profileScopedProxyUrl !== false,
+  });
 }
 
 function normalizeConfig(
@@ -60,6 +65,9 @@ function normalizeConfig(
       ...DEFAULT_MCP_SKILL_GATEWAY_CONFIG.managementRoutes,
       ...(base.managementRoutes ?? {}),
     },
+    profileScopedProxyUrl: base.profileScopedProxyUrl !== false,
+    showServerAuthorizationPanel: base.showServerAuthorizationPanel !== false,
+    allowWriteToolInvokeTest: base.allowWriteToolInvokeTest === true,
     updatedAt: base.updatedAt || new Date().toISOString(),
   };
 }

@@ -1796,3 +1796,27 @@
 .hermes-mcp-gateway-genehub-card {
   margin-top: 12px;
 }
+
+.hermes-mcp-gateway-auth-table-wrap {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.hermes-mcp-gateway-auth-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.hermes-mcp-gateway-auth-table th,
+.hermes-mcp-gateway-auth-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.hermes-mcp-gateway-auth-table th {
+  font-weight: 600;
+  color: var(--muted-foreground);
+}

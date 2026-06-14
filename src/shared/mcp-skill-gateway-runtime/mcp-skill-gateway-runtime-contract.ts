@@ -9,6 +9,8 @@ export type {
   McpGatewayOperationsErrorCode,
   McpGatewayProxyLogEntry,
   McpGatewayProxyLogLevel,
+  McpGatewayApprovalMode,
+  McpGatewayGrantStatus,
   McpGatewayRiskLevel,
   McpGatewayToolCategory,
   McpGatewayToolPermission,
@@ -66,6 +68,12 @@ export interface McpSkillGatewayRuntimeConfig {
     mcp: string;
     instances: string;
   };
+  /** v6.7 — register Hermes MCP URL with ?profile= query */
+  profileScopedProxyUrl?: boolean;
+  /** v6.7 — show Server Authorization panel in MCP Gateway UI */
+  showServerAuthorizationPanel?: boolean;
+  /** v6.7 — allow write/admin invoke test from UI (default false, P0) */
+  allowWriteToolInvokeTest?: boolean;
   updatedAt: string;
 }
 
@@ -79,6 +87,9 @@ export const DEFAULT_MCP_SKILL_GATEWAY_CONFIG: McpSkillGatewayRuntimeConfig = {
   autoRestartHermesGateway: false,
   registeredProfiles: ["default"],
   managementRoutes: { ...DEFAULT_MCP_SKILL_GATEWAY_MANAGEMENT_ROUTES },
+  profileScopedProxyUrl: true,
+  showServerAuthorizationPanel: true,
+  allowWriteToolInvokeTest: false,
   updatedAt: "",
 };
 

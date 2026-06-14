@@ -589,10 +589,12 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 | `mcp-skill-gateway-runtime:read-proxy-logs` | `lines?` | `string` |
 | `mcp-skill-gateway-runtime:read-structured-logs` | `lines?` | `McpGatewayProxyLogEntry[]`（V6.6.1 JSONL 解析；过滤非法行；redact Authorization） |
 | `mcp-skill-gateway-runtime:run-diagnostics` | — | `McpGatewayDiagnosticsResult`（V6.6.1：10 步含 `toolsList` / `defaultProfileRegistration` / `hermesGateway`；`checkedAt`；错误码对外 `MCP_OP_*`） |
-| `mcp-skill-gateway-runtime:list-remote-tools` | `forceRefresh?` | `McpGatewayToolPreview[]`（含 `category` / `permission` / `riskLevel` / `lastSyncedAt`；缓存 TTL 60s） |
-| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6.1：`arguments` 或兼容 `input`；仅 read 工具；256KB 结果截断；`MCP_OP_TOOL_PERMISSION_DENIED`） |
+| `mcp-skill-gateway-runtime:list-remote-tools` | `forceRefresh?` | `McpGatewayToolPreview[]`（含 `category` / `permission` / `riskLevel` / `lastSyncedAt`；**V6.7** 含 `approvalMode` / `requiresApproval` / `authorized` / `grantStatus` / `grantId` / `approvalRequestId` / `expiresAt`；缓存 TTL 60s） |
+| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6.1：`arguments` 或兼容 `input`；**V6.7** UI 默认仍仅 read 工具；响应可含 `approvalRequired` / `approvalRequestId` / `grantStatus`；256KB 截断；`MCP_OP_TOOL_*` 含 approval/grant 错误码） |
 
-**本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（`self` / `backend` / `mcp` 分项）、`POST /admin/config`、`GET /debug/last-error`、`POST /debug/probe`、`POST /mcp`（auto-initialize + Bearer 注入）。
+**V6.7 服务端审批感知（Desktop 不审批）**：Local Proxy 转发时除 `Authorization` 外注入 `X-NoDeskClaw-Desktop-Device-Id`（Main `device-identity.ts`）、`X-NoDeskClaw-Hermes-Profile`（自 `/mcp?profile=` 解析，缺省 `default`）、`X-NoDeskClaw-Client`、`X-NoDeskClaw-MCP-Proxy-Version: v6.7`。Hermes 注册 URL 默认 `http://127.0.0.1:<port>/mcp?profile=<name>`（`profileScopedProxyUrl`）；旧无 query URL 与 default profile 兼容。`system/info.mcp.approvalCenterPath` 默认 `/mcp/approvals`。Renderer **无** approve/reject/revoke；仅展示 grant 状态 + 打开 Portal 审批中心。
+
+**本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（`self` / `backend` / `mcp` 分项）、`POST /admin/config`、`GET /debug/last-error`、`POST /debug/probe`、`POST /mcp`（auto-initialize + Bearer + v6.7 上下文 header 注入；`tools/call` approval/grant 错误写入 structured log）。
 
 **Descriptor**：Main `mcp-backend-descriptor.ts` — `GET {backendUrl}/api/v1/system/info` → `mcp.endpoint` 合成 `upstreamUrl`（缓存 60s）。
 
@@ -605,7 +607,7 @@ curl http://127.0.0.1:48742/health
 curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d "{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"method\":\"tools/list\",\"params\":{}}"
 ```
 
-**Hermes 注册**：写入 `~/.hermes/config.yaml` 或 `~/.hermes/profiles/<name>/config.yaml` 的 `mcp_servers.mcp_skill_gateway`（`type: http`，`url: http://127.0.0.1:<port>/mcp`）；禁止写入远程 backend URL 或 token。
+**Hermes 注册**：写入 `~/.hermes/config.yaml` 或 `~/.hermes/profiles/<name>/config.yaml` 的 `mcp_servers.mcp_skill_gateway`（`type: http`，`url: http://127.0.0.1:<port>/mcp?profile=<name>` 或 legacy `/mcp`）；禁止写入远程 backend URL 或 token。
 
 **生命周期**：登录成功自动启动 Proxy + 注册 default（可配置）；退出登录停止 Proxy；`before-quit` 停止 Proxy。
 
@@ -613,7 +615,7 @@ curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "
 
 **契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`（re-export **`mcp-gateway-operations-contract.ts`** V6.6.1 运营类型）、`src/shared/auth/auth-contract.ts`
 
-**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（**V6.6.1** 五 Panel：Diagnostics / Tools Preview / Invoke Test / Registration / Logs；Hermes 重启横幅）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
+**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（**V6.7** Server Authorization Panel + Tools Preview 授权 badge；**V6.6.1** Diagnostics / Invoke Test / Registration / Logs；Hermes 重启横幅）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
 
 ---
 
