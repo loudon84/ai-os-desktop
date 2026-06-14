@@ -71,16 +71,37 @@ export function mapGeneHubSkill(raw: Record<string, unknown>): GeneHubSkill {
 }
 
 export function mapGeneHubJob(raw: Record<string, unknown>): InstallJob {
+  const rawSource = raw.job_source ?? raw.source;
+  let source: InstallJob["source"];
+  if (typeof rawSource === "string") {
+    if (
+      rawSource === "mcp_agent_request" ||
+      rawSource === "desktop_manual" ||
+      rawSource === "server_assigned"
+    ) {
+      source = rawSource;
+    }
+  }
   return {
     jobId: String(raw.job_id ?? raw.jobId ?? raw.id ?? ""),
     profileId: String(raw.profile_id ?? raw.profileId ?? ""),
+    profileName: raw.profile_name ? String(raw.profile_name) : raw.profileName ? String(raw.profileName) : undefined,
     geneSlug: String(raw.gene_slug ?? raw.geneSlug ?? ""),
     geneVersion: String(raw.gene_version ?? raw.geneVersion ?? ""),
     skillName: String(raw.skill_name ?? raw.skillName ?? ""),
     action: String(raw.action ?? raw.job_type ?? raw.jobType ?? "install") as InstallJobAction,
     status: String(raw.status ?? "pending") as InstallJob["status"],
+    source,
+    createdAt: raw.created_at ? String(raw.created_at) : raw.createdAt ? String(raw.createdAt) : undefined,
     assignedAt: raw.assigned_at ? String(raw.assigned_at) : undefined,
     claimedAt: raw.claimed_at ? String(raw.claimed_at) : undefined,
+    lastUpdatedAt: raw.updated_at
+      ? String(raw.updated_at)
+      : raw.last_updated_at
+        ? String(raw.last_updated_at)
+        : raw.lastUpdatedAt
+          ? String(raw.lastUpdatedAt)
+          : undefined,
     errorCode: raw.error_code ? String(raw.error_code) : undefined,
     errorMessage: raw.error_message ? String(raw.error_message) : undefined,
   };

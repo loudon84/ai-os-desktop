@@ -67,11 +67,30 @@ vi.mock("../src/main/genehub/genehub-connection", () => ({
   markGeneHubUninitialized: vi.fn(),
 }));
 
+vi.mock("../src/main/genehub/genehub-pending-events", () => ({
+  emitPendingJobsChanged: vi.fn(),
+}));
+
+const { fetchAndCachePendingJobs } = vi.hoisted(() => ({
+  fetchAndCachePendingJobs: vi.fn(
+    async () => [] as import("../src/shared/genehub/genehub-contract").InstallJob[],
+  ),
+}));
+vi.mock("../src/main/genehub/mcp-registration-service", () => ({
+  fetchAndCachePendingJobs,
+}));
+
+vi.mock("../src/main/genehub/genehub-install-log", () => ({
+  appendInstallLog: vi.fn(),
+}));
+
 vi.mock("../src/main/genehub/skill-install-worker", () => ({
   runInstallJob: vi.fn(),
 }));
 
-import { initializeGeneHub } from "../src/main/genehub/genehub-scheduler";
+import { initializeGeneHub, pollPendingJobs } from "../src/main/genehub/genehub-scheduler";
+import { emitPendingJobsChanged } from "../src/main/genehub/genehub-pending-events";
+import { runInstallJob } from "../src/main/genehub/skill-install-worker";
 import {
   clearGeneHubSession,
   getGeneHubDesktopDeviceId,
@@ -106,5 +125,36 @@ describe("genehub-scheduler", () => {
 
     const profile = resolveHermesProfiles()[0];
     expect(resolveGeneHubServerProfileId(profile)).toBe("srv_profile_1");
+  });
+
+  it("pollPendingJobs caches jobs and never auto-installs mcp_agent_request", async () => {
+    fetchAndCachePendingJobs.mockResolvedValueOnce([
+      {
+        jobId: "job_mcp",
+        profileId: "srv_profile_1",
+        geneSlug: "demo",
+        geneVersion: "1.0.0",
+        skillName: "demo",
+        action: "install",
+        status: "pending",
+        source: "mcp_agent_request",
+      },
+      {
+        jobId: "job_server",
+        profileId: "srv_profile_1",
+        geneSlug: "other",
+        geneVersion: "1.0.0",
+        skillName: "other",
+        action: "install",
+        status: "pending",
+        source: "server_assigned",
+      },
+    ]);
+
+    await pollPendingJobs(true);
+    expect(fetchAndCachePendingJobs).toHaveBeenCalled();
+    expect(runInstallJob).toHaveBeenCalledTimes(1);
+    expect(runInstallJob).toHaveBeenCalledWith("job_server", { userConfirmed: true });
+    expect(emitPendingJobsChanged).toHaveBeenCalled();
   });
 });

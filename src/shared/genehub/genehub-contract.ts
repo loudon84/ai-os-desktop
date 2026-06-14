@@ -15,6 +15,8 @@ export type GeneHubOsType = "windows" | "macos" | "linux";
 
 export type InstallJobAction = "install" | "update" | "uninstall";
 
+export type InstallJobSource = "mcp_agent_request" | "desktop_manual" | "server_assigned";
+
 export type InstallJobStatus =
   | "pending"
   | "claimed"
@@ -121,15 +123,67 @@ export interface GeneHubSkill {
 export interface InstallJob {
   jobId: string;
   profileId: string;
+  profileName?: string;
   geneSlug: string;
   geneVersion: string;
   skillName: string;
   action: InstallJobAction;
   status: InstallJobStatus;
+  source?: InstallJobSource;
+  createdAt?: string;
   assignedAt?: string;
   claimedAt?: string;
+  lastUpdatedAt?: string;
   errorCode?: string;
   errorMessage?: string;
+}
+
+export interface GeneHubPendingJobCache {
+  updatedAt: string;
+  jobs: InstallJob[];
+}
+
+export interface GeneHubInstallBundlePreviewFile {
+  relativePath: string;
+  encoding?: "utf-8" | "base64";
+  sizeHint?: number;
+}
+
+export interface GeneHubInstallBundlePreview {
+  jobId: string;
+  skillName: string;
+  geneSlug: string;
+  geneVersion: string;
+  manifest: GeneHubBundleManifest;
+  files: GeneHubInstallBundlePreviewFile[];
+  scripts?: GeneHubInstallBundlePreviewFile[];
+  previewLimited?: boolean;
+  previewError?: string;
+}
+
+export interface GeneHubRegistrationSummary {
+  pendingMcpJobCount: number;
+  lastInstalled?: {
+    jobId: string;
+    skillName: string;
+    geneSlug: string;
+    installedAt: string;
+  };
+  lastFailed?: {
+    jobId: string;
+    skillName: string;
+    geneSlug: string;
+    errorCode?: string;
+    errorMessage?: string;
+    failedAt: string;
+  };
+}
+
+export type McpRegistrationJobGroup = "awaiting_confirm" | "in_progress" | "completed" | "failed";
+
+export interface GeneHubMcpRegistrationJobsResult {
+  groups: Record<McpRegistrationJobGroup, InstallJob[]>;
+  jobs: InstallJob[];
 }
 
 export interface GeneHubBundleFile {
@@ -200,6 +254,9 @@ export interface GeneHubProfileScopedInput {
   profileId?: string;
 }
 
+/** Renderer event when pending GeneHub jobs cache changes (Main → Renderer). */
+export const GENEHUB_PENDING_JOBS_CHANGED = "genehub:pending-jobs-changed";
+
 export interface GeneHubRuntimeAPI {
   getConnection(forceRefresh?: boolean): Promise<GeneHubConnection>;
   probeConnection(): Promise<GeneHubConnection>;
@@ -213,6 +270,11 @@ export interface GeneHubRuntimeAPI {
   uninstallSkill(input: GeneHubProfileScopedInput & { geneSlug: string }): Promise<GeneHubActionResult>;
   syncInstalledSkills(input?: GeneHubProfileScopedInput): Promise<GeneHubActionResult>;
   getInstallLogs(limit?: number): Promise<InstallLogEntry[]>;
+  listMcpRegistrationJobs(input?: GeneHubProfileScopedInput): Promise<GeneHubMcpRegistrationJobsResult>;
+  previewInstallBundle(jobId: string): Promise<GeneHubInstallBundlePreview>;
+  ignoreInstallJob(jobId: string): Promise<GeneHubActionResult>;
+  getRegistrationSummary(): Promise<GeneHubRegistrationSummary>;
+  onPendingJobsChanged(callback: () => void): () => void;
 }
 
 /** Valid skill_name per PRD §7.4 */

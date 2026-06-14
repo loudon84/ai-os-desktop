@@ -1722,3 +1722,77 @@
   margin-top: 0;
   max-height: 240px;
 }
+
+.hermes-genehub-mcp-group {
+  margin-bottom: 20px;
+}
+
+.hermes-genehub-mcp-group__list {
+  display: grid;
+  gap: 12px;
+}
+
+.hermes-genehub-job-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.hermes-genehub-job-card__meta {
+  margin: 8px 0;
+}
+
+.hermes-genehub-job-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hermes-genehub-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hermes-genehub-drawer {
+  width: min(480px, 100%);
+  height: 100%;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hermes-genehub-drawer__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.hermes-genehub-drawer__section h4,
+.hermes-genehub-drawer__section h5 {
+  margin: 0 0 8px;
+}
+
+.hermes-genehub-drawer__file-list {
+  max-height: 200px;
+  overflow: auto;
+}
+
+.hermes-genehub-drawer__footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.hermes-mcp-gateway-genehub-card {
+  margin-top: 12px;
+}

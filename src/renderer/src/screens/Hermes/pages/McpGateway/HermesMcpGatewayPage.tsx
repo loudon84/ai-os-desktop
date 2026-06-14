@@ -7,6 +7,7 @@ import { McpGatewayInvokeTestPanel } from "./McpGatewayInvokeTestPanel";
 import { McpGatewayLogsPanel } from "./McpGatewayLogsPanel";
 import { McpGatewayRegistrationPanel } from "./McpGatewayRegistrationPanel";
 import { McpGatewayToolsPreview } from "./McpGatewayToolsPreview";
+import { McpGatewayGeneHubRegistrationCard } from "./McpGatewayGeneHubRegistrationCard";
 
 function proxyBadgeClass(status: string): string {
   if (status === "running") return "hermes-badge hermes-badge--running";
@@ -310,6 +311,8 @@ export default function HermesMcpGatewayPage() {
           </pre>
         ) : null}
       </section>
+
+      <McpGatewayGeneHubRegistrationCard />
 
       <McpGatewayDiagnosticsPanel
         result={diagnosticsResult}

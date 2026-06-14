@@ -12,6 +12,12 @@ import { readInstallLogs } from "./genehub-install-log";
 import { resolveHermesProfile } from "./hermes-profile-resolver";
 import { resolveGeneHubServerProfileId } from "./genehub-session";
 import { initializeGeneHub } from "./genehub-scheduler";
+import {
+  getRegistrationSummary,
+  ignoreInstallJob,
+  listMcpRegistrationJobs,
+  previewInstallBundle,
+} from "./mcp-registration-service";
 import { runCreateAndInstall, runInstallJob } from "./skill-install-worker";
 import { listInstalledSkillRecords } from "./installed-skill-store";
 
@@ -61,12 +67,32 @@ export function registerGeneHubIpc(): void {
 
   ipcMain.handle("genehub:install-job", async (_, jobId: string) => {
     try {
-      await runInstallJob(jobId);
+      await runInstallJob(jobId, { userConfirmed: true });
       return { ok: true } satisfies GeneHubActionResult;
     } catch (err) {
       return toActionResult(err);
     }
   });
+
+  ipcMain.handle(
+    "genehub:list-mcp-registration-jobs",
+    async (_, input?: GeneHubProfileScopedInput) => listMcpRegistrationJobs(input),
+  );
+
+  ipcMain.handle("genehub:preview-install-bundle", async (_, jobId: string) =>
+    previewInstallBundle(jobId),
+  );
+
+  ipcMain.handle("genehub:ignore-install-job", async (_, jobId: string) => {
+    try {
+      ignoreInstallJob(jobId);
+      return { ok: true } satisfies GeneHubActionResult;
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("genehub:get-registration-summary", async () => getRegistrationSummary());
 
   ipcMain.handle(
     "genehub:update-skill",

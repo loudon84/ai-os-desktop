@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   GeneHubConnection,
+  GeneHubInstallBundlePreview,
+  GeneHubMcpRegistrationJobsResult,
+  GeneHubRegistrationSummary,
   GeneHubSkill,
   InstallJob,
   InstallLogEntry,
@@ -22,6 +25,10 @@ export function useGeneHubRuntime() {
   const [authorizedSkills, setAuthorizedSkills] = useState<GeneHubSkill[]>([]);
   const [pendingJobs, setPendingJobs] = useState<InstallJob[]>([]);
   const [installLogs, setInstallLogs] = useState<InstallLogEntry[]>([]);
+  const [mcpRegistrationJobs, setMcpRegistrationJobs] =
+    useState<GeneHubMcpRegistrationJobsResult | null>(null);
+  const [registrationSummary, setRegistrationSummary] =
+    useState<GeneHubRegistrationSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
@@ -30,6 +37,21 @@ export function useGeneHubRuntime() {
     const next = await requireGeneHubRuntime().getConnection(forceRefresh);
     setConnection(next);
     return next;
+  }, []);
+
+  const loadMcpRegistrationJobs = useCallback(async () => {
+    const api = requireGeneHubRuntime();
+    try {
+      const [jobs, summary] = await Promise.all([
+        api.listMcpRegistrationJobs(),
+        api.getRegistrationSummary(),
+      ]);
+      setMcpRegistrationJobs(jobs);
+      setRegistrationSummary(summary);
+    } catch {
+      setMcpRegistrationJobs({ groups: { awaiting_confirm: [], in_progress: [], completed: [], failed: [] }, jobs: [] });
+      setRegistrationSummary({ pendingMcpJobCount: 0 });
+    }
   }, []);
 
   const refreshLists = useCallback(async () => {
@@ -42,7 +64,8 @@ export function useGeneHubRuntime() {
     setAuthorizedSkills(skills);
     setPendingJobs(jobs);
     setInstallLogs(logs);
-  }, []);
+    await loadMcpRegistrationJobs();
+  }, [loadMcpRegistrationJobs]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -61,6 +84,14 @@ export function useGeneHubRuntime() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const api = window.genehubRuntime;
+    if (!api?.onPendingJobsChanged) return undefined;
+    return api.onPendingJobsChanged(() => {
+      void refreshLists();
+    });
+  }, [refreshLists]);
+
   const runAction = useCallback(
     async (fn: () => Promise<unknown>) => {
       setActionPending(true);
@@ -77,15 +108,23 @@ export function useGeneHubRuntime() {
     [refresh],
   );
 
+  const previewBundle = useCallback(async (jobId: string): Promise<GeneHubInstallBundlePreview> => {
+    return requireGeneHubRuntime().previewInstallBundle(jobId);
+  }, []);
+
   return {
     connection,
     authorizedSkills,
     pendingJobs,
     installLogs,
+    mcpRegistrationJobs,
+    registrationSummary,
     loading,
     error,
     actionPending,
     refresh,
+    loadMcpRegistrationJobs,
+    previewBundle,
     probeConnection: () => runAction(() => requireGeneHubRuntime().probeConnection()),
     initialize: () => runAction(() => requireGeneHubRuntime().initialize()),
     syncInstalled: () => runAction(() => requireGeneHubRuntime().syncInstalledSkills()),
@@ -120,6 +159,20 @@ export function useGeneHubRuntime() {
         const result = await requireGeneHubRuntime().installJob(jobId);
         if (!result.ok) {
           throw new Error(result.error ?? "Install failed");
+        }
+      }),
+    confirmInstallJob: (jobId: string) =>
+      runAction(async () => {
+        const result = await requireGeneHubRuntime().installJob(jobId);
+        if (!result.ok) {
+          throw new Error(result.error ?? "Install failed");
+        }
+      }),
+    ignoreJob: (jobId: string) =>
+      runAction(async () => {
+        const result = await requireGeneHubRuntime().ignoreInstallJob(jobId);
+        if (!result.ok) {
+          throw new Error(result.error ?? "Ignore failed");
         }
       }),
   };

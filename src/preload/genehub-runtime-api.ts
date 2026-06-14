@@ -3,7 +3,10 @@ import type {
   GeneHubConnection,
   GeneHubCreateInstallJobInput,
   GeneHubInitializeResult,
+  GeneHubInstallBundlePreview,
+  GeneHubMcpRegistrationJobsResult,
   GeneHubProfileScopedInput,
+  GeneHubRegistrationSummary,
   GeneHubRuntimeAPI,
   GeneHubRuntimeConfig,
   GeneHubSkill,
@@ -11,6 +14,7 @@ import type {
   InstallLogEntry,
   GeneHubActionResult,
 } from "../shared/genehub/genehub-contract";
+import { GENEHUB_PENDING_JOBS_CHANGED } from "../shared/genehub/genehub-contract";
 
 export const genehubRuntimeApi: GeneHubRuntimeAPI = {
   getConnection: (forceRefresh?: boolean) =>
@@ -36,4 +40,19 @@ export const genehubRuntimeApi: GeneHubRuntimeAPI = {
     ipcRenderer.invoke("genehub:sync-installed-skills", input),
   getInstallLogs: (limit?: number): Promise<InstallLogEntry[]> =>
     ipcRenderer.invoke("genehub:get-install-logs", limit),
+  listMcpRegistrationJobs: (
+    input?: GeneHubProfileScopedInput,
+  ): Promise<GeneHubMcpRegistrationJobsResult> =>
+    ipcRenderer.invoke("genehub:list-mcp-registration-jobs", input),
+  previewInstallBundle: (jobId: string): Promise<GeneHubInstallBundlePreview> =>
+    ipcRenderer.invoke("genehub:preview-install-bundle", jobId),
+  ignoreInstallJob: (jobId: string): Promise<GeneHubActionResult> =>
+    ipcRenderer.invoke("genehub:ignore-install-job", jobId),
+  getRegistrationSummary: (): Promise<GeneHubRegistrationSummary> =>
+    ipcRenderer.invoke("genehub:get-registration-summary"),
+  onPendingJobsChanged: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on(GENEHUB_PENDING_JOBS_CHANGED, listener);
+    return () => ipcRenderer.removeListener(GENEHUB_PENDING_JOBS_CHANGED, listener);
+  },
 };

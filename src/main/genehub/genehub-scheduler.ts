@@ -1,11 +1,14 @@
-import type { HermesProfileDto } from "../../shared/genehub/genehub-contract";
+import type { HermesProfileDto, InstallJob } from "../../shared/genehub/genehub-contract";
 import { getRuntimeInstance } from "../profile-runtime-db";
 import { getDeviceIdentity } from "./device-identity";
 import { resolveHermesProfiles } from "./hermes-profile-resolver";
 import * as genehubClient from "./genehub-client";
 import { getGeneHubConfig, saveGeneHubConfig } from "./genehub-config";
 import { markGeneHubInitialized, markGeneHubUninitialized } from "./genehub-connection";
+import { appendInstallLog } from "./genehub-install-log";
+import { emitPendingJobsChanged } from "./genehub-pending-events";
 import { listInstalledSkillRecords } from "./installed-skill-store";
+import { fetchAndCachePendingJobs } from "./mcp-registration-service";
 import { runInstallJob } from "./skill-install-worker";
 import { isGeneHubError } from "../../shared/genehub/genehub-errors";
 import type { GeneHubInitializeResult } from "../../shared/genehub/genehub-contract";
@@ -19,6 +22,7 @@ import {
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let pendingJobsTimer: ReturnType<typeof setInterval> | null = null;
+const detectedMcpJobIds = new Set<string>();
 
 function clearGeneHubTimers(): void {
   if (heartbeatTimer) {
@@ -33,6 +37,7 @@ function clearGeneHubTimers(): void {
 
 export function stopGeneHubScheduler(): void {
   clearGeneHubTimers();
+  detectedMcpJobIds.clear();
   markGeneHubUninitialized();
   clearGeneHubSession();
 }
@@ -133,25 +138,47 @@ export function startGeneHubScheduler(): void {
   }, config.heartbeatIntervalMs);
 
   pendingJobsTimer = setInterval(() => {
-    void pollPendingJobs(config.autoInstallAssignedJobs);
+    void pollPendingJobs(getGeneHubConfig().autoInstallAssignedJobs);
   }, config.pendingJobsIntervalMs);
 }
 
-async function pollPendingJobs(autoInstall: boolean): Promise<void> {
+function logMcpJobDetected(job: InstallJob): void {
+  if (detectedMcpJobIds.has(job.jobId)) return;
+  detectedMcpJobIds.add(job.jobId);
+  appendInstallLog({
+    jobId: job.jobId,
+    geneSlug: job.geneSlug,
+    step: "job_detected",
+    status: "info",
+    message: `MCP registration job detected: ${job.skillName || job.geneSlug}`,
+  });
+}
+
+export async function pollPendingJobs(autoInstallAssigned: boolean): Promise<void> {
   try {
-    const profiles = resolveHermesProfiles();
-    for (const profile of profiles) {
-      const serverProfileId = resolveGeneHubServerProfileId(profile);
-      const jobs = await genehubClient.listPendingJobs(serverProfileId);
-      if (!autoInstall) continue;
-      for (const job of jobs) {
+    const jobs = await fetchAndCachePendingJobs();
+
+    for (const job of jobs) {
+      if (job.source === "mcp_agent_request") {
+        logMcpJobDetected(job);
+        continue;
+      }
+      if (job.source === "desktop_manual") {
+        continue;
+      }
+      if (!autoInstallAssigned) {
+        continue;
+      }
+      if (job.source === "server_assigned" && job.status === "pending") {
         try {
-          await runInstallJob(job.jobId);
+          await runInstallJob(job.jobId, { userConfirmed: true });
         } catch (err) {
           console.warn("[GENEHUB] auto install failed:", err);
         }
       }
     }
+
+    emitPendingJobsChanged();
   } catch (err) {
     console.warn("[GENEHUB] pending jobs poll failed:", err);
   }

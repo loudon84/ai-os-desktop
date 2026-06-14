@@ -3,7 +3,7 @@ import { isAbsolute, normalize, resolve, sep } from "path";
 import type { GeneHubBundle } from "../../shared/genehub/genehub-contract";
 import { GENEHUB_SKILL_NAME_PATTERN } from "../../shared/genehub/genehub-contract";
 import { GeneHubError } from "../../shared/genehub/genehub-errors";
-import { DEFAULT_GENEHUB_RUNTIME_CONFIG } from "../../shared/genehub/genehub-contract";
+import { getGeneHubConfig } from "./genehub-config";
 
 const FORBIDDEN_PATH_PATTERNS = [
   /\.\./,
@@ -11,6 +11,10 @@ const FORBIDDEN_PATH_PATTERNS = [
   /^\\\\/,
   /^\//,
 ];
+
+function pathNotAllowed(message: string): GeneHubError {
+  return new GeneHubError("GENEHUB_PATH_NOT_ALLOWED", message);
+}
 
 export function assertValidSkillName(skillName: string): void {
   if (!GENEHUB_SKILL_NAME_PATTERN.test(skillName)) {
@@ -24,23 +28,23 @@ export function assertValidSkillName(skillName: string): void {
 export function assertSafeRelativePath(relativePath: string, hermesHome: string): string {
   const trimmed = relativePath.replace(/\\/g, "/").trim();
   if (!trimmed || trimmed.includes("\0")) {
-    throw new GeneHubError("GENEHUB_INVALID_FILE_PATH", `Invalid file path: ${relativePath}`);
+    throw pathNotAllowed(`Invalid file path: ${relativePath}`);
   }
 
   for (const pattern of FORBIDDEN_PATH_PATTERNS) {
     if (pattern.test(trimmed) || pattern.test(relativePath)) {
-      throw new GeneHubError("GENEHUB_INVALID_FILE_PATH", `Forbidden path: ${relativePath}`);
+      throw pathNotAllowed(`Forbidden path: ${relativePath}`);
     }
   }
 
   if (isAbsolute(trimmed)) {
-    throw new GeneHubError("GENEHUB_INVALID_FILE_PATH", `Absolute path not allowed: ${relativePath}`);
+    throw pathNotAllowed(`Absolute path not allowed: ${relativePath}`);
   }
 
   const resolved = resolve(hermesHome, trimmed);
   const normalizedHome = resolve(hermesHome);
   if (resolved !== normalizedHome && !resolved.startsWith(`${normalizedHome}${sep}`)) {
-    throw new GeneHubError("GENEHUB_INVALID_FILE_PATH", `Path escapes hermes home: ${relativePath}`);
+    throw pathNotAllowed(`Path escapes hermes home: ${relativePath}`);
   }
 
   return normalize(trimmed);
@@ -50,7 +54,11 @@ function hashContent(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
-export function validateGeneHubBundle(bundle: GeneHubBundle, hermesHome: string): void {
+export function validateGeneHubBundle(
+  bundle: GeneHubBundle,
+  hermesHome: string,
+  profileName?: string,
+): void {
   const manifest = bundle.manifest;
 
   if (!manifest.geneSlug?.trim() || !manifest.skillName?.trim()) {
@@ -61,6 +69,16 @@ export function validateGeneHubBundle(bundle: GeneHubBundle, hermesHome: string)
 
   if (!bundle.files.some((f) => f.relativePath.endsWith("SKILL.md") || f.relativePath === "SKILL.md")) {
     throw new GeneHubError("GENEHUB_BUNDLE_INVALID", "Bundle must include SKILL.md");
+  }
+
+  const allowedProfiles = manifest.compatibility?.profiles;
+  if (allowedProfiles?.length && profileName) {
+    if (!allowedProfiles.includes(profileName)) {
+      throw new GeneHubError(
+        "GENEHUB_BUNDLE_INVALID",
+        `Bundle compatibility profiles do not include ${profileName}`,
+      );
+    }
   }
 
   for (const file of bundle.files) {
@@ -91,7 +109,8 @@ export function validateGeneHubBundle(bundle: GeneHubBundle, hermesHome: string)
     }
   }
 
-  if (DEFAULT_GENEHUB_RUNTIME_CONFIG.verifySignature && manifest.signature === "invalid") {
+  const verifySignature = getGeneHubConfig().verifySignature;
+  if (verifySignature && manifest.signature === "invalid") {
     throw new GeneHubError("GENEHUB_SIGNATURE_INVALID", "Bundle signature invalid");
   }
 }

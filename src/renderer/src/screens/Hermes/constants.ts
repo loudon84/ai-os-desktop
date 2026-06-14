@@ -15,9 +15,49 @@ export const STORAGE_KEYS = {
   collapsedLeftPanel: "hermesDefault.collapsedLeftPanel",
   activeNavItem: "hermesDefault.activeNavItem",
   activeSessionId: "hermesDefault.activeSessionId",
+  geneHubActiveTab: "hermesDefault.geneHub.activeTab",
   /** @deprecated v5.6.4 使用 Main session-models.json */
   chatPendingModelId: "hermesDefault.chatPendingModelId",
 } as const;
+
+export const GENEHUB_SKILL_CENTER_TABS = [
+  "available",
+  "installed",
+  "pending",
+  "mcpRegistration",
+  "logs",
+] as const;
+
+export type GeneHubSkillCenterTabKey = (typeof GENEHUB_SKILL_CENTER_TABS)[number];
+
+export function readGeneHubSkillCenterTab(): GeneHubSkillCenterTabKey | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEYS.geneHubActiveTab);
+    if (!raw) return null;
+    if ((GENEHUB_SKILL_CENTER_TABS as readonly string[]).includes(raw)) {
+      return raw as GeneHubSkillCenterTabKey;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeGeneHubSkillCenterTab(tab: GeneHubSkillCenterTabKey): void {
+  try {
+    sessionStorage.setItem(STORAGE_KEYS.geneHubActiveTab, tab);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearGeneHubSkillCenterTab(): void {
+  try {
+    sessionStorage.removeItem(STORAGE_KEYS.geneHubActiveTab);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** 新会话草稿（尚无 state.db session id） */
 export const HERMES_DRAFT_SESSION_ID = "draft_default" as const;

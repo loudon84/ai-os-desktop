@@ -21,6 +21,10 @@ export function markGeneHubUninitialized(): void {
   initialized = false;
 }
 
+export function isGeneHubInitialized(): boolean {
+  return initialized;
+}
+
 export function getGeneHubLastSyncAt(): string | null {
   return lastSyncAt;
 }

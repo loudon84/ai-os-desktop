@@ -7,6 +7,15 @@ import { validateGeneHubBundle } from "./skill-package-validator";
 import { installGeneHubBundle, uninstallGeneHubSkill } from "./hermes-skill-writer";
 import { reloadOrRestart } from "./hermes-restart-service";
 import { listInstalledSkillRecords } from "./installed-skill-store";
+import { getCachedPendingJobs } from "./pending-jobs-cache";
+
+export type RunInstallJobOptions = {
+  userConfirmed?: boolean;
+};
+
+function findCachedJob(jobId: string): InstallJob | undefined {
+  return getCachedPendingJobs().find((j) => j.jobId === jobId);
+}
 
 async function reportStatus(
   jobId: string,
@@ -19,7 +28,7 @@ async function reportStatus(
     jobId,
     geneSlug,
     step,
-    status: status === "failed" ? "failed" : "info",
+    status: status === "failed" ? "failed" : step === "installed" ? "success" : "info",
     message: extra?.errorMessage ?? step,
     errorCode: extra?.errorCode,
   });
@@ -32,9 +41,30 @@ async function reportStatus(
   });
 }
 
-export async function runInstallJob(jobId: string): Promise<void> {
-  let job: InstallJob | null = null;
-  let geneSlug = "";
+export async function runInstallJob(
+  jobId: string,
+  options?: RunInstallJobOptions,
+): Promise<void> {
+  let job: InstallJob | null = findCachedJob(jobId) ?? null;
+  let geneSlug = job?.geneSlug ?? "";
+
+  const source = job?.source;
+  if (source === "mcp_agent_request" && !options?.userConfirmed) {
+    throw new GeneHubError(
+      "GENEHUB_JOB_NOT_PENDING",
+      "MCP registration job requires user confirmation before install",
+    );
+  }
+
+  if (options?.userConfirmed) {
+    appendInstallLog({
+      jobId,
+      geneSlug: geneSlug || "unknown",
+      step: "user_confirmed",
+      status: "info",
+      message: "User confirmed install",
+    });
+  }
 
   try {
     job = await genehubClient.claimJob(jobId);
@@ -55,7 +85,7 @@ export async function runInstallJob(jobId: string): Promise<void> {
 
     const profile = resolveHermesProfile(job.profileId);
     await reportStatus(jobId, geneSlug, "validating", "validate_start");
-    validateGeneHubBundle(bundle, profile.hermesHome);
+    validateGeneHubBundle(bundle, profile.hermesHome, profile.profileName);
     await reportStatus(jobId, geneSlug, "validating", "validate_complete");
 
     await reportStatus(jobId, geneSlug, "installing", "write_start");
@@ -76,6 +106,8 @@ export async function runInstallJob(jobId: string): Promise<void> {
       });
     }
 
+    await reportStatus(jobId, geneSlug, "installing", "write_complete");
+
     await reportStatus(jobId, geneSlug, "installing", "restart_start");
     const restart = await reloadOrRestart(profile);
     if (!restart.ok) {
@@ -84,22 +116,46 @@ export async function runInstallJob(jobId: string): Promise<void> {
         restart.error ?? "Hermes restart failed",
       );
     }
+    await reportStatus(jobId, geneSlug, "installing", "restart_complete", {
+      clientReport: { restartMode: restart.mode },
+    });
+
+    try {
+      await genehubClient.syncInstalledSkills({
+        profileId: profile.profileId,
+        skills: listInstalledSkillRecords(profile.hermesHome),
+      });
+      appendInstallLog({
+        jobId,
+        geneSlug,
+        step: "sync_installed",
+        status: "info",
+        message: "sync_installed",
+      });
+    } catch (err) {
+      throw new GeneHubError(
+        "GENEHUB_SYNC_INSTALLED_FAILED",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
 
     await reportStatus(jobId, geneSlug, "installed", "installed", {
       clientReport: { restartMode: restart.mode },
     });
-
-    await genehubClient.syncInstalledSkills({
-      profileId: profile.profileId,
-      skills: listInstalledSkillRecords(profile.hermesHome),
-    });
   } catch (err) {
     const errorCode = isGeneHubError(err) ? err.code : "GENEHUB_API_FAILED";
     const errorMessage = err instanceof Error ? err.message : String(err);
-    await reportStatus(jobId, geneSlug || "unknown", "failed", "failed", {
-      errorCode,
-      errorMessage,
-    });
+    if (errorCode === "GENEHUB_API_FAILED" && errorMessage.toLowerCase().includes("claim")) {
+      await reportStatus(jobId, geneSlug || "unknown", "failed", "failed", {
+        errorCode: "GENEHUB_JOB_CLAIM_FAILED",
+        errorMessage,
+      });
+    } else {
+      await reportStatus(jobId, geneSlug || "unknown", "failed", "failed", {
+        errorCode,
+        errorMessage,
+      });
+    }
     throw err;
   }
 }
@@ -115,5 +171,5 @@ export async function runCreateAndInstall(input: {
     geneSlug: input.geneSlug,
     action: input.action,
   });
-  await runInstallJob(job.jobId);
+  await runInstallJob(job.jobId, { userConfirmed: true });
 }

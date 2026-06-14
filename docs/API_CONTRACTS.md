@@ -617,9 +617,11 @@ curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "
 
 ---
 
-## GeneHub Runtime（V6.5 + V6.5.1 Hotfix）
+## GeneHub Runtime（V6.5 + V6.5.1 Hotfix + **V6.6.2 MCP Registration**）
 
 nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 安装任务、下载 Bundle、写入本机 Hermes `skills/` 与 `scripts/`、回传状态。**禁止** Renderer 传入任意 URL 或本地路径；**无**上传/发布/审核入口。
+
+**V6.6.2**：`source=mcp_agent_request` 的 install job **永不自动安装**；scheduler 始终写入 `~/.hermes/desktop/genehub/pending-jobs.json` 并广播 `genehub:pending-jobs-changed`；用户确认后 `genehub:install-job` 才 claim/install；安装成功写入 `skills/<name>/genehub.json` provenance。
 
 **配置单一源**：`AuthEndpointConfig.backendUrl` → `GET /api/v1/system/info` → `genehub` descriptor → `apiBaseUrl`；Bearer 仅 Main 注入。
 
@@ -634,19 +636,27 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 | `genehub:list-authorized-skills` | `{ profileId? }` | `GeneHubSkill[]` |
 | `genehub:list-pending-jobs` | `{ profileId? }` | `InstallJob[]` |
 | `genehub:create-install-job` | `{ profileId?, geneSlug, action }` | `InstallJob` |
-| `genehub:install-job` | `jobId` | `GeneHubActionResult` |
+| `genehub:install-job` | `jobId` | `GeneHubActionResult`（Main 侧 `userConfirmed: true`） |
 | `genehub:update-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
 | `genehub:uninstall-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
 | `genehub:sync-installed-skills` | `{ profileId? }` | `GeneHubActionResult` |
 | `genehub:get-install-logs` | `limit?` | `InstallLogEntry[]` |
+| `genehub:list-mcp-registration-jobs` | `{ profileId? }` | `GeneHubMcpRegistrationJobsResult` |
+| `genehub:preview-install-bundle` | `jobId` | `GeneHubInstallBundlePreview` |
+| `genehub:ignore-install-job` | `jobId` | `GeneHubActionResult`（本地 dismiss，不 claim） |
+| `genehub:get-registration-summary` | — | `GeneHubRegistrationSummary` |
 
-**Main 模块**：`src/main/genehub/`（`genehub-client.ts`、`skill-install-worker.ts`、`hermes-skill-writer.ts`、`genehub-scheduler.ts` 等）。
+**事件（Main → Renderer）**：`genehub:pending-jobs-changed` — scheduler poll 完成后广播；Preload `genehubRuntime.onPendingJobsChanged(cb)` 返回 unsubscribe。
+
+**InstallJob 扩展字段（V6.6.2）**：`source?: "mcp_agent_request" | "desktop_manual" | "server_assigned"`、`profileName?`、`createdAt?`、`lastUpdatedAt?`
+
+**Main 模块**：`src/main/genehub/`（`genehub-client.ts`、`skill-install-worker.ts`、`hermes-skill-writer.ts`、`genehub-scheduler.ts`、`pending-jobs-cache.ts`、`mcp-registration-service.ts` 等）。
 
 **生命周期**：登录成功 `onGeneHubLoginSuccess` → `initializeGeneHub` + 定时 heartbeat/pending jobs；logout / `before-quit` 停止 scheduler。
 
 **契约**：`src/shared/genehub/genehub-contract.ts`、`src/shared/genehub/genehub-errors.ts`
 
-**Renderer**：`screens/Hermes/pages/GeneHub/GeneHubSkillCenterPage.tsx`；Local Hermes 左导航 `skillCenter`（与本地 `skills` 页并存）。
+**Renderer**：`screens/Hermes/pages/GeneHub/GeneHubSkillCenterPage.tsx`（**V6.6.2** `mcpRegistration` 页签 + Drawer）；`screens/Hermes/pages/McpGateway/McpGatewayGeneHubRegistrationCard.tsx`；Local Hermes 左导航 `skillCenter`（与本地 `skills` 页并存）。
 
 ---
 

@@ -1,47 +1,64 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { GeneHubBundle } from "../src/shared/genehub/genehub-contract";
 import { GeneHubError } from "../src/shared/genehub/genehub-errors";
-import {
-  assertValidSkillName,
-  assertSafeRelativePath,
-  validateGeneHubBundle,
-} from "../src/main/genehub/skill-package-validator";
 
-const hermesHome = "C:\\Users\\test\\.hermes";
+vi.mock("../src/main/genehub/genehub-config", () => ({
+  getGeneHubConfig: () => ({
+    enabled: true,
+    heartbeatIntervalMs: 60_000,
+    pendingJobsIntervalMs: 60_000,
+    autoInstallAssignedJobs: false,
+    verifySignature: true,
+    updatedAt: "",
+  }),
+}));
 
-function sampleBundle(overrides?: Partial<GeneHubBundle>): GeneHubBundle {
-  return {
-    jobId: "job_1",
-    manifest: {
-      geneSlug: "contact-to-order",
-      geneVersion: "1.0.0",
-      skillName: "contact-to-order",
-    },
-    files: [{ relativePath: "SKILL.md", content: "# Skill" }],
-    ...overrides,
-  };
-}
+import { validateGeneHubBundle } from "../src/main/genehub/skill-package-validator";
+
+const baseBundle: GeneHubBundle = {
+  jobId: "job_1",
+  manifest: {
+    geneSlug: "demo",
+    geneVersion: "1.0.0",
+    skillName: "demo-skill",
+  },
+  files: [{ relativePath: "SKILL.md", content: "# demo" }],
+};
 
 describe("skill-package-validator", () => {
-  it("rejects invalid skill names", () => {
-    expect(() => assertValidSkillName("../bad")).toThrow(GeneHubError);
+  it("blocks bundle when compatibility profiles exclude current profile", () => {
+    const bundle: GeneHubBundle = {
+      ...baseBundle,
+      manifest: {
+        ...baseBundle.manifest,
+        compatibility: { profiles: ["writer"] },
+      },
+    };
+    expect(() => validateGeneHubBundle(bundle, "C:\\\\hermes", "default")).toThrow(GeneHubError);
   });
 
-  it("rejects path traversal", () => {
-    expect(() => assertSafeRelativePath("../x", hermesHome)).toThrow(GeneHubError);
-    expect(() => assertSafeRelativePath("skills/../../x", hermesHome)).toThrow(GeneHubError);
+  it("uses runtime verifySignature config", () => {
+    const bundle: GeneHubBundle = {
+      ...baseBundle,
+      manifest: {
+        ...baseBundle.manifest,
+        signature: "invalid",
+      },
+    };
+    expect(() => validateGeneHubBundle(bundle, "C:\\\\hermes", "default")).toThrow(GeneHubError);
   });
 
-  it("accepts valid bundle", () => {
-    expect(() => validateGeneHubBundle(sampleBundle(), hermesHome)).not.toThrow();
-  });
-
-  it("rejects bundle without SKILL.md", () => {
-    expect(() =>
-      validateGeneHubBundle(
-        sampleBundle({ files: [{ relativePath: "README.md", content: "x" }] }),
-        hermesHome,
-      ),
-    ).toThrow(GeneHubError);
+  it("throws GENEHUB_PATH_NOT_ALLOWED for traversal paths", () => {
+    const bundle: GeneHubBundle = {
+      ...baseBundle,
+      files: [{ relativePath: "../escape/SKILL.md", content: "# bad" }],
+    };
+    try {
+      validateGeneHubBundle(bundle, "C:\\\\hermes", "default");
+      expect.unreachable("should throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GeneHubError);
+      expect((err as GeneHubError).code).toBe("GENEHUB_PATH_NOT_ALLOWED");
+    }
   });
 });

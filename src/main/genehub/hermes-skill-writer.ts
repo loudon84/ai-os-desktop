@@ -106,6 +106,20 @@ export async function installGeneHubBundle(input: {
 
     cleanSkillSnapshot(hermesHome);
 
+    const provenance = {
+      source: "nodeskclaw-genehub",
+      jobId,
+      geneSlug: bundle.manifest.geneSlug,
+      geneVersion: bundle.manifest.geneVersion,
+      skillName,
+      installedAt: new Date().toISOString(),
+      profileName,
+    };
+    writeFileEnsuringDir(
+      join(skillDir, "genehub.json"),
+      JSON.stringify(provenance, null, 2),
+    );
+
     const record: InstalledSkillRecord = {
       geneSlug: bundle.manifest.geneSlug,
       geneVersion: bundle.manifest.geneVersion,

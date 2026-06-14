@@ -55,12 +55,29 @@ vi.mock("../src/main/genehub/installed-skill-store", () => ({
   listInstalledSkillRecords: vi.fn(() => []),
 }));
 
+vi.mock("../src/main/genehub/genehub-config", () => ({
+  getGeneHubConfig: () => ({
+    enabled: true,
+    heartbeatIntervalMs: 60_000,
+    pendingJobsIntervalMs: 60_000,
+    autoInstallAssignedJobs: false,
+    verifySignature: false,
+    updatedAt: "",
+  }),
+}));
+
 vi.mock("../src/main/genehub/genehub-install-log", () => ({
   appendInstallLog: vi.fn(),
 }));
 
+vi.mock("../src/main/genehub/pending-jobs-cache", () => ({
+  getCachedPendingJobs: vi.fn(() => []),
+}));
+
 import { runInstallJob } from "../src/main/genehub/skill-install-worker";
 import * as genehubClient from "../src/main/genehub/genehub-client";
+import { getCachedPendingJobs } from "../src/main/genehub/pending-jobs-cache";
+import { GeneHubError } from "../src/shared/genehub/genehub-errors";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,10 +93,27 @@ describe("skill-install-worker", () => {
   });
 
   it("does not report claimed status to backend", async () => {
-    await runInstallJob("job_1");
+    await runInstallJob("job_1", { userConfirmed: true });
     const statuses = vi
       .mocked(genehubClient.updateJobStatus)
       .mock.calls.map((call) => call[1].status);
     expect(statuses).not.toContain("claimed");
+  });
+
+  it("rejects mcp_agent_request without userConfirmed", async () => {
+    vi.mocked(getCachedPendingJobs).mockReturnValueOnce([
+      {
+        jobId: "job_mcp",
+        profileId: "default",
+        geneSlug: "demo-skill",
+        geneVersion: "1.0.0",
+        skillName: "demo-skill",
+        action: "install",
+        status: "pending",
+        source: "mcp_agent_request",
+      },
+    ]);
+    await expect(runInstallJob("job_mcp")).rejects.toBeInstanceOf(GeneHubError);
+    expect(genehubClient.claimJob).not.toHaveBeenCalled();
   });
 });
