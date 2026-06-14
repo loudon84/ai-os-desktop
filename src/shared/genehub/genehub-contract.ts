@@ -96,6 +96,10 @@ export interface HermesProfileDto {
   };
 }
 
+export type HermesProfileRegisterInput = HermesProfileDto & {
+  desktopDeviceId: string;
+};
+
 export interface GeneHubSkill {
   geneSlug: string;
   geneVersion: string;

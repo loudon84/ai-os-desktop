@@ -1,14 +1,13 @@
-# Current Agent Task — v6.5 GeneHub Hermes Skill Sync
+# Current Agent Task
 
-## Goal
-Implement `v6.5_genehub-hermes-skill-sync`: GeneHub connection, device/profile register, Bundle install pipeline, Skill Center UI, tests, docs.
+## v6.5.1 Hotfix — GeneHub Skill Center 连接修复
 
-## Stages
-1. [done] shared-contract — genehub-contract.ts + genehub-errors.ts
-2. [done] connection-layer — descriptor + connection + get-connection IPC
-3. [done] main-infra — device-identity, profile-resolver, http, client, config
-4. [done] install-pipeline — validator, writer, restart, worker, logs
-5. [done] scheduler-lifecycle — scheduler + auth hooks + auto-init
-6. [done] ipc-preload — genehub IPC + window.genehubRuntime
-7. [done] renderer-skill-center — GeneHub Skill Center page + nav + i18n
-8. [done] tests-docs — vitest + AGENTS/INDEX/API_CONTRACTS
+PRD: `prd/v6.5.1_hotfix_genehub-skill-center-connection.md`
+
+| Stage | Status |
+|---|---|
+| P0 preload expose + hook 兜底 | done |
+| P0+ descriptor/connection 错误文案 | done |
+| P1 API 协议对齐（client/scheduler/worker） | done |
+| P2 mapBundle dict 格式 | done |
+| 测试 + 文档同步 | done |

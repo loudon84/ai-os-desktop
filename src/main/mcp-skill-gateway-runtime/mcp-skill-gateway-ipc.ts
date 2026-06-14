@@ -31,6 +31,9 @@ import {
   onMcpSkillGatewayLogout,
 } from "./mcp-skill-gateway-lifecycle";
 import { isMcpSkillGatewayError, McpSkillGatewayError } from "./mcp-skill-gateway-errors";
+import { runMcpSkillGatewayDiagnostics } from "./mcp-gateway-diagnostics";
+import { invokeRemoteMcpTool } from "./mcp-gateway-invoke-test";
+import { listRemoteMcpTools } from "./mcp-tools-cache";
 
 function toActionResult(err: unknown): McpSkillGatewayActionResult {
   if (isMcpSkillGatewayError(err)) {
@@ -160,6 +163,19 @@ export function registerMcpSkillGatewayRuntimeIpc(): void {
 
   ipcMain.handle("mcp-skill-gateway-runtime:read-proxy-logs", async (_, lines?: number) =>
     readMcpSkillGatewayLogs(lines),
+  );
+
+  ipcMain.handle("mcp-skill-gateway-runtime:run-diagnostics", async () =>
+    runMcpSkillGatewayDiagnostics(),
+  );
+
+  ipcMain.handle("mcp-skill-gateway-runtime:list-remote-tools", async (_, forceRefresh?: boolean) =>
+    listRemoteMcpTools({ forceRefresh: Boolean(forceRefresh) }),
+  );
+
+  ipcMain.handle(
+    "mcp-skill-gateway-runtime:invoke-remote-tool",
+    async (_, input) => invokeRemoteMcpTool(input),
   );
 }
 

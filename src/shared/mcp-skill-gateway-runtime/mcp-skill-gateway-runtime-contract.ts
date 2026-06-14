@@ -163,6 +163,70 @@ export interface McpSkillGatewayProfileRegistration {
   lastChecked: string;
 }
 
+/** v6.6 — MCP Gateway one-click diagnostics error codes. */
+export type McpGatewayDiagnosticsErrorCode =
+  | "MCP_DIAG_AUTH_REQUIRED"
+  | "MCP_DIAG_BACKEND_UNREACHABLE"
+  | "MCP_DIAG_DESCRIPTOR_MISSING"
+  | "MCP_DIAG_PROXY_NOT_RUNNING"
+  | "MCP_DIAG_REMOTE_INITIALIZE_FAILED"
+  | "MCP_DIAG_TOOLS_LIST_FAILED"
+  | "MCP_DIAG_PROFILE_NOT_REGISTERED"
+  | "MCP_DIAG_HERMES_RESTART_REQUIRED"
+  | "MCP_DIAG_TOOL_CALL_FAILED";
+
+export interface DiagnosticCheckResult {
+  step: string;
+  ok: boolean;
+  label: string;
+  detail?: string;
+  error?: string;
+  errorCode?: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
+}
+
+export interface DiagnosticError {
+  step: string;
+  code: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
+  message: string;
+}
+
+export interface McpGatewayToolPreview {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+  source?: string;
+  riskLevel?: "read" | "write" | "admin";
+  enabled?: boolean;
+}
+
+export interface McpGatewayDiagnosticsResult {
+  ok: boolean;
+  auth: DiagnosticCheckResult;
+  backend: DiagnosticCheckResult;
+  localProxy: DiagnosticCheckResult;
+  remoteMcp: DiagnosticCheckResult;
+  hermesRegistration: DiagnosticCheckResult;
+  toolCount: number;
+  tools: McpGatewayToolPreview[];
+  hermesRestartRequired: boolean;
+  defaultProfileRegistered: boolean;
+  errors: DiagnosticError[];
+  steps: DiagnosticCheckResult[];
+}
+
+export interface McpGatewayInvokeTestInput {
+  toolName: string;
+  input?: Record<string, unknown>;
+}
+
+export interface McpGatewayInvokeTestResult {
+  ok: boolean;
+  durationMs: number;
+  result?: unknown;
+  errorCode?: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
+  errorMessage?: string;
+}
+
 export interface McpSkillGatewayRuntimeAPI {
   getStatus(): Promise<McpSkillGatewayRuntimeStatus>;
   getConfig(): Promise<McpSkillGatewayRuntimeConfig>;
@@ -181,4 +245,8 @@ export interface McpSkillGatewayRuntimeAPI {
   listProfileRegistrations(): Promise<McpSkillGatewayProfileRegistration[]>;
 
   readProxyLogs(lines?: number): Promise<string>;
+
+  runDiagnostics(): Promise<McpGatewayDiagnosticsResult>;
+  listRemoteTools(forceRefresh?: boolean): Promise<McpGatewayToolPreview[]>;
+  invokeRemoteTool(input: McpGatewayInvokeTestInput): Promise<McpGatewayInvokeTestResult>;
 }

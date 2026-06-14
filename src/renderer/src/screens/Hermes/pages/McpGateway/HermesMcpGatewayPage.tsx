@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HERMES_DEFAULT_PROFILE } from "../../constants";
 import { useMcpSkillGatewayRuntime } from "../../hooks/useMcpSkillGatewayRuntime";
+import { McpGatewayDiagnosticsSection } from "./McpGatewayDiagnosticsSection";
+import { McpGatewayInvokeTestSection } from "./McpGatewayInvokeTestSection";
+import { McpGatewayToolsPreviewSection } from "./McpGatewayToolsPreviewSection";
 
 function proxyBadgeClass(status: string): string {
   if (status === "running") return "hermes-badge hermes-badge--running";
@@ -68,6 +71,13 @@ export default function HermesMcpGatewayPage() {
     testRemoteMcp,
     registerProfile,
     unregisterProfile,
+    runDiagnostics,
+    listRemoteTools,
+    invokeRemoteTool,
+    diagnosticsResult,
+    remoteTools,
+    invokeResult,
+    toolsLoading,
   } = useMcpSkillGatewayRuntime();
   const [authState, setAuthState] = useState<Awaited<
     ReturnType<typeof window.desktopAuth.getState>
@@ -83,6 +93,23 @@ export default function HermesMcpGatewayPage() {
   useEffect(() => {
     void loadAuth();
   }, [loadAuth]);
+
+  useEffect(() => {
+    if (status?.loggedIn && status.proxyStatus === "running") {
+      void listRemoteTools(false);
+    }
+  }, [status?.loggedIn, status?.proxyStatus, listRemoteTools]);
+
+  const handleInvokeTest = useCallback(
+    (toolName: string, instanceRef: string) => {
+      const input: Record<string, unknown> = {};
+      if (instanceRef) {
+        input.instance_ref = instanceRef;
+      }
+      void invokeRemoteTool({ toolName, input });
+    },
+    [invokeRemoteTool],
+  );
 
   const authBackendUrl = authState?.endpointConfig?.backendUrl ?? status?.backendBaseUrl ?? "";
   const memberVerified = Boolean(
@@ -175,7 +202,15 @@ export default function HermesMcpGatewayPage() {
         />
         <InfoRow
           label={t("workspaces.hermes.mcpGateway.gatewayTools")}
-          value={status?.toolCount ?? 0}
+          value={status?.toolCount ?? diagnosticsResult?.toolCount ?? remoteTools.length}
+        />
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.registeredProfileCount")}
+          value={status?.registeredProfileCount ?? registrations.filter((r) => r.registered).length}
+        />
+        <InfoRow
+          label={t("workspaces.hermes.mcpGateway.hermesRestartRequired")}
+          value={yesNo(Boolean(status?.hermesRestartRequired ?? diagnosticsResult?.hermesRestartRequired))}
         />
         <InfoRow
           label={t("workspaces.hermes.mcpGateway.gatewayLastSync")}
@@ -226,6 +261,25 @@ export default function HermesMcpGatewayPage() {
           </pre>
         ) : null}
       </section>
+
+      <McpGatewayDiagnosticsSection
+        result={diagnosticsResult}
+        pending={actionPending}
+        onRun={() => void runDiagnostics()}
+      />
+
+      <McpGatewayToolsPreviewSection
+        tools={remoteTools}
+        loading={toolsLoading}
+        lastSyncAt={status?.lastSyncAt}
+        onRefresh={() => void listRemoteTools(true)}
+      />
+
+      <McpGatewayInvokeTestSection
+        pending={actionPending}
+        result={invokeResult}
+        onRun={handleInvokeTest}
+      />
 
       <div
         className={`hermes-mcp-gateway-banner${consistencyReady ? " is-ready" : " is-mismatch"}`}

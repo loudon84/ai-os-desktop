@@ -10,6 +10,7 @@ import { getGeneHubConfig } from "./genehub-config";
 import * as genehubClient from "./genehub-client";
 import { readInstallLogs } from "./genehub-install-log";
 import { resolveHermesProfile } from "./hermes-profile-resolver";
+import { resolveGeneHubServerProfileId } from "./genehub-session";
 import { initializeGeneHub } from "./genehub-scheduler";
 import { runCreateAndInstall, runInstallJob } from "./skill-install-worker";
 import { listInstalledSkillRecords } from "./installed-skill-store";
@@ -40,19 +41,19 @@ export function registerGeneHubIpc(): void {
     "genehub:list-authorized-skills",
     async (_, input?: GeneHubProfileScopedInput) => {
       const profile = resolveHermesProfile(input?.profileId);
-      return genehubClient.listAuthorizedSkills(profile.profileId);
+      return genehubClient.listAuthorizedSkills(resolveGeneHubServerProfileId(profile));
     },
   );
 
   ipcMain.handle("genehub:list-pending-jobs", async (_, input?: GeneHubProfileScopedInput) => {
     const profile = resolveHermesProfile(input?.profileId);
-    return genehubClient.listPendingJobs(profile.profileId);
+    return genehubClient.listPendingJobs(resolveGeneHubServerProfileId(profile));
   });
 
   ipcMain.handle("genehub:create-install-job", async (_, input: GeneHubCreateInstallJobInput) => {
     const profile = resolveHermesProfile(input.profileId);
     return genehubClient.createInstallJob({
-      profileId: profile.profileId,
+      profileId: resolveGeneHubServerProfileId(profile),
       geneSlug: input.geneSlug,
       action: input.action,
     });
@@ -103,7 +104,7 @@ export function registerGeneHubIpc(): void {
     try {
       const profile = resolveHermesProfile(input?.profileId);
       await genehubClient.syncInstalledSkills({
-        profileId: profile.profileId,
+        profileId: resolveGeneHubServerProfileId(profile),
         skills: listInstalledSkillRecords(profile.hermesHome),
       });
       return { ok: true } satisfies GeneHubActionResult;

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
+  McpGatewayDiagnosticsResult,
+  McpGatewayInvokeTestInput,
+  McpGatewayInvokeTestResult,
+  McpGatewayToolPreview,
   McpSkillGatewayProfileRegistration,
   McpSkillGatewayRuntimeConfig,
   McpSkillGatewayRuntimeStatus,
@@ -13,6 +17,12 @@ export function useMcpSkillGatewayRuntime() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
+  const [diagnosticsResult, setDiagnosticsResult] = useState<McpGatewayDiagnosticsResult | null>(
+    null,
+  );
+  const [remoteTools, setRemoteTools] = useState<McpGatewayToolPreview[]>([]);
+  const [invokeResult, setInvokeResult] = useState<McpGatewayInvokeTestResult | null>(null);
+  const [toolsLoading, setToolsLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -65,6 +75,49 @@ export function useMcpSkillGatewayRuntime() {
     [runAction],
   );
 
+  const runDiagnostics = useCallback(async () => {
+    setActionPending(true);
+    setError(null);
+    try {
+      const result = await window.mcpSkillGatewayRuntime.runDiagnostics();
+      setDiagnosticsResult(result);
+      setRemoteTools(result.tools);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionPending(false);
+    }
+  }, [refresh]);
+
+  const listRemoteTools = useCallback(async (forceRefresh = false) => {
+    setToolsLoading(true);
+    setError(null);
+    try {
+      const tools = await window.mcpSkillGatewayRuntime.listRemoteTools(forceRefresh);
+      setRemoteTools(tools);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setToolsLoading(false);
+    }
+  }, []);
+
+  const invokeRemoteTool = useCallback(async (input: McpGatewayInvokeTestInput) => {
+    setActionPending(true);
+    setError(null);
+    try {
+      const result = await window.mcpSkillGatewayRuntime.invokeRemoteTool(input);
+      setInvokeResult(result);
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return null;
+    } finally {
+      setActionPending(false);
+    }
+  }, []);
+
   return {
     status,
     config,
@@ -73,8 +126,15 @@ export function useMcpSkillGatewayRuntime() {
     loading,
     error,
     actionPending,
+    diagnosticsResult,
+    remoteTools,
+    invokeResult,
+    toolsLoading,
     refresh,
     saveConfig,
+    runDiagnostics,
+    listRemoteTools,
+    invokeRemoteTool,
     startProxy: () => runAction(() => window.mcpSkillGatewayRuntime.startProxy()),
     stopProxy: () => runAction(() => window.mcpSkillGatewayRuntime.stopProxy()),
     restartProxy: () => runAction(() => window.mcpSkillGatewayRuntime.restartProxy()),

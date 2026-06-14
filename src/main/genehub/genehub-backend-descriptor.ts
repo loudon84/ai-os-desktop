@@ -87,7 +87,8 @@ export async function fetchGeneHubDescriptor(
         ok: false,
         error: {
           code: "GENEHUB_DESCRIPTOR_MISSING",
-          message: "system/info did not return genehub block",
+          message:
+            "GeneHub descriptor missing. Please update nodeskclaw backend to team_v3.4.1 or later.",
         },
       };
     }

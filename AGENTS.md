@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（… + **V6.5 GeneHub Hermes Skill Sync** + **V6.4.1 Hotfix MCP Gateway 联调** + **V6.4.1 MCP Backend Desktop** + **V6.4 MCP Skill Gateway Runtime**） |
+| 版本 | 0.3.6（… + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub Skill Center 连接** + **V6.5 GeneHub Hermes Skill Sync** + **V6.4.1 Hotfix MCP Gateway 联调** + **V6.4.1 MCP Backend Desktop** + **V6.4 MCP Skill Gateway Runtime**） |
 | appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -534,6 +534,8 @@ npm run lint         # ESLint
 | **V6.3.1** | **WebOperator 任务 Chat 持久化 hotfix**：`currentTask` 提升 Context + `sessionStorage`；`getLastActive` IPC；mount hydrate；弹 Dialog 不清任务 | `prd/v6.3.1_hermes-task-persist-hotfix.md`, `context/WebOperatorPageContext.tsx`, `lib/web-operator-current-task-cache.ts`, `web-operator-task-session-store.ts` |
 | **V6.3.3** | **WebOperator Task Session 绑定键调整**：`source + requestId` 替代 `pageUrl` 唯一键；schema v2 + v1 迁移；Main 派生 `taskId`；HostBridge `web-host-bridge` | `prd/v6.3.3_task-to-session-request.md`, `web-operator-task-session-*`, `shared/web-operator/build-task-id.ts`, `HermesTaskPanel.tsx`, `HostBridgePanel.tsx` |
 | **V6.3.4** | **WebOperator Hermes→Host 表单写回**：Hermes 输出 `host_form_fill` artifact；Panel「写回当前表单」按钮；`HostBridgeCommandContext` 共享 `runCommand`；`desktop.host.form.fill` | `prd/v6.3.4_weboperator-hermes-host-form-fill.md`, `host-bridge/HostBridgeCommandContext.tsx`, `components/hermes/panel/host-form-fill/*`, `WebOperatorHermesPanelMessageList.tsx` |
+| **V6.6** | **MCP Skill Gateway E2E**：一键诊断、`tools/list` 预览、Invoke Test（只读工具）；`runDiagnostics` / `listRemoteTools` / `invokeRemoteTool` IPC；工具缓存 60s | `prd/v6.6_mcp-skill-gateway-e2e.md`, `mcp-gateway-diagnostics.ts`, `mcp-gateway-invoke-test.ts`, `mcp-tools-cache.ts`, `HermesMcpGatewayPage.tsx` |
+| **V6.5.1 Hotfix** | **GeneHub Skill Center 连接修复**：`contextBridge` 暴露 `genehubRuntime`；`team_v3.4.1` API 对齐（`desktop_device_id`、`job_type`、`mapSkill`/`mapBundle`）；删除 `claimed` 状态回传；Connection Card 可读错误 | `prd/v6.5.1_hotfix_genehub-skill-center-connection.md`, `genehub-session.ts`, `genehub-client.ts`, `useGeneHubRuntime.ts` |
 | **V6.5** | **GeneHub Hermes Skill Sync**：`system/info.genehub` 连接发现、device/profile 注册、Bundle 安装/更新/卸载、状态回传；`window.genehubRuntime`；Local Hermes 左导航 `skillCenter` | `prd/v6.5_genehub-hermes-skill-sync.md`, `src/main/genehub/*`, `src/shared/genehub/*`, `screens/Hermes/pages/GeneHub/*` |
 | **V6.4** | **MCP Skill Gateway Desktop Runtime**：本地 Proxy `:48742` → nodeskclaw `/api/v1/hermes/mcp`；Bearer 仅 Proxy 注入；Hermes `mcp_servers.mcp_skill_gateway` 注册；`window.mcpSkillGatewayRuntime` | `prd/v6.4_mcp-skill-gateway-desktop.md`, `src/main/mcp-skill-gateway-runtime/*`, `src/shared/mcp-skill-gateway-runtime/*`, `screens/Hermes/pages/McpGateway/*` |
 | **V6.4.1 Hotfix** | **MCP Gateway 联调**：`system/info` descriptor、Proxy auto-initialize、`/admin/config` + 增强 health/debug、`mcp:sync-tools` 结构化错误、tools 缓存、McpGateway 状态卡片 | `prd/v6.4.1_hotfix_mcp-backend-desktop.md`, `mcp-backend-descriptor.ts`, `mcp-skill-gateway-proxy.ts`, `mcp-tool-sync-service.ts`, `HermesMcpGatewayPage.tsx` |

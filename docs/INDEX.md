@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC-Copilot |
 | **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
-| **版本** | 0.3.6（… + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| **版本** | 0.3.6（… + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -191,12 +191,22 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Proxy 增强**：`/admin/config`、`/debug/probe`、auto-initialize、分项 `/health`
 - **缓存**：`~/.hermes/desktop/mcp-tools-cache.json`
 
+**V6.5.1 Hotfix（GeneHub Skill Center 连接，PRD `prd/v6.5.1_hotfix_genehub-skill-center-connection.md`）**：
+- **P0**：`contextBridge.exposeInMainWorld("genehubRuntime", …)`；`useGeneHubRuntime` 兜底
+- **API 对齐**（`team_v3.4.1`）：`desktop_device_id`（device/profile/heartbeat）、`job_type`、后端 `slug/version/permissions[]`/`installed_status` 映射；Bundle `files` 数组/dict 双格式
+- **状态**：删除向服务端回传 `claimed`；descriptor/health 可读错误文案
+
 **V6.5（GeneHub Hermes Skill Sync，PRD `prd/v6.5_genehub-hermes-skill-sync.md`）**：
 - **角色**：Desktop 为企业 GeneHub 本地安装执行器（拉取授权 Skill / 安装任务 → Bundle 校验写入 → 状态回传）；**无**上传/发布/审核
 - **连接**：`GET /api/v1/system/info` → `genehub` descriptor；`genehub:get-connection` / `probe-connection`
 - **Main**：`src/main/genehub/*`；本地 installed 元数据 `{hermesHome}/genehub/installed/`；安装日志 `userData/genehub/install-logs.jsonl`
 - **Preload**：`window.genehubRuntime`；IPC `genehub:*` 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § GeneHub Runtime
 - **UI**：Local Hermes 左导航 `skillCenter` → `pages/GeneHub/GeneHubSkillCenterPage.tsx`（可安装 / 已安装 / 待安装 / 日志）
+
+**V6.6（MCP Skill Gateway E2E，PRD `prd/v6.6_mcp-skill-gateway-e2e.md`）**：
+- **链路**：Desktop 本地 Proxy → nodeskclaw `/api/v1/hermes/mcp` → `tools/list` / `tools/call` → Hermes `mcp_servers.mcp_skill_gateway`
+- **新增 IPC**：`run-diagnostics`、`list-remote-tools`、`invoke-remote-tool`；工具缓存 `~/.hermes/desktop/mcp-skill-gateway-tools.json`（TTL 60s）
+- **UI**：`HermesMcpGatewayPage` — 一键诊断、MCP Tools Preview、Invoke Test（v6.6 仅只读工具）
 
 **V5.7.8（MainLayout 全局 Overlay + Native Layer Gate，PRD `prd/v5.7.8_main_layout.md`）**：
 - **OverlayProvider** / **DialogLayer** / **DrawerLayer** / **NativeShellLayerGate** — 统一管理阻塞型 Dialog/Drawer；`nativeBlocked` 驱动 `WebContentsHost.effectiveEnabled`

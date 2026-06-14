@@ -2,6 +2,7 @@ import { ipcRenderer } from "electron";
 import type {
   McpSkillGatewayRuntimeAPI,
   McpSkillGatewayRuntimeConfig,
+  McpGatewayInvokeTestInput,
 } from "../shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract";
 
 export const mcpSkillGatewayRuntimeApi: McpSkillGatewayRuntimeAPI = {
@@ -22,4 +23,9 @@ export const mcpSkillGatewayRuntimeApi: McpSkillGatewayRuntimeAPI = {
     ipcRenderer.invoke("mcp-skill-gateway-runtime:list-profile-registrations"),
   readProxyLogs: (lines?: number) =>
     ipcRenderer.invoke("mcp-skill-gateway-runtime:read-proxy-logs", lines),
+  runDiagnostics: () => ipcRenderer.invoke("mcp-skill-gateway-runtime:run-diagnostics"),
+  listRemoteTools: (forceRefresh?: boolean) =>
+    ipcRenderer.invoke("mcp-skill-gateway-runtime:list-remote-tools", forceRefresh),
+  invokeRemoteTool: (input: McpGatewayInvokeTestInput) =>
+    ipcRenderer.invoke("mcp-skill-gateway-runtime:invoke-remote-tool", input),
 };

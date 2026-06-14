@@ -8,38 +8,72 @@ const DEFAULT_GATEWAY_PORT = 8642;
 
 export function resolveHermesProfiles(): HermesProfileDto[] {
   const profiles = listProfiles();
-  if (profiles.length === 0) {
-    const home = profileHome("default");
-    if (!existsSync(home)) {
-      throw new GeneHubError("HERMES_HOME_NOT_FOUND", `Hermes home not found: ${home}`);
-    }
-    return [buildProfileDto("default", "default", home)];
+  const records = listProfiles();
+  const result: HermesProfileDto[] = [];
+  const defaultRecord = records.find((p) => p.name === "default");
+  const defaultHome = defaultRecord?.profile_home || profileHome("default");
+
+  if (existsSync(defaultHome)) {
+    result.push(
+      buildProfileDto(
+        defaultRecord?.id ?? "default",
+        "default",
+        defaultHome,
+      ),
+    );
   }
 
-  return profiles.map((profile) => {
-    const name = profile.name;
-    const home = profileHome(name === "default" ? undefined : name);
-    return buildProfileDto(profile.id, name, home);
-  });
+  for (const record of records) {
+    if (record.name === "default") continue;
+
+    const home = record.profile_home || profileHome(record.name);
+
+    if (!existsSync(home)) {
+      console.warn("[GENEHUB] skip missing Hermes profile home:", {
+        profile: record.name,
+        home,
+      });
+      continue;
+    }
+
+    result.push(buildProfileDto(record.id, record.name, home));
+  }
+
+  if (result.length === 0) {
+    throw new GeneHubError(
+      "HERMES_HOME_NOT_FOUND",
+      `Hermes home not found: ${defaultHome}`,
+    );
+  }
+
+  return result;
+
 }
 
 export function resolveHermesProfile(profileIdOrName?: string): HermesProfileDto {
   const profiles = resolveHermesProfiles();
+
+
   if (!profileIdOrName) {
-    const fallback = profiles.find((p) => p.profileName === "default") ?? profiles[0];
-    if (!fallback) {
-      throw new GeneHubError("HERMES_HOME_NOT_FOUND", "No Hermes profile available");
-    }
-    return fallback;
+    const fallback = profiles.find((p) => p.profileName === "default");
+    if (fallback) return fallback;
+
+    if (profiles[0]) return profiles[0];
+
+    throw new GeneHubError("HERMES_HOME_NOT_FOUND", "No Hermes profile available");
   }
 
   const match =
     profiles.find((p) => p.profileId === profileIdOrName) ??
     profiles.find((p) => p.profileName === profileIdOrName);
+
   if (!match) {
     throw new GeneHubError("HERMES_HOME_NOT_FOUND", `Hermes profile not found: ${profileIdOrName}`);
   }
+
   return match;
+
+
 }
 
 function buildProfileDto(

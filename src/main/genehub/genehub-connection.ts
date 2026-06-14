@@ -1,4 +1,5 @@
 import type { GeneHubConnection, GeneHubConnectionStatus } from "../../shared/genehub/genehub-contract";
+import type { GeneHubErrorCode } from "../../shared/genehub/genehub-errors";
 import { resolveBackendBaseUrl } from "../mcp-skill-gateway-runtime/mcp-skill-gateway-config";
 import {
   fetchGeneHubDescriptor,
@@ -58,6 +59,25 @@ async function probeGeneHubHealth(
       detail: err instanceof Error ? err.message : "unreachable",
     };
   }
+}
+
+function formatConnectionLastError(input: {
+  loggedIn: boolean;
+  descriptorOk: boolean;
+  errorCode?: GeneHubErrorCode;
+  healthDetail: string;
+  rawMessage: string | null;
+}): string | null {
+  if (!input.loggedIn && input.descriptorOk) {
+    return "Desktop login required.";
+  }
+  if (input.errorCode === "GENEHUB_DESCRIPTOR_MISSING") {
+    return "GeneHub descriptor missing. Please update nodeskclaw backend.";
+  }
+  if (input.healthDetail === "http_404") {
+    return "GeneHub health endpoint not found. Please update nodeskclaw backend.";
+  }
+  return input.rawMessage;
 }
 
 function resolveConnectionStatus(input: {
@@ -132,11 +152,23 @@ export async function buildGeneHubConnection(forceRefresh = false): Promise<Gene
     backendConfigured: Boolean(backendBaseUrl),
   });
 
-  const lastError = descriptorResult.ok
+  const rawLastError = descriptorResult.ok
     ? healthOk
       ? null
       : `GeneHub health check failed: ${healthDetail}`
     : descriptorResult.error?.message ?? "GeneHub descriptor unavailable";
+
+  const errorCode = descriptorResult.error
+    ? mapDescriptorErrorToGeneHubCode(descriptorResult.error.code)
+    : undefined;
+
+  const lastError = formatConnectionLastError({
+    loggedIn: auth.authenticated,
+    descriptorOk: descriptorResult.ok,
+    errorCode,
+    healthDetail,
+    rawMessage: rawLastError,
+  });
 
   return {
     ok: status === "connected",
@@ -151,9 +183,7 @@ export async function buildGeneHubConnection(forceRefresh = false): Promise<Gene
     healthDetail,
     userDisplayName: auth.userDisplayName,
     lastError,
-    errorCode: descriptorResult.error
-      ? mapDescriptorErrorToGeneHubCode(descriptorResult.error.code)
-      : undefined,
+    errorCode,
     initialized,
     lastSyncAt,
   };

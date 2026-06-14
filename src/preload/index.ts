@@ -897,6 +897,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("hermesDefaultChat", hermesDefaultChatApi);
     contextBridge.exposeInMainWorld("webOperatorTaskSession", webOperatorTaskSessionApi);
     contextBridge.exposeInMainWorld("mcpSkillGatewayRuntime", mcpSkillGatewayRuntimeApi);
+    contextBridge.exposeInMainWorld("genehubRuntime", genehubRuntimeApi);
   } catch (error) {
     console.error(error);
   }

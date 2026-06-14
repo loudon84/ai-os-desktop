@@ -74,4 +74,12 @@ describe("skill-install-worker", () => {
     expect(genehubClient.updateJobStatus).toHaveBeenCalled();
     expect(genehubClient.syncInstalledSkills).toHaveBeenCalled();
   });
+
+  it("does not report claimed status to backend", async () => {
+    await runInstallJob("job_1");
+    const statuses = vi
+      .mocked(genehubClient.updateJobStatus)
+      .mock.calls.map((call) => call[1].status);
+    expect(statuses).not.toContain("claimed");
+  });
 });

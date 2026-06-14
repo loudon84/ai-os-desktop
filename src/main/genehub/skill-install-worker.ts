@@ -39,7 +39,13 @@ export async function runInstallJob(jobId: string): Promise<void> {
   try {
     job = await genehubClient.claimJob(jobId);
     geneSlug = job.geneSlug;
-    await reportStatus(jobId, geneSlug, "claimed", "claim");
+    appendInstallLog({
+      jobId,
+      geneSlug,
+      step: "claim",
+      status: "info",
+      message: "claim",
+    });
 
     await reportStatus(jobId, geneSlug, "downloading", "download_start");
     const bundle = await genehubClient.downloadBundle(jobId);

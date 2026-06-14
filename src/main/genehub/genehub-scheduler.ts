@@ -1,3 +1,4 @@
+import type { HermesProfileDto } from "../../shared/genehub/genehub-contract";
 import { getRuntimeInstance } from "../profile-runtime-db";
 import { getDeviceIdentity } from "./device-identity";
 import { resolveHermesProfiles } from "./hermes-profile-resolver";
@@ -8,11 +9,18 @@ import { listInstalledSkillRecords } from "./installed-skill-store";
 import { runInstallJob } from "./skill-install-worker";
 import { isGeneHubError } from "../../shared/genehub/genehub-errors";
 import type { GeneHubInitializeResult } from "../../shared/genehub/genehub-contract";
+import {
+  clearGeneHubSession,
+  getGeneHubDesktopDeviceId,
+  resolveGeneHubServerProfileId,
+  setGeneHubDesktopDeviceId,
+  setGeneHubServerProfileId,
+} from "./genehub-session";
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let pendingJobsTimer: ReturnType<typeof setInterval> | null = null;
 
-export function stopGeneHubScheduler(): void {
+function clearGeneHubTimers(): void {
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
@@ -21,7 +29,12 @@ export function stopGeneHubScheduler(): void {
     clearInterval(pendingJobsTimer);
     pendingJobsTimer = null;
   }
+}
+
+export function stopGeneHubScheduler(): void {
+  clearGeneHubTimers();
   markGeneHubUninitialized();
+  clearGeneHubSession();
 }
 
 export async function initializeGeneHub(): Promise<GeneHubInitializeResult> {
@@ -32,21 +45,27 @@ export async function initializeGeneHub(): Promise<GeneHubInitializeResult> {
 
   try {
     const identity = getDeviceIdentity();
-    await genehubClient.registerDevice(identity);
+    const { deviceId } = await genehubClient.registerDevice(identity);
+    setGeneHubDesktopDeviceId(deviceId);
 
     const profiles = resolveHermesProfiles();
     let profilesRegistered = 0;
     for (const profile of profiles) {
-      await genehubClient.registerHermesProfile(profile);
+      const { profileId: serverProfileId } = await genehubClient.registerHermesProfile({
+        ...profile,
+        desktopDeviceId: deviceId,
+      });
+      setGeneHubServerProfileId(profile.profileId, serverProfileId);
+      setGeneHubServerProfileId(profile.profileName, serverProfileId);
       profilesRegistered += 1;
     }
 
-    await sendHeartbeat(identity.deviceFingerprint, profiles.map((p) => p.profileId));
+    await sendHeartbeat(deviceId, profiles);
 
     let syncedProfiles = 0;
     for (const profile of profiles) {
       await genehubClient.syncInstalledSkills({
-        profileId: profile.profileId,
+        profileId: resolveGeneHubServerProfileId(profile),
         skills: listInstalledSkillRecords(profile.hermesHome),
       });
       syncedProfiles += 1;
@@ -70,16 +89,17 @@ export async function initializeGeneHub(): Promise<GeneHubInitializeResult> {
   }
 }
 
-async function sendHeartbeat(deviceFingerprint: string, profileIds: string[]): Promise<void> {
-  const profiles = profileIds.map((profileId) => {
-    const runtime = getRuntimeInstance(profileId);
+async function sendHeartbeat(deviceId: string, profiles: HermesProfileDto[]): Promise<void> {
+  const heartbeatProfiles = profiles.map((profile) => {
+    const runtime = getRuntimeInstance(profile.profileId);
     return {
-      profileId,
-      status: runtime?.status ?? "unknown",
+      profileId: resolveGeneHubServerProfileId(profile),
+      profileName: profile.profileName,
+      status: runtime?.status ?? "active",
     };
   });
 
-  const result = await genehubClient.heartbeat({ deviceFingerprint, profiles });
+  const result = await genehubClient.heartbeat({ deviceId, profiles: heartbeatProfiles });
   if (result.serverConfig) {
     const syncSeconds = Number(result.serverConfig.sync_interval_seconds ?? result.serverConfig.syncIntervalSeconds);
     const pendingSeconds = Number(
@@ -95,20 +115,17 @@ async function sendHeartbeat(deviceFingerprint: string, profileIds: string[]): P
 }
 
 export function startGeneHubScheduler(): void {
-  stopGeneHubScheduler();
+  clearGeneHubTimers();
   const config = getGeneHubConfig();
   if (!config.enabled) return;
-
-  const identity = getDeviceIdentity();
 
   heartbeatTimer = setInterval(() => {
     void (async () => {
       try {
+        const deviceId = getGeneHubDesktopDeviceId();
+        if (!deviceId) return;
         const profiles = resolveHermesProfiles();
-        await sendHeartbeat(
-          identity.deviceFingerprint,
-          profiles.map((p) => p.profileId),
-        );
+        await sendHeartbeat(deviceId, profiles);
       } catch (err) {
         console.warn("[GENEHUB] heartbeat failed:", err);
       }
@@ -124,7 +141,8 @@ async function pollPendingJobs(autoInstall: boolean): Promise<void> {
   try {
     const profiles = resolveHermesProfiles();
     for (const profile of profiles) {
-      const jobs = await genehubClient.listPendingJobs(profile.profileId);
+      const serverProfileId = resolveGeneHubServerProfileId(profile);
+      const jobs = await genehubClient.listPendingJobs(serverProfileId);
       if (!autoInstall) continue;
       for (const job of jobs) {
         try {

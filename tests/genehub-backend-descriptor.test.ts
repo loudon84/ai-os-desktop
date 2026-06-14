@@ -31,6 +31,7 @@ describe("genehub-backend-descriptor", () => {
     const result = await fetchGeneHubDescriptor(true);
     expect(result.ok).toBe(false);
     expect(result.error?.code).toBe("GENEHUB_DESCRIPTOR_MISSING");
+    expect(result.error?.message).toContain("team_v3.4.1");
   });
 
   it("builds apiBaseUrl from system/info genehub block", async () => {

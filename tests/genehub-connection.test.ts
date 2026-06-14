@@ -51,5 +51,20 @@ describe("genehub-connection", () => {
     const connection = await buildGeneHubConnection(true);
     expect(connection.status).toBe("unauthorized");
     expect(connection.loggedIn).toBe(false);
+    expect(connection.lastError).toBe("Desktop login required.");
+  });
+
+  it("shows descriptor missing message when backend not upgraded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ mcp: { enabled: true } }),
+      })) as typeof fetch,
+    );
+
+    const connection = await buildGeneHubConnection(true);
+    expect(connection.errorCode).toBe("GENEHUB_DESCRIPTOR_MISSING");
+    expect(connection.lastError).toContain("GeneHub descriptor missing");
   });
 });

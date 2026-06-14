@@ -1,7 +1,7 @@
 import type {
   GeneHubBundle,
   GeneHubSkill,
-  HermesProfileDto,
+  HermesProfileRegisterInput,
   InstallJob,
   InstallJobAction,
   InstalledSkillRecord,
@@ -29,17 +29,27 @@ async function requireDescriptor() {
   return result.descriptor;
 }
 
-function mapSkill(raw: Record<string, unknown>): GeneHubSkill {
-  const permissions = (raw.permissions as Record<string, boolean> | undefined) ?? {};
+export function mapGeneHubSkill(raw: Record<string, unknown>): GeneHubSkill {
+  const permissionsList = Array.isArray(raw.permissions)
+    ? raw.permissions.map(String)
+    : [];
+
+  const permissionsObj =
+    raw.permissions && !Array.isArray(raw.permissions)
+      ? (raw.permissions as Record<string, unknown>)
+      : {};
+
+  const installedStatus = String(raw.installed_status ?? raw.installedStatus ?? "");
+
   return {
-    geneSlug: String(raw.gene_slug ?? raw.geneSlug ?? ""),
-    geneVersion: String(raw.gene_version ?? raw.geneVersion ?? ""),
-    skillName: String(raw.skill_name ?? raw.skillName ?? raw.gene_slug ?? ""),
-    displayName: String(raw.display_name ?? raw.displayName ?? raw.skill_name ?? ""),
-    description: String(raw.description ?? ""),
+    geneSlug: String(raw.gene_slug ?? raw.geneSlug ?? raw.slug ?? ""),
+    geneVersion: String(raw.gene_version ?? raw.geneVersion ?? raw.version ?? ""),
+    skillName: String(raw.skill_name ?? raw.skillName ?? raw.slug ?? ""),
+    displayName: String(raw.display_name ?? raw.displayName ?? raw.name ?? raw.slug ?? ""),
+    description: String(raw.description ?? raw.short_description ?? ""),
     category: raw.category ? String(raw.category) : undefined,
-    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : undefined,
-    installed: Boolean(raw.installed),
+    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+    installed: Boolean(raw.installed ?? installedStatus === "installed"),
     installedVersion: raw.installed_version
       ? String(raw.installed_version)
       : raw.installedVersion
@@ -47,21 +57,27 @@ function mapSkill(raw: Record<string, unknown>): GeneHubSkill {
         : undefined,
     updateAvailable: Boolean(raw.update_available ?? raw.updateAvailable),
     permissions: {
-      canInstall: Boolean(permissions.can_install ?? permissions.canInstall ?? true),
-      canUpdate: Boolean(permissions.can_update ?? permissions.canUpdate ?? false),
-      canUninstall: Boolean(permissions.can_uninstall ?? permissions.canUninstall ?? false),
+      canInstall:
+        permissionsList.includes("install") ||
+        Boolean(permissionsObj.can_install ?? permissionsObj.canInstall),
+      canUpdate:
+        permissionsList.includes("update") ||
+        Boolean(permissionsObj.can_update ?? permissionsObj.canUpdate),
+      canUninstall:
+        permissionsList.includes("uninstall") ||
+        Boolean(permissionsObj.can_uninstall ?? permissionsObj.canUninstall),
     },
   };
 }
 
-function mapJob(raw: Record<string, unknown>): InstallJob {
+export function mapGeneHubJob(raw: Record<string, unknown>): InstallJob {
   return {
     jobId: String(raw.job_id ?? raw.jobId ?? raw.id ?? ""),
     profileId: String(raw.profile_id ?? raw.profileId ?? ""),
     geneSlug: String(raw.gene_slug ?? raw.geneSlug ?? ""),
     geneVersion: String(raw.gene_version ?? raw.geneVersion ?? ""),
     skillName: String(raw.skill_name ?? raw.skillName ?? ""),
-    action: String(raw.action ?? "install") as InstallJobAction,
+    action: String(raw.action ?? raw.job_type ?? raw.jobType ?? "install") as InstallJobAction,
     status: String(raw.status ?? "pending") as InstallJob["status"],
     assignedAt: raw.assigned_at ? String(raw.assigned_at) : undefined,
     claimedAt: raw.claimed_at ? String(raw.claimed_at) : undefined,
@@ -70,16 +86,39 @@ function mapJob(raw: Record<string, unknown>): InstallJob {
   };
 }
 
+export function normalizeGeneHubBundleFiles(input: unknown): Array<{
+  relativePath: string;
+  content: string;
+  encoding: "utf-8" | "base64";
+}> {
+  if (Array.isArray(input)) {
+    return input.map((f) => ({
+      relativePath: String(
+        (f as Record<string, unknown>).relative_path ??
+          (f as Record<string, unknown>).relativePath ??
+          "",
+      ),
+      content: String((f as Record<string, unknown>).content ?? ""),
+      encoding:
+        ((f as Record<string, unknown>).encoding as "utf-8" | "base64" | undefined) ?? "utf-8",
+    }));
+  }
+
+  if (input && typeof input === "object") {
+    return Object.entries(input as Record<string, unknown>).map(([relativePath, content]) => ({
+      relativePath,
+      content: String(content ?? ""),
+      encoding: "utf-8" as const,
+    }));
+  }
+
+  return [];
+}
+
 function mapBundle(raw: Record<string, unknown>, jobId: string): GeneHubBundle {
   const manifestRaw = (raw.manifest as Record<string, unknown> | undefined) ?? {};
-  const filesRaw = Array.isArray(raw.files) ? raw.files : [];
-  const scriptsRaw = Array.isArray(raw.scripts) ? raw.scripts : [];
-
-  const mapFile = (f: Record<string, unknown>) => ({
-    relativePath: String(f.relative_path ?? f.relativePath ?? ""),
-    content: String(f.content ?? ""),
-    encoding: (f.encoding as "utf-8" | "base64" | undefined) ?? "utf-8",
-  });
+  const files = normalizeGeneHubBundleFiles(raw.files);
+  const scripts = normalizeGeneHubBundleFiles(raw.scripts);
 
   return {
     jobId,
@@ -100,10 +139,8 @@ function mapBundle(raw: Record<string, unknown>, jobId: string): GeneHubBundle {
       signature: manifestRaw.signature ? String(manifestRaw.signature) : undefined,
       compatibility: manifestRaw.compatibility as GeneHubBundle["manifest"]["compatibility"],
     },
-    files: filesRaw.map((f) => mapFile(f as Record<string, unknown>)),
-    scripts: scriptsRaw.length
-      ? scriptsRaw.map((f) => mapFile(f as Record<string, unknown>))
-      : undefined,
+    files,
+    scripts: scripts.length ? scripts : undefined,
   };
 }
 
@@ -132,14 +169,14 @@ export async function registerDevice(
 }
 
 export async function registerHermesProfile(
-  profile: HermesProfileDto,
+  profile: HermesProfileRegisterInput,
 ): Promise<{ profileId: string }> {
   const descriptor = await requireDescriptor();
   try {
     const data = await genehubFetch<Record<string, unknown>>(descriptor, "/hermes/profiles/register", {
       method: "POST",
       body: {
-        profile_id: profile.profileId,
+        desktop_device_id: profile.desktopDeviceId,
         profile_name: profile.profileName,
         hermes_home: profile.hermesHome,
         gateway_url: profile.gatewayUrl,
@@ -158,16 +195,17 @@ export async function registerHermesProfile(
 }
 
 export async function heartbeat(payload: {
-  deviceFingerprint: string;
-  profiles: Array<{ profileId: string; status: string }>;
+  deviceId: string;
+  profiles: Array<{ profileId: string; profileName: string; status: string }>;
 }): Promise<{ ok: boolean; serverConfig?: Record<string, unknown> }> {
   const descriptor = await requireDescriptor();
   const data = await genehubFetch<Record<string, unknown>>(descriptor, "/heartbeat", {
     method: "POST",
     body: {
-      device_fingerprint: payload.deviceFingerprint,
+      desktop_device_id: payload.deviceId,
       profiles: payload.profiles.map((p) => ({
         profile_id: p.profileId,
+        profile_name: p.profileName,
         status: p.status,
       })),
     },
@@ -185,13 +223,14 @@ export async function listAuthorizedSkills(profileId: string): Promise<GeneHubSk
     `/genehub/skills?profile_id=${encodeURIComponent(profileId)}`,
   );
   const list = Array.isArray(data) ? data : (data.skills ?? []);
-  return list.map((item) => mapSkill(item as Record<string, unknown>));
+  return list.map((item) => mapGeneHubSkill(item as Record<string, unknown>));
 }
 
 export async function createInstallJob(input: {
   profileId: string;
   geneSlug: string;
   action: InstallJobAction;
+  version?: string;
 }): Promise<InstallJob> {
   const descriptor = await requireDescriptor();
   const data = await genehubFetch<Record<string, unknown>>(descriptor, "/hermes/install-jobs", {
@@ -199,10 +238,11 @@ export async function createInstallJob(input: {
     body: {
       profile_id: input.profileId,
       gene_slug: input.geneSlug,
-      action: input.action,
+      version: input.version ?? "latest",
+      job_type: input.action,
     },
   });
-  return mapJob(data);
+  return mapGeneHubJob(data);
 }
 
 export async function listPendingJobs(profileId: string): Promise<InstallJob[]> {
@@ -212,7 +252,7 @@ export async function listPendingJobs(profileId: string): Promise<InstallJob[]> 
     `/hermes/install-jobs/pending?profile_id=${encodeURIComponent(profileId)}`,
   );
   const list = Array.isArray(data) ? data : (data.jobs ?? []);
-  return list.map((item) => mapJob(item as Record<string, unknown>));
+  return list.map((item) => mapGeneHubJob(item as Record<string, unknown>));
 }
 
 export async function claimJob(jobId: string): Promise<InstallJob> {
@@ -222,7 +262,7 @@ export async function claimJob(jobId: string): Promise<InstallJob> {
     `/hermes/install-jobs/${encodeURIComponent(jobId)}/claim`,
     { method: "POST", body: {} },
   );
-  return mapJob(data);
+  return mapGeneHubJob(data);
 }
 
 export async function downloadBundle(jobId: string): Promise<GeneHubBundle> {
