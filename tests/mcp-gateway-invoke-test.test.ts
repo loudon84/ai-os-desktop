@@ -16,13 +16,17 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-log", () => ({
 }));
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-tools-cache", () => ({
-  isReadOnlyMcpTool: vi.fn((name: string) =>
-    ["hermes.instances.list", "hermes.instance.status", "hermes.skills.list"].includes(name),
-  ),
+  inferToolPermission: vi.fn((name: string) => {
+    if (["hermes.instances.list", "hermes.instance.status", "hermes.skills.list"].includes(name)) {
+      return "read";
+    }
+    if (name.startsWith("hermes.skills.install")) return "write";
+    return "admin";
+  }),
 }));
 
 import { invokeRemoteMcpTool } from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-invoke-test";
-import { isReadOnlyMcpTool } from "../src/main/mcp-skill-gateway-runtime/mcp-tools-cache";
+import { inferToolPermission } from "../src/main/mcp-skill-gateway-runtime/mcp-tools-cache";
 
 describe("invokeRemoteMcpTool", () => {
   beforeEach(() => {
@@ -30,19 +34,31 @@ describe("invokeRemoteMcpTool", () => {
     vi.stubGlobal("fetch", mockFetch);
   });
 
-  it("blocks non-read tools", async () => {
-    vi.mocked(isReadOnlyMcpTool).mockReturnValue(false);
+  it("blocks non-read tools with MCP_OP_TOOL_PERMISSION_DENIED", async () => {
+    vi.mocked(inferToolPermission).mockReturnValue("write");
     const result = await invokeRemoteMcpTool({
       toolName: "hermes.skills.install_builtin",
-      input: {},
+      arguments: {},
     });
     expect(result.ok).toBe(false);
-    expect(result.errorCode).toBe("MCP_DIAG_TOOL_CALL_FAILED");
+    expect(result.errorCode).toBe("MCP_OP_TOOL_PERMISSION_DENIED");
+    expect(result.toolName).toBe("hermes.skills.install_builtin");
+    expect(result.permission).toBe("write");
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("calls proxy for read-only tool", async () => {
-    vi.mocked(isReadOnlyMcpTool).mockReturnValue(true);
+  it("rejects invalid JSON arguments shape", async () => {
+    const result = await invokeRemoteMcpTool({
+      toolName: "hermes.skills.list",
+      arguments: [] as unknown as Record<string, unknown>,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("MCP_OP_INVALID_JSON_ARGUMENTS");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("calls proxy for read-only tool with arguments field", async () => {
+    vi.mocked(inferToolPermission).mockReturnValue("read");
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ result: { skills: [] } }),
@@ -50,14 +66,33 @@ describe("invokeRemoteMcpTool", () => {
 
     const result = await invokeRemoteMcpTool({
       toolName: "hermes.skills.list",
-      input: { instance_ref: "zhang-zhen" },
+      arguments: { instance_ref: "zhang-zhen" },
     });
 
     expect(result.ok).toBe(true);
+    expect(result.toolName).toBe("hermes.skills.list");
+    expect(result.permission).toBe("read");
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
     expect(mockFetch).toHaveBeenCalledWith(
       "http://127.0.0.1:48742/mcp",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("truncates large results at 256KB", async () => {
+    vi.mocked(inferToolPermission).mockReturnValue("read");
+    const bigPayload = "x".repeat(300_000);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ result: { data: bigPayload } }),
+    } as Response);
+
+    const result = await invokeRemoteMcpTool({
+      toolName: "hermes.skills.list",
+      input: {},
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.resultTruncated).toBe(true);
   });
 });

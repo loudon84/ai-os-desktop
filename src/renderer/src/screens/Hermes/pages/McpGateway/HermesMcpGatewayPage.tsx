@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HERMES_DEFAULT_PROFILE } from "../../constants";
 import { useMcpSkillGatewayRuntime } from "../../hooks/useMcpSkillGatewayRuntime";
-import { McpGatewayDiagnosticsSection } from "./McpGatewayDiagnosticsSection";
-import { McpGatewayInvokeTestSection } from "./McpGatewayInvokeTestSection";
-import { McpGatewayToolsPreviewSection } from "./McpGatewayToolsPreviewSection";
+import { McpGatewayDiagnosticsPanel } from "./McpGatewayDiagnosticsPanel";
+import { McpGatewayInvokeTestPanel } from "./McpGatewayInvokeTestPanel";
+import { McpGatewayLogsPanel } from "./McpGatewayLogsPanel";
+import { McpGatewayRegistrationPanel } from "./McpGatewayRegistrationPanel";
+import { McpGatewayToolsPreview } from "./McpGatewayToolsPreview";
 
 function proxyBadgeClass(status: string): string {
   if (status === "running") return "hermes-badge hermes-badge--running";
@@ -13,10 +15,6 @@ function proxyBadgeClass(status: string): string {
     return "hermes-badge hermes-badge--starting";
   }
   return "hermes-badge hermes-badge--stopped";
-}
-
-function readyBadgeClass(ready: boolean): string {
-  return ready ? "hermes-mcp-badge is-ok" : "hermes-mcp-badge is-error";
 }
 
 type InfoRowProps = {
@@ -58,7 +56,7 @@ export default function HermesMcpGatewayPage() {
     status,
     config,
     registrations,
-    logs,
+    structuredLogs,
     loading,
     error,
     actionPending,
@@ -74,16 +72,21 @@ export default function HermesMcpGatewayPage() {
     runDiagnostics,
     listRemoteTools,
     invokeRemoteTool,
+    copyDiagnosticsReport,
+    loadStructuredLogs,
     diagnosticsResult,
     remoteTools,
     invokeResult,
     toolsLoading,
+    logsLoading,
   } = useMcpSkillGatewayRuntime();
   const [authState, setAuthState] = useState<Awaited<
     ReturnType<typeof window.desktopAuth.getState>
   > | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [restartBannerDismissed, setRestartBannerDismissed] = useState(false);
+  const [restartPending, setRestartPending] = useState(false);
 
   const loadAuth = useCallback(async () => {
     const state = await window.desktopAuth.getState();
@@ -101,12 +104,14 @@ export default function HermesMcpGatewayPage() {
   }, [status?.loggedIn, status?.proxyStatus, listRemoteTools]);
 
   const handleInvokeTest = useCallback(
-    (toolName: string, instanceRef: string) => {
-      const input: Record<string, unknown> = {};
-      if (instanceRef) {
-        input.instance_ref = instanceRef;
+    (toolName: string, argsJson: string) => {
+      let args: Record<string, unknown> = {};
+      try {
+        args = JSON.parse(argsJson || "{}") as Record<string, unknown>;
+      } catch {
+        return;
       }
-      void invokeRemoteTool({ toolName, input });
+      void invokeRemoteTool({ toolName, arguments: args });
     },
     [invokeRemoteTool],
   );
@@ -122,6 +127,25 @@ export default function HermesMcpGatewayPage() {
     if (defaultRegistration && !defaultRegistration.ready) return false;
     return true;
   }, [authBackendUrl, defaultRegistration, status?.backendBaseUrl, status?.loggedIn]);
+
+  const hermesRestartRequired = Boolean(
+    status?.hermesRestartRequired ?? diagnosticsResult?.hermesRestartRequired,
+  );
+  const showRestartBanner = hermesRestartRequired && !restartBannerDismissed;
+
+  const handleRestartGateway = useCallback(async () => {
+    setRestartPending(true);
+    try {
+      await window.hermesAPI.stopGateway();
+      await window.hermesAPI.startGateway();
+      setRestartBannerDismissed(true);
+      await refresh();
+    } catch (err) {
+      setSyncMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRestartPending(false);
+    }
+  }, [refresh]);
 
   const openManagementPage = useCallback(
     async (routeKey: "skills" | "mcp" | "instances") => {
@@ -186,6 +210,31 @@ export default function HermesMcpGatewayPage() {
       {error ? <p className="hermes-page__error">{error}</p> : null}
       {syncMessage ? <p className="hermes-muted">{syncMessage}</p> : null}
 
+      {showRestartBanner ? (
+        <div className="hermes-mcp-gateway-restart-banner" role="alert">
+          <p>{t("workspaces.hermes.mcpGateway.restartBannerMessage")}</p>
+          <div className="hermes-mcp-gateway-section__actions">
+            <button
+              type="button"
+              className="hermes-btn-ghost"
+              onClick={() => setRestartBannerDismissed(true)}
+            >
+              {t("workspaces.hermes.mcpGateway.restartBannerLater")}
+            </button>
+            <button
+              type="button"
+              className="hermes-btn-primary"
+              disabled={restartPending}
+              onClick={() => void handleRestartGateway()}
+            >
+              {restartPending
+                ? t("workspaces.hermes.mcpGateway.restartBannerPending")
+                : t("workspaces.hermes.mcpGateway.restartBannerNow")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <section className="hermes-mcp-gateway-section hermes-mcp-gateway-status-card">
         <h3>{status?.gatewayName ?? t("workspaces.hermes.mcpGateway.gatewayCardTitle")}</h3>
         <InfoRow
@@ -210,7 +259,7 @@ export default function HermesMcpGatewayPage() {
         />
         <InfoRow
           label={t("workspaces.hermes.mcpGateway.hermesRestartRequired")}
-          value={yesNo(Boolean(status?.hermesRestartRequired ?? diagnosticsResult?.hermesRestartRequired))}
+          value={yesNo(hermesRestartRequired)}
         />
         <InfoRow
           label={t("workspaces.hermes.mcpGateway.gatewayLastSync")}
@@ -262,20 +311,22 @@ export default function HermesMcpGatewayPage() {
         ) : null}
       </section>
 
-      <McpGatewayDiagnosticsSection
+      <McpGatewayDiagnosticsPanel
         result={diagnosticsResult}
         pending={actionPending}
         onRun={() => void runDiagnostics()}
+        onCopyReport={() => void copyDiagnosticsReport()}
       />
 
-      <McpGatewayToolsPreviewSection
+      <McpGatewayToolsPreview
         tools={remoteTools}
         loading={toolsLoading}
         lastSyncAt={status?.lastSyncAt}
         onRefresh={() => void listRemoteTools(true)}
       />
 
-      <McpGatewayInvokeTestSection
+      <McpGatewayInvokeTestPanel
+        tools={remoteTools}
         pending={actionPending}
         result={invokeResult}
         onRun={handleInvokeTest}
@@ -390,78 +441,25 @@ export default function HermesMcpGatewayPage() {
         </section>
       </div>
 
-      <section className="hermes-mcp-gateway-section">
-        <div className="hermes-mcp-gateway-section__head">
-          <h3>{t("workspaces.hermes.mcpGateway.registrationSection")}</h3>
-          <button
-            type="button"
-            className="hermes-btn-primary"
-            disabled={actionPending}
-            onClick={() => void registerProfile(HERMES_DEFAULT_PROFILE)}
-          >
-            {t("workspaces.hermes.mcpGateway.registerDefault")}
-          </button>
-        </div>
-        {!consistencyReady ? (
-          <p className="hermes-page__error">{t("workspaces.hermes.mcpGateway.mismatchHint")}</p>
-        ) : null}
-        <ul className="hermes-mcp-gateway-reg-list">
-          {registrations.map((row) => (
-            <li key={row.profile} className="hermes-mcp-gateway-reg-card">
-              <div className="hermes-mcp-gateway-reg-card__head">
-                <strong>{row.profile}</strong>
-                <span className={readyBadgeClass(row.ready)}>
-                  {row.ready
-                    ? t("workspaces.hermes.mcpGateway.ready")
-                    : t("workspaces.hermes.mcpGateway.notReady")}
-                </span>
-              </div>
-              <InfoRow
-                label={t("workspaces.hermes.mcpGateway.registered")}
-                value={yesNo(row.registered)}
-              />
-              <InfoRow
-                label={t("workspaces.hermes.mcpGateway.enabled")}
-                value={yesNo(row.enabled)}
-              />
-              <InfoRow label="URL" value={<code>{row.url ?? "—"}</code>} />
-              <InfoRow
-                label={t("workspaces.hermes.mcpGateway.expectedUrl")}
-                value={<code>{row.expectedUrl}</code>}
-              />
-              <InfoRow
-                label={t("workspaces.hermes.mcpGateway.urlMatched")}
-                value={yesNo(row.urlMatched)}
-              />
-              <InfoRow
-                label={t("workspaces.hermes.mcpGateway.backendMatched")}
-                value={yesNo(row.backendMatched)}
-              />
-              <p className="hermes-muted hermes-mcp-gateway-reg-card__path">
-                <code>{row.configPath}</code>
-              </p>
-              <div className="hermes-mcp-gateway-reg-card__actions">
-                <button
-                  type="button"
-                  className="hermes-btn-ghost"
-                  disabled={actionPending}
-                  onClick={() => void registerProfile(row.profile)}
-                >
-                  {t("workspaces.hermes.mcpGateway.register")}
-                </button>
-                <button
-                  type="button"
-                  className="hermes-btn-ghost"
-                  disabled={actionPending}
-                  onClick={() => void unregisterProfile(row.profile)}
-                >
-                  {t("workspaces.hermes.mcpGateway.unregister")}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <McpGatewayRegistrationPanel
+        registrations={registrations}
+        hermesRestartRequired={hermesRestartRequired}
+        actionPending={actionPending}
+        consistencyReady={consistencyReady}
+        onRegister={(profile) => void registerProfile(profile)}
+        onUnregister={(profile) => void unregisterProfile(profile)}
+      />
+
+      <div className="hermes-mcp-gateway-section__actions">
+        <button
+          type="button"
+          className="hermes-btn-primary"
+          disabled={actionPending}
+          onClick={() => void registerProfile(HERMES_DEFAULT_PROFILE)}
+        >
+          {t("workspaces.hermes.mcpGateway.registerDefault")}
+        </button>
+      </div>
 
       <div className="hermes-mcp-gateway-grid">
         <section className="hermes-mcp-gateway-section">
@@ -540,12 +538,11 @@ export default function HermesMcpGatewayPage() {
         </div>
       </section>
 
-      <section className="hermes-mcp-gateway-section">
-        <h3>{t("workspaces.hermes.mcpGateway.logsSection")}</h3>
-        <pre className="hermes-panel-pre hermes-mcp-gateway-logs">
-          {logs || t("workspaces.hermes.mcpGateway.noLogs")}
-        </pre>
-      </section>
+      <McpGatewayLogsPanel
+        logs={structuredLogs}
+        loading={logsLoading}
+        onRefresh={() => void loadStructuredLogs()}
+      />
     </div>
   );
 }

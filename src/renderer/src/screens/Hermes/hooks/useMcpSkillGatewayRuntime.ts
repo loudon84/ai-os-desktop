@@ -3,6 +3,7 @@ import type {
   McpGatewayDiagnosticsResult,
   McpGatewayInvokeTestInput,
   McpGatewayInvokeTestResult,
+  McpGatewayProxyLogEntry,
   McpGatewayToolPreview,
   McpSkillGatewayProfileRegistration,
   McpSkillGatewayRuntimeConfig,
@@ -14,6 +15,7 @@ export function useMcpSkillGatewayRuntime() {
   const [config, setConfig] = useState<McpSkillGatewayRuntimeConfig | null>(null);
   const [registrations, setRegistrations] = useState<McpSkillGatewayProfileRegistration[]>([]);
   const [logs, setLogs] = useState("");
+  const [structuredLogs, setStructuredLogs] = useState<McpGatewayProxyLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
@@ -23,21 +25,36 @@ export function useMcpSkillGatewayRuntime() {
   const [remoteTools, setRemoteTools] = useState<McpGatewayToolPreview[]>([]);
   const [invokeResult, setInvokeResult] = useState<McpGatewayInvokeTestResult | null>(null);
   const [toolsLoading, setToolsLoading] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  const loadStructuredLogs = useCallback(async (lines = 120) => {
+    setLogsLoading(true);
+    try {
+      const entries = await window.mcpSkillGatewayRuntime.readStructuredLogs(lines);
+      setStructuredLogs(entries);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLogsLoading(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextStatus, nextConfig, nextRegs, nextLogs] = await Promise.all([
+      const [nextStatus, nextConfig, nextRegs, nextLogs, nextStructured] = await Promise.all([
         window.mcpSkillGatewayRuntime.getStatus(),
         window.mcpSkillGatewayRuntime.getConfig(),
         window.mcpSkillGatewayRuntime.listProfileRegistrations(),
         window.mcpSkillGatewayRuntime.readProxyLogs(120),
+        window.mcpSkillGatewayRuntime.readStructuredLogs(120),
       ]);
       setStatus(nextStatus);
       setConfig(nextConfig);
       setRegistrations(nextRegs);
       setLogs(nextLogs);
+      setStructuredLogs(nextStructured);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -90,6 +107,16 @@ export function useMcpSkillGatewayRuntime() {
     }
   }, [refresh]);
 
+  const copyDiagnosticsReport = useCallback(async () => {
+    if (!diagnosticsResult) return false;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diagnosticsResult, null, 2));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [diagnosticsResult]);
+
   const listRemoteTools = useCallback(async (forceRefresh = false) => {
     setToolsLoading(true);
     setError(null);
@@ -109,6 +136,7 @@ export function useMcpSkillGatewayRuntime() {
     try {
       const result = await window.mcpSkillGatewayRuntime.invokeRemoteTool(input);
       setInvokeResult(result);
+      await loadStructuredLogs();
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -116,13 +144,14 @@ export function useMcpSkillGatewayRuntime() {
     } finally {
       setActionPending(false);
     }
-  }, []);
+  }, [loadStructuredLogs]);
 
   return {
     status,
     config,
     registrations,
     logs,
+    structuredLogs,
     loading,
     error,
     actionPending,
@@ -130,10 +159,13 @@ export function useMcpSkillGatewayRuntime() {
     remoteTools,
     invokeResult,
     toolsLoading,
+    logsLoading,
     refresh,
     saveConfig,
     runDiagnostics,
+    copyDiagnosticsReport,
     listRemoteTools,
+    loadStructuredLogs,
     invokeRemoteTool,
     startProxy: () => runAction(() => window.mcpSkillGatewayRuntime.startProxy()),
     stopProxy: () => runAction(() => window.mcpSkillGatewayRuntime.stopProxy()),

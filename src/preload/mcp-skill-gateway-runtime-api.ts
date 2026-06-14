@@ -23,6 +23,8 @@ export const mcpSkillGatewayRuntimeApi: McpSkillGatewayRuntimeAPI = {
     ipcRenderer.invoke("mcp-skill-gateway-runtime:list-profile-registrations"),
   readProxyLogs: (lines?: number) =>
     ipcRenderer.invoke("mcp-skill-gateway-runtime:read-proxy-logs", lines),
+  readStructuredLogs: (lines?: number) =>
+    ipcRenderer.invoke("mcp-skill-gateway-runtime:read-structured-logs", lines),
   runDiagnostics: () => ipcRenderer.invoke("mcp-skill-gateway-runtime:run-diagnostics"),
   listRemoteTools: (forceRefresh?: boolean) =>
     ipcRenderer.invoke("mcp-skill-gateway-runtime:list-remote-tools", forceRefresh),

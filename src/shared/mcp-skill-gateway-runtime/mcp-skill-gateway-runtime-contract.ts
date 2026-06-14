@@ -1,5 +1,25 @@
 /** v6.4 — MCP Skill Gateway Runtime (Desktop → nodeskclaw proxy + Hermes registration). */
 
+export type {
+  DiagnosticCheck,
+  DiagnosticError,
+  McpGatewayDiagnosticsResult,
+  McpGatewayInvokeTestInput,
+  McpGatewayInvokeTestResult,
+  McpGatewayOperationsErrorCode,
+  McpGatewayProxyLogEntry,
+  McpGatewayProxyLogLevel,
+  McpGatewayRiskLevel,
+  McpGatewayToolCategory,
+  McpGatewayToolPermission,
+  McpGatewayToolPreview,
+} from "./mcp-gateway-operations-contract";
+
+export {
+  MCP_DIAG_TO_OP_ERROR,
+  toOperationsErrorCode,
+} from "./mcp-gateway-operations-contract";
+
 export type McpSkillGatewayProxyStatus = "running" | "stopped" | "failed";
 
 export type McpSkillGatewayDesktopErrorCode =
@@ -163,7 +183,7 @@ export interface McpSkillGatewayProfileRegistration {
   lastChecked: string;
 }
 
-/** v6.6 — MCP Gateway one-click diagnostics error codes. */
+/** v6.6 — MCP Gateway one-click diagnostics error codes (internal; map to MCP_OP_* via toOperationsErrorCode). */
 export type McpGatewayDiagnosticsErrorCode =
   | "MCP_DIAG_AUTH_REQUIRED"
   | "MCP_DIAG_BACKEND_UNREACHABLE"
@@ -175,57 +195,8 @@ export type McpGatewayDiagnosticsErrorCode =
   | "MCP_DIAG_HERMES_RESTART_REQUIRED"
   | "MCP_DIAG_TOOL_CALL_FAILED";
 
-export interface DiagnosticCheckResult {
-  step: string;
-  ok: boolean;
-  label: string;
-  detail?: string;
-  error?: string;
-  errorCode?: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
-}
-
-export interface DiagnosticError {
-  step: string;
-  code: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
-  message: string;
-}
-
-export interface McpGatewayToolPreview {
-  name: string;
-  description?: string;
-  inputSchema?: unknown;
-  source?: string;
-  riskLevel?: "read" | "write" | "admin";
-  enabled?: boolean;
-}
-
-export interface McpGatewayDiagnosticsResult {
-  ok: boolean;
-  auth: DiagnosticCheckResult;
-  backend: DiagnosticCheckResult;
-  localProxy: DiagnosticCheckResult;
-  remoteMcp: DiagnosticCheckResult;
-  hermesRegistration: DiagnosticCheckResult;
-  toolCount: number;
-  tools: McpGatewayToolPreview[];
-  hermesRestartRequired: boolean;
-  defaultProfileRegistered: boolean;
-  errors: DiagnosticError[];
-  steps: DiagnosticCheckResult[];
-}
-
-export interface McpGatewayInvokeTestInput {
-  toolName: string;
-  input?: Record<string, unknown>;
-}
-
-export interface McpGatewayInvokeTestResult {
-  ok: boolean;
-  durationMs: number;
-  result?: unknown;
-  errorCode?: McpGatewayDiagnosticsErrorCode | McpSkillGatewayDesktopErrorCode;
-  errorMessage?: string;
-}
+/** @deprecated use DiagnosticCheck from mcp-gateway-operations-contract */
+export type DiagnosticCheckResult = import("./mcp-gateway-operations-contract").DiagnosticCheck;
 
 export interface McpSkillGatewayRuntimeAPI {
   getStatus(): Promise<McpSkillGatewayRuntimeStatus>;
@@ -245,8 +216,17 @@ export interface McpSkillGatewayRuntimeAPI {
   listProfileRegistrations(): Promise<McpSkillGatewayProfileRegistration[]>;
 
   readProxyLogs(lines?: number): Promise<string>;
+  readStructuredLogs(lines?: number): Promise<
+    import("./mcp-gateway-operations-contract").McpGatewayProxyLogEntry[]
+  >;
 
-  runDiagnostics(): Promise<McpGatewayDiagnosticsResult>;
-  listRemoteTools(forceRefresh?: boolean): Promise<McpGatewayToolPreview[]>;
-  invokeRemoteTool(input: McpGatewayInvokeTestInput): Promise<McpGatewayInvokeTestResult>;
+  runDiagnostics(): Promise<
+    import("./mcp-gateway-operations-contract").McpGatewayDiagnosticsResult
+  >;
+  listRemoteTools(forceRefresh?: boolean): Promise<
+    import("./mcp-gateway-operations-contract").McpGatewayToolPreview[]
+  >;
+  invokeRemoteTool(
+    input: import("./mcp-gateway-operations-contract").McpGatewayInvokeTestInput,
+  ): Promise<import("./mcp-gateway-operations-contract").McpGatewayInvokeTestResult>;
 }

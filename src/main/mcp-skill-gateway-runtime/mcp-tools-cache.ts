@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import type { McpGatewayToolPreview } from "../../shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract";
+import type {
+  McpGatewayRiskLevel,
+  McpGatewayToolCategory,
+  McpGatewayToolPermission,
+  McpGatewayToolPreview,
+} from "../../shared/mcp-skill-gateway-runtime/mcp-gateway-operations-contract";
 import { profileHome } from "../utils";
 import { safeWriteFile } from "../utils";
 import {
@@ -15,7 +20,7 @@ import {
 import { getMcpAuthState } from "./mcp-token-provider";
 import { McpSkillGatewayError } from "./mcp-skill-gateway-errors";
 
-const CACHE_VERSION = "v6.6";
+const CACHE_VERSION = "v6.6.1";
 const STALE_AFTER_MS = 60_000;
 
 const READ_ONLY_TOOLS = new Set([
@@ -60,6 +65,28 @@ export interface McpToolsCacheFile {
   tools: McpToolsCacheEntry[];
 }
 
+export function inferToolCategory(name: string): McpGatewayToolCategory {
+  if (name.startsWith("hermes.")) return "hermes";
+  if (name.startsWith("genehub.")) return "genehub";
+  if (name.startsWith("system.")) return "system";
+  return "unknown";
+}
+
+export function inferToolPermission(name: string): McpGatewayToolPermission {
+  if (READ_ONLY_TOOLS.has(name)) return "read";
+  if (ADMIN_TOOLS.has(name)) return "admin";
+  if (WRITE_TOOLS.has(name) || name.startsWith("hermes.skills.install")) {
+    return "write";
+  }
+  return "read";
+}
+
+export function inferRiskLevel(permission: McpGatewayToolPermission): McpGatewayRiskLevel {
+  if (permission === "read") return "low";
+  if (permission === "write") return "medium";
+  return "high";
+}
+
 function cachePath(): string {
   return join(profileHome(), "desktop", "mcp-skill-gateway-tools.json");
 }
@@ -68,24 +95,23 @@ function legacyCachePath(): string {
   return join(profileHome(), "desktop", "mcp-tools-cache.json");
 }
 
-function inferRiskLevel(toolName: string): McpGatewayToolPreview["riskLevel"] {
-  if (READ_ONLY_TOOLS.has(toolName)) return "read";
-  if (ADMIN_TOOLS.has(toolName)) return "admin";
-  if (WRITE_TOOLS.has(toolName) || toolName.startsWith("hermes.skills.install")) {
-    return "write";
-  }
-  return "read";
-}
-
-function mapRawTool(raw: Record<string, unknown>): McpGatewayToolPreview {
+function mapRawTool(raw: Record<string, unknown>, lastSyncedAt: string): McpGatewayToolPreview {
   const name = typeof raw.name === "string" ? raw.name : "";
+  const permission = inferToolPermission(name);
+  const inputSchema =
+    raw.inputSchema && typeof raw.inputSchema === "object" && !Array.isArray(raw.inputSchema)
+      ? (raw.inputSchema as Record<string, unknown>)
+      : {};
   return {
     name,
-    description: typeof raw.description === "string" ? raw.description : undefined,
-    inputSchema: raw.inputSchema,
+    description: typeof raw.description === "string" ? raw.description : "",
+    category: inferToolCategory(name),
+    permission,
+    riskLevel: inferRiskLevel(permission),
+    inputSchema,
     source: "nodeskclaw",
-    riskLevel: inferRiskLevel(name),
     enabled: true,
+    lastSyncedAt,
   };
 }
 
@@ -93,7 +119,14 @@ export function readMcpGatewayToolsCache(): McpGatewayToolsCacheFile | null {
   const path = cachePath();
   if (existsSync(path)) {
     try {
-      return JSON.parse(readFileSync(path, "utf-8")) as McpGatewayToolsCacheFile;
+      const parsed = JSON.parse(readFileSync(path, "utf-8")) as McpGatewayToolsCacheFile;
+      const syncedAt = parsed.updatedAt ?? "";
+      return {
+        ...parsed,
+        tools: (parsed.tools ?? []).map((t) =>
+          mapRawTool(t as unknown as Record<string, unknown>, syncedAt),
+        ),
+      };
     } catch {
       return null;
     }
@@ -102,12 +135,15 @@ export function readMcpGatewayToolsCache(): McpGatewayToolsCacheFile | null {
   if (!existsSync(legacy)) return null;
   try {
     const old = JSON.parse(readFileSync(legacy, "utf-8")) as McpToolsCacheFile;
+    const syncedAt = old.lastSyncAt ?? "";
     return {
       version: CACHE_VERSION,
       backendBaseUrl: resolveBackendBaseUrl(),
       remoteMcpUrl: old.server?.upstreamUrl ?? "",
-      tools: (old.tools ?? []).map((t) => mapRawTool(t as unknown as Record<string, unknown>)),
-      updatedAt: old.lastSyncAt ?? "",
+      tools: (old.tools ?? []).map((t) =>
+        mapRawTool(t as unknown as Record<string, unknown>, syncedAt),
+      ),
+      updatedAt: syncedAt,
     };
   } catch {
     return null;
@@ -150,11 +186,14 @@ export function readMcpToolsCache(): McpToolsCacheFile | null {
 
 /** @deprecated use writeMcpGatewayToolsCache */
 export function writeMcpToolsCache(payload: Omit<McpToolsCacheFile, "version">): McpToolsCacheFile {
+  const updatedAt = payload.lastSyncAt;
   writeMcpGatewayToolsCache({
     backendBaseUrl: resolveBackendBaseUrl(),
     remoteMcpUrl: payload.server.upstreamUrl,
-    tools: payload.tools.map((t) => mapRawTool(t as unknown as Record<string, unknown>)),
-    updatedAt: payload.lastSyncAt,
+    tools: payload.tools.map((t) =>
+      mapRawTool(t as unknown as Record<string, unknown>, updatedAt),
+    ),
+    updatedAt,
   });
   return { version: CACHE_VERSION, ...payload };
 }
@@ -204,8 +243,9 @@ async function fetchRemoteToolsFromProxy(): Promise<McpGatewayToolPreview[]> {
     );
   }
 
+  const syncedAt = new Date().toISOString();
   const tools = Array.isArray(body.result?.tools) ? body.result.tools : [];
-  return tools.map((t) => mapRawTool(t));
+  return tools.map((t) => mapRawTool(t, syncedAt));
 }
 
 export async function listRemoteMcpTools(options?: {
@@ -236,5 +276,5 @@ export async function listRemoteMcpTools(options?: {
 }
 
 export function isReadOnlyMcpTool(toolName: string): boolean {
-  return inferRiskLevel(toolName) === "read";
+  return inferToolPermission(toolName) === "read";
 }

@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC-Copilot |
 | **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
-| **版本** | 0.3.6（… + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| **版本** | 0.3.6（… + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -202,6 +202,11 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Main**：`src/main/genehub/*`；本地 installed 元数据 `{hermesHome}/genehub/installed/`；安装日志 `userData/genehub/install-logs.jsonl`
 - **Preload**：`window.genehubRuntime`；IPC `genehub:*` 见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § GeneHub Runtime
 - **UI**：Local Hermes 左导航 `skillCenter` → `pages/GeneHub/GeneHubSkillCenterPage.tsx`（可安装 / 已安装 / 待安装 / 日志）
+
+**V6.6.1（MCP Gateway Operations）**：
+- **契约**：`mcp-gateway-operations-contract.ts` — `MCP_OP_*` 错误码、`McpGatewayToolPreview`（category/permission/riskLevel）、结构化日志类型
+- **新增 IPC**：`read-structured-logs`；诊断 10 步（含 `toolsList` / `hermesGateway`）；invoke `arguments` + 256KB 截断
+- **UI**：五 Panel（Diagnostics / Tools Preview / Invoke Test / Registration / Logs）+ Hermes Gateway 重启横幅
 
 **V6.6（MCP Skill Gateway E2E，PRD `prd/v6.6_mcp-skill-gateway-e2e.md`）**：
 - **链路**：Desktop 本地 Proxy → nodeskclaw `/api/v1/hermes/mcp` → `tools/list` / `tools/call` → Hermes `mcp_servers.mcp_skill_gateway`

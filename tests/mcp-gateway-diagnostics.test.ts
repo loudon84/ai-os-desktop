@@ -47,7 +47,7 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-register", () =
   registerMcpSkillGatewayToHermes: vi.fn(async () => ({
     ok: true,
     ready: true,
-    hermesRestartRequired: true,
+    hermesRestartRequired: false,
   })),
   listMcpSkillGatewayProfileRegistrations: vi.fn(() => [
     {
@@ -59,12 +59,44 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-register", () =
   ]),
 }));
 
+const mockTools = [
+  {
+    name: "hermes.instances.list",
+    description: "",
+    category: "hermes" as const,
+    permission: "read" as const,
+    riskLevel: "low" as const,
+    inputSchema: {},
+    enabled: true,
+    source: "nodeskclaw" as const,
+    lastSyncedAt: "2026-06-14T00:00:00.000Z",
+  },
+  {
+    name: "hermes.instance.status",
+    description: "",
+    category: "hermes" as const,
+    permission: "read" as const,
+    riskLevel: "low" as const,
+    inputSchema: {},
+    enabled: true,
+    source: "nodeskclaw" as const,
+    lastSyncedAt: "2026-06-14T00:00:00.000Z",
+  },
+  {
+    name: "hermes.skills.list",
+    description: "",
+    category: "hermes" as const,
+    permission: "read" as const,
+    riskLevel: "low" as const,
+    inputSchema: {},
+    enabled: true,
+    source: "nodeskclaw" as const,
+    lastSyncedAt: "2026-06-14T00:00:00.000Z",
+  },
+];
+
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-tools-cache", () => ({
-  listRemoteMcpTools: vi.fn(async () => [
-    { name: "hermes.instances.list", riskLevel: "read", enabled: true },
-    { name: "hermes.instance.status", riskLevel: "read", enabled: true },
-    { name: "hermes.skills.list", riskLevel: "read", enabled: true },
-  ]),
+  listRemoteMcpTools: vi.fn(async () => mockTools),
 }));
 
 vi.mock("../src/main/hermes", () => ({
@@ -83,11 +115,13 @@ describe("runMcpSkillGatewayDiagnostics", () => {
   it("returns ok when all steps pass", async () => {
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(true);
+    expect(result.checkedAt).toBeTruthy();
     expect(result.toolCount).toBe(3);
     expect(result.tools).toHaveLength(3);
     expect(result.defaultProfileRegistered).toBe(true);
-    expect(result.hermesRestartRequired).toBe(true);
-    expect(result.steps.length).toBeGreaterThanOrEqual(6);
+    expect(result.toolsList.ok).toBe(true);
+    expect(result.hermesGateway.ok).toBe(true);
+    expect(result.steps.length).toBeGreaterThanOrEqual(7);
   });
 
   it("fails fast on missing auth", async () => {
@@ -95,6 +129,6 @@ describe("runMcpSkillGatewayDiagnostics", () => {
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(false);
     expect(result.auth.ok).toBe(false);
-    expect(result.errors.some((e) => e.code === "MCP_DIAG_AUTH_REQUIRED")).toBe(true);
+    expect(result.errors.some((e) => e.code === "MCP_OP_AUTH_REQUIRED")).toBe(true);
   });
 });

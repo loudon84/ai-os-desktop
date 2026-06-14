@@ -24,7 +24,7 @@ import {
   testMcpSkillGatewayProxy,
   testRemoteMcpSkillGateway,
 } from "./mcp-skill-gateway-health";
-import { readMcpSkillGatewayLogs } from "./mcp-skill-gateway-log";
+import { readMcpSkillGatewayLogs, readStructuredMcpGatewayLogs } from "./mcp-skill-gateway-log";
 import {
   buildMcpSkillGatewayRuntimeStatus,
   onMcpSkillGatewayLoginSuccess,
@@ -163,6 +163,10 @@ export function registerMcpSkillGatewayRuntimeIpc(): void {
 
   ipcMain.handle("mcp-skill-gateway-runtime:read-proxy-logs", async (_, lines?: number) =>
     readMcpSkillGatewayLogs(lines),
+  );
+
+  ipcMain.handle("mcp-skill-gateway-runtime:read-structured-logs", async (_, lines?: number) =>
+    readStructuredMcpGatewayLogs(lines),
   );
 
   ipcMain.handle("mcp-skill-gateway-runtime:run-diagnostics", async () =>

@@ -587,9 +587,10 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 | `mcp-skill-gateway-runtime:unregister-from-profile` | `profile` | `McpSkillGatewayRegisterResult` |
 | `mcp-skill-gateway-runtime:list-profile-registrations` | — | `McpSkillGatewayProfileRegistration[]`（含一致性字段） |
 | `mcp-skill-gateway-runtime:read-proxy-logs` | `lines?` | `string` |
-| `mcp-skill-gateway-runtime:run-diagnostics` | — | `McpGatewayDiagnosticsResult`（V6.6 一键诊断：auth → proxy → remote MCP → 注册 → tools/list） |
-| `mcp-skill-gateway-runtime:list-remote-tools` | `forceRefresh?` | `McpGatewayToolPreview[]`（缓存 TTL 60s，`~/.hermes/desktop/mcp-skill-gateway-tools.json`） |
-| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6 仅只读工具；audit log） |
+| `mcp-skill-gateway-runtime:read-structured-logs` | `lines?` | `McpGatewayProxyLogEntry[]`（V6.6.1 JSONL 解析；过滤非法行；redact Authorization） |
+| `mcp-skill-gateway-runtime:run-diagnostics` | — | `McpGatewayDiagnosticsResult`（V6.6.1：10 步含 `toolsList` / `defaultProfileRegistration` / `hermesGateway`；`checkedAt`；错误码对外 `MCP_OP_*`） |
+| `mcp-skill-gateway-runtime:list-remote-tools` | `forceRefresh?` | `McpGatewayToolPreview[]`（含 `category` / `permission` / `riskLevel` / `lastSyncedAt`；缓存 TTL 60s） |
+| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6.1：`arguments` 或兼容 `input`；仅 read 工具；256KB 结果截断；`MCP_OP_TOOL_PERMISSION_DENIED`） |
 
 **本地 Proxy**：`src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy.ts` 监听 `127.0.0.1:48742`（可配置）— `GET /health`（`self` / `backend` / `mcp` 分项）、`POST /admin/config`、`GET /debug/last-error`、`POST /debug/probe`、`POST /mcp`（auto-initialize + Bearer 注入）。
 
@@ -610,9 +611,9 @@ curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "
 
 **认证（V6.4.1）**：`window.desktopAuth.login({ endpointConfig, account, password })` → Main `POST {backendUrl}/api/v1/auth/account-login` → `GET /auth/me` 校验 `current_org_id` + `portal_org_role`；`LoginInput.email` 仅兼容旧 UI。
 
-**契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`、`src/shared/auth/auth-contract.ts`
+**契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`（re-export **`mcp-gateway-operations-contract.ts`** V6.6.1 运营类型）、`src/shared/auth/auth-contract.ts`
 
-**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（Consistency check、**V6.6** 一键诊断 / Tools Preview / Invoke Test）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
+**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（**V6.6.1** 五 Panel：Diagnostics / Tools Preview / Invoke Test / Registration / Logs；Hermes 重启横幅）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
 
 ---
 

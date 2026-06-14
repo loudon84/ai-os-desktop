@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname } from "path";
 import { app } from "electron";
+import type { McpGatewayProxyLogEntry } from "../../shared/mcp-skill-gateway-runtime/mcp-gateway-operations-contract";
 
 const SENSITIVE_KEYS = [
   "password",
@@ -67,4 +68,56 @@ export function readMcpSkillGatewayLogs(lines = 200): string {
   const content = readFileSync(path, "utf-8");
   const all = content.trim().split("\n").filter(Boolean);
   return all.slice(-Math.max(1, lines)).join("\n");
+}
+
+function parseLogLine(line: string): McpGatewayProxyLogEntry | null {
+  try {
+    const parsed = JSON.parse(line) as Record<string, unknown>;
+    const level = parsed.level;
+    if (level !== "info" && level !== "warn" && level !== "error") {
+      return null;
+    }
+    const time = typeof parsed.time === "string" ? parsed.time : "";
+    if (!time) return null;
+    const entry: McpGatewayProxyLogEntry = {
+      time,
+      level,
+    };
+    if (typeof parsed.method === "string") entry.method = parsed.method;
+    if (
+      parsed.jsonrpcId === null ||
+      typeof parsed.jsonrpcId === "string" ||
+      typeof parsed.jsonrpcId === "number"
+    ) {
+      entry.jsonrpcId = parsed.jsonrpcId;
+    }
+    if (typeof parsed.remoteStatus === "number") entry.remoteStatus = parsed.remoteStatus;
+    if (typeof parsed.durationMs === "number") entry.durationMs = parsed.durationMs;
+    if (
+      typeof parsed.errorCode === "string" ||
+      typeof parsed.errorCode === "number"
+    ) {
+      entry.errorCode = parsed.errorCode;
+    }
+    if (typeof parsed.message === "string") {
+      entry.message = redactSensitiveText(parsed.message);
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+export function readStructuredMcpGatewayLogs(lines = 200): McpGatewayProxyLogEntry[] {
+  const path = logFilePath();
+  if (!existsSync(path)) return [];
+  const content = readFileSync(path, "utf-8");
+  const all = content.trim().split("\n").filter(Boolean);
+  const slice = all.slice(-Math.max(1, lines));
+  const entries: McpGatewayProxyLogEntry[] = [];
+  for (const line of slice) {
+    const entry = parseLogLine(line);
+    if (entry) entries.push(entry);
+  }
+  return entries;
 }
