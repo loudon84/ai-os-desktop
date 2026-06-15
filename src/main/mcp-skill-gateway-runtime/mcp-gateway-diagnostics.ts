@@ -2,16 +2,14 @@ import type {
   DiagnosticCheck,
   DiagnosticError,
   McpGatewayDiagnosticsResult,
+  McpGatewayToolPreview,
 } from "../../shared/mcp-skill-gateway-runtime/mcp-gateway-operations-contract";
 import { fetchMcpBackendDescriptor } from "./mcp-backend-descriptor";
 import {
   getMcpSkillGatewayConfig,
   resolveBackendBaseUrl,
 } from "./mcp-skill-gateway-config";
-import {
-  testMcpSkillGatewayProxy,
-  testRemoteMcpSkillGateway,
-} from "./mcp-skill-gateway-health";
+import { testRemoteMcpSkillGateway } from "./mcp-skill-gateway-health";
 import {
   isMcpSkillGatewayProxyRunning,
   startMcpSkillGatewayProxy,
@@ -21,7 +19,7 @@ import {
   registerMcpSkillGatewayToHermes,
 } from "./mcp-skill-gateway-register";
 import { getMcpAuthState } from "./mcp-token-provider";
-import { listRemoteMcpTools } from "./mcp-tools-cache";
+import { listRemoteMcpTools, readMcpGatewayToolsCache } from "./mcp-tools-cache";
 import { isGatewayRunning } from "../hermes";
 
 function step(
@@ -35,13 +33,16 @@ function step(
   return { step: stepId, label, ok, detail, error, errorCode };
 }
 
-function pushError(
+function recordStepFailure(
   errors: DiagnosticError[],
-  stepId: string,
-  code: DiagnosticError["code"],
-  message: string,
+  check: DiagnosticCheck,
 ): void {
-  errors.push({ step: stepId, code, message });
+  if (check.ok || !check.errorCode || !check.error) return;
+  errors.push({
+    step: check.step,
+    code: check.errorCode,
+    message: check.error,
+  });
 }
 
 export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnosticsResult> {
@@ -60,9 +61,7 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     authState.tokenPresent ? undefined : "MCP_OP_AUTH_REQUIRED",
   );
   steps.push(auth);
-  if (!auth.ok) {
-    pushError(errors, "auth", "MCP_OP_AUTH_REQUIRED", "Desktop login required");
-  }
+  recordStepFailure(errors, auth);
 
   const descriptorResult = await fetchMcpBackendDescriptor(true);
   const backendBaseUrl = resolveBackendBaseUrl();
@@ -83,23 +82,16 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
         : "MCP_OP_BACKEND_UNREACHABLE",
   );
   steps.push(backend);
-  if (!backend.ok) {
-    pushError(
-      errors,
-      "backend",
-      backend.errorCode ?? "MCP_OP_BACKEND_UNREACHABLE",
-      backend.error ?? "Backend check failed",
-    );
-  }
+  recordStepFailure(errors, backend);
 
   let proxyRunning = isMcpSkillGatewayProxyRunning();
+  let proxyStartError: string | undefined;
   if (!proxyRunning && auth.ok) {
     try {
       await startMcpSkillGatewayProxy(config.localProxyPort);
       proxyRunning = isMcpSkillGatewayProxyRunning();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      pushError(errors, "localProxy", "MCP_OP_PROXY_NOT_RUNNING", message);
+      proxyStartError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -108,44 +100,27 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     "Local MCP proxy",
     proxyRunning,
     proxyRunning ? `127.0.0.1:${config.localProxyPort}` : undefined,
-    proxyRunning ? undefined : "Local MCP proxy is not running",
+    proxyRunning ? undefined : proxyStartError ?? "Local MCP proxy is not running",
     proxyRunning ? undefined : "MCP_OP_PROXY_NOT_RUNNING",
   );
   steps.push(localProxy);
-  if (!localProxy.ok && !errors.some((e) => e.step === "localProxy")) {
-    pushError(errors, "localProxy", "MCP_OP_PROXY_NOT_RUNNING", localProxy.error ?? "Proxy not running");
-  }
-
-  let proxyHealthOk = false;
-  if (proxyRunning) {
-    const health = await testMcpSkillGatewayProxy();
-    proxyHealthOk = health.ok;
-    if (!proxyHealthOk) {
-      pushError(
-        errors,
-        "localProxy",
-        "MCP_OP_PROXY_NOT_RUNNING",
-        health.error ?? "Proxy health check failed",
-      );
-    }
-  }
+  recordStepFailure(errors, localProxy);
 
   let remoteOk = false;
   let toolCount = 0;
   let remoteDetail: string | undefined;
+  let remoteError: string | undefined;
+
   if (proxyRunning && auth.ok) {
-    const remote = await testRemoteMcpSkillGateway();
-    remoteOk = remote.ok;
-    toolCount = remote.toolCount ?? 0;
+    const probe = await testRemoteMcpSkillGateway();
+    remoteOk = probe.ok;
+    toolCount = probe.toolCount ?? 0;
     remoteDetail = remoteOk ? `${toolCount} tools` : undefined;
-    if (!remoteOk) {
-      pushError(
-        errors,
-        "remoteMcp",
-        "MCP_OP_REMOTE_INITIALIZE_FAILED",
-        remote.error ?? "Remote MCP probe failed",
-      );
-    }
+    remoteError = probe.error;
+  } else if (!proxyRunning) {
+    remoteError = "Local MCP proxy is not running";
+  } else if (!auth.ok) {
+    remoteError = "Desktop login required";
   }
 
   const remoteMcp = step(
@@ -153,27 +128,13 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     "Remote MCP (initialize + tools/list)",
     remoteOk,
     remoteDetail,
-    remoteOk ? undefined : "Remote MCP probe failed",
+    remoteOk ? undefined : remoteError ?? "Remote MCP probe failed",
     remoteOk ? undefined : "MCP_OP_REMOTE_INITIALIZE_FAILED",
   );
   steps.push(remoteMcp);
+  recordStepFailure(errors, remoteMcp);
 
-  let tools: Awaited<ReturnType<typeof listRemoteMcpTools>> = [];
-  let toolsListOk = false;
-  if (remoteOk) {
-    try {
-      tools = await listRemoteMcpTools({ forceRefresh: true });
-      toolCount = tools.length;
-      toolsListOk = toolCount > 0;
-      if (!toolsListOk) {
-        pushError(errors, "toolsList", "MCP_OP_TOOLS_LIST_FAILED", "tools/list returned empty");
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      pushError(errors, "toolsList", "MCP_OP_TOOLS_LIST_FAILED", message);
-    }
-  }
-
+  const toolsListOk = remoteOk && toolCount > 0;
   const toolsList = step(
     "toolsList",
     "MCP tools/list preview",
@@ -183,6 +144,16 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     toolsListOk ? undefined : "MCP_OP_TOOLS_LIST_FAILED",
   );
   steps.push(toolsList);
+  recordStepFailure(errors, toolsList);
+
+  let tools: McpGatewayToolPreview[] = [];
+  if (toolsListOk) {
+    try {
+      tools = await listRemoteMcpTools({ forceRefresh: true });
+    } catch {
+      tools = readMcpGatewayToolsCache()?.tools ?? [];
+    }
+  }
 
   let defaultProfileRegistered = false;
   let hermesRestartRequired = false;
@@ -197,22 +168,6 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     defaultProfileRegistered = regResult.ok && Boolean(regResult.ready);
     hermesRestartRequired = Boolean(regResult.hermesRestartRequired);
     registrationReady = defaultProfileRegistered;
-
-    if (!regResult.ok) {
-      pushError(
-        errors,
-        "defaultProfileRegistration",
-        "MCP_OP_PROFILE_NOT_REGISTERED",
-        regResult.error ?? "Failed to register default profile",
-      );
-    } else if (!regResult.ready) {
-      pushError(
-        errors,
-        "defaultProfileRegistration",
-        "MCP_OP_PROFILE_NOT_REGISTERED",
-        "Default profile MCP registration is not ready",
-      );
-    }
   }
 
   const registrations = listMcpSkillGatewayProfileRegistrations();
@@ -234,17 +189,9 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
       : "MCP_OP_PROFILE_NOT_REGISTERED",
   );
   steps.push(defaultProfileRegistration);
+  recordStepFailure(errors, defaultProfileRegistration);
 
   const gatewayRunning = isGatewayRunning();
-  if (hermesRestartRequired && gatewayRunning) {
-    pushError(
-      errors,
-      "hermesGateway",
-      "MCP_OP_HERMES_RESTART_REQUIRED",
-      "Hermes Gateway restart required to load mcp_skill_gateway",
-    );
-  }
-
   const hermesGateway = step(
     "hermesGateway",
     "Hermes Gateway runtime",
@@ -262,16 +209,9 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
       : undefined,
   );
   steps.push(hermesGateway);
+  recordStepFailure(errors, hermesGateway);
 
-  const ok =
-    auth.ok &&
-    backend.ok &&
-    localProxy.ok &&
-    proxyHealthOk &&
-    remoteOk &&
-    toolsListOk &&
-    (defaultProfileRegistration.ok || defaultProfileRegistered) &&
-    !(hermesRestartRequired && gatewayRunning);
+  const ok = steps.every((row) => row.ok);
 
   return {
     ok,

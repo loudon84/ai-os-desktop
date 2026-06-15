@@ -29,14 +29,9 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy", () => (
 }));
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health", () => ({
-  testMcpSkillGatewayProxy: vi.fn(async () => ({
-    ok: true,
-    backendBaseUrl: "http://192.168.0.118:4510",
-    localMcpUrl: "http://127.0.0.1:48742/mcp",
-  })),
   testRemoteMcpSkillGateway: vi.fn(async () => ({
     ok: true,
-    toolCount: 3,
+    toolCount: 10,
     localProxyUrl: "http://127.0.0.1:48742/mcp",
     backendBaseUrl: "http://192.168.0.118:4510",
     remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
@@ -71,32 +66,11 @@ const mockTools = [
     source: "nodeskclaw" as const,
     lastSyncedAt: "2026-06-14T00:00:00.000Z",
   },
-  {
-    name: "hermes.instance.status",
-    description: "",
-    category: "hermes" as const,
-    permission: "read" as const,
-    riskLevel: "low" as const,
-    inputSchema: {},
-    enabled: true,
-    source: "nodeskclaw" as const,
-    lastSyncedAt: "2026-06-14T00:00:00.000Z",
-  },
-  {
-    name: "hermes.skills.list",
-    description: "",
-    category: "hermes" as const,
-    permission: "read" as const,
-    riskLevel: "low" as const,
-    inputSchema: {},
-    enabled: true,
-    source: "nodeskclaw" as const,
-    lastSyncedAt: "2026-06-14T00:00:00.000Z",
-  },
 ];
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-tools-cache", () => ({
   listRemoteMcpTools: vi.fn(async () => mockTools),
+  readMcpGatewayToolsCache: vi.fn(() => null),
 }));
 
 vi.mock("../src/main/hermes", () => ({
@@ -104,24 +78,66 @@ vi.mock("../src/main/hermes", () => ({
 }));
 
 import { getMcpAuthState } from "../src/main/mcp-skill-gateway-runtime/mcp-token-provider";
+import { testRemoteMcpSkillGateway } from "../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health";
+import { listRemoteMcpTools } from "../src/main/mcp-skill-gateway-runtime/mcp-tools-cache";
 import { runMcpSkillGatewayDiagnostics } from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-diagnostics";
 
 describe("runMcpSkillGatewayDiagnostics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getMcpAuthState).mockReturnValue({ tokenPresent: true });
+    vi.mocked(testRemoteMcpSkillGateway).mockResolvedValue({
+      ok: true,
+      toolCount: 10,
+      localProxyUrl: "http://127.0.0.1:48742/mcp",
+      backendBaseUrl: "http://192.168.0.118:4510",
+      remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
+    });
   });
 
-  it("returns ok when all steps pass", async () => {
+  it("returns ok when probe reports connected with tools", async () => {
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(true);
     expect(result.checkedAt).toBeTruthy();
-    expect(result.toolCount).toBe(3);
-    expect(result.tools).toHaveLength(3);
-    expect(result.defaultProfileRegistered).toBe(true);
+    expect(result.toolCount).toBe(10);
+    expect(result.remoteMcp.ok).toBe(true);
     expect(result.toolsList.ok).toBe(true);
-    expect(result.hermesGateway.ok).toBe(true);
-    expect(result.steps.length).toBeGreaterThanOrEqual(7);
+    expect(result.localProxy.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.ok).toBe(result.steps.every((row) => row.ok));
+    expect(testRemoteMcpSkillGateway).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses probe toolCount even when tools cache fetch fails", async () => {
+    vi.mocked(listRemoteMcpTools).mockRejectedValueOnce(new Error("tools/list failed"));
+    const result = await runMcpSkillGatewayDiagnostics();
+    expect(result.ok).toBe(true);
+    expect(result.toolCount).toBe(10);
+    expect(result.toolsList.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("does not keep localProxy errors when proxy is running", async () => {
+    const result = await runMcpSkillGatewayDiagnostics();
+    expect(result.localProxy.ok).toBe(true);
+    expect(result.errors.some((e) => e.step === "localProxy")).toBe(false);
+  });
+
+  it("fails remoteMcp and toolsList when probe is not connected", async () => {
+    vi.mocked(testRemoteMcpSkillGateway).mockResolvedValueOnce({
+      ok: false,
+      toolCount: 0,
+      localProxyUrl: "http://127.0.0.1:48742/mcp",
+      backendBaseUrl: "http://192.168.0.118:4510",
+      remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
+      error: "Invalid JSON-RPC request",
+    });
+    const result = await runMcpSkillGatewayDiagnostics();
+    expect(result.ok).toBe(false);
+    expect(result.remoteMcp.ok).toBe(false);
+    expect(result.toolsList.ok).toBe(false);
+    expect(result.toolCount).toBe(0);
+    expect(result.errors.some((e) => e.step === "remoteMcp")).toBe(true);
   });
 
   it("fails fast on missing auth", async () => {
@@ -130,5 +146,6 @@ describe("runMcpSkillGatewayDiagnostics", () => {
     expect(result.ok).toBe(false);
     expect(result.auth.ok).toBe(false);
     expect(result.errors.some((e) => e.code === "MCP_OP_AUTH_REQUIRED")).toBe(true);
+    expect(testRemoteMcpSkillGateway).not.toHaveBeenCalled();
   });
 });

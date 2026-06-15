@@ -46,8 +46,24 @@ export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthR
     };
   }
 
+  const proxyBase = getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "");
+
   try {
-    const res = await fetch(`${getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "")}/health`);
+    const res = await fetch(`${proxyBase}/health`);
+    if (res.status === 404) {
+      const runtime = getMcpProxyRuntimeState();
+      return {
+        ok: true,
+        service: "mcp-skill-gateway-proxy",
+        status: runtime.status,
+        loggedIn: getMcpAuthState().tokenPresent,
+        backendBaseUrl,
+        remoteMcpUrl,
+        localMcpUrl,
+        target: config.mcpEndpointPath,
+      };
+    }
+
     const body = (await res.json()) as {
       ok?: boolean;
       loggedIn?: boolean;
@@ -139,19 +155,33 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       ok?: boolean;
       status?: string;
       toolCount?: number;
+      initialized?: boolean;
       error?: { code?: string; message?: string };
       lastError?: { code?: string; message?: string };
     };
 
     const gatewayStatus = mapProxyStatus(body.status ?? body.lastError?.code?.replace("MCP_", "").toLowerCase());
+    const probeConnected =
+      body.ok === true &&
+      body.status === "connected" &&
+      body.initialized === true;
+    const toolCount = body.toolCount ?? getMcpProxyRuntimeState().toolCount;
 
-    if (!body.ok) {
+    if (!probeConnected) {
       return {
         ok: false,
         localProxyUrl,
         backendBaseUrl,
         remoteMcpUrl,
-        error: body.lastError?.message ?? body.error?.message ?? "Remote MCP request failed",
+        toolCount,
+        error:
+          body.lastError?.message ??
+          body.error?.message ??
+          (body.ok && body.status !== "connected"
+            ? `Remote MCP status is ${body.status ?? "unknown"}`
+            : body.ok && body.initialized !== true
+              ? "Remote MCP not initialized"
+              : "Remote MCP probe failed"),
         errorCode:
           body.lastError?.code === "MCP_UNAUTHORIZED"
             ? "MCP_GATEWAY_REMOTE_UNAUTHORIZED"
@@ -165,7 +195,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       localProxyUrl,
       backendBaseUrl,
       remoteMcpUrl,
-      toolCount: body.toolCount ?? getMcpProxyRuntimeState().toolCount,
+      toolCount,
       gatewayStatus: "connected",
     };
   } catch (err) {
