@@ -52,6 +52,10 @@ export function McpGatewayGeneHubRegistrationCard() {
             <dt>{t("workspaces.hermes.mcpGateway.geneHubRegistration.pendingCount")}</dt>
             <dd>{summary?.pendingMcpJobCount ?? 0}</dd>
           </div>
+          <div className="hermes-dl-row">
+            <dt>{t("workspaces.hermes.mcpGateway.geneHubRegistration.inProgressCount")}</dt>
+            <dd>{summary?.inProgressMcpJobCount ?? 0}</dd>
+          </div>
           {summary?.lastInstalled ? (
             <div className="hermes-dl-row">
               <dt>{t("workspaces.hermes.mcpGateway.geneHubRegistration.lastInstalled")}</dt>
@@ -70,6 +74,12 @@ export function McpGatewayGeneHubRegistrationCard() {
                   ? ` — ${summary.lastFailed.errorMessage}`
                   : ""}
               </dd>
+            </div>
+          ) : null}
+          {summary?.lastSyncAt ? (
+            <div className="hermes-dl-row">
+              <dt>{t("workspaces.hermes.mcpGateway.geneHubRegistration.lastSyncAt")}</dt>
+              <dd>{new Date(summary.lastSyncAt).toLocaleString()}</dd>
             </div>
           ) : null}
           <div className="hermes-mcp-gateway-section__actions">

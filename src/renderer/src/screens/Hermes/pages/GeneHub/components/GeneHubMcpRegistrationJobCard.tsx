@@ -57,13 +57,23 @@ export function GeneHubMcpRegistrationJobCard({
           </div>
         ) : null}
       </dl>
+      {job.profileMappingMissing ? (
+        <p className="hermes-page__error">
+          {t("workspaces.hermes.geneHub.mcpRegistration.profileMappingMissing")}
+        </p>
+      ) : null}
+      {job.errorCode ? (
+        <p className="hermes-muted">
+          {t("workspaces.hermes.geneHub.mcpRegistration.errorCode")}: {job.errorCode}
+        </p>
+      ) : null}
       {job.errorMessage ? <p className="hermes-page__error">{job.errorMessage}</p> : null}
       <div className="hermes-genehub-job-card__actions">
         {showConfirm ? (
           <button
             type="button"
             className="hermes-btn-primary"
-            disabled={actionPending}
+            disabled={actionPending || job.profileMappingMissing}
             onClick={onConfirm}
           >
             {t("workspaces.hermes.geneHub.mcpRegistration.confirmInstall")}

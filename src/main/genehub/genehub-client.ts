@@ -1,5 +1,8 @@
 import type {
   GeneHubBundle,
+  GeneHubInstallBundlePreview,
+  GeneHubInstallBundlePreviewFile,
+  GeneHubBundlePreviewValidation,
   GeneHubSkill,
   HermesProfileRegisterInput,
   InstallJob,
@@ -274,6 +277,154 @@ export async function listPendingJobs(profileId: string): Promise<InstallJob[]> 
   );
   const list = Array.isArray(data) ? data : (data.jobs ?? []);
   return list.map((item) => mapGeneHubJob(item as Record<string, unknown>));
+}
+
+function mapPreviewFile(raw: Record<string, unknown>): GeneHubInstallBundlePreviewFile {
+  const kindRaw = raw.kind;
+  const kind =
+    kindRaw === "skill" || kindRaw === "doc" || kindRaw === "config" || kindRaw === "other"
+      ? kindRaw
+      : undefined;
+  const riskRaw = raw.risk_level ?? raw.riskLevel;
+  const riskLevel =
+    riskRaw === "low" || riskRaw === "medium" || riskRaw === "high" ? riskRaw : undefined;
+  const size =
+    raw.size != null ? Number(raw.size) : raw.size_hint != null ? Number(raw.size_hint) : undefined;
+  return {
+    relativePath: String(raw.relative_path ?? raw.relativePath ?? ""),
+    size,
+    sizeHint: size,
+    sha256: raw.sha256 ? String(raw.sha256) : undefined,
+    kind,
+    entry: raw.entry != null ? Boolean(raw.entry) : undefined,
+    riskLevel,
+  };
+}
+
+export function mapBundlePreview(raw: Record<string, unknown>, jobId: string): GeneHubInstallBundlePreview {
+  const validationRaw = (raw.validation_preview ?? raw.validationPreview) as
+    | Record<string, unknown>
+    | undefined;
+  const compatibilityRaw = (raw.compatibility as Record<string, unknown> | undefined) ?? {};
+  const validationPreview: GeneHubBundlePreviewValidation | undefined = validationRaw
+    ? {
+        hasSkill: Boolean(validationRaw.has_skill ?? validationRaw.hasSkill),
+        hasScripts: Boolean(validationRaw.has_scripts ?? validationRaw.hasScripts),
+        requiresSignature: Boolean(
+          validationRaw.requires_signature ?? validationRaw.requiresSignature,
+        ),
+        signaturePresent: Boolean(
+          validationRaw.signature_present ?? validationRaw.signaturePresent,
+        ),
+        pathWarnings: Array.isArray(validationRaw.path_warnings ?? validationRaw.pathWarnings)
+          ? ((validationRaw.path_warnings ?? validationRaw.pathWarnings) as unknown[]).map(String)
+          : [],
+        compatibilityWarnings: Array.isArray(
+          validationRaw.compatibility_warnings ?? validationRaw.compatibilityWarnings,
+        )
+          ? (
+              (validationRaw.compatibility_warnings ??
+                validationRaw.compatibilityWarnings) as unknown[]
+            ).map(String)
+          : [],
+      }
+    : undefined;
+
+  const filesRaw = raw.files;
+  const files = Array.isArray(filesRaw)
+    ? filesRaw.map((f) => mapPreviewFile(f as Record<string, unknown>))
+    : [];
+  const scriptsRaw = raw.scripts;
+  const scripts = Array.isArray(scriptsRaw)
+    ? scriptsRaw.map((f) => mapPreviewFile(f as Record<string, unknown>))
+    : [];
+
+  const geneSlug = String(raw.gene_slug ?? raw.geneSlug ?? "");
+  const geneVersion = String(raw.gene_version ?? raw.geneVersion ?? "");
+  const skillName = String(raw.skill_name ?? raw.skillName ?? "");
+
+  return {
+    jobId: String(raw.job_id ?? raw.jobId ?? jobId),
+    geneSlug,
+    geneVersion,
+    skillName,
+    action: String(raw.action ?? "install") as InstallJob["action"],
+    manifestHash: raw.manifest_hash
+      ? String(raw.manifest_hash)
+      : raw.manifestHash
+        ? String(raw.manifestHash)
+        : undefined,
+    bundleHash: raw.bundle_hash
+      ? String(raw.bundle_hash)
+      : raw.bundleHash
+        ? String(raw.bundleHash)
+        : undefined,
+    compatibility: {
+      profiles: Array.isArray(compatibilityRaw.profiles)
+        ? compatibilityRaw.profiles.map(String)
+        : undefined,
+      hermesVersion: compatibilityRaw.hermes_version
+        ? String(compatibilityRaw.hermes_version)
+        : compatibilityRaw.hermesVersion
+          ? String(compatibilityRaw.hermesVersion)
+          : undefined,
+      desktopVersion: compatibilityRaw.desktop_version
+        ? String(compatibilityRaw.desktop_version)
+        : compatibilityRaw.desktopVersion
+          ? String(compatibilityRaw.desktopVersion)
+          : undefined,
+    },
+    manifest: {
+      geneSlug,
+      geneVersion,
+      skillName,
+      manifestHash: raw.manifest_hash ? String(raw.manifest_hash) : undefined,
+      bundleHash: raw.bundle_hash ? String(raw.bundle_hash) : undefined,
+    },
+    files,
+    scripts: scripts.length ? scripts : undefined,
+    validationPreview,
+  };
+}
+
+export async function getInstallJob(jobId: string): Promise<InstallJob> {
+  const descriptor = await requireDescriptor();
+  const data = await genehubFetch<Record<string, unknown>>(
+    descriptor,
+    `/hermes/install-jobs/${encodeURIComponent(jobId)}`,
+  );
+  return mapGeneHubJob(data);
+}
+
+export async function fetchBundlePreview(jobId: string): Promise<GeneHubInstallBundlePreview> {
+  const descriptor = await requireDescriptor();
+  try {
+    const data = await genehubFetch<Record<string, unknown>>(
+      descriptor,
+      `/hermes/install-jobs/${encodeURIComponent(jobId)}/bundle-preview`,
+    );
+    return mapBundlePreview(data, jobId);
+  } catch (err) {
+    if (err instanceof GeneHubError) {
+      throw new GeneHubError("GENEHUB_API_FAILED", err.message);
+    }
+    throw err;
+  }
+}
+
+export async function ignoreInstallJob(
+  jobId: string,
+): Promise<{ success: boolean; status: "cancelled" }> {
+  const descriptor = await requireDescriptor();
+  const data = await genehubFetch<Record<string, unknown>>(
+    descriptor,
+    `/hermes/install-jobs/${encodeURIComponent(jobId)}/ignore`,
+    { method: "POST", body: {} },
+  );
+  return {
+    success: Boolean(data.success ?? true),
+    status: "cancelled",
+  };
 }
 
 export async function claimJob(jobId: string): Promise<InstallJob> {

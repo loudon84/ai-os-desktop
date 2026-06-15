@@ -11,12 +11,14 @@ describe("preload genehubRuntime exposure", () => {
     expect(source).toContain("window.genehubRuntime = genehubRuntimeApi");
   });
 
-  it("exposes v6.6.2 MCP registration IPC wrappers", () => {
+  it("exposes v6.7.1 MCP registration IPC wrappers", () => {
     const source = readFileSync(resolve("src/preload/genehub-runtime-api.ts"), "utf8");
     expect(source).toContain("genehub:list-mcp-registration-jobs");
     expect(source).toContain("genehub:preview-install-bundle");
     expect(source).toContain("genehub:ignore-install-job");
     expect(source).toContain("genehub:get-registration-summary");
+    expect(source).toContain("genehub:install-job");
+    expect(source).toContain("userConfirmed");
     expect(source).toContain("onPendingJobsChanged");
   });
 });

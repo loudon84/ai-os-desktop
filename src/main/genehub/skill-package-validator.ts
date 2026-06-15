@@ -1,9 +1,10 @@
-import { createHash } from "crypto";
+import { createHash, createPublicKey, verify as cryptoVerify } from "crypto";
 import { isAbsolute, normalize, resolve, sep } from "path";
 import type { GeneHubBundle } from "../../shared/genehub/genehub-contract";
 import { GENEHUB_SKILL_NAME_PATTERN } from "../../shared/genehub/genehub-contract";
 import { GeneHubError } from "../../shared/genehub/genehub-errors";
 import { getGeneHubConfig } from "./genehub-config";
+import { appendInstallLog } from "./genehub-install-log";
 
 const FORBIDDEN_PATH_PATTERNS = [
   /\.\./,
@@ -54,10 +55,74 @@ function hashContent(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
+function buildSignaturePayload(manifest: GeneHubBundle["manifest"]): string {
+  return `${manifest.manifestHash ?? ""}:${manifest.bundleHash ?? ""}`;
+}
+
+function verifyWithKey(
+  signature: string,
+  payload: string,
+  publicKeyPem: string,
+  algorithm: "ed25519" | "rsa-sha256" | undefined,
+): boolean {
+  try {
+    const key = createPublicKey(publicKeyPem);
+    if (algorithm === "rsa-sha256") {
+      return cryptoVerify(
+        "RSA-SHA256",
+        Buffer.from(payload, "utf8"),
+        key,
+        Buffer.from(signature, "base64"),
+      );
+    }
+    return cryptoVerify(null, Buffer.from(payload, "utf8"), key, Buffer.from(signature, "base64"));
+  } catch {
+    return false;
+  }
+}
+
+export function verifyGeneHubSignature(bundle: GeneHubBundle, jobId: string, geneSlug: string): void {
+  const config = getGeneHubConfig();
+  const manifest = bundle.manifest;
+
+  if (!config.verifySignature) {
+    appendInstallLog({
+      jobId,
+      geneSlug,
+      step: "signature_skipped",
+      status: "info",
+      message: "Signature verification disabled by config",
+    });
+    return;
+  }
+
+  if (!manifest.signature?.trim()) {
+    throw new GeneHubError("GENEHUB_SIGNATURE_INVALID", "Bundle signature is missing");
+  }
+
+  if (!config.trustedPublicKeys.length) {
+    throw new GeneHubError(
+      "GENEHUB_SIGNATURE_INVALID",
+      "No trusted public keys configured for signature verification",
+    );
+  }
+
+  const payload = buildSignaturePayload(manifest);
+  const algorithm = config.signatureAlgorithm ?? "ed25519";
+  const verified = config.trustedPublicKeys.some((key) =>
+    verifyWithKey(manifest.signature!, payload, key, algorithm),
+  );
+
+  if (!verified) {
+    throw new GeneHubError("GENEHUB_SIGNATURE_INVALID", "Bundle signature verification failed");
+  }
+}
+
 export function validateGeneHubBundle(
   bundle: GeneHubBundle,
   hermesHome: string,
   profileName?: string,
+  jobId?: string,
 ): void {
   const manifest = bundle.manifest;
 
@@ -109,8 +174,5 @@ export function validateGeneHubBundle(
     }
   }
 
-  const verifySignature = getGeneHubConfig().verifySignature;
-  if (verifySignature && manifest.signature === "invalid") {
-    throw new GeneHubError("GENEHUB_SIGNATURE_INVALID", "Bundle signature invalid");
-  }
+  verifyGeneHubSignature(bundle, jobId ?? bundle.jobId, manifest.geneSlug);
 }

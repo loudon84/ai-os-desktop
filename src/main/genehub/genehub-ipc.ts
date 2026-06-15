@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import type {
   GeneHubActionResult,
   GeneHubCreateInstallJobInput,
+  GeneHubInstallJobOptions,
   GeneHubProfileScopedInput,
 } from "../../shared/genehub/genehub-contract";
 import { isGeneHubError } from "../../shared/genehub/genehub-errors";
@@ -65,14 +66,17 @@ export function registerGeneHubIpc(): void {
     });
   });
 
-  ipcMain.handle("genehub:install-job", async (_, jobId: string) => {
-    try {
-      await runInstallJob(jobId, { userConfirmed: true });
-      return { ok: true } satisfies GeneHubActionResult;
-    } catch (err) {
-      return toActionResult(err);
-    }
-  });
+  ipcMain.handle(
+    "genehub:install-job",
+    async (_, jobId: string, options?: GeneHubInstallJobOptions) => {
+      try {
+        await runInstallJob(jobId, { userConfirmed: options?.userConfirmed ?? true });
+        return { ok: true } satisfies GeneHubActionResult;
+      } catch (err) {
+        return toActionResult(err);
+      }
+    },
+  );
 
   ipcMain.handle(
     "genehub:list-mcp-registration-jobs",
@@ -85,8 +89,8 @@ export function registerGeneHubIpc(): void {
 
   ipcMain.handle("genehub:ignore-install-job", async (_, jobId: string) => {
     try {
-      ignoreInstallJob(jobId);
-      return { ok: true } satisfies GeneHubActionResult;
+      const result = await ignoreInstallJob(jobId);
+      return { ok: result.ok, status: result.status } satisfies GeneHubActionResult;
     } catch (err) {
       return toActionResult(err);
     }

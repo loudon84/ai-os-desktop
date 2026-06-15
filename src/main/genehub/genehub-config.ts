@@ -20,6 +20,8 @@ function normalizeConfig(
     pendingJobsIntervalMs: base.pendingJobsIntervalMs || 60_000,
     autoInstallAssignedJobs: base.autoInstallAssignedJobs ?? false,
     verifySignature: base.verifySignature ?? true,
+    trustedPublicKeys: Array.isArray(base.trustedPublicKeys) ? base.trustedPublicKeys : [],
+    signatureAlgorithm: base.signatureAlgorithm,
     updatedAt: base.updatedAt || new Date().toISOString(),
   };
 }

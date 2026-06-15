@@ -29,7 +29,7 @@ export function GeneHubInstallJobDrawer({
   if (!job) return null;
 
   const jobLogs = logs.filter((entry) => entry.jobId === job.jobId);
-  const canConfirm = job.status === "pending";
+  const canConfirm = job.status === "pending" && !job.profileMappingMissing;
 
   return (
     <div className="hermes-genehub-drawer-backdrop" role="presentation" onClick={onClose}>
@@ -81,6 +81,36 @@ export function GeneHubInstallJobDrawer({
             </p>
           ) : preview ? (
             <>
+              {preview.validationPreview ? (
+                <dl className="hermes-genehub-drawer__dl">
+                  <div className="hermes-dl-row">
+                    <dt>{t("workspaces.hermes.geneHub.mcpRegistration.validationPreview")}</dt>
+                    <dd>
+                      {preview.validationPreview.hasSkill
+                        ? t("workspaces.hermes.geneHub.mcpRegistration.validationHasSkill")
+                        : "—"}
+                      {" · "}
+                      {preview.validationPreview.requiresSignature
+                        ? t("workspaces.hermes.geneHub.mcpRegistration.validationRequiresSignature")
+                        : "—"}
+                    </dd>
+                  </div>
+                  {preview.validationPreview.pathWarnings.length > 0 ? (
+                    <div className="hermes-dl-row">
+                      <dt>{t("workspaces.hermes.geneHub.mcpRegistration.validationPathWarnings")}</dt>
+                      <dd>{preview.validationPreview.pathWarnings.join("; ")}</dd>
+                    </div>
+                  ) : null}
+                  {preview.validationPreview.compatibilityWarnings.length > 0 ? (
+                    <div className="hermes-dl-row">
+                      <dt>
+                        {t("workspaces.hermes.geneHub.mcpRegistration.validationCompatibilityWarnings")}
+                      </dt>
+                      <dd>{preview.validationPreview.compatibilityWarnings.join("; ")}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
               <p className="hermes-muted">
                 {t("workspaces.hermes.geneHub.mcpRegistration.fileCount", {
                   count: preview.files.length,
@@ -135,7 +165,7 @@ export function GeneHubInstallJobDrawer({
             <button
               type="button"
               className="hermes-btn-primary"
-              disabled={actionPending}
+              disabled={actionPending || job.profileMappingMissing}
               onClick={onConfirm}
             >
               {t("workspaces.hermes.geneHub.mcpRegistration.confirmInstall")}

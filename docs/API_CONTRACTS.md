@@ -619,11 +619,13 @@ curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "
 
 ---
 
-## GeneHub Runtime（V6.5 + V6.5.1 Hotfix + **V6.6.2 MCP Registration**）
+## GeneHub Runtime（V6.5 + V6.5.1 Hotfix + **V6.6.2 MCP Registration** + **V6.7.1 Hardening**）
 
 nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 安装任务、下载 Bundle、写入本机 Hermes `skills/` 与 `scripts/`、回传状态。**禁止** Renderer 传入任意 URL 或本地路径；**无**上传/发布/审核入口。
 
-**V6.6.2**：`source=mcp_agent_request` 的 install job **永不自动安装**；scheduler 始终写入 `~/.hermes/desktop/genehub/pending-jobs.json` 并广播 `genehub:pending-jobs-changed`；用户确认后 `genehub:install-job` 才 claim/install；安装成功写入 `skills/<name>/genehub.json` provenance。
+**V6.6.2**：`source=mcp_agent_request` 的 install job **永不自动安装**；scheduler 写入 `~/.hermes/desktop/genehub/pending-jobs.json` 并广播 `genehub:pending-jobs-changed`；用户确认后 `genehub:install-job` 才 claim/install；安装成功写入 `skills/<name>/genehub.json` provenance。
+
+**V6.7.1**：`GET .../bundle-preview`（preview **不 claim**）；`POST .../ignore` 同步服务端 `cancelled`；`~/.hermes/desktop/genehub/profile-mapping.json` 持久化 serverProfileId；`syncInstalledSkills` 使用 server profile id；`verifySignature` + `trustedPublicKeys` 签名校验；scripts 写入 provenance sidecar（`*.genehub.json`）；`InstallJob.profileMappingMissing` 禁用确认安装。
 
 **配置单一源**：`AuthEndpointConfig.backendUrl` → `GET /api/v1/system/info` → `genehub` descriptor → `apiBaseUrl`；Bearer 仅 Main 注入。
 
@@ -638,27 +640,31 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 | `genehub:list-authorized-skills` | `{ profileId? }` | `GeneHubSkill[]` |
 | `genehub:list-pending-jobs` | `{ profileId? }` | `InstallJob[]` |
 | `genehub:create-install-job` | `{ profileId?, geneSlug, action }` | `InstallJob` |
-| `genehub:install-job` | `jobId` | `GeneHubActionResult`（Main 侧 `userConfirmed: true`） |
+| `genehub:install-job` | `jobId`, `{ userConfirmed?: boolean }?` | `GeneHubActionResult`（MCP job 须 `userConfirmed: true`） |
 | `genehub:update-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
 | `genehub:uninstall-skill` | `{ profileId?, geneSlug }` | `GeneHubActionResult` |
 | `genehub:sync-installed-skills` | `{ profileId? }` | `GeneHubActionResult` |
 | `genehub:get-install-logs` | `limit?` | `InstallLogEntry[]` |
 | `genehub:list-mcp-registration-jobs` | `{ profileId? }` | `GeneHubMcpRegistrationJobsResult` |
-| `genehub:preview-install-bundle` | `jobId` | `GeneHubInstallBundlePreview` |
-| `genehub:ignore-install-job` | `jobId` | `GeneHubActionResult`（本地 dismiss，不 claim） |
-| `genehub:get-registration-summary` | — | `GeneHubRegistrationSummary` |
+| `genehub:preview-install-bundle` | `jobId` | `GeneHubInstallBundlePreview`（`GET .../bundle-preview`，不 claim） |
+| `genehub:ignore-install-job` | `jobId` | `GeneHubActionResult`（`POST .../ignore` → 服务端 cancelled + 刷新 cache） |
+| `genehub:get-registration-summary` | — | `GeneHubRegistrationSummary`（含 `inProgressMcpJobCount`、`lastSyncAt`） |
 
 **事件（Main → Renderer）**：`genehub:pending-jobs-changed` — scheduler poll 完成后广播；Preload `genehubRuntime.onPendingJobsChanged(cb)` 返回 unsubscribe。
 
-**InstallJob 扩展字段（V6.6.2）**：`source?: "mcp_agent_request" | "desktop_manual" | "server_assigned"`、`profileName?`、`createdAt?`、`lastUpdatedAt?`
+**InstallJob 扩展字段（V6.6.2 + V6.7.1）**：`source?`（缺失不得视为 MCP job）、`profileName?`、`profileMappingMissing?`、`createdAt?`、`lastUpdatedAt?`、`errorCode?`、`errorMessage?`
 
-**Main 模块**：`src/main/genehub/`（`genehub-client.ts`、`skill-install-worker.ts`、`hermes-skill-writer.ts`、`genehub-scheduler.ts`、`pending-jobs-cache.ts`、`mcp-registration-service.ts` 等）。
+**本地缓存（V6.7.1）**：
+- `~/.hermes/desktop/genehub/profile-mapping.json` — local ↔ server profile id
+- `~/.hermes/desktop/genehub/pending-jobs.json` — scheduler merge（version `v6.7.1`）
+
+**Main 模块**：`src/main/genehub/`（`genehub-client.ts`、`genehub-profile-mapping.ts`、`script-provenance.ts`、`skill-install-worker.ts`、`hermes-skill-writer.ts`、`genehub-scheduler.ts`、`pending-jobs-cache.ts`、`mcp-registration-service.ts` 等）。
 
 **生命周期**：登录成功 `onGeneHubLoginSuccess` → `initializeGeneHub` + 定时 heartbeat/pending jobs；logout / `before-quit` 停止 scheduler。
 
 **契约**：`src/shared/genehub/genehub-contract.ts`、`src/shared/genehub/genehub-errors.ts`
 
-**Renderer**：`screens/Hermes/pages/GeneHub/GeneHubSkillCenterPage.tsx`（**V6.6.2** `mcpRegistration` 页签 + Drawer）；`screens/Hermes/pages/McpGateway/McpGatewayGeneHubRegistrationCard.tsx`；Local Hermes 左导航 `skillCenter`（与本地 `skills` 页并存）。
+**Renderer**：`screens/Hermes/pages/GeneHub/GeneHubSkillCenterPage.tsx`（**V6.7.1** validation preview + profile mapping 门禁；**V6.6.2** `mcpRegistration` 页签 + Drawer）；`screens/Hermes/pages/McpGateway/McpGatewayGeneHubRegistrationCard.tsx`（pending/in-progress/lastSync）；Local Hermes 左导航 `skillCenter`。
 
 ---
 

@@ -1,4 +1,5 @@
 import type { HermesProfileDto } from "../../shared/genehub/genehub-contract";
+import { resolveServerProfileId as resolveMappedServerProfileId } from "./genehub-profile-mapping";
 
 let desktopDeviceId: string | null = null;
 const serverProfileIds = new Map<string, string>();
@@ -17,6 +18,8 @@ export function setGeneHubServerProfileId(localKey: string, serverProfileId: str
 
 export function resolveGeneHubServerProfileId(profile: HermesProfileDto): string {
   return (
+    resolveMappedServerProfileId(profile.profileId) ??
+    resolveMappedServerProfileId(profile.profileName) ??
     serverProfileIds.get(profile.profileId) ??
     serverProfileIds.get(profile.profileName) ??
     profile.profileId

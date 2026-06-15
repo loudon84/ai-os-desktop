@@ -8,11 +8,16 @@ import type {
 } from "../../shared/genehub/genehub-contract";
 import { GeneHubError } from "../../shared/genehub/genehub-errors";
 import * as genehubClient from "./genehub-client";
-import { readInstallLogs } from "./genehub-install-log";
+import { appendInstallLog, readInstallLogs } from "./genehub-install-log";
 import { isGeneHubInitialized } from "./genehub-connection";
+import { emitPendingJobsChanged } from "./genehub-pending-events";
+import {
+  enrichJobProfileFromMapping,
+  getProfileMappingUpdatedAt,
+  resolveLocalProfileByServerId,
+} from "./genehub-profile-mapping";
 import { resolveHermesProfile, resolveHermesProfiles } from "./hermes-profile-resolver";
 import { resolveGeneHubServerProfileId } from "./genehub-session";
-import { isJobIgnored, ignoreInstallJob as storeIgnoredJob } from "./ignored-jobs-store";
 import {
   getCachedPendingJobs,
   mergePendingJobs,
@@ -46,10 +51,12 @@ export async function fetchAndCachePendingJobs(): Promise<InstallJob[]> {
     const serverProfileId = resolveGeneHubServerProfileId(profile);
     const jobs = await genehubClient.listPendingJobs(serverProfileId);
     for (const job of jobs) {
-      fresh.push({
-        ...job,
-        profileName: job.profileName ?? profile.profileName,
-      });
+      fresh.push(
+        enrichJobProfileFromMapping({
+          ...job,
+          profileName: job.profileName ?? profile.profileName,
+        }),
+      );
     }
   }
   const merged = mergePendingJobs(getCachedPendingJobs(), fresh);
@@ -74,14 +81,18 @@ export async function listMcpRegistrationJobs(
   }
 
   const profile = input?.profileId ? resolveHermesProfile(input.profileId) : null;
-  const filtered = jobs.filter((job) => {
-    if (!isMcpJob(job)) return false;
-    if (isJobIgnored(job.jobId)) return false;
-    if (profile && job.profileId !== resolveGeneHubServerProfileId(profile) && job.profileName !== profile.profileName) {
-      return false;
-    }
-    return true;
-  });
+  const filtered = jobs
+    .map((job) => enrichJobProfileFromMapping(job))
+    .filter((job) => {
+      if (!isMcpJob(job)) return false;
+      if (profile) {
+        const serverId = resolveGeneHubServerProfileId(profile);
+        if (job.profileId !== serverId && job.profileName !== profile.profileName) {
+          return false;
+        }
+      }
+      return true;
+    });
 
   const groups = emptyGroups();
   for (const job of filtered) {
@@ -101,11 +112,12 @@ export async function previewInstallBundle(jobId: string): Promise<GeneHubInstal
     throw new GeneHubError("GENEHUB_JOB_NOT_FOUND", `Install job not found: ${jobId}`);
   }
 
-  const base = {
+  const fallbackBase = {
     jobId,
     skillName: cached.skillName,
     geneSlug: cached.geneSlug,
     geneVersion: cached.geneVersion,
+    action: cached.action,
     manifest: {
       geneSlug: cached.geneSlug,
       geneVersion: cached.geneVersion,
@@ -116,33 +128,52 @@ export async function previewInstallBundle(jobId: string): Promise<GeneHubInstal
   };
 
   try {
-    const bundle = await genehubClient.downloadBundle(jobId);
-    return {
-      ...base,
-      manifest: bundle.manifest,
-      files: bundle.files.map((f) => ({
-        relativePath: f.relativePath,
-        encoding: f.encoding,
-        sizeHint: f.content.length,
-      })),
-      scripts: (bundle.scripts ?? []).map((f) => ({
-        relativePath: f.relativePath,
-        encoding: f.encoding,
-        sizeHint: f.content.length,
-      })),
-    };
+    return await genehubClient.fetchBundlePreview(jobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
-      ...base,
+      ...fallbackBase,
       previewLimited: true,
       previewError: message,
     };
   }
 }
 
-export function ignoreMcpInstallJob(jobId: string): void {
-  storeIgnoredJob(jobId);
+export async function ignoreInstallJob(jobId: string): Promise<{ ok: boolean; status: "cancelled" }> {
+  if (!isGeneHubInitialized()) {
+    throw new GeneHubError("GENEHUB_NOT_INITIALIZED", "GeneHub is not initialized");
+  }
+
+  const cached = getCachedPendingJobs().find((j) => j.jobId === jobId);
+  if (!cached) {
+    throw new GeneHubError("GENEHUB_JOB_NOT_FOUND", `Install job not found: ${jobId}`);
+  }
+
+  if (cached.source !== "mcp_agent_request") {
+    throw new GeneHubError("GENEHUB_JOB_NOT_PENDING", "Only MCP registration jobs can be ignored");
+  }
+
+  if (cached.status !== "pending") {
+    throw new GeneHubError(
+      "GENEHUB_JOB_NOT_PENDING",
+      `Cannot ignore job in status: ${cached.status}`,
+    );
+  }
+
+  const result = await genehubClient.ignoreInstallJob(jobId);
+
+  appendInstallLog({
+    jobId,
+    geneSlug: cached.geneSlug,
+    step: "ignored",
+    status: "info",
+    message: "User ignored MCP registration job",
+  });
+
+  await fetchAndCachePendingJobs();
+  emitPendingJobsChanged();
+
+  return { ok: result.success, status: result.status };
 }
 
 export async function getRegistrationSummary(): Promise<GeneHubRegistrationSummary> {
@@ -152,6 +183,7 @@ export async function getRegistrationSummary(): Promise<GeneHubRegistrationSumma
   }));
 
   const pendingMcpJobCount = mcpJobs.groups.awaiting_confirm.length;
+  const inProgressMcpJobCount = mcpJobs.groups.in_progress.length;
   const logs = readInstallLogs(200);
 
   let lastInstalled: GeneHubRegistrationSummary["lastInstalled"];
@@ -179,7 +211,22 @@ export async function getRegistrationSummary(): Promise<GeneHubRegistrationSumma
     if (lastInstalled && lastFailed) break;
   }
 
-  return { pendingMcpJobCount, lastInstalled, lastFailed };
+  return {
+    pendingMcpJobCount,
+    inProgressMcpJobCount,
+    lastSyncAt: getProfileMappingUpdatedAt(),
+    lastInstalled,
+    lastFailed,
+  };
 }
 
-export { ignoreMcpInstallJob as ignoreInstallJob };
+export function resolveLocalProfileForJob(job: InstallJob) {
+  const mapped = resolveLocalProfileByServerId(job.profileId);
+  if (!mapped) {
+    throw new GeneHubError(
+      "GENEHUB_PROFILE_MAPPING_MISSING",
+      `No local profile mapping for server profile: ${job.profileId}`,
+    );
+  }
+  return resolveHermesProfile(mapped.localProfileName);
+}

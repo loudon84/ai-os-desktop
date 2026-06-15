@@ -7,6 +7,7 @@ import type {
   GeneHubMcpRegistrationJobsResult,
   GeneHubProfileScopedInput,
   GeneHubRegistrationSummary,
+  GeneHubInstallJobOptions,
   GeneHubRuntimeAPI,
   GeneHubRuntimeConfig,
   GeneHubSkill,
@@ -28,8 +29,8 @@ export const genehubRuntimeApi: GeneHubRuntimeAPI = {
     ipcRenderer.invoke("genehub:list-pending-jobs", input),
   createInstallJob: (input: GeneHubCreateInstallJobInput): Promise<InstallJob> =>
     ipcRenderer.invoke("genehub:create-install-job", input),
-  installJob: (jobId: string): Promise<GeneHubActionResult> =>
-    ipcRenderer.invoke("genehub:install-job", jobId),
+  installJob: (jobId: string, options?: GeneHubInstallJobOptions): Promise<GeneHubActionResult> =>
+    ipcRenderer.invoke("genehub:install-job", jobId, options),
   updateSkill: (
     input: GeneHubProfileScopedInput & { geneSlug: string },
   ): Promise<GeneHubActionResult> => ipcRenderer.invoke("genehub:update-skill", input),

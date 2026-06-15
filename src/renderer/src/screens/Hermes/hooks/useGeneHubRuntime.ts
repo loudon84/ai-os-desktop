@@ -163,7 +163,7 @@ export function useGeneHubRuntime() {
       }),
     confirmInstallJob: (jobId: string) =>
       runAction(async () => {
-        const result = await requireGeneHubRuntime().installJob(jobId);
+        const result = await requireGeneHubRuntime().installJob(jobId, { userConfirmed: true });
         if (!result.ok) {
           throw new Error(result.error ?? "Install failed");
         }

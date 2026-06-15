@@ -12,6 +12,11 @@ import type { GeneHubBundle, InstalledSkillRecord } from "../../shared/genehub/g
 import { GeneHubError } from "../../shared/genehub/genehub-errors";
 import { assertSafeRelativePath, assertValidSkillName } from "./skill-package-validator";
 import { writeInstalledSkillRecord, removeInstalledSkillRecord } from "./installed-skill-store";
+import {
+  assertScriptProvenanceAllowed,
+  backupScriptFile,
+  writeScriptProvenance,
+} from "./script-provenance";
 
 const SNAPSHOT_FILE = ".skills_prompt_snapshot.json";
 
@@ -101,7 +106,20 @@ export async function installGeneHubBundle(input: {
     for (const script of bundle.scripts ?? []) {
       const safePath = assertSafeRelativePath(script.relativePath, hermesHome);
       const target = join(scriptsDir, safePath);
+      assertScriptProvenanceAllowed({
+        scriptFullPath: target,
+        geneSlug: bundle.manifest.geneSlug,
+        jobId,
+      });
+      backupScriptFile(target, hermesHome);
       writeFileEnsuringDir(target, decodeContent(script.content, script.encoding));
+      writeScriptProvenance(target, {
+        source: "nodeskclaw-genehub",
+        jobId,
+        geneSlug: bundle.manifest.geneSlug,
+        geneVersion: bundle.manifest.geneVersion,
+        installedAt: new Date().toISOString(),
+      });
     }
 
     cleanSkillSnapshot(hermesHome);

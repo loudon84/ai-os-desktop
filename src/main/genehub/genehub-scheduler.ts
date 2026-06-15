@@ -12,6 +12,7 @@ import { fetchAndCachePendingJobs } from "./mcp-registration-service";
 import { runInstallJob } from "./skill-install-worker";
 import { isGeneHubError } from "../../shared/genehub/genehub-errors";
 import type { GeneHubInitializeResult } from "../../shared/genehub/genehub-contract";
+import { saveProfileMappingEntry } from "./genehub-profile-mapping";
 import {
   clearGeneHubSession,
   getGeneHubDesktopDeviceId,
@@ -62,6 +63,12 @@ export async function initializeGeneHub(): Promise<GeneHubInitializeResult> {
       });
       setGeneHubServerProfileId(profile.profileId, serverProfileId);
       setGeneHubServerProfileId(profile.profileName, serverProfileId);
+      saveProfileMappingEntry({
+        localProfileId: profile.profileId,
+        localProfileName: profile.profileName,
+        serverProfileId,
+        deviceId,
+      });
       profilesRegistered += 1;
     }
 
@@ -110,10 +117,20 @@ async function sendHeartbeat(deviceId: string, profiles: HermesProfileDto[]): Pr
     const pendingSeconds = Number(
       result.serverConfig.pending_jobs_interval_seconds ?? result.serverConfig.pendingJobsIntervalSeconds,
     );
-    if (syncSeconds > 0 || pendingSeconds > 0) {
+    const trustedKeysRaw =
+      result.serverConfig.trusted_public_keys ?? result.serverConfig.trustedPublicKeys;
+    const trustedPublicKeys = Array.isArray(trustedKeysRaw)
+      ? trustedKeysRaw.map(String)
+      : undefined;
+    const algoRaw = result.serverConfig.signature_algorithm ?? result.serverConfig.signatureAlgorithm;
+    const signatureAlgorithm =
+      algoRaw === "ed25519" || algoRaw === "rsa-sha256" ? algoRaw : undefined;
+    if (syncSeconds > 0 || pendingSeconds > 0 || trustedPublicKeys || signatureAlgorithm) {
       saveGeneHubConfig({
         heartbeatIntervalMs: syncSeconds > 0 ? syncSeconds * 1000 : undefined,
         pendingJobsIntervalMs: pendingSeconds > 0 ? pendingSeconds * 1000 : undefined,
+        trustedPublicKeys,
+        signatureAlgorithm,
       });
     }
   }

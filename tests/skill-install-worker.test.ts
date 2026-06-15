@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const fetchAndCachePendingJobs = vi.fn(async () => []);
+
 vi.mock("../src/main/genehub/genehub-client", () => ({
+  getInstallJob: vi.fn(async () => ({
+    jobId: "job_1",
+    profileId: "srv_default",
+    geneSlug: "demo-skill",
+    geneVersion: "1.0.0",
+    skillName: "demo-skill",
+    action: "install",
+    status: "pending",
+    source: "desktop_manual",
+  })),
   claimJob: vi.fn(async () => ({
     jobId: "job_1",
-    profileId: "default",
+    profileId: "srv_default",
     geneSlug: "demo-skill",
     geneVersion: "1.0.0",
     skillName: "demo-skill",
@@ -21,6 +33,18 @@ vi.mock("../src/main/genehub/genehub-client", () => ({
   })),
   updateJobStatus: vi.fn(async () => undefined),
   syncInstalledSkills: vi.fn(async () => undefined),
+}));
+
+vi.mock("../src/main/genehub/mcp-registration-service", () => ({
+  fetchAndCachePendingJobs: (...args: unknown[]) => fetchAndCachePendingJobs(...args),
+  resolveLocalProfileForJob: () => ({
+    profileName: "default",
+    profileId: "default",
+    hermesHome: "C:\\\\tmp\\\\hermes",
+    gatewayUrl: "http://127.0.0.1:8642",
+    gatewayPort: 8642,
+    capabilities: { skills: true, scripts: true, reload: false },
+  }),
 }));
 
 vi.mock("../src/main/genehub/hermes-profile-resolver", () => ({
@@ -62,6 +86,7 @@ vi.mock("../src/main/genehub/genehub-config", () => ({
     pendingJobsIntervalMs: 60_000,
     autoInstallAssignedJobs: false,
     verifySignature: false,
+    trustedPublicKeys: [],
     updatedAt: "",
   }),
 }));
@@ -70,8 +95,16 @@ vi.mock("../src/main/genehub/genehub-install-log", () => ({
   appendInstallLog: vi.fn(),
 }));
 
+vi.mock("../src/main/genehub/genehub-pending-events", () => ({
+  emitPendingJobsChanged: vi.fn(),
+}));
+
 vi.mock("../src/main/genehub/pending-jobs-cache", () => ({
   getCachedPendingJobs: vi.fn(() => []),
+}));
+
+vi.mock("../src/main/genehub/genehub-session", () => ({
+  resolveGeneHubServerProfileId: () => "srv_default",
 }));
 
 import { runInstallJob } from "../src/main/genehub/skill-install-worker";
@@ -84,12 +117,16 @@ beforeEach(() => {
 });
 
 describe("skill-install-worker", () => {
-  it("runs claim → download → install → status installed", async () => {
+  it("runs getInstallJob → claim → download → install → status installed", async () => {
     await runInstallJob("job_1");
+    expect(genehubClient.getInstallJob).toHaveBeenCalledWith("job_1");
     expect(genehubClient.claimJob).toHaveBeenCalledWith("job_1");
     expect(genehubClient.downloadBundle).toHaveBeenCalledWith("job_1");
     expect(genehubClient.updateJobStatus).toHaveBeenCalled();
-    expect(genehubClient.syncInstalledSkills).toHaveBeenCalled();
+    expect(genehubClient.syncInstalledSkills).toHaveBeenCalledWith(
+      expect.objectContaining({ profileId: "srv_default" }),
+    );
+    expect(fetchAndCachePendingJobs).toHaveBeenCalled();
   });
 
   it("does not report claimed status to backend", async () => {
@@ -101,10 +138,20 @@ describe("skill-install-worker", () => {
   });
 
   it("rejects mcp_agent_request without userConfirmed", async () => {
+    vi.mocked(genehubClient.getInstallJob).mockResolvedValueOnce({
+      jobId: "job_mcp",
+      profileId: "srv_default",
+      geneSlug: "demo-skill",
+      geneVersion: "1.0.0",
+      skillName: "demo-skill",
+      action: "install",
+      status: "pending",
+      source: "mcp_agent_request",
+    });
     vi.mocked(getCachedPendingJobs).mockReturnValueOnce([
       {
         jobId: "job_mcp",
-        profileId: "default",
+        profileId: "srv_default",
         geneSlug: "demo-skill",
         geneVersion: "1.0.0",
         skillName: "demo-skill",

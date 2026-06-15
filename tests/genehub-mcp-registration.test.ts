@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { InstallJob } from "../src/shared/genehub/genehub-contract";
 
 const cachedJobs: InstallJob[] = [];
-const ignored = new Set<string>();
 
 vi.mock("../src/main/genehub/pending-jobs-cache", () => ({
   getCachedPendingJobs: () => cachedJobs,
@@ -10,13 +9,6 @@ vi.mock("../src/main/genehub/pending-jobs-cache", () => ({
   writePendingJobsCache: (jobs: InstallJob[]) => {
     cachedJobs.length = 0;
     cachedJobs.push(...jobs);
-  },
-}));
-
-vi.mock("../src/main/genehub/ignored-jobs-store", () => ({
-  isJobIgnored: (jobId: string) => ignored.has(jobId),
-  ignoreInstallJob: (jobId: string) => {
-    ignored.add(jobId);
   },
 }));
 
@@ -44,6 +36,11 @@ vi.mock("../src/main/genehub/genehub-install-log", () => ({
       errorCode: "GENEHUB_HASH_MISMATCH",
     },
   ],
+  appendInstallLog: vi.fn(),
+}));
+
+vi.mock("../src/main/genehub/genehub-pending-events", () => ({
+  emitPendingJobsChanged: vi.fn(),
 }));
 
 vi.mock("../src/main/genehub/hermes-profile-resolver", () => ({
@@ -67,13 +64,44 @@ vi.mock("../src/main/genehub/genehub-session", () => ({
   resolveGeneHubServerProfileId: () => "srv_default",
 }));
 
+vi.mock("../src/main/genehub/genehub-profile-mapping", () => ({
+  enrichJobProfileFromMapping: (job: InstallJob) => ({ ...job, profileMappingMissing: false }),
+  getProfileMappingUpdatedAt: () => "2026-06-14T00:00:00.000Z",
+  resolveLocalProfileByServerId: () => ({
+    localProfileName: "default",
+    localProfileId: "default",
+    serverProfileId: "srv_default",
+    serverProfileName: "default",
+    deviceId: "dev_1",
+  }),
+}));
+
+const fetchBundlePreview = vi.fn(async () => ({
+  jobId: "job_mcp",
+  geneSlug: "demo",
+  geneVersion: "1.0.0",
+  skillName: "demo",
+  manifest: { geneSlug: "demo", geneVersion: "1.0.0", skillName: "demo" },
+  files: [{ relativePath: "SKILL.md", size: 12, kind: "skill" as const }],
+  validationPreview: {
+    hasSkill: true,
+    hasScripts: false,
+    requiresSignature: true,
+    signaturePresent: false,
+    pathWarnings: [],
+    compatibilityWarnings: [],
+  },
+}));
+
+const ignoreInstallJobClient = vi.fn(async () => ({ success: true, status: "cancelled" as const }));
+
 vi.mock("../src/main/genehub/genehub-client", () => ({
   listPendingJobs: vi.fn(async () => []),
-  downloadBundle: vi.fn(async () => ({
-    jobId: "job_mcp",
-    manifest: { geneSlug: "demo", geneVersion: "1.0.0", skillName: "demo" },
-    files: [{ relativePath: "SKILL.md", content: "# demo" }],
-  })),
+  fetchBundlePreview: (...args: unknown[]) => fetchBundlePreview(...args),
+  ignoreInstallJob: (...args: unknown[]) => ignoreInstallJobClient(...args),
+  downloadBundle: vi.fn(async () => {
+    throw new Error("preview must not download bundle");
+  }),
 }));
 
 import {
@@ -85,7 +113,7 @@ import {
 
 beforeEach(() => {
   cachedJobs.length = 0;
-  ignored.clear();
+  vi.clearAllMocks();
   cachedJobs.push(
     {
       jobId: "job_mcp",
@@ -109,6 +137,16 @@ beforeEach(() => {
       status: "pending",
       source: "server_assigned",
     },
+    {
+      jobId: "job_no_source",
+      profileId: "srv_default",
+      profileName: "default",
+      geneSlug: "unknown",
+      geneVersion: "1.0.0",
+      skillName: "unknown",
+      action: "install",
+      status: "pending",
+    },
   );
 });
 
@@ -130,25 +168,40 @@ describe("mcp-registration-service", () => {
     expect(result.groups.awaiting_confirm).toHaveLength(1);
     expect(result.groups.completed).toHaveLength(1);
     expect(result.jobs.some((j) => j.jobId === "job_server")).toBe(false);
+    expect(result.jobs.some((j) => j.jobId === "job_no_source")).toBe(false);
   });
 
-  it("excludes ignored jobs", async () => {
-    ignoreInstallJob("job_mcp");
-    const result = await listMcpRegistrationJobs();
-    expect(result.jobs.some((j) => j.jobId === "job_mcp")).toBe(false);
+  it("syncs ignore to server and refreshes cache", async () => {
+    const result = await ignoreInstallJob("job_mcp");
+    expect(result.ok).toBe(true);
+    expect(ignoreInstallJobClient).toHaveBeenCalledWith("job_mcp");
   });
 
-  it("returns registration summary with pending count and last logs", async () => {
+  it("returns registration summary with pending and in-progress counts", async () => {
+    cachedJobs.push({
+      jobId: "job_running",
+      profileId: "srv_default",
+      geneSlug: "run",
+      geneVersion: "1.0.0",
+      skillName: "run",
+      action: "install",
+      status: "installing",
+      source: "mcp_agent_request",
+    });
     const summary = await getRegistrationSummary();
     expect(summary.pendingMcpJobCount).toBe(1);
+    expect(summary.inProgressMcpJobCount).toBe(1);
+    expect(summary.lastSyncAt).toBeTruthy();
     expect(summary.lastInstalled?.jobId).toBe("job_ok");
     expect(summary.lastFailed?.jobId).toBe("job_fail");
   });
 
-  it("previewInstallBundle returns sanitized file list", async () => {
+  it("previewInstallBundle uses bundle-preview API without download", async () => {
     const preview = await previewInstallBundle("job_mcp");
+    expect(fetchBundlePreview).toHaveBeenCalledWith("job_mcp");
     expect(preview.files).toHaveLength(1);
     expect(preview.files[0].relativePath).toBe("SKILL.md");
     expect(preview.files[0]).not.toHaveProperty("content");
+    expect(preview.validationPreview?.hasSkill).toBe(true);
   });
 });

@@ -2,12 +2,18 @@ import type { InstallJob, InstallJobAction } from "../../shared/genehub/genehub-
 import { GeneHubError, isGeneHubError } from "../../shared/genehub/genehub-errors";
 import * as genehubClient from "./genehub-client";
 import { appendInstallLog } from "./genehub-install-log";
-import { resolveHermesProfile } from "./hermes-profile-resolver";
+import { emitPendingJobsChanged } from "./genehub-pending-events";
+import {
+  fetchAndCachePendingJobs,
+  resolveLocalProfileForJob,
+} from "./mcp-registration-service";
 import { validateGeneHubBundle } from "./skill-package-validator";
 import { installGeneHubBundle, uninstallGeneHubSkill } from "./hermes-skill-writer";
 import { reloadOrRestart } from "./hermes-restart-service";
 import { listInstalledSkillRecords } from "./installed-skill-store";
 import { getCachedPendingJobs } from "./pending-jobs-cache";
+import { resolveGeneHubServerProfileId } from "./genehub-session";
+import { resolveHermesProfile } from "./hermes-profile-resolver";
 
 export type RunInstallJobOptions = {
   userConfirmed?: boolean;
@@ -47,26 +53,40 @@ export async function runInstallJob(
 ): Promise<void> {
   let job: InstallJob | null = findCachedJob(jobId) ?? null;
   let geneSlug = job?.geneSlug ?? "";
-
-  const source = job?.source;
-  if (source === "mcp_agent_request" && !options?.userConfirmed) {
-    throw new GeneHubError(
-      "GENEHUB_JOB_NOT_PENDING",
-      "MCP registration job requires user confirmation before install",
-    );
-  }
-
-  if (options?.userConfirmed) {
-    appendInstallLog({
-      jobId,
-      geneSlug: geneSlug || "unknown",
-      step: "user_confirmed",
-      status: "info",
-      message: "User confirmed install",
-    });
-  }
+  let serverProfileId = job?.profileId ?? "";
 
   try {
+    job = await genehubClient.getInstallJob(jobId);
+    geneSlug = job.geneSlug;
+    serverProfileId = job.profileId;
+
+    const source = job.source;
+    if (source === "mcp_agent_request" && !options?.userConfirmed) {
+      throw new GeneHubError(
+        "GENEHUB_JOB_NOT_PENDING",
+        "MCP registration job requires user confirmation before install",
+      );
+    }
+
+    if (job.status !== "pending" && source === "mcp_agent_request") {
+      throw new GeneHubError(
+        "GENEHUB_JOB_NOT_PENDING",
+        `MCP job is not pending: ${job.status}`,
+      );
+    }
+
+    if (options?.userConfirmed) {
+      appendInstallLog({
+        jobId,
+        geneSlug: geneSlug || "unknown",
+        step: "user_confirmed",
+        status: "info",
+        message: "User confirmed install",
+      });
+    }
+
+    const profile = resolveLocalProfileForJob(job);
+
     job = await genehubClient.claimJob(jobId);
     geneSlug = job.geneSlug;
     appendInstallLog({
@@ -83,9 +103,8 @@ export async function runInstallJob(
       clientReport: { fileCount: bundle.files.length },
     });
 
-    const profile = resolveHermesProfile(job.profileId);
     await reportStatus(jobId, geneSlug, "validating", "validate_start");
-    validateGeneHubBundle(bundle, profile.hermesHome, profile.profileName);
+    validateGeneHubBundle(bundle, profile.hermesHome, profile.profileName, jobId);
     await reportStatus(jobId, geneSlug, "validating", "validate_complete");
 
     await reportStatus(jobId, geneSlug, "installing", "write_start");
@@ -122,7 +141,7 @@ export async function runInstallJob(
 
     try {
       await genehubClient.syncInstalledSkills({
-        profileId: profile.profileId,
+        profileId: serverProfileId || resolveGeneHubServerProfileId(profile),
         skills: listInstalledSkillRecords(profile.hermesHome),
       });
       appendInstallLog({
@@ -157,6 +176,13 @@ export async function runInstallJob(
       });
     }
     throw err;
+  } finally {
+    try {
+      await fetchAndCachePendingJobs();
+      emitPendingJobsChanged();
+    } catch (refreshErr) {
+      console.warn("[GENEHUB] pending jobs refresh failed:", refreshErr);
+    }
   }
 }
 
@@ -167,7 +193,7 @@ export async function runCreateAndInstall(input: {
 }): Promise<void> {
   const profile = resolveHermesProfile(input.profileId);
   const job = await genehubClient.createInstallJob({
-    profileId: profile.profileId,
+    profileId: resolveGeneHubServerProfileId(profile),
     geneSlug: input.geneSlug,
     action: input.action,
   });

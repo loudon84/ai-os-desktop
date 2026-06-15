@@ -7,7 +7,7 @@ import type {
 import { profileHome } from "../utils";
 import { safeWriteFile } from "../utils";
 
-const CACHE_VERSION = "v6.6.2";
+const CACHE_VERSION = "v6.7.1";
 
 function cachePath(): string {
   return join(profileHome(), "desktop", "genehub", "pending-jobs.json");
@@ -38,7 +38,20 @@ export function mergePendingJobs(existing: InstallJob[], fresh: InstallJob[]): I
     if (job.jobId) map.set(job.jobId, job);
   }
   for (const job of fresh) {
-    if (job.jobId) map.set(job.jobId, { ...map.get(job.jobId), ...job });
+    if (!job.jobId) continue;
+    const prev = map.get(job.jobId);
+    const merged = { ...prev, ...job };
+    if (
+      prev &&
+      (job.status === "installed" ||
+        job.status === "failed" ||
+        job.status === "cancelled" ||
+        job.lastUpdatedAt)
+    ) {
+      map.set(job.jobId, merged);
+    } else {
+      map.set(job.jobId, merged);
+    }
   }
   return [...map.values()].sort((a, b) => {
     const ta = Date.parse(a.createdAt ?? a.assignedAt ?? "") || 0;

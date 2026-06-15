@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC-Copilot |
 | **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
-| **版本** | 0.3.6（… + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| **版本** | 0.3.6（… + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -210,9 +210,16 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **契约**：`McpGatewayToolPreview` / `McpGatewayInvokeTestResult` / `McpGatewayProxyLogEntry` 扩展 grant 字段；`MCP_OP_TOOL_APPROVAL_REQUIRED` 等错误码
 - **UI**：`McpGatewayServerAuthorizationPanel` + Tools Preview 授权 badge；打开 Portal `/mcp/approvals`（或 `system/info.mcp.approvalCenterPath`）
 
+**V6.7.1（GeneHub MCP Registration Hardening，PRD `prd/v6.7.1_genehub-mcp-registration-hardening.md`）**：
+- **Preview**：`GET .../bundle-preview`（不 claim、不下载正文）；`validationPreview` 元数据
+- **Ignore**：`POST .../ignore` 同步服务端 `cancelled`（不再仅写本地 `ignored-jobs.json`）
+- **Profile mapping**：`~/.hermes/desktop/genehub/profile-mapping.json`；`syncInstalledSkills` 使用 serverProfileId
+- **Install worker**：`getInstallJob` → claim → validate（签名校验 + `trustedPublicKeys`）→ write（scripts provenance sidecar）→ restart → sync → finally 刷新 cache
+- **UI**：mapping 缺失禁用确认；MCP Gateway 卡片 pending/in-progress/lastSync
+
 **V6.6.2（GeneHub MCP Registration，PRD `prd/v6.6.2_genehub-mcp-registration.md`）**：
-- **行为**：`mcp_agent_request` job 仅缓存 + UI 待确认，**永不**自动 claim/install；`server_assigned` 仍受 `autoInstallAssignedJobs` 控制
-- **缓存**：`~/.hermes/desktop/genehub/pending-jobs.json` + `ignored-jobs.json`；poll 后广播 `genehub:pending-jobs-changed`
+- **行为**：`mcp_agent_request` job 仅缓存 + UI 待确认，**永不**自动 claim/install；`source` 缺失不得误判为 MCP job
+- **缓存**：`~/.hermes/desktop/genehub/pending-jobs.json`；poll 后广播 `genehub:pending-jobs-changed`
 - **新增 IPC**：`list-mcp-registration-jobs`、`preview-install-bundle`、`ignore-install-job`、`get-registration-summary`
 - **安装**：用户确认后 `install-job`；成功写入 `skills/<name>/genehub.json` provenance
 - **UI**：Skill Center `mcpRegistration` 页签 + Drawer；MCP Gateway 页 `McpGatewayGeneHubRegistrationCard`

@@ -64,6 +64,8 @@ export interface GeneHubRuntimeConfig {
   pendingJobsIntervalMs: number;
   autoInstallAssignedJobs: boolean;
   verifySignature: boolean;
+  trustedPublicKeys: string[];
+  signatureAlgorithm?: "ed25519" | "rsa-sha256";
   updatedAt: string;
 }
 
@@ -73,8 +75,22 @@ export const DEFAULT_GENEHUB_RUNTIME_CONFIG: GeneHubRuntimeConfig = {
   pendingJobsIntervalMs: 60_000,
   autoInstallAssignedJobs: false,
   verifySignature: true,
+  trustedPublicKeys: [],
   updatedAt: "",
 };
+
+export interface GeneHubProfileMappingEntry {
+  localProfileName: string;
+  localProfileId: string;
+  serverProfileId: string;
+  serverProfileName: string;
+  deviceId: string;
+}
+
+export interface GeneHubProfileMapping {
+  updatedAt: string;
+  profiles: GeneHubProfileMappingEntry[];
+}
 
 export interface DesktopDeviceIdentity {
   deviceName: string;
@@ -136,6 +152,8 @@ export interface InstallJob {
   lastUpdatedAt?: string;
   errorCode?: string;
   errorMessage?: string;
+  /** v6.7.1 — local profile mapping missing for server profileId */
+  profileMappingMissing?: boolean;
 }
 
 export interface GeneHubPendingJobCache {
@@ -143,10 +161,28 @@ export interface GeneHubPendingJobCache {
   jobs: InstallJob[];
 }
 
+export type GeneHubBundlePreviewFileKind = "skill" | "doc" | "config" | "other";
+
+export type GeneHubScriptRiskLevel = "low" | "medium" | "high";
+
 export interface GeneHubInstallBundlePreviewFile {
   relativePath: string;
   encoding?: "utf-8" | "base64";
   sizeHint?: number;
+  size?: number;
+  sha256?: string;
+  kind?: GeneHubBundlePreviewFileKind;
+  entry?: boolean;
+  riskLevel?: GeneHubScriptRiskLevel;
+}
+
+export interface GeneHubBundlePreviewValidation {
+  hasSkill: boolean;
+  hasScripts: boolean;
+  requiresSignature: boolean;
+  signaturePresent: boolean;
+  pathWarnings: string[];
+  compatibilityWarnings: string[];
 }
 
 export interface GeneHubInstallBundlePreview {
@@ -154,15 +190,29 @@ export interface GeneHubInstallBundlePreview {
   skillName: string;
   geneSlug: string;
   geneVersion: string;
+  action?: InstallJobAction;
+  manifestHash?: string;
+  bundleHash?: string;
+  compatibility?: {
+    profiles?: string[];
+    hermesVersion?: string;
+    desktopVersion?: string;
+  };
   manifest: GeneHubBundleManifest;
   files: GeneHubInstallBundlePreviewFile[];
   scripts?: GeneHubInstallBundlePreviewFile[];
+  validationPreview?: GeneHubBundlePreviewValidation;
   previewLimited?: boolean;
   previewError?: string;
 }
 
+/** Alias for PRD §6.3 naming */
+export type GeneHubBundlePreview = GeneHubInstallBundlePreview;
+
 export interface GeneHubRegistrationSummary {
   pendingMcpJobCount: number;
+  inProgressMcpJobCount?: number;
+  lastSyncAt?: string | null;
   lastInstalled?: {
     jobId: string;
     skillName: string;
@@ -236,6 +286,23 @@ export interface GeneHubActionResult {
   ok: boolean;
   error?: string;
   errorCode?: GeneHubErrorCode;
+  status?: InstallJobStatus;
+}
+
+export interface GeneHubInstallJobOptions {
+  userConfirmed?: boolean;
+}
+
+export interface GeneHubInstallResult {
+  jobId: string;
+  status: InstallJobStatus;
+  skillName: string;
+  geneSlug: string;
+  geneVersion: string;
+  profileName: string;
+  installedPath?: string;
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 export interface GeneHubInitializeResult extends GeneHubActionResult {
@@ -265,7 +332,7 @@ export interface GeneHubRuntimeAPI {
   listAuthorizedSkills(input?: GeneHubProfileScopedInput): Promise<GeneHubSkill[]>;
   listPendingJobs(input?: GeneHubProfileScopedInput): Promise<InstallJob[]>;
   createInstallJob(input: GeneHubCreateInstallJobInput): Promise<InstallJob>;
-  installJob(jobId: string): Promise<GeneHubActionResult>;
+  installJob(jobId: string, options?: GeneHubInstallJobOptions): Promise<GeneHubActionResult>;
   updateSkill(input: GeneHubProfileScopedInput & { geneSlug: string }): Promise<GeneHubActionResult>;
   uninstallSkill(input: GeneHubProfileScopedInput & { geneSlug: string }): Promise<GeneHubActionResult>;
   syncInstalledSkills(input?: GeneHubProfileScopedInput): Promise<GeneHubActionResult>;

@@ -1,13 +1,18 @@
 # Current Agent Task
 
-## v6.5.1 Hotfix — GeneHub Skill Center 连接修复
+## v6.7.1 — GeneHub MCP Registration Hardening
 
-PRD: `prd/v6.5.1_hotfix_genehub-skill-center-connection.md`
+PRD: `prd/v6.7.1_genehub-mcp-registration-hardening.md`
 
 | Stage | Status |
 |---|---|
-| P0 preload expose + hook 兜底 | done |
-| P0+ descriptor/connection 错误文案 | done |
-| P1 API 协议对齐（client/scheduler/worker） | done |
-| P2 mapBundle dict 格式 | done |
-| 测试 + 文档同步 | done |
+| Shared contract + errors | done |
+| Profile mapping persistence | done |
+| GeneHub client bundle-preview / ignore / getInstallJob | done |
+| MCP registration service fixes | done |
+| Install worker full chain | done |
+| Signature + script provenance | done |
+| IPC / Preload / API_CONTRACTS | done |
+| Renderer UI + i18n | done |
+| Tests | done |
+| Docs sync | done |
