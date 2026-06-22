@@ -590,7 +590,27 @@ Desktop MCP 管理面：`~/.hermes/desktop/mcp-registry.db`。Renderer 仅通过
 | `mcp-skill-gateway-runtime:read-structured-logs` | `lines?` | `McpGatewayProxyLogEntry[]`（V6.6.1 JSONL 解析；过滤非法行；redact Authorization） |
 | `mcp-skill-gateway-runtime:run-diagnostics` | — | `McpGatewayDiagnosticsResult`（V6.6.1：10 步含 `toolsList` / `defaultProfileRegistration` / `hermesGateway`；`checkedAt`；错误码对外 `MCP_OP_*`） |
 | `mcp-skill-gateway-runtime:list-remote-tools` | `forceRefresh?` | `McpGatewayToolPreview[]`（含 `category` / `permission` / `riskLevel` / `lastSyncedAt`；**V6.7** 含 `approvalMode` / `requiresApproval` / `authorized` / `grantStatus` / `grantId` / `approvalRequestId` / `expiresAt`；缓存 TTL 60s） |
-| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6.1：`arguments` 或兼容 `input`；**V6.7** UI 默认仍仅 read 工具；响应可含 `approvalRequired` / `approvalRequestId` / `grantStatus`；256KB 截断；`MCP_OP_TOOL_*` 含 approval/grant 错误码） |
+| `mcp-skill-gateway-runtime:invoke-remote-tool` | `McpGatewayInvokeTestInput` | `McpGatewayInvokeTestResult`（v6.6.1：`arguments` 或兼容 `input`；**V6.7** UI 默认仍仅 read 工具；响应可含 `approvalRequired` / `approvalRequestId` / `grantStatus`；**V7.0** 可含 `taskHints`；256KB 截断；`MCP_OP_TOOL_*` 含 approval/grant 错误码） |
+
+**V7.0 Hermes Client Contract**（仍经 `window.mcpSkillGatewayRuntime` 暴露；Main `hermes-client-api.ts`；契约 `src/shared/hermes-client/`）：
+
+| Channel | 输入 | 输出 |
+|---|---|---|
+| `hermes-client:get-bootstrap` | `HermesClientBootstrapInput?` | `HermesClientActionResult<HermesClientBootstrap>` |
+| `hermes-client:list-agents` | `HermesClientAgentsInput?` | `HermesClientActionResult<HermesClientAgent[]>` |
+| `hermes-client:get-agent` | `agentAlias` | `HermesClientActionResult<HermesClientAgent>` |
+| `hermes-client:list-tools` | `HermesClientToolsInput?` | `HermesClientActionResult<HermesClientTool[]>` |
+| `hermes-client:readiness-check` | `HermesReadinessCheckInput` | `HermesClientActionResult<HermesReadinessCheckResult>` |
+| `hermes-client:create-events-token` | `taskId` | `HermesClientActionResult<TaskEventsTokenResult>` |
+| `hermes-client:get-task-result` | `taskId` | `HermesClientActionResult<HermesTaskResult>` |
+| `hermes-client:preview-artifact` | `artifactId` | `HermesArtifactPreviewResult`（Main 注入 Bearer；Renderer 不接触 token） |
+| `hermes-client:download-artifact` | `artifactId` | `HermesArtifactDownloadResult`（`showSaveDialog` + Main fetch 写盘） |
+| `hermes-client:get-recent-tasks` | — | `RecentHermesTask[]`（`userData/hermes-mcp/recent-tasks.json`） |
+| `hermes-client:clear-recent-tasks` | — | `void` |
+
+**V7.0 配置**（`McpSkillGatewayRuntimeConfig`）：`enableHermesClientBootstrap` / `enableAgentAliasToolsFilter` / `enableTaskResultPanel` / `enableSseTokenEventSource`（默认均为 `true`）。
+
+**V7.0 structuredContent**：Local Proxy / Invoke Test 解析 `tools/call` 结果中的 `structuredContent.task_id` / `event_token_url` / `result_url` 写入 recent task cache；诊断在 `enableHermesClientBootstrap` 时追加 `clientBootstrap` / `clientAgents` / `clientToolsFilter` / `clientReadiness` 步骤。
 
 **V6.7 服务端审批感知（Desktop 不审批）**：Local Proxy 转发时除 `Authorization` 外注入 `X-NoDeskClaw-Desktop-Device-Id`（Main `device-identity.ts`）、`X-NoDeskClaw-Hermes-Profile`（自 `/mcp?profile=` 解析，缺省 `default`）、`X-NoDeskClaw-Client`、`X-NoDeskClaw-MCP-Proxy-Version: v6.7`。Hermes 注册 URL 默认 `http://127.0.0.1:<port>/mcp?profile=<name>`（`profileScopedProxyUrl`）；旧无 query URL 与 default profile 兼容。`system/info.mcp.approvalCenterPath` 默认 `/mcp/approvals`。Renderer **无** approve/reject/revoke；仅展示 grant 状态 + 打开 Portal 审批中心。
 
@@ -615,7 +635,7 @@ curl -X POST http://127.0.0.1:48742/mcp -H "Content-Type: application/json" -H "
 
 **契约**：`src/shared/mcp-skill-gateway-runtime/mcp-skill-gateway-runtime-contract.ts`（re-export **`mcp-gateway-operations-contract.ts`** V6.6.1 运营类型）、`src/shared/auth/auth-contract.ts`
 
-**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（**V6.7** Server Authorization Panel + Tools Preview 授权 badge；**V6.6.1** Diagnostics / Invoke Test / Registration / Logs；Hermes 重启横幅）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
+**Renderer**：`screens/Hermes/pages/McpGateway/HermesMcpGatewayPage.tsx`（**V7.0** Client Contract / Agent Alias / Readiness Drawer / Task Result Panel + client tools 筛选；**V6.7** Server Authorization Panel + Tools Preview 授权 badge；**V6.6.1** Diagnostics / Invoke Test / Registration / Logs；Hermes 重启横幅）；Hermes 左导航 `mcpGateway`；登录页 `modules/auth/components/LoginForm.tsx`（account 字段）。
 
 ---
 

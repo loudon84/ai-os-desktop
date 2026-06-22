@@ -6,36 +6,93 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-config", () => 
     mcpEndpointPath: "/api/v1/hermes/mcp",
   })),
   resolveBackendBaseUrl: vi.fn(() => "http://192.168.0.118:4510"),
-  resolveLocalMcpUrl: vi.fn((port: number) => `http://127.0.0.1:${port}/mcp`),
+  resolveLocalMcpUrl: vi.fn((port: number) => `http://127.0.0.1:${port}/mcp?profile=default`),
   resolveRemoteMcpUrlAsync: vi.fn(async () => "http://192.168.0.118:4510/api/v1/hermes/mcp"),
 }));
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-token-provider", () => ({
   getMcpAuthState: vi.fn(() => ({ tokenPresent: true })),
+  getMcpAccessToken: vi.fn(() => "token"),
 }));
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy", () => ({
-  getMcpSkillGatewayProxyUrl: vi.fn(() => "http://127.0.0.1:48742/mcp"),
+  getMcpSkillGatewayProxyUrl: vi.fn(() => "http://127.0.0.1:48742/mcp?profile=default"),
+  getMcpSkillGatewayProxyBaseUrl: vi.fn(() => "http://127.0.0.1:48742"),
   isMcpSkillGatewayProxyRunning: vi.fn(() => true),
   getMcpProxyRuntimeState: vi.fn(() => ({
     initialized: true,
-    toolCount: 10,
+    toolCount: 99,
     status: "connected" as const,
     upstreamUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
   })),
 }));
 
 import {
-  testMcpSkillGatewayProxy,
-  testRemoteMcpSkillGateway,
-} from "../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health";
+  fetchMcpGatewayDebugProbe,
+  isMcpDebugProbeConnected,
+  readMcpDebugProbeToolCount,
+} from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-probe";
+import { testRemoteMcpSkillGateway } from "../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health";
+
+describe("mcp-gateway-probe", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fetchMcpGatewayDebugProbe uses base origin without ?profile query", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          status: "connected",
+          toolCount: 10,
+          initialized: true,
+        }),
+      })),
+    );
+
+    const probe = await fetchMcpGatewayDebugProbe();
+    expect(probe).toMatchObject({
+      ok: true,
+      status: "connected",
+      toolCount: 10,
+      initialized: true,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:48742/debug/probe",
+      expect.objectContaining({ method: "POST", body: "{}" }),
+    );
+    expect(isMcpDebugProbeConnected(probe)).toBe(true);
+    expect(readMcpDebugProbeToolCount(probe)).toBe(10);
+  });
+
+  it("maps jsonrpc error probe responses from misrouted /mcp calls", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32012, message: "Invalid JSON-RPC request" },
+        }),
+      })),
+    );
+
+    const probe = await fetchMcpGatewayDebugProbe();
+    expect(isMcpDebugProbeConnected(probe)).toBe(false);
+    expect(probe?.error?.message).toBe("Invalid JSON-RPC request");
+  });
+});
 
 describe("testRemoteMcpSkillGateway", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("succeeds when /debug/probe reports connected + initialized + toolCount", async () => {
+  it("posts to /debug/probe on proxy origin when mcp url has profile query", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -58,43 +115,21 @@ describe("testRemoteMcpSkillGateway", () => {
     );
   });
 
-  it("fails when probe ok but not initialized", async () => {
+  it("does not fall back to runtime toolCount when probe is not connected", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
-          ok: true,
-          status: "connected",
-          toolCount: 10,
-          initialized: false,
+          ok: false,
+          lastError: { message: "Invalid JSON-RPC request" },
         }),
       })),
     );
 
     const result = await testRemoteMcpSkillGateway();
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("not initialized");
-  });
-});
-
-describe("testMcpSkillGatewayProxy", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("treats missing /health as running proxy (404 fallback)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: false,
-        status: 404,
-        json: async () => ({ error: "not_found" }),
-      })),
-    );
-
-    const result = await testMcpSkillGatewayProxy();
-    expect(result.ok).toBe(true);
-    expect(result.status).toBe("connected");
+    expect(result.toolCount).toBe(0);
+    expect(result.error).toBe("Invalid JSON-RPC request");
   });
 });

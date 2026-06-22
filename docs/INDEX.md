@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC-Copilot |
 | **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
-| **版本** | 0.3.6（… + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| **版本** | 0.3.6（… + **V7.0 Hermes MCP Client Integration** + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -216,6 +216,20 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Profile mapping**：`~/.hermes/desktop/genehub/profile-mapping.json`；`syncInstalledSkills` 使用 serverProfileId
 - **Install worker**：`getInstallJob` → claim → validate（签名校验 + `trustedPublicKeys`）→ write（scripts provenance sidecar）→ restart → sync → finally 刷新 cache
 - **UI**：mapping 缺失禁用确认；MCP Gateway 卡片 pending/in-progress/lastSync
+
+**V7.0（Hermes MCP Client Integration，PRD `prd/v7.0_desktop-hermes-mcp-client-integration.md`）**：
+- **REST**：Main `hermes-client-api.ts` — bootstrap / agents / tools / readiness / task events-token / task result / artifact preview&download
+- **IPC**：`hermes-client:*`（10 通道）经 `window.mcpSkillGatewayRuntime` 暴露；契约 `src/shared/hermes-client/`
+- **捕获**：Proxy / Invoke Test 解析 `structuredContent.task_id` → `userData/hermes-mcp/recent-tasks.json`
+- **诊断**：`enableHermesClientBootstrap` 时追加 `clientBootstrap` / `clientAgents` / `clientToolsFilter` / `clientReadiness`
+- **UI**：`McpGatewayClientContractCard` / `AgentAliasPanel` / `ReadinessDrawer` / `TaskResultPanel`；Tools Preview 支持 agent/profile/keyword 筛选
+
+**V7.0（Hermes MCP Client Integration，PRD `prd/v7.0_desktop-hermes-mcp-client-integration.md`）**：
+- **Client API**：Main `hermes-client-api.ts` → nodeskclaw `/api/v1/hermes/client/*` + task events-token/result/artifact
+- **IPC**：`hermes-client:*`（10 channels）；仍经 `window.mcpSkillGatewayRuntime` 暴露
+- **契约**：`src/shared/hermes-client/`；feature flags `enableHermesClientBootstrap` 等
+- **捕获**：Proxy/Invoke `structuredContent` → `hermes-recent-tasks-store`；诊断追加 client 四步
+- **UI**：`McpGatewayClientContractCard` / `AgentAliasPanel` / `ReadinessDrawer` / `TaskResultPanel`；Tools Preview agent 筛选
 
 **V6.6.2（GeneHub MCP Registration，PRD `prd/v6.6.2_genehub-mcp-registration.md`）**：
 - **行为**：`mcp_agent_request` job 仅缓存 + UI 待确认，**永不**自动 claim/install；`source` 缺失不得误判为 MCP job

@@ -2,17 +2,16 @@
 
 | Stage | Status |
 |---|---|
-| mcp-diagnostics-probe-fix | done |
+| v7.0-mcp-client-closure | done |
 
 ## Notes
 
-**MCP diagnostics report 状态判定修复**：
+**V7.0 Hermes MCP Client Integration**（计划 `.cursor/plans/v7.0_mcp_client闭环_6734583c.plan.md`）：
 
-- One-click diagnostics 主判定统一走 local proxy `POST /debug/probe`（`testRemoteMcpSkillGateway`）
-- `remoteMcp.ok`：`probe.ok && status=connected && initialized=true`
-- `toolsList.ok` / `toolCount`：来自 `probe.toolCount > 0`，不再因 `listRemoteMcpTools` 失败而误判
-- 移除 diagnostics 内 `/health` 检查，避免 404 写入 `localProxy` errors
-- 每次 run 重建 `errors`；`ok = steps.every(step => step.ok)`
-- `testMcpSkillGatewayProxy`：`/health` 404 时 fallback 为 proxy running（供 Test Proxy 按钮）
+- Shared：`src/shared/hermes-client/` + `McpSkillGatewayRuntimeConfig` 四个 feature flag
+- Main：`hermes-client-http/api/mappers`、`hermes-recent-tasks-store`、`hermes-structured-task`；`hermes-client:*` IPC（10 通道）
+- Proxy/Invoke：structuredContent → recent tasks；诊断新增 clientBootstrap/clientAgents/clientToolsFilter/clientReadiness
+- Renderer：Client Contract / Agent Alias / Readiness Drawer / Task Result Panel；`useMcpSkillGatewayRuntime` EventSource
+- 文档：`docs/API_CONTRACTS.md`、`AGENTS.md`、`docs/INDEX.md` V7.0 增量
 
-**验证**：`npm run typecheck` 通过；`mcp-gateway-diagnostics` + `mcp-skill-gateway-health` vitest 8 cases 通过
+**验证**：`npm run typecheck` + `npm test` 全绿

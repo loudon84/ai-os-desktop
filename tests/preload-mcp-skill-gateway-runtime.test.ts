@@ -11,4 +11,15 @@ describe("mcpSkillGatewayRuntime preload surface", () => {
     expect(typeof mcpSkillGatewayRuntimeApi.listRemoteTools).toBe("function");
     expect(typeof mcpSkillGatewayRuntimeApi.invokeRemoteTool).toBe("function");
   });
+
+  it("exposes v7.0 hermes client methods", () => {
+    expect(typeof mcpSkillGatewayRuntimeApi.getHermesClientBootstrap).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.listHermesClientAgents).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.listHermesClientTools).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.runHermesReadinessCheck).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.createHermesTaskEventsToken).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.getHermesTaskResult).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.previewHermesArtifact).toBe("function");
+    expect(typeof mcpSkillGatewayRuntimeApi.getRecentHermesTasks).toBe("function");
+  });
 });

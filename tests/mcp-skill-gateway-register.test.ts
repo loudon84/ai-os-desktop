@@ -46,7 +46,7 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health", () => 
     loggedIn: true,
     backendBaseUrl: "http://192.168.0.118:4510",
     remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
-    localMcpUrl: "http://127.0.0.1:48742/mcp",
+    localMcpUrl: "http://127.0.0.1:48742/mcp?profile=default",
   }),
 }));
 
@@ -100,7 +100,7 @@ describe("mcp-skill-gateway Hermes registration", () => {
     expect(servers.mcp_skill_gateway).toEqual({
       enabled: true,
       type: "http",
-      url: "http://127.0.0.1:48742/mcp",
+      url: "http://127.0.0.1:48742/mcp?profile=default",
     });
     expect(JSON.stringify(doc)).not.toContain("Authorization");
   });
@@ -114,7 +114,7 @@ describe("mcp-skill-gateway Hermes registration", () => {
           mcp_skill_gateway: {
             enabled: true,
             type: "http",
-            url: "http://127.0.0.1:48742/mcp",
+            url: "http://127.0.0.1:48742/mcp?profile=default",
           },
         },
       }),
@@ -140,7 +140,7 @@ describe("mcp-skill-gateway Hermes registration", () => {
           mcp_skill_gateway: {
             enabled: true,
             type: "http",
-            url: "http://127.0.0.1:48742/mcp",
+            url: "http://127.0.0.1:48742/mcp?profile=default",
           },
         },
       }),
@@ -165,7 +165,7 @@ describe("mcp-skill-gateway Hermes registration", () => {
           mcp_skill_gateway: {
             enabled: true,
             type: "http",
-            url: "http://127.0.0.1:48742/mcp",
+            url: "http://127.0.0.1:48742/mcp?profile=default",
           },
         },
       }),
@@ -173,7 +173,7 @@ describe("mcp-skill-gateway Hermes registration", () => {
 
     const rows = listMcpSkillGatewayProfileRegistrations();
     const row = rows.find((item) => item.profile === "default");
-    expect(row?.expectedUrl).toBe("http://127.0.0.1:48742/mcp");
+    expect(row?.expectedUrl).toBe("http://127.0.0.1:48742/mcp?profile=default");
     expect(row?.urlMatched).toBe(true);
     expect(row?.backendMatched).toBe(true);
     expect(row?.ready).toBe(true);

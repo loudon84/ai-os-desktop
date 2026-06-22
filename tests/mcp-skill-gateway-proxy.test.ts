@@ -100,7 +100,7 @@ describe("mcp-skill-gateway proxy", () => {
     expect(body.self?.port).toBe(48799);
     expect(body.backend?.baseUrl).toBe("http://192.168.0.118:4510");
     expect(body.mcp?.status).toBe("unauthorized");
-    expect(body.localMcpUrl).toBe("http://127.0.0.1:48799/mcp");
+    expect(body.localMcpUrl).toBe("http://127.0.0.1:48799/mcp?profile=default");
     expect(body.loggedIn).toBe(false);
   });
 

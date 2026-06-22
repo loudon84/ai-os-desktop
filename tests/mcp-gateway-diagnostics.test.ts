@@ -15,6 +15,7 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-config", () => 
   getMcpSkillGatewayConfig: vi.fn(() => ({
     localProxyPort: 48742,
     registeredProfiles: ["default"],
+    enableHermesClientBootstrap: true,
   })),
   resolveBackendBaseUrl: vi.fn(() => "http://192.168.0.118:4510"),
 }));
@@ -28,15 +29,26 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-proxy", () => (
   startMcpSkillGatewayProxy: vi.fn(async () => undefined),
 }));
 
-vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health", () => ({
-  testRemoteMcpSkillGateway: vi.fn(async () => ({
-    ok: true,
-    toolCount: 10,
-    localProxyUrl: "http://127.0.0.1:48742/mcp",
-    backendBaseUrl: "http://192.168.0.118:4510",
-    remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
-  })),
-}));
+const mockProbeSuccess = {
+  ok: true,
+  status: "connected",
+  toolCount: 10,
+  initialized: true,
+};
+
+vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-gateway-probe", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("../src/main/mcp-skill-gateway-runtime/mcp-gateway-probe")
+  >();
+  return {
+    ...actual,
+    fetchMcpGatewayDebugProbe: vi.fn(async () => mockProbeSuccess),
+    tryDirectRemoteMcpInitializeDebug: vi.fn(async () => ({
+      ok: false,
+      error: "Invalid JSON-RPC request",
+    })),
+  };
+});
 
 vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-register", () => ({
   registerMcpSkillGatewayToHermes: vi.fn(async () => ({
@@ -54,98 +66,117 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-register", () =
   ]),
 }));
 
-const mockTools = [
-  {
-    name: "hermes.instances.list",
-    description: "",
-    category: "hermes" as const,
-    permission: "read" as const,
-    riskLevel: "low" as const,
-    inputSchema: {},
-    enabled: true,
-    source: "nodeskclaw" as const,
-    lastSyncedAt: "2026-06-14T00:00:00.000Z",
-  },
-];
-
-vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-tools-cache", () => ({
-  listRemoteMcpTools: vi.fn(async () => mockTools),
-  readMcpGatewayToolsCache: vi.fn(() => null),
-}));
-
 vi.mock("../src/main/hermes", () => ({
   isGatewayRunning: vi.fn(() => true),
 }));
 
+vi.mock("../src/main/mcp-skill-gateway-runtime/hermes-client-api", () => ({
+  getHermesClientBootstrap: vi.fn(async () => ({
+    ok: true,
+    data: {
+      user: { id: "u1", display_name: "User" },
+      org: { id: "o1", name: "Org" },
+      desktop: { client: "copilot-desktop", profile_name: "default" },
+      mcp: {
+        server_url: "http://example/mcp",
+        protocol_version: "2025-06-18",
+        transport: "streamable_http",
+        requires_initialize: true,
+      },
+      events: { auth_mode: "bearer_or_sse_token", sse_token_supported: true },
+      artifacts: { preview_url_template: "/p/{id}", download_url_template: "/d/{id}" },
+      features: {},
+    },
+  })),
+  listHermesClientAgents: vi.fn(async () => ({
+    ok: true,
+    data: [{ agent_alias: "common-writer", agent_id: "a1", name: "Writer", runtime_status: "running", accepting_tasks: true }],
+  })),
+  listHermesClientTools: vi.fn(async () => ({
+    ok: true,
+    data: [{ name: "hermes.write", inputSchema: {} }],
+  })),
+  runHermesReadinessCheck: vi.fn(async () => ({
+    ok: true,
+    data: { ready: true, checks: {}, errors: [] },
+  })),
+}));
+
 import { getMcpAuthState } from "../src/main/mcp-skill-gateway-runtime/mcp-token-provider";
-import { testRemoteMcpSkillGateway } from "../src/main/mcp-skill-gateway-runtime/mcp-skill-gateway-health";
-import { listRemoteMcpTools } from "../src/main/mcp-skill-gateway-runtime/mcp-tools-cache";
+import {
+  fetchMcpGatewayDebugProbe,
+  tryDirectRemoteMcpInitializeDebug,
+} from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-probe";
 import { runMcpSkillGatewayDiagnostics } from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-diagnostics";
 
 describe("runMcpSkillGatewayDiagnostics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getMcpAuthState).mockReturnValue({ tokenPresent: true });
-    vi.mocked(testRemoteMcpSkillGateway).mockResolvedValue({
-      ok: true,
-      toolCount: 10,
-      localProxyUrl: "http://127.0.0.1:48742/mcp",
-      backendBaseUrl: "http://192.168.0.118:4510",
-      remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
+    vi.mocked(fetchMcpGatewayDebugProbe).mockResolvedValue(mockProbeSuccess);
+    vi.mocked(tryDirectRemoteMcpInitializeDebug).mockResolvedValue({
+      ok: false,
+      error: "Invalid JSON-RPC request",
     });
   });
 
-  it("returns ok when probe reports connected with tools", async () => {
+  it("returns ok when /debug/probe reports connected with toolCount", async () => {
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(true);
-    expect(result.checkedAt).toBeTruthy();
     expect(result.toolCount).toBe(10);
     expect(result.remoteMcp.ok).toBe(true);
+    expect(result.remoteMcp.detail).toBe("connected, 10 tools");
     expect(result.toolsList.ok).toBe(true);
-    expect(result.localProxy.ok).toBe(true);
+    expect(result.toolsList.detail).toBe("10 tools");
+    expect(result.tools).toEqual([]);
     expect(result.errors).toEqual([]);
     expect(result.ok).toBe(result.steps.every((row) => row.ok));
-    expect(testRemoteMcpSkillGateway).toHaveBeenCalledTimes(1);
+    expect(fetchMcpGatewayDebugProbe).toHaveBeenCalledTimes(1);
   });
 
-  it("uses probe toolCount even when tools cache fetch fails", async () => {
-    vi.mocked(listRemoteMcpTools).mockRejectedValueOnce(new Error("tools/list failed"));
+  it("does not let direct remote initialize failure affect report.ok or errors", async () => {
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(true);
-    expect(result.toolCount).toBe(10);
-    expect(result.toolsList.ok).toBe(true);
     expect(result.errors).toEqual([]);
+    expect(result.debugRaw?.remoteInitialize?.error).toBe("Invalid JSON-RPC request");
+    expect(result.remoteMcp.error).toBeUndefined();
   });
 
-  it("does not keep localProxy errors when proxy is running", async () => {
+  it("keeps toolsList ok when probe toolCount>0 even if tools array is empty", async () => {
+    vi.mocked(fetchMcpGatewayDebugProbe).mockResolvedValueOnce({
+      ok: true,
+      status: "connected",
+      initialized: true,
+      toolCount: 10,
+      tools: [],
+    });
     const result = await runMcpSkillGatewayDiagnostics();
-    expect(result.localProxy.ok).toBe(true);
-    expect(result.errors.some((e) => e.step === "localProxy")).toBe(false);
+    expect(result.toolsList.ok).toBe(true);
+    expect(result.toolCount).toBe(10);
+    expect(result.tools).toEqual([]);
   });
 
   it("fails remoteMcp and toolsList when probe is not connected", async () => {
-    vi.mocked(testRemoteMcpSkillGateway).mockResolvedValueOnce({
+    vi.mocked(fetchMcpGatewayDebugProbe).mockResolvedValueOnce({
       ok: false,
-      toolCount: 0,
-      localProxyUrl: "http://127.0.0.1:48742/mcp",
-      backendBaseUrl: "http://192.168.0.118:4510",
-      remoteMcpUrl: "http://192.168.0.118:4510/api/v1/hermes/mcp",
-      error: "Invalid JSON-RPC request",
+      toolCount: 10,
+      lastError: { message: "Invalid JSON-RPC request" },
     });
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(false);
     expect(result.remoteMcp.ok).toBe(false);
     expect(result.toolsList.ok).toBe(false);
-    expect(result.toolCount).toBe(0);
+    expect(result.toolCount).toBe(10);
     expect(result.errors.some((e) => e.step === "remoteMcp")).toBe(true);
+    expect(result.errors.some((e) => e.message === "Invalid JSON-RPC request")).toBe(true);
   });
 
-  it("fails fast on missing auth", async () => {
+  it("fails fast on missing auth without calling probe", async () => {
     vi.mocked(getMcpAuthState).mockReturnValue({ tokenPresent: false });
     const result = await runMcpSkillGatewayDiagnostics();
     expect(result.ok).toBe(false);
     expect(result.auth.ok).toBe(false);
     expect(result.errors.some((e) => e.code === "MCP_OP_AUTH_REQUIRED")).toBe(true);
-    expect(testRemoteMcpSkillGateway).not.toHaveBeenCalled();
+    expect(fetchMcpGatewayDebugProbe).not.toHaveBeenCalled();
   });
 });

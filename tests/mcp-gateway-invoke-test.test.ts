@@ -25,6 +25,16 @@ vi.mock("../src/main/mcp-skill-gateway-runtime/mcp-tools-cache", () => ({
   }),
 }));
 
+vi.mock("electron", () => ({
+  app: {
+    getPath: () => "/tmp/hermes-mcp-test",
+  },
+}));
+
+vi.mock("../src/main/mcp-skill-gateway-runtime/hermes-recent-tasks-store", () => ({
+  upsertRecentHermesTask: vi.fn(),
+}));
+
 import { invokeRemoteMcpTool } from "../src/main/mcp-skill-gateway-runtime/mcp-gateway-invoke-test";
 import { inferToolPermission } from "../src/main/mcp-skill-gateway-runtime/mcp-tools-cache";
 

@@ -26,6 +26,11 @@ import {
   extractApprovalErrorContext,
   mapToolApprovalErrorToOp,
 } from "./mcp-approval-errors";
+import {
+  extractTaskHintsFromToolResult,
+  taskHintsToRecentTask,
+} from "./hermes-structured-task";
+import { upsertRecentHermesTask } from "./hermes-recent-tasks-store";
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -344,6 +349,12 @@ export function getMcpSkillGatewayProxyUrl(): string {
   return resolveLocalMcpUrl(currentPort);
 }
 
+/** Origin for admin/debug routes (/health, /debug/probe). Never includes ?profile= query. */
+export function getMcpSkillGatewayProxyBaseUrl(): string {
+  const config = getMcpSkillGatewayConfig();
+  return `http://${config.localProxyHost}:${currentPort}`;
+}
+
 export function isMcpSkillGatewayProxyRunning(): boolean {
   return server != null;
 }
@@ -493,7 +504,7 @@ async function buildHealthPayload(): Promise<Record<string, unknown>> {
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const started = Date.now();
-  const url = new URL(req.url ?? "/", getMcpSkillGatewayProxyUrl());
+  const url = new URL(req.url ?? "/", `${getMcpSkillGatewayProxyBaseUrl()}/`);
 
   if (!isLocalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
@@ -762,7 +773,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
 
     if (parsed.method === "tools/call") {
-      const callResult = result.json as { error?: unknown };
+      const callResult = result.json as { error?: unknown; result?: unknown };
       if (callResult?.error) {
         logToolApprovalError(
           parsed.method,
@@ -771,8 +782,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           callResult.error,
           toolName,
         );
+      } else if (callResult?.result) {
+        const hints = extractTaskHintsFromToolResult(callResult.result);
+        const recent = taskHintsToRecentTask(hints, { toolName: toolName ?? undefined });
+        if (recent) {
+          upsertRecentHermesTask(recent);
+        }
       }
     }
+
+    const taskHints =
+      parsed.method === "tools/call" && result.json
+        ? extractTaskHintsFromToolResult(
+            (result.json as { result?: unknown }).result,
+          )
+        : null;
 
     sendJson(res, 200, result.json);
     writeMcpSkillGatewayLog({
@@ -783,6 +807,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       remoteStatus: result.status,
       durationMs: Date.now() - started,
       ...(toolName ? { toolName } : {}),
+      ...(taskHints?.taskId ? { taskId: taskHints.taskId } : {}),
     });
   } catch (err) {
     const cause = err instanceof Error ? err.message : String(err);

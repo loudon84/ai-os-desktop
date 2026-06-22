@@ -74,6 +74,14 @@ export interface McpSkillGatewayRuntimeConfig {
   showServerAuthorizationPanel?: boolean;
   /** v6.7 — allow write/admin invoke test from UI (default false, P0) */
   allowWriteToolInvokeTest?: boolean;
+  /** v7.0 — fetch Hermes Client bootstrap on MCP Gateway page */
+  enableHermesClientBootstrap?: boolean;
+  /** v7.0 — filter tools preview via /hermes/client/tools */
+  enableAgentAliasToolsFilter?: boolean;
+  /** v7.0 — show task result panel */
+  enableTaskResultPanel?: boolean;
+  /** v7.0 — subscribe task events via SSE token */
+  enableSseTokenEventSource?: boolean;
   updatedAt: string;
 }
 
@@ -90,6 +98,10 @@ export const DEFAULT_MCP_SKILL_GATEWAY_CONFIG: McpSkillGatewayRuntimeConfig = {
   profileScopedProxyUrl: true,
   showServerAuthorizationPanel: true,
   allowWriteToolInvokeTest: false,
+  enableHermesClientBootstrap: true,
+  enableAgentAliasToolsFilter: true,
+  enableTaskResultPanel: true,
+  enableSseTokenEventSource: true,
   updatedAt: "",
 };
 
@@ -240,4 +252,50 @@ export interface McpSkillGatewayRuntimeAPI {
   invokeRemoteTool(
     input: import("./mcp-gateway-operations-contract").McpGatewayInvokeTestInput,
   ): Promise<import("./mcp-gateway-operations-contract").McpGatewayInvokeTestResult>;
+
+  getHermesClientBootstrap(
+    input?: import("../hermes-client/hermes-client-contract").HermesClientBootstrapInput,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesClientBootstrap
+  >>;
+  listHermesClientAgents(
+    input?: import("../hermes-client/hermes-client-contract").HermesClientAgentsInput,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesClientAgent[]
+  >>;
+  getHermesClientAgent(
+    agentAlias: string,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesClientAgent
+  >>;
+  listHermesClientTools(
+    input?: import("../hermes-client/hermes-client-contract").HermesClientToolsInput,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesClientTool[]
+  >>;
+  runHermesReadinessCheck(
+    input: import("../hermes-client/hermes-client-contract").HermesReadinessCheckInput,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesReadinessCheckResult
+  >>;
+  createHermesTaskEventsToken(
+    taskId: string,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").TaskEventsTokenResult
+  >>;
+  getHermesTaskResult(
+    taskId: string,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesClientActionResult<
+    import("../hermes-client/hermes-client-contract").HermesTaskResult
+  >>;
+  previewHermesArtifact(
+    artifactId: string,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesArtifactPreviewResult>;
+  downloadHermesArtifact(
+    artifactId: string,
+  ): Promise<import("../hermes-client/hermes-client-contract").HermesArtifactDownloadResult>;
+  getRecentHermesTasks(): Promise<
+    import("../hermes-client/hermes-client-contract").RecentHermesTask[]
+  >;
+  clearRecentHermesTasks(): Promise<void>;
 }

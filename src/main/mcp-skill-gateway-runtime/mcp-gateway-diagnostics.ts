@@ -9,7 +9,14 @@ import {
   getMcpSkillGatewayConfig,
   resolveBackendBaseUrl,
 } from "./mcp-skill-gateway-config";
-import { testRemoteMcpSkillGateway } from "./mcp-skill-gateway-health";
+import type { McpDebugProbeResponse } from "./mcp-gateway-probe";
+import {
+  fetchMcpGatewayDebugProbe,
+  isMcpDebugProbeConnected,
+  readMcpDebugProbeError,
+  readMcpDebugProbeToolCount,
+  tryDirectRemoteMcpInitializeDebug,
+} from "./mcp-gateway-probe";
 import {
   isMcpSkillGatewayProxyRunning,
   startMcpSkillGatewayProxy,
@@ -19,8 +26,13 @@ import {
   registerMcpSkillGatewayToHermes,
 } from "./mcp-skill-gateway-register";
 import { getMcpAuthState } from "./mcp-token-provider";
-import { listRemoteMcpTools, readMcpGatewayToolsCache } from "./mcp-tools-cache";
 import { isGatewayRunning } from "../hermes";
+import {
+  getHermesClientBootstrap,
+  listHermesClientAgents,
+  listHermesClientTools,
+  runHermesReadinessCheck,
+} from "./hermes-client-api";
 
 function step(
   stepId: string,
@@ -33,22 +45,22 @@ function step(
   return { step: stepId, label, ok, detail, error, errorCode };
 }
 
-function recordStepFailure(
-  errors: DiagnosticError[],
-  check: DiagnosticCheck,
-): void {
-  if (check.ok || !check.errorCode || !check.error) return;
-  errors.push({
-    step: check.step,
-    code: check.errorCode,
-    message: check.error,
-  });
+function buildErrorsFromSteps(steps: DiagnosticCheck[]): DiagnosticError[] {
+  return steps
+    .filter((row) => !row.ok)
+    .map((row) => ({
+      step: row.step,
+      code: row.errorCode ?? "MCP_OP_REMOTE_INITIALIZE_FAILED",
+      message: row.error ?? "Check failed",
+    }));
+}
+
+function readProbeTools(probe: McpDebugProbeResponse | null): McpGatewayToolPreview[] {
+  return Array.isArray(probe?.tools) ? probe.tools : [];
 }
 
 export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnosticsResult> {
   const checkedAt = new Date().toISOString();
-  const steps: DiagnosticCheck[] = [];
-  const errors: DiagnosticError[] = [];
   const config = getMcpSkillGatewayConfig();
 
   const authState = getMcpAuthState();
@@ -60,8 +72,6 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     authState.tokenPresent ? undefined : "Desktop login required",
     authState.tokenPresent ? undefined : "MCP_OP_AUTH_REQUIRED",
   );
-  steps.push(auth);
-  recordStepFailure(errors, auth);
 
   const descriptorResult = await fetchMcpBackendDescriptor(true);
   const backendBaseUrl = resolveBackendBaseUrl();
@@ -81,8 +91,6 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
         ? "MCP_OP_DESCRIPTOR_MISSING"
         : "MCP_OP_BACKEND_UNREACHABLE",
   );
-  steps.push(backend);
-  recordStepFailure(errors, backend);
 
   let proxyRunning = isMcpSkillGatewayProxyRunning();
   let proxyStartError: string | undefined;
@@ -103,57 +111,62 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     proxyRunning ? undefined : proxyStartError ?? "Local MCP proxy is not running",
     proxyRunning ? undefined : "MCP_OP_PROXY_NOT_RUNNING",
   );
-  steps.push(localProxy);
-  recordStepFailure(errors, localProxy);
 
-  let remoteOk = false;
-  let toolCount = 0;
-  let remoteDetail: string | undefined;
-  let remoteError: string | undefined;
-
+  let probe: McpDebugProbeResponse | null = null;
   if (proxyRunning && auth.ok) {
-    const probe = await testRemoteMcpSkillGateway();
-    remoteOk = probe.ok;
-    toolCount = probe.toolCount ?? 0;
-    remoteDetail = remoteOk ? `${toolCount} tools` : undefined;
-    remoteError = probe.error;
-  } else if (!proxyRunning) {
-    remoteError = "Local MCP proxy is not running";
-  } else if (!auth.ok) {
-    remoteError = "Desktop login required";
-  }
-
-  const remoteMcp = step(
-    "remoteMcp",
-    "Remote MCP (initialize + tools/list)",
-    remoteOk,
-    remoteDetail,
-    remoteOk ? undefined : remoteError ?? "Remote MCP probe failed",
-    remoteOk ? undefined : "MCP_OP_REMOTE_INITIALIZE_FAILED",
-  );
-  steps.push(remoteMcp);
-  recordStepFailure(errors, remoteMcp);
-
-  const toolsListOk = remoteOk && toolCount > 0;
-  const toolsList = step(
-    "toolsList",
-    "MCP tools/list preview",
-    toolsListOk,
-    toolsListOk ? `${toolCount} tools` : undefined,
-    toolsListOk ? undefined : "tools/list failed or returned empty",
-    toolsListOk ? undefined : "MCP_OP_TOOLS_LIST_FAILED",
-  );
-  steps.push(toolsList);
-  recordStepFailure(errors, toolsList);
-
-  let tools: McpGatewayToolPreview[] = [];
-  if (toolsListOk) {
     try {
-      tools = await listRemoteMcpTools({ forceRefresh: true });
-    } catch {
-      tools = readMcpGatewayToolsCache()?.tools ?? [];
+      probe = await fetchMcpGatewayDebugProbe();
+    } catch (err) {
+      probe = {
+        ok: false,
+        error: {
+          message: err instanceof Error ? err.message : String(err),
+        },
+      };
     }
   }
+
+  const probeConnected = isMcpDebugProbeConnected(probe);
+  const probeToolCount = readMcpDebugProbeToolCount(probe);
+
+  const remoteMcp = probeConnected
+    ? step(
+        "remoteMcp",
+        "Remote MCP (initialize + tools/list)",
+        true,
+        `connected, ${probeToolCount} tools`,
+      )
+    : step(
+        "remoteMcp",
+        "Remote MCP (initialize + tools/list)",
+        false,
+        undefined,
+        !proxyRunning
+          ? "Local MCP proxy is not running"
+          : !auth.ok
+            ? "Desktop login required"
+            : readMcpDebugProbeError(probe),
+        "MCP_OP_REMOTE_INITIALIZE_FAILED",
+      );
+
+  const toolsList =
+    probeConnected && probeToolCount > 0
+      ? step(
+          "toolsList",
+          "MCP tools/list preview",
+          true,
+          `${probeToolCount} tools`,
+        )
+      : step(
+          "toolsList",
+          "MCP tools/list preview",
+          false,
+          undefined,
+          probeConnected
+            ? "tools/list failed or returned empty"
+            : readMcpDebugProbeError(probe) ?? "tools/list failed or returned empty",
+          "MCP_OP_TOOLS_LIST_FAILED",
+        );
 
   let defaultProfileRegistered = false;
   let hermesRestartRequired = false;
@@ -188,8 +201,6 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
       ? undefined
       : "MCP_OP_PROFILE_NOT_REGISTERED",
   );
-  steps.push(defaultProfileRegistration);
-  recordStepFailure(errors, defaultProfileRegistration);
 
   const gatewayRunning = isGatewayRunning();
   const hermesGateway = step(
@@ -208,10 +219,86 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
       ? "MCP_OP_HERMES_RESTART_REQUIRED"
       : undefined,
   );
-  steps.push(hermesGateway);
-  recordStepFailure(errors, hermesGateway);
 
+  const steps = [
+    auth,
+    backend,
+    localProxy,
+    remoteMcp,
+    toolsList,
+    defaultProfileRegistration,
+    hermesGateway,
+  ];
+
+  if (config.enableHermesClientBootstrap !== false && auth.ok) {
+    const bootstrapResult = await getHermesClientBootstrap({ profileName: "default" });
+    steps.push(
+      step(
+        "clientBootstrap",
+        "Hermes Client bootstrap",
+        bootstrapResult.ok,
+        bootstrapResult.ok
+          ? `${bootstrapResult.data?.user.display_name} @ ${bootstrapResult.data?.org.name}`
+          : undefined,
+        bootstrapResult.ok ? undefined : bootstrapResult.error ?? "Bootstrap failed",
+        bootstrapResult.ok ? undefined : "HERMES_CLIENT_BOOTSTRAP_FAILED",
+      ),
+    );
+
+    const agentsResult = await listHermesClientAgents({ profileName: "default" });
+    const hasCommonWriter = Boolean(
+      agentsResult.data?.some((a) => a.agent_alias === "common-writer"),
+    );
+    steps.push(
+      step(
+        "clientAgents",
+        "Hermes Client agents",
+        agentsResult.ok && (agentsResult.data?.length ?? 0) > 0,
+        agentsResult.ok
+          ? `${agentsResult.data?.length ?? 0} agents${hasCommonWriter ? ", common-writer" : ""}`
+          : undefined,
+        agentsResult.ok ? undefined : agentsResult.error ?? "Agents list failed",
+        agentsResult.ok ? undefined : "HERMES_CLIENT_AGENT_ALIAS_NOT_FOUND",
+      ),
+    );
+
+    const toolsResult = await listHermesClientTools({ agentAlias: "common-writer" });
+    steps.push(
+      step(
+        "clientToolsFilter",
+        "Agent alias tools filter",
+        toolsResult.ok && (toolsResult.data?.length ?? 0) > 0,
+        toolsResult.ok ? `${toolsResult.data?.length ?? 0} tools for common-writer` : undefined,
+        toolsResult.ok ? undefined : toolsResult.error ?? "Client tools filter failed",
+        toolsResult.ok ? undefined : "HERMES_CLIENT_TOOLS_LIST_FAILED",
+      ),
+    );
+
+    const readinessResult = await runHermesReadinessCheck({ agentAlias: "common-writer" });
+    steps.push(
+      step(
+        "clientReadiness",
+        "Readiness check (common-writer)",
+        readinessResult.ok && Boolean(readinessResult.data?.ready),
+        readinessResult.ok
+          ? readinessResult.data?.ready
+            ? "ready"
+            : readinessResult.data?.routing?.reason ?? "not ready"
+          : undefined,
+        readinessResult.ok
+          ? readinessResult.data?.ready
+            ? undefined
+            : readinessResult.data?.errors?.[0]?.message ?? "Readiness check failed"
+          : readinessResult.error ?? "Readiness check failed",
+        readinessResult.ok ? undefined : "HERMES_CLIENT_READINESS_FAILED",
+      ),
+    );
+  }
+
+  const errors = buildErrorsFromSteps(steps);
   const ok = steps.every((row) => row.ok);
+
+  const remoteInitialize = await tryDirectRemoteMcpInitializeDebug();
 
   return {
     ok,
@@ -223,12 +310,16 @@ export async function runMcpSkillGatewayDiagnostics(): Promise<McpGatewayDiagnos
     toolsList,
     defaultProfileRegistration,
     hermesGateway,
-    toolCount,
-    tools,
+    toolCount: probeToolCount,
+    tools: readProbeTools(probe),
     hermesRestartRequired: hermesRestartRequired && gatewayRunning,
     defaultProfileRegistered,
     errors,
     steps,
     hermesRegistration: defaultProfileRegistration,
+    debugRaw: {
+      probe,
+      remoteInitialize,
+    },
   };
 }

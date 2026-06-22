@@ -9,6 +9,10 @@ import { McpGatewayRegistrationPanel } from "./McpGatewayRegistrationPanel";
 import { McpGatewayToolsPreview } from "./McpGatewayToolsPreview";
 import { McpGatewayGeneHubRegistrationCard } from "./McpGatewayGeneHubRegistrationCard";
 import { McpGatewayServerAuthorizationPanel } from "./McpGatewayServerAuthorizationPanel";
+import { McpGatewayClientContractCard } from "./McpGatewayClientContractCard";
+import { McpGatewayAgentAliasPanel } from "./McpGatewayAgentAliasPanel";
+import { McpGatewayReadinessDrawer } from "./McpGatewayReadinessDrawer";
+import { McpGatewayTaskResultPanel } from "./McpGatewayTaskResultPanel";
 
 function proxyBadgeClass(status: string): string {
   if (status === "running") return "hermes-badge hermes-badge--running";
@@ -78,10 +82,32 @@ export default function HermesMcpGatewayPage() {
     loadStructuredLogs,
     diagnosticsResult,
     remoteTools,
+    clientTools,
+    clientAgents,
+    bootstrap,
+    bootstrapError,
+    readinessResult,
+    recentTasks,
+    selectedTaskId,
+    setSelectedTaskId,
+    taskResult,
+    taskEvents,
+    taskEventsError,
     invokeResult,
     toolsLoading,
+    clientLoading,
     logsLoading,
+    refreshClientContract,
+    listClientTools,
+    runReadinessCheck,
+    loadTaskResult,
+    subscribeTaskEvents,
+    previewArtifact,
+    downloadArtifact,
+    loadRecentTasks,
   } = useMcpSkillGatewayRuntime();
+  const [readinessOpen, setReadinessOpen] = useState(false);
+  const [readinessAgent, setReadinessAgent] = useState("common-writer");
   const [authState, setAuthState] = useState<Awaited<
     ReturnType<typeof window.desktopAuth.getState>
   > | null>(null);
@@ -197,7 +223,28 @@ export default function HermesMcpGatewayPage() {
     }
   }, [refresh, t]);
 
+  const openAgentPortalPage = useCallback(
+    async (agentAlias: string) => {
+      const state = authState ?? (await window.desktopAuth.getState());
+      const home = state.endpointConfig?.aiosHomeUrl?.replace(/\/+$/, "");
+      if (!home) return;
+      await window.shellView.loadUrl("portal", `${home}/hermes/agents/${encodeURIComponent(agentAlias)}`);
+    },
+    [authState],
+  );
+
+  const openSkillCenter = useCallback(async () => {
+    await window.shellView.loadUrl("portal", "portal");
+  }, []);
+
+  const useClientToolsFilter = config?.enableAgentAliasToolsFilter !== false;
   const gatewayStatus = status?.gatewayStatus ?? (status?.loggedIn ? "offline" : "unauthorized");
+
+  useEffect(() => {
+    if (useClientToolsFilter && status?.loggedIn) {
+      void listClientTools({ agentAlias: "common-writer", profileName: "default" });
+    }
+  }, [listClientTools, status?.loggedIn, useClientToolsFilter]);
 
   return (
     <div className="hermes-page hermes-mcp-gateway-page">
@@ -323,6 +370,51 @@ export default function HermesMcpGatewayPage() {
 
       <McpGatewayGeneHubRegistrationCard />
 
+      {config?.enableHermesClientBootstrap !== false ? (
+        <McpGatewayClientContractCard
+          status={status}
+          bootstrap={bootstrap}
+          bootstrapError={bootstrapError}
+          agents={clientAgents}
+          deviceId={bootstrap?.desktop.device_id}
+          loading={clientLoading}
+          pending={actionPending}
+          onRefreshBootstrap={() => void refreshClientContract(true)}
+          onRefreshAgents={() => void refreshClientContract(true)}
+          onRunReadiness={(agentAlias) => {
+            setReadinessAgent(agentAlias);
+            setReadinessOpen(true);
+          }}
+          onCopyDiagnostics={() => void copyDiagnosticsReport()}
+        />
+      ) : null}
+
+      {config?.enableHermesClientBootstrap !== false ? (
+        <McpGatewayAgentAliasPanel
+          agents={clientAgents}
+          loading={clientLoading}
+          pending={actionPending}
+          onViewTools={(agentAlias) => {
+            void listClientTools({ agentAlias, profileName: "default" });
+          }}
+          onReadinessCheck={(agentAlias) => {
+            setReadinessAgent(agentAlias);
+            setReadinessOpen(true);
+          }}
+          onOpenAgentPage={(agentAlias) => void openAgentPortalPage(agentAlias)}
+        />
+      ) : null}
+
+      <McpGatewayReadinessDrawer
+        open={readinessOpen}
+        pending={actionPending}
+        result={readinessResult}
+        initialAgentAlias={readinessAgent}
+        onClose={() => setReadinessOpen(false)}
+        onRun={(input) => void runReadinessCheck(input)}
+        onOpenSkillCenter={() => void openSkillCenter()}
+      />
+
       <McpGatewayDiagnosticsPanel
         result={diagnosticsResult}
         pending={actionPending}
@@ -332,9 +424,17 @@ export default function HermesMcpGatewayPage() {
 
       <McpGatewayToolsPreview
         tools={remoteTools}
+        clientTools={clientTools}
+        useClientTools={useClientToolsFilter}
+        agentAliases={clientAgents.map((a) => a.agent_alias)}
         loading={toolsLoading}
         lastSyncAt={status?.lastSyncAt}
-        onRefresh={() => void listRemoteTools(true)}
+        onRefresh={() =>
+          useClientToolsFilter
+            ? void listClientTools({ profileName: "default" })
+            : void listRemoteTools(true)
+        }
+        onFilterChange={(input) => void listClientTools(input)}
       />
 
       {config?.showServerAuthorizationPanel !== false ? (
@@ -354,6 +454,24 @@ export default function HermesMcpGatewayPage() {
         pending={actionPending}
         result={invokeResult}
         onRun={handleInvokeTest}
+      />
+
+      <McpGatewayTaskResultPanel
+        enabled={config?.enableTaskResultPanel !== false}
+        recentTasks={recentTasks}
+        selectedTaskId={selectedTaskId}
+        taskResult={taskResult}
+        taskEvents={taskEvents}
+        taskEventsError={taskEventsError}
+        pending={actionPending}
+        onSelectTask={setSelectedTaskId}
+        onLoadResult={(taskId) => void loadTaskResult(taskId)}
+        onSubscribeEvents={(taskId) => void subscribeTaskEvents(taskId)}
+        onPreviewArtifact={previewArtifact}
+        onDownloadArtifact={(artifactId) => void downloadArtifact(artifactId)}
+        onClearRecent={() => {
+          void window.mcpSkillGatewayRuntime.clearRecentHermesTasks().then(() => loadRecentTasks());
+        }}
       />
 
       <div

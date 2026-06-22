@@ -14,6 +14,11 @@ import {
   extractApprovalErrorContext,
   mapToolApprovalErrorToOp,
 } from "./mcp-approval-errors";
+import {
+  extractTaskHintsFromToolResult,
+  taskHintsToRecentTask,
+} from "./hermes-structured-task";
+import { upsertRecentHermesTask } from "./hermes-recent-tasks-store";
 
 const MAX_RESULT_BYTES = 256 * 1024;
 
@@ -175,6 +180,11 @@ export async function invokeRemoteMcpTool(
     }
 
     const { value, truncated } = truncateResult(body.result);
+    const hints = extractTaskHintsFromToolResult(body.result);
+    const taskHints = taskHintsToRecentTask(hints, { toolName });
+    if (taskHints) {
+      upsertRecentHermesTask(taskHints);
+    }
 
     writeMcpSkillGatewayLog({
       time: new Date().toISOString(),
@@ -182,6 +192,8 @@ export async function invokeRemoteMcpTool(
       method: "tools/call",
       durationMs,
       message: `Invoke test ok: ${toolName}${truncated ? " (result truncated)" : ""}`,
+      toolName,
+      ...(taskHints?.taskId ? { taskId: taskHints.taskId } : {}),
     });
 
     return {
@@ -191,6 +203,7 @@ export async function invokeRemoteMcpTool(
       durationMs,
       result: value,
       resultTruncated: truncated,
+      taskHints: taskHints ?? undefined,
     };
   } catch (err) {
     const durationMs = Date.now() - started;

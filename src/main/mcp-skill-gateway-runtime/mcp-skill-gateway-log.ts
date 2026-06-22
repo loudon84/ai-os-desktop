@@ -29,6 +29,7 @@ export interface McpSkillGatewayLogEntry {
   approvalRequestId?: string;
   grantId?: string;
   grantStatus?: string;
+  taskId?: string;
 }
 
 function logFilePath(): string {
@@ -112,6 +113,7 @@ function parseLogLine(line: string): McpGatewayProxyLogEntry | null {
     }
     if (typeof parsed.grantId === "string") entry.grantId = parsed.grantId;
     if (typeof parsed.grantStatus === "string") entry.grantStatus = parsed.grantStatus;
+    if (typeof parsed.taskId === "string") entry.taskId = parsed.taskId;
     return entry;
   } catch {
     return null;

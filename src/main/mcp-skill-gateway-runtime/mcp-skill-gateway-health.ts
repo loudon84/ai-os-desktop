@@ -11,7 +11,7 @@ import {
 } from "./mcp-skill-gateway-config";
 import {
   getMcpProxyRuntimeState,
-  getMcpSkillGatewayProxyUrl,
+  getMcpSkillGatewayProxyBaseUrl,
   isMcpSkillGatewayProxyRunning,
 } from "./mcp-skill-gateway-proxy";
 import { getMcpAuthState } from "./mcp-token-provider";
@@ -46,10 +46,8 @@ export async function testMcpSkillGatewayProxy(): Promise<McpSkillGatewayHealthR
     };
   }
 
-  const proxyBase = getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "");
-
   try {
-    const res = await fetch(`${proxyBase}/health`);
+    const res = await fetch(`${getMcpSkillGatewayProxyBaseUrl()}/health`);
     if (res.status === 404) {
       const runtime = getMcpProxyRuntimeState();
       return {
@@ -144,8 +142,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
   }
 
   try {
-    const base = getMcpSkillGatewayProxyUrl().replace(/\/mcp$/, "");
-    const res = await fetch(`${base}/debug/probe`, {
+    const res = await fetch(`${getMcpSkillGatewayProxyBaseUrl()}/debug/probe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
@@ -165,7 +162,7 @@ export async function testRemoteMcpSkillGateway(): Promise<McpGatewayRemoteTestR
       body.ok === true &&
       body.status === "connected" &&
       body.initialized === true;
-    const toolCount = body.toolCount ?? getMcpProxyRuntimeState().toolCount;
+    const toolCount = typeof body.toolCount === "number" ? body.toolCount : 0;
 
     if (!probeConnected) {
       return {

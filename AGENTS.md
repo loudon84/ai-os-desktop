@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（… + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub Skill Center 连接** + **V6.5 GeneHub Hermes Skill Sync** + **V6.4.1 Hotfix MCP Gateway 联调** + **V6.4.1 MCP Backend Desktop** + **V6.4 MCP Skill Gateway Runtime**） |
+| 版本 | 0.3.6（… + **V7.0 Hermes MCP Client Integration** + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub Skill Center 连接** + **V6.5 GeneHub Hermes Skill Sync** + **V6.4.1 Hotfix MCP Gateway 联调** + **V6.4.1 MCP Backend Desktop** + **V6.4 MCP Skill Gateway Runtime**） |
 | appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -80,7 +80,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.workspaceChat` | `src/preload/workspace-chat-api.ts` | **team_v1.8** Workspaces Chat（resolve / 模型 / 附件 / send SSE）；见 `docs/API_CONTRACTS.md` § Workspace Chat |
 | `window.webOperatorTaskSession` | `src/preload/web-operator-task-session-api.ts` | **V5.7.5** WebOperator Page→Hermes 任务会话（`task_session` SQLite） |
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
-| `window.mcpSkillGatewayRuntime` | `src/preload/mcp-skill-gateway-runtime-api.ts` | **V6.4** MCP Skill Gateway Runtime（Proxy 启停、Hermes 注册、远程 MCP 健康检查）；**V6.6.1** `readStructuredLogs` / 运营诊断；**不向 Renderer 暴露 token** |
+| `window.mcpSkillGatewayRuntime` | `src/preload/mcp-skill-gateway-runtime-api.ts` | **V6.4** MCP Skill Gateway Runtime（Proxy 启停、Hermes 注册、远程 MCP 健康检查）；**V6.6.1** `readStructuredLogs` / 运营诊断；**V7.0** Hermes Client bootstrap/agents/tools/readiness/task result/artifact（`hermes-client:*` IPC）；**不向 Renderer 暴露 token** |
 | `window.genehubRuntime` | `src/preload/genehub-runtime-api.ts` | **V6.5** GeneHub 连接探测、授权 Skill 列表、安装任务执行与日志；**不向 Renderer 暴露 token** |
 
 类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`、**`src/shared/mcp/`（V6.1）**、**`src/shared/mcp-skill-gateway-runtime/`（V6.4）**、**`src/shared/genehub/`（V6.5）**。
@@ -535,6 +535,7 @@ npm run lint         # ESLint
 | **V6.3.3** | **WebOperator Task Session 绑定键调整**：`source + requestId` 替代 `pageUrl` 唯一键；schema v2 + v1 迁移；Main 派生 `taskId`；HostBridge `web-host-bridge` | `prd/v6.3.3_task-to-session-request.md`, `web-operator-task-session-*`, `shared/web-operator/build-task-id.ts`, `HermesTaskPanel.tsx`, `HostBridgePanel.tsx` |
 | **V6.3.4** | **WebOperator Hermes→Host 表单写回**：Hermes 输出 `host_form_fill` artifact；Panel「写回当前表单」按钮；`HostBridgeCommandContext` 共享 `runCommand`；`desktop.host.form.fill` | `prd/v6.3.4_weboperator-hermes-host-form-fill.md`, `host-bridge/HostBridgeCommandContext.tsx`, `components/hermes/panel/host-form-fill/*`, `WebOperatorHermesPanelMessageList.tsx` |
 | **V6.7.1** | **GeneHub MCP Registration Hardening**：bundle-preview 不 claim、ignore 同步服务端、profile-mapping.json、serverProfileId sync、签名校验、scripts provenance、MCP Gateway 卡片增强 | `genehub-profile-mapping.ts`, `genehub-client.ts`, `mcp-registration-service.ts`, `skill-install-worker.ts`, `script-provenance.ts`, `skill-package-validator.ts`, `GeneHubMcpRegistrationPanel.tsx`, `McpGatewayGeneHubRegistrationCard.tsx` |
+| **V7.0** | **Hermes MCP Client Integration**：nodeskclaw v4.3 client bootstrap/agents/tools/readiness、task events token、task result/artifact、structuredContent→recent tasks、MCP Gateway Client Contract UI | `hermes-client-api.ts`, `src/shared/hermes-client/`, `McpGatewayClientContractCard.tsx`, `McpGatewayAgentAliasPanel.tsx`, `McpGatewayTaskResultPanel.tsx`, `prd/v7.0_desktop-hermes-mcp-client-integration.md` |
 | **V6.7** | **MCP Write Tools Approval**：Proxy 上下文 header、profile-scoped URL、服务端 grant 状态展示、撤销感知；Desktop 不本地审批 | `mcp-skill-gateway-proxy.ts`, `mcp-profile-url.ts`, `mcp-approval-errors.ts`, `McpGatewayServerAuthorizationPanel.tsx`, `mcp-gateway-operations-contract.ts` |
 | **V6.6.2** | **GeneHub MCP Registration**：MCP install job 待确认 UI、pending cache、Bundle 预览、provenance `genehub.json`、MCP Gateway 联动卡片 | `pending-jobs-cache.ts`, `mcp-registration-service.ts`, `GeneHubMcpRegistrationPanel.tsx`, `McpGatewayGeneHubRegistrationCard.tsx` |
 | **V6.6.1** | **MCP Gateway Operations**：运营契约 `MCP_OP_*`、10 步诊断、`readStructuredLogs` IPC、工具 category/permission/riskLevel、JSON invoke + 256KB 截断、五 Panel UI + Hermes 重启横幅 | `mcp-gateway-operations-contract.ts`, `mcp-gateway-diagnostics.ts`, `mcp-tools-cache.ts`, `mcp-gateway-invoke-test.ts`, `McpGateway*Panel.tsx`, `HermesMcpGatewayPage.tsx` |

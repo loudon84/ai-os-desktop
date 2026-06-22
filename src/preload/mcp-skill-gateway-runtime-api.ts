@@ -30,4 +30,24 @@ export const mcpSkillGatewayRuntimeApi: McpSkillGatewayRuntimeAPI = {
     ipcRenderer.invoke("mcp-skill-gateway-runtime:list-remote-tools", forceRefresh),
   invokeRemoteTool: (input: McpGatewayInvokeTestInput) =>
     ipcRenderer.invoke("mcp-skill-gateway-runtime:invoke-remote-tool", input),
+
+  getHermesClientBootstrap: (input) =>
+    ipcRenderer.invoke("hermes-client:get-bootstrap", input),
+  listHermesClientAgents: (input) =>
+    ipcRenderer.invoke("hermes-client:list-agents", input),
+  getHermesClientAgent: (agentAlias: string) =>
+    ipcRenderer.invoke("hermes-client:get-agent", agentAlias),
+  listHermesClientTools: (input) => ipcRenderer.invoke("hermes-client:list-tools", input),
+  runHermesReadinessCheck: (input) =>
+    ipcRenderer.invoke("hermes-client:readiness-check", input),
+  createHermesTaskEventsToken: (taskId: string) =>
+    ipcRenderer.invoke("hermes-client:create-events-token", taskId),
+  getHermesTaskResult: (taskId: string) =>
+    ipcRenderer.invoke("hermes-client:get-task-result", taskId),
+  previewHermesArtifact: (artifactId: string) =>
+    ipcRenderer.invoke("hermes-client:preview-artifact", artifactId),
+  downloadHermesArtifact: (artifactId: string) =>
+    ipcRenderer.invoke("hermes-client:download-artifact", artifactId),
+  getRecentHermesTasks: () => ipcRenderer.invoke("hermes-client:get-recent-tasks"),
+  clearRecentHermesTasks: () => ipcRenderer.invoke("hermes-client:clear-recent-tasks"),
 };

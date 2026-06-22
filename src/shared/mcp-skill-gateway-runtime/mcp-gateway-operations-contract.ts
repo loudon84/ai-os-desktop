@@ -68,12 +68,18 @@ export interface DiagnosticCheck {
   label: string;
   detail?: string;
   error?: string;
-  errorCode?: McpGatewayOperationsErrorCode | McpSkillGatewayDesktopErrorCode;
+  errorCode?:
+    | McpGatewayOperationsErrorCode
+    | McpSkillGatewayDesktopErrorCode
+    | import("../hermes-client/hermes-client-errors").HermesClientErrorCode;
 }
 
 export interface DiagnosticError {
   step: string;
-  code: McpGatewayOperationsErrorCode | McpSkillGatewayDesktopErrorCode;
+  code:
+    | McpGatewayOperationsErrorCode
+    | McpSkillGatewayDesktopErrorCode
+    | import("../hermes-client/hermes-client-errors").HermesClientErrorCode;
   message: string;
 }
 
@@ -115,6 +121,16 @@ export interface McpGatewayDiagnosticsResult {
   steps: DiagnosticCheck[];
   /** @deprecated use defaultProfileRegistration */
   hermesRegistration?: DiagnosticCheck;
+  /** Debug-only raw probe / direct initialize; does not affect ok or errors */
+  debugRaw?: {
+    probe?: unknown;
+    remoteInitialize?: {
+      ok: boolean;
+      error?: string;
+      httpStatus?: number;
+      response?: unknown;
+    };
+  };
 }
 
 export interface McpGatewayInvokeTestInput {
@@ -137,6 +153,8 @@ export interface McpGatewayInvokeTestResult {
   approvalRequired?: boolean;
   approvalRequestId?: string;
   grantStatus?: string;
+  /** v7.0 — structuredContent task hints from tools/call */
+  taskHints?: import("../hermes-client/hermes-client-contract").RecentHermesTask;
 }
 
 export type McpGatewayProxyLogLevel = "info" | "warn" | "error";
@@ -152,6 +170,7 @@ export interface McpGatewayProxyLogEntry {
   message?: string;
   /** v6.7 — approval / grant context for tools/call failures */
   toolName?: string;
+  taskId?: string;
   approvalRequestId?: string;
   grantId?: string;
   grantStatus?: string;

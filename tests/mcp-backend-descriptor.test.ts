@@ -56,4 +56,24 @@ describe("mcp-backend-descriptor", () => {
     expect(result.descriptor?.upstreamUrl).toBe("http://192.168.0.118:4510/api/v1/mcp");
     expect(result.descriptor?.name).toBe("Coding MCP Gateway");
   });
+
+  it("returns descriptor with enabled=false when system/info disables mcp", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          mcp: {
+            enabled: false,
+            endpoint: "/api/v1/mcp",
+            healthEndpoint: "/api/v1/mcp/health",
+          },
+        }),
+      })) as typeof fetch,
+    );
+
+    const result = await fetchMcpBackendDescriptor(true);
+    expect(result.ok).toBe(true);
+    expect(result.descriptor?.enabled).toBe(false);
+  });
 });

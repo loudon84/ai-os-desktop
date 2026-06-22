@@ -68,6 +68,10 @@ function normalizeConfig(
     profileScopedProxyUrl: base.profileScopedProxyUrl !== false,
     showServerAuthorizationPanel: base.showServerAuthorizationPanel !== false,
     allowWriteToolInvokeTest: base.allowWriteToolInvokeTest === true,
+    enableHermesClientBootstrap: base.enableHermesClientBootstrap !== false,
+    enableAgentAliasToolsFilter: base.enableAgentAliasToolsFilter !== false,
+    enableTaskResultPanel: base.enableTaskResultPanel !== false,
+    enableSseTokenEventSource: base.enableSseTokenEventSource !== false,
     updatedAt: base.updatedAt || new Date().toISOString(),
   };
 }

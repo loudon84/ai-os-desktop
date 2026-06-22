@@ -34,6 +34,19 @@ import { isMcpSkillGatewayError, McpSkillGatewayError } from "./mcp-skill-gatewa
 import { runMcpSkillGatewayDiagnostics } from "./mcp-gateway-diagnostics";
 import { invokeRemoteMcpTool } from "./mcp-gateway-invoke-test";
 import { listRemoteMcpTools } from "./mcp-tools-cache";
+import {
+  clearRecentHermesTasks,
+  createHermesTaskEventsToken,
+  downloadHermesArtifact,
+  getHermesClientAgent,
+  getHermesClientBootstrap,
+  getHermesTaskResult,
+  listHermesClientAgents,
+  listHermesClientTools,
+  listRecentHermesTasks,
+  previewHermesArtifact,
+  runHermesReadinessCheck,
+} from "./hermes-client-api";
 
 function toActionResult(err: unknown): McpSkillGatewayActionResult {
   if (isMcpSkillGatewayError(err)) {
@@ -181,6 +194,101 @@ export function registerMcpSkillGatewayRuntimeIpc(): void {
     "mcp-skill-gateway-runtime:invoke-remote-tool",
     async (_, input) => invokeRemoteMcpTool(input),
   );
+
+  ipcMain.handle("hermes-client:get-bootstrap", async (_, input) => {
+    try {
+      await requireLoggedIn();
+      return getHermesClientBootstrap(input);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:list-agents", async (_, input) => {
+    try {
+      await requireLoggedIn();
+      return listHermesClientAgents(input);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:get-agent", async (_, agentAlias: string) => {
+    try {
+      await requireLoggedIn();
+      return getHermesClientAgent(agentAlias);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:list-tools", async (_, input) => {
+    try {
+      await requireLoggedIn();
+      return listHermesClientTools(input);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:readiness-check", async (_, input) => {
+    try {
+      await requireLoggedIn();
+      return runHermesReadinessCheck(input);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:create-events-token", async (_, taskId: string) => {
+    try {
+      await requireLoggedIn();
+      return createHermesTaskEventsToken(taskId);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:get-task-result", async (_, taskId: string) => {
+    try {
+      await requireLoggedIn();
+      return getHermesTaskResult(taskId);
+    } catch (err) {
+      return toActionResult(err);
+    }
+  });
+
+  ipcMain.handle("hermes-client:preview-artifact", async (_, artifactId: string) => {
+    try {
+      await requireLoggedIn();
+      return previewHermesArtifact(artifactId);
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        errorCode: "HERMES_CLIENT_ARTIFACT_PREVIEW_FAILED",
+      };
+    }
+  });
+
+  ipcMain.handle("hermes-client:download-artifact", async (_, artifactId: string) => {
+    try {
+      await requireLoggedIn();
+      return downloadHermesArtifact(artifactId);
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        errorCode: "HERMES_CLIENT_ARTIFACT_DOWNLOAD_FAILED",
+      };
+    }
+  });
+
+  ipcMain.handle("hermes-client:get-recent-tasks", async () => listRecentHermesTasks());
+
+  ipcMain.handle("hermes-client:clear-recent-tasks", async () => {
+    clearRecentHermesTasks();
+  });
 }
 
 export { onMcpSkillGatewayLoginSuccess, onMcpSkillGatewayLogout };
