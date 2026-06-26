@@ -224,6 +224,7 @@ import {
   registerGeneHubIpc,
   stopGeneHubScheduler,
 } from "./genehub";
+import { registerHermesExpertsIpc, shutdownHermesExpertsIpc } from "./hermes-experts";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -470,6 +471,7 @@ function setupIPC(): void {
     seedDefaultMcpServers();
     registerMcpSkillGatewayRuntimeIpc();
     registerGeneHubIpc();
+    registerHermesExpertsIpc();
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
@@ -1688,6 +1690,9 @@ app.on("before-quit", () => {
   stopHealthPolling();
   try {
     stopGeneHubScheduler();
+  } catch { /* best effort */ }
+  try {
+    shutdownHermesExpertsIpc();
   } catch { /* best effort */ }
   if (currentChatAbort) {
     currentChatAbort();

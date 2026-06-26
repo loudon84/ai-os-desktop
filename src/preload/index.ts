@@ -39,6 +39,7 @@ import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
 import { mcpApi } from "./mcp-api";
 import { mcpSkillGatewayRuntimeApi } from "./mcp-skill-gateway-runtime-api";
 import { genehubRuntimeApi } from "./genehub-runtime-api";
+import { hermesExpertsApi } from "./hermes-experts-api";
 import { registerInternalViewApi } from "./internal-view-api";
 
 const workspaces = {
@@ -898,6 +899,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("webOperatorTaskSession", webOperatorTaskSessionApi);
     contextBridge.exposeInMainWorld("mcpSkillGatewayRuntime", mcpSkillGatewayRuntimeApi);
     contextBridge.exposeInMainWorld("genehubRuntime", genehubRuntimeApi);
+    contextBridge.exposeInMainWorld("hermesExperts", hermesExpertsApi);
   } catch (error) {
     console.error(error);
   }
@@ -938,4 +940,6 @@ if (process.contextIsolated) {
   window.mcpSkillGatewayRuntime = mcpSkillGatewayRuntimeApi;
   // @ts-ignore (define in dts)
   window.genehubRuntime = genehubRuntimeApi;
+  // @ts-ignore (define in dts)
+  window.hermesExperts = hermesExpertsApi;
 }

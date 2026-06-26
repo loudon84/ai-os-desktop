@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { hermesDefaultApi } from "../../../api/hermesDefaultApi";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createHermesProfileApi } from "../../../api/hermesProfileApi";
 import type {
   HermesChatAttachmentMeta,
   HermesChatUsageEvent,
 } from "../../../../../../../shared/hermes-default-chat/hermes-default-chat-contract";
 import type { HermesChatRunState, HermesMessage, HermesToolCall } from "../../../types";
 import { formatChatError } from "../../../utils/formatChatError";
+import { useHermesWorkspace } from "../../../context/HermesWorkspaceContext";
 
 function newId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -32,6 +33,14 @@ export function useHermesDefaultChatStream(input: {
   clearMessages: () => void;
   loadSessionHistory: (sid: string) => Promise<void>;
 } {
+  const workspace = useHermesWorkspace();
+  const chatApi = useMemo(
+    () => createHermesProfileApi(workspace.activeProfileId),
+    [workspace.activeProfileId],
+  );
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
+
   const [messages, setMessages] = useState<HermesMessage[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [runState, setRunState] = useState<HermesChatRunState>("idle");
@@ -62,11 +71,11 @@ export function useHermesDefaultChatStream(input: {
 
   useEffect(() => {
     const unsubs = [
-      hermesDefaultApi.chat.onChunk((chunk) => {
+      chatApi.chat.onChunk((chunk) => {
         setRunState("streaming");
         setStreamingContent((prev) => prev + chunk);
       }),
-      hermesDefaultApi.chat.onToolProgress((tool) => {
+      chatApi.chat.onToolProgress((tool) => {
         const tc: HermesToolCall = {
           id: `tool-${Date.now()}`,
           name: tool,
@@ -75,10 +84,10 @@ export function useHermesDefaultChatStream(input: {
         setActiveTool(tc);
         setRunState("streaming");
       }),
-      hermesDefaultApi.chat.onUsage((usage) => {
+      chatApi.chat.onUsage((usage) => {
         setLastUsage(usage);
       }),
-      hermesDefaultApi.chat.onDone((sessionId) => {
+      chatApi.chat.onDone((sessionId) => {
         setStreamingContent((current) => {
           // If we got a sessionId, the parent will switch session and
           // `loadSessionHistory()` will replace messages from DB.
@@ -99,7 +108,7 @@ export function useHermesDefaultChatStream(input: {
         setLastError(null);
         if (sessionId) onSessionIdRef.current?.(sessionId);
       }),
-      hermesDefaultApi.chat.onError((err) => {
+      chatApi.chat.onError((err) => {
         setLastError(formatChatError(err));
         setRunState("error");
         setStreamingContent("");
@@ -107,12 +116,12 @@ export function useHermesDefaultChatStream(input: {
       }),
     ];
     return () => unsubs.forEach((u) => u());
-  }, []);
+  }, [chatApi]);
 
   const loadSessionHistory = useCallback(async (sid: string) => {
     setHistoryLoadError(null);
     try {
-      const rows = await hermesDefaultApi.sessions.messages(sid);
+      const rows = await chatApi.sessions.messages(sid);
       setMessages(
         rows.map((m) => ({
           id: `hist-${sid}-${m.id}`,
@@ -130,7 +139,7 @@ export function useHermesDefaultChatStream(input: {
       setMessages([]);
       setHistoryLoadError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [chatApi]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -177,20 +186,32 @@ export function useHermesDefaultChatStream(input: {
         attachment_ids: attachmentIds,
         attachment_metas: attachmentMetas?.map((m) => m.storage_path),
       });
-      await hermesDefaultApi.chat.sendMessage({
+      const ws = workspaceRef.current;
+      const invocationSource =
+        ws.mode === "expert"
+          ? "expert_chat"
+          : ws.mode === "team"
+            ? "team_chat"
+            : "default_chat";
+      await chatApi.chat.sendMessage({
         message: trimmed,
         resumeSessionId: activeSessionRef.current ?? undefined,
         history,
         attachment_ids: attachmentIds,
         attachment_metas: attachmentMetas?.length ? attachmentMetas : undefined,
         model_id: modelId ?? undefined,
+        expert_id: ws.activeExpertId,
+        team_id: ws.activeTeamId,
+        expert_run_id: ws.activeRunId,
+        work_mode: ws.workMode,
+        invocation_source: invocationSource,
       });
     },
-    [],
+    [chatApi],
   );
 
   const cancel = useCallback(async () => {
-    await hermesDefaultApi.chat.abort();
+    await chatApi.chat.abort();
     if (streamingRef.current) {
       const msg: HermesMessage = {
         id: newId(),
@@ -203,7 +224,7 @@ export function useHermesDefaultChatStream(input: {
     setStreamingContent("");
     setActiveTool(null);
     setRunState("cancelled");
-  }, []);
+  }, [chatApi]);
 
   return {
     messages,

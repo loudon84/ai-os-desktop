@@ -2,16 +2,19 @@
 
 | Stage | Status |
 |---|---|
-| v7.0-mcp-client-closure | done |
+| hermes-experts-workspace-v7.1 | done |
+| hermes-experts-phase7-8 | done |
 
 ## Notes
 
-**V7.0 Hermes MCP Client Integration**（计划 `.cursor/plans/v7.0_mcp_client闭环_6734583c.plan.md`）：
+**V7.1.1 Hermes Experts E2E + Desktop Sync**（计划 `hermes-experts-phase7-8_830a3719.plan.md`）：
 
-- Shared：`src/shared/hermes-client/` + `McpSkillGatewayRuntimeConfig` 四个 feature flag
-- Main：`hermes-client-http/api/mappers`、`hermes-recent-tasks-store`、`hermes-structured-task`；`hermes-client:*` IPC（10 通道）
-- Proxy/Invoke：structuredContent → recent tasks；诊断新增 clientBootstrap/clientAgents/clientToolsFilter/clientReadiness
-- Renderer：Client Contract / Agent Alias / Readiness Drawer / Task Result Panel；`useMcpSkillGatewayRuntime` EventSource
-- 文档：`docs/API_CONTRACTS.md`、`AGENTS.md`、`docs/INDEX.md` V7.0 增量
+- Phase 7.1：`expert-profile-manager.ts` + `getApiUrl(profile)` / `startGateway(profile)` 专家 Gateway 路由
+- Phase 7.2：`expert-install-materializer.ts` — policy.json、config MCP merge、Skills、team_instances
+- Phase 7.3：`expert-run-bridge.ts` Chat↔Run 事件/artifact；团队首条消息 dispatch；Starter prompts、Run Cancel/Retry
+- Phase 7.4：Trust/MCP enforcement、Inspector Tools/MCP Tab、RiskReport 增强
+- Phase 7.5：`expert-preflight.ts`、i18n `workspaces.hermes.experts.errors.*`
+- Phase 7.6：Vitest（profile-manager、gateway-url、preload）、文档 API_CONTRACTS/AGENTS/Hermes.md
+- Phase 8：`expert-desktop-client.ts` register/heartbeat/run-report + IPC + Experts 页 sync pill
 
-**验证**：`npm run typecheck` + `npm test` 全绿
+**验证**：`npm run typecheck` 通过；hermes-experts 相关单测通过

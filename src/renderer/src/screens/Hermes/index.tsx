@@ -1,5 +1,7 @@
 import "./Hermes.css";
 import { HermesDefaultProvider } from "./context/HermesDefaultContext";
+import { HermesExpertsProvider } from "./context/HermesExpertsContext";
+import { HermesWorkspaceProvider } from "./context/HermesWorkspaceContext";
 import { HermesShell } from "./panels/HermesShell";
 
 export interface HermesScreenProps {
@@ -15,11 +17,15 @@ export function HermesScreen({
 }: HermesScreenProps) {
   return (
     <HermesDefaultProvider>
-      <HermesShell
-        activePanel={activePanel}
-        onPanelChange={onPanelChange}
-        onOpenRuntimeSettings={onOpenRuntimeSettings}
-      />
+      <HermesWorkspaceProvider>
+        <HermesExpertsProvider>
+          <HermesShell
+            activePanel={activePanel}
+            onPanelChange={onPanelChange}
+            onOpenRuntimeSettings={onOpenRuntimeSettings}
+          />
+        </HermesExpertsProvider>
+      </HermesWorkspaceProvider>
     </HermesDefaultProvider>
   );
 }

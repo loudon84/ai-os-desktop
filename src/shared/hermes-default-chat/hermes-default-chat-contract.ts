@@ -84,6 +84,12 @@ export type HermesChatSendPayload = {
   /** Upload IPC 返回的元数据；index 未命中时 Main 用此拼 AttachmentMeta。 */
   attachment_metas?: HermesChatAttachmentMeta[];
   model_id?: string;
+  /** v1.0 Experts Workspace */
+  expert_id?: string;
+  team_id?: string;
+  expert_run_id?: string;
+  work_mode?: "ask" | "plan" | "craft";
+  invocation_source?: "default_chat" | "expert_chat" | "team_chat";
 };
 
 export type HermesChatUsageEvent = {

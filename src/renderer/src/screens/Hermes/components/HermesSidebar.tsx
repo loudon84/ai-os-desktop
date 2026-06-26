@@ -1,4 +1,5 @@
 import {
+  Activity,
   Box,
   Brain,
   Globe,
@@ -10,6 +11,8 @@ import {
   Plug,
   Server,
   Sparkles,
+  Users,
+  UsersRound,
   Wrench,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +21,9 @@ import { useHermesDefault } from "../context/HermesDefaultContext";
 
 const ICONS: Record<string, typeof MessageSquare> = {
   MessageSquare,
+  Users,
+  UsersRound,
+  Activity,
   History,
   Sparkles,
   Library,

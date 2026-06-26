@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
   collapsedLeftPanel: "hermesDefault.collapsedLeftPanel",
   activeNavItem: "hermesDefault.activeNavItem",
   activeSessionId: "hermesDefault.activeSessionId",
+  workspaceState: "hermesDefault.workspaceState",
   geneHubActiveTab: "hermesDefault.geneHub.activeTab",
   /** @deprecated v5.6.4 使用 Main session-models.json */
   chatPendingModelId: "hermesDefault.chatPendingModelId",
@@ -64,6 +65,9 @@ export const HERMES_DRAFT_SESSION_ID = "draft_default" as const;
 
 export type HermesNavItemKey =
   | "chat"
+  | "experts"
+  | "expertTeams"
+  | "expertRuns"
   | "sessions"
   | "skills"
   | "skillCenter"
@@ -76,6 +80,9 @@ export type HermesNavItemKey =
 
 export const HERMES_NAV_ITEMS = [
   { key: "chat", labelI18nKey: "workspaces.nav.chat", icon: "MessageSquare" },
+  { key: "experts", labelI18nKey: "workspaces.nav.experts", icon: "Users" },
+  { key: "expertTeams", labelI18nKey: "workspaces.nav.expertTeams", icon: "UsersRound" },
+  { key: "expertRuns", labelI18nKey: "workspaces.nav.expertRuns", icon: "Activity" },
   { key: "sessions", labelI18nKey: "workspaces.nav.sessions", icon: "History" },
   { key: "skills", labelI18nKey: "workspaces.nav.skills", icon: "Sparkles" },
   { key: "skillCenter", labelI18nKey: "workspaces.nav.skillCenter", icon: "Library" },

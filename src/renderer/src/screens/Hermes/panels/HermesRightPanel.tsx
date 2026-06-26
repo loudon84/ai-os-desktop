@@ -1,8 +1,10 @@
 import { LAYOUT } from "../constants";
 import { HermesRightInspectorTabs } from "../components/HermesRightInspectorTabs";
 import { useHermesDefault } from "../context/HermesDefaultContext";
+import { useHermesWorkspace } from "../context/HermesWorkspaceContext";
 import { HERMES_DEFAULT_PROFILE_META } from "../constants";
 import { HermesRuntimePanel } from "./HermesRuntimePanel";
+import { HermesExpertInspectorPanel } from "./HermesExpertInspectorPanel";
 
 type Props = {
   onOpenRuntimeSettings?: () => void;
@@ -10,6 +12,7 @@ type Props = {
 
 export function HermesRightPanel({ onOpenRuntimeSettings }: Props) {
   const { activeRightTab, skills, memory } = useHermesDefault();
+  const workspace = useHermesWorkspace();
 
   return (
     <aside
@@ -69,6 +72,21 @@ export function HermesRightPanel({ onOpenRuntimeSettings }: Props) {
               <p className="hermes-muted">与 Agent Workspace 运行时隔离。</p>
             </div>
           </div>
+        ) : null}
+        {workspace.mode !== "default" && activeRightTab === "timeline" ? (
+          <HermesExpertInspectorPanel tab="timeline" />
+        ) : null}
+        {workspace.mode !== "default" && activeRightTab === "artifacts" ? (
+          <HermesExpertInspectorPanel tab="artifacts" />
+        ) : null}
+        {workspace.mode !== "default" && activeRightTab === "toolsMcp" ? (
+          <HermesExpertInspectorPanel tab="toolsMcp" />
+        ) : null}
+        {workspace.mode !== "default" && activeRightTab === "members" ? (
+          <HermesExpertInspectorPanel tab="members" />
+        ) : null}
+        {workspace.mode !== "default" && activeRightTab === "audit" ? (
+          <HermesExpertInspectorPanel tab="audit" />
         ) : null}
       </div>
     </aside>

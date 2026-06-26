@@ -14,7 +14,16 @@ export type HermesChatRunState =
   | "error"
   | "cancelled";
 
-export type HermesRightInspectorTab = "runtime" | "skills" | "memory" | "workspace";
+export type HermesRightInspectorTab =
+  | "runtime"
+  | "skills"
+  | "memory"
+  | "workspace"
+  | "timeline"
+  | "artifacts"
+  | "members"
+  | "audit"
+  | "toolsMcp";
 
 export type HermesMessage = {
   id: string;

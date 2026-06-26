@@ -688,4 +688,44 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 ---
 
+## Hermes Experts Workspace（V7.1 / V7.1.1 E2E）
+
+专家广场 / 专家团队 / 专家运行：nodeskclaw 目录 HTTP + mock/cache 回退；安装物化 `policy.json` / `config.yaml` merge / Skill / MCP；安装后注册 `profile-runtime.db`（`expert-profile-manager`）；专家 Chat 经 `getApiUrl(profile)` 路由至 `9601+` Gateway；运行事件桥接 `expert-run-bridge`；**V7.1.1** nodeskclaw Desktop register/heartbeat/run-report（`expert-desktop-client`）。
+
+**Preload**：`window.hermesExperts`（`src/preload/hermes-experts-api.ts`）— **不向 Renderer 暴露 token**。
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `hermes-experts:list-catalog` | `ExpertCatalogQuery?` | `ExpertCatalogPage` |
+| `hermes-experts:get-expert` | `expertId` | `HermesExpert \| null` |
+| `hermes-experts:list-teams` | `ExpertTeamCatalogQuery?` | `ExpertTeamCatalogPage` |
+| `hermes-experts:get-team` | `teamId` | `HermesExpertTeam \| null` |
+| `hermes-experts:preview-install-expert` | `expertId` | `{ ok, data?: ExpertInstallPlan, error?, errorCode? }` |
+| `hermes-experts:install-expert` | `expertId`, `InstallOptions?` | `{ ok, data?: { profileId }, error?, errorCode? }` |
+| `hermes-experts:preview-install-team` | `teamId` | `{ ok, data?: ExpertInstallPlan, ... }` |
+| `hermes-experts:install-team` | `teamId`, `InstallOptions?` | `{ ok, data?: { profileIds }, ... }` |
+| `hermes-experts:summon-expert` | `SummonExpertInput` | `SummonExpertResult` |
+| `hermes-experts:summon-team` | `SummonTeamInput` | `SummonTeamResult` |
+| `hermes-experts:list-runs` | `ExpertRunFilter?` | `HermesExpertRun[]` |
+| `hermes-experts:get-run` | `runId` | `HermesExpertRun \| null` |
+| `hermes-experts:cancel-run` | `runId` | `{ ok, errorCode?, message? }` |
+| `hermes-experts:retry-run` | `runId` | `SummonTeamResult \| SummonExpertResult` |
+| `hermes-experts:set-trust` | `expertId`, `HermesExpertTrustStatus` | `{ ok, error?, errorCode? }` |
+| `hermes-experts:preflight` | `profileId`, `port?` | `ExpertPreflightResult` |
+| `hermes-experts:dispatch-team` | `{ runId, teamId, leaderProfileId, userPrompt }` | `{ ok, error?, errorCode? }` |
+| `hermes-experts:get-desktop-sync-status` | — | `{ ok, data: ExpertDesktopSyncStatus }` |
+| `hermes-experts:register-desktop` | — | `{ ok, data?: ExpertDesktopSyncStatus, error?, errorCode? }` |
+
+**事件（Main → Renderer）**：`hermes-experts:event` — Preload `hermesExperts.onExpertRuntimeEvent(cb)` 返回 unsubscribe。
+
+**Main 模块**：`src/main/hermes-experts/`（`expert-profile-manager.ts`、`expert-install-materializer.ts`、`expert-run-bridge.ts`、`expert-preflight.ts`、`expert-desktop-client.ts`、`expert-catalog-client.ts`、`expert-installer.ts`、`expert-runtime.ts`、`expert-team-runtime.ts`、`expert-runtime-db.ts`、`expert-policy.ts`）。
+
+**Chat 桥接**：`hermes-chat:send-message` 在含 `expert_run_id` 时写入 `expert_run_events` / artifacts；`getApiUrl(profile)` 专家 profile 走独立 Gateway 端口。
+
+**契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`hermes-experts-errors.ts`
+
+**Renderer**：`screens/Hermes/pages/Experts/`、`ExpertTeams/`、`ExpertRuns/`；Inspector **Tools/MCP** Tab；Run 详情 Cancel/Retry；Starter prompts → 召唤并进入 Chat。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

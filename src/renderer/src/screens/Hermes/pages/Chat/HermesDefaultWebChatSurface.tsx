@@ -4,6 +4,7 @@ import { useI18n } from "../../../../components/useI18n";
 import { formatChatError } from "../../utils/formatChatError";
 import { ChatScrollArea } from "./ChatScrollArea";
 import { ComposerBar } from "./ComposerBar";
+import { HermesActiveExpertBar } from "./components/HermesActiveExpertBar";
 import { StatusToast } from "./StatusToast";
 import { useHermesDefaultWebChat } from "./hooks/useHermesDefaultWebChat";
 
@@ -56,6 +57,7 @@ export function HermesDefaultWebChatSurface(): React.JSX.Element {
 
   return (
     <div className="hermes-panel-root is-chat hermes-webchat-root">
+      <HermesActiveExpertBar />
       <StatusToast message={toast} variant={stream.lastError ? "error" : "info"} />
       <div className="hermes-skills-tab__toolbar">
         <label className="hermes-skills-search">

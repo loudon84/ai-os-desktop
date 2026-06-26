@@ -43,6 +43,11 @@ import {
   HERMES_DRAFT_SESSION_ID,
   migrateSessionModelBinding,
 } from "./hermes-session-model-store";
+import {
+  afterExpertChatComplete,
+  beforeExpertChatSend,
+  bridgeChatToolProgress,
+} from "../hermes-experts/expert-run-bridge";
 import { readContactToOrderLastWebUrl } from "../contact-to-order-web-url";
 
 export type HermesChatAbortRef = {
@@ -155,7 +160,13 @@ export function registerHermesDefaultChatIpc(
 
   ipcMain.handle("hermes-chat:send-message", async (event, payload: HermesChatSendPayload) => {
     const profile = payload.profile;
-    if (!isRemoteMode() && !isGatewayRunning()) {
+    const block = await beforeExpertChatSend(payload);
+    if (block) {
+      event.sender.send("chat-error", block.message);
+      return { ok: false as const, errorCode: block.errorCode, error: block.message };
+    }
+
+    if (!isRemoteMode() && !isGatewayRunning(profile)) {
       startGateway(profile);
     }
 
@@ -201,6 +212,12 @@ export function registerHermesDefaultChatIpc(
         },
         onDone: (sessionId) => {
           chatAbortRef.current = null;
+          void afterExpertChatComplete({
+            runId: payload.expert_run_id,
+            profile,
+            response: fullResponse,
+            sessionId: sessionId || undefined,
+          });
           if (sessionId) {
             migrateSessionModelBinding(requestSessionKey, sessionId, profile);
           }
@@ -220,6 +237,12 @@ export function registerHermesDefaultChatIpc(
         },
         onError: (error) => {
           chatAbortRef.current = null;
+          void afterExpertChatComplete({
+            runId: payload.expert_run_id,
+            profile,
+            response: fullResponse,
+            error,
+          });
           event.sender.send("chat-error", error);
           rejectChat(new Error(error));
           const mainWindow = getMainWindow();
@@ -231,6 +254,12 @@ export function registerHermesDefaultChatIpc(
           }
         },
         onToolProgress: (tool) => {
+          bridgeChatToolProgress({
+            runId: payload.expert_run_id,
+            profile,
+            expertId: payload.expert_id,
+            toolLabel: tool,
+          });
           event.sender.send("chat-tool-progress", tool);
         },
         onUsage: (usage) => {

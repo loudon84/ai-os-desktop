@@ -737,6 +737,7 @@ declare global {
     copilotServe: CopilotServeAPI;
     mcpSkillGatewayRuntime: McpSkillGatewayRuntimeAPI;
     genehubRuntime: GeneHubRuntimeAPI;
+    hermesExperts: import("../shared/hermes-experts/hermes-experts-contract").HermesExpertsAPI;
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

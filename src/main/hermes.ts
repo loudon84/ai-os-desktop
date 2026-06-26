@@ -38,10 +38,16 @@ import {
   syncCustomProvidersFromModels,
 } from "./hermes-config/hermes-config-yaml";
 import type { HermesChatAttachmentMeta } from "../shared/hermes-default-chat/hermes-default-chat-contract";
+import {
+  isExpertManagedProfile,
+  resolveExpertGatewayUrl,
+} from "./hermes-experts/expert-profile-manager";
+import { getRuntimeInstance } from "./profile-runtime-db";
+import { resolveProfileId, startProfile } from "./profile-runtime-manager";
 
 const LOCAL_API_URL = "http://127.0.0.1:8642";
 
-export function getApiUrl(): string {
+export function getApiUrl(profile?: string): string {
   const conn = getConnectionConfig();
   if (conn.mode === "ssh") {
     const sshUrl = getSshTunnelUrl();
@@ -51,6 +57,8 @@ export function getApiUrl(): string {
   if (conn.mode === "remote" && conn.remoteUrl) {
     return conn.remoteUrl.replace(/\/+$/, "");
   }
+  const expertUrl = resolveExpertGatewayUrl(profile);
+  if (expertUrl) return expertUrl;
   return LOCAL_API_URL;
 }
 
@@ -153,7 +161,7 @@ function sanitizeChatHistory(
 
 function isApiServerReady(profile?: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const url = `${getApiUrl()}/health`;
+    const url = `${getApiUrl(profile)}/health`;
     const mod = url.startsWith("https") ? https : http;
     const req = mod.request(
       url,
@@ -287,7 +295,7 @@ async function sendMessageViaApi(
     options?.modelId,
     apiServerModel,
   );
-  const gatewayCompletionsUrl = `${getApiUrl().replace(/\/+$/, "")}/v1/chat/completions`;
+  const gatewayCompletionsUrl = `${getApiUrl(profile).replace(/\/+$/, "")}/v1/chat/completions`;
   logChatModelRouting(
     buildChatModelRoutingLog({
       profile,
@@ -339,7 +347,7 @@ async function sendMessageViaApi(
       resolveApiServerModelName(profile),
     );
     const probeBody = JSON.stringify({ ...probePayload, stream: false });
-    const probeUrl = `${getApiUrl()}/v1/chat/completions`;
+    const probeUrl = `${getApiUrl(profile)}/v1/chat/completions`;
     const probeMod = probeUrl.startsWith("https") ? https : http;
     const probeReq = probeMod.request(
       probeUrl,
@@ -449,7 +457,7 @@ async function sendMessageViaApi(
     return false;
   }
 
-  const chatUrl = `${getApiUrl()}/v1/chat/completions`;
+  const chatUrl = `${getApiUrl(profile)}/v1/chat/completions`;
   const requester = chatUrl.startsWith("https") ? https.request : http.request;
   const req = requester(
     chatUrl,
@@ -923,6 +931,14 @@ let gatewayStartedByApp = false;
 
 export function startGateway(profile?: string): boolean {
   ensureInitialized();
+  if (profile && profile !== "default" && isExpertManagedProfile(profile)) {
+    ensureApiServerKey(profile);
+    void startProfile(resolveProfileId(profile)).catch((err) => {
+      console.error(`[Hermes] expert profile start failed (${profile}):`, err);
+    });
+    return true;
+  }
+
   ensureApiServerKey(profile);
   const configSynced = syncGatewayModelSection(profile);
   if (configSynced && isGatewayRunning()) {
@@ -1015,7 +1031,11 @@ export function stopGateway(force = false): void {
   apiServerAvailable = false;
 }
 
-export function isGatewayRunning(): boolean {
+export function isGatewayRunning(profile?: string): boolean {
+  if (profile && profile !== "default" && isExpertManagedProfile(profile)) {
+    const instance = getRuntimeInstance(resolveProfileId(profile));
+    return instance?.status === "running";
+  }
   if (gatewayProcess && !gatewayProcess.killed) return true;
   const pid = readPidFile();
   if (!pid) return false;
