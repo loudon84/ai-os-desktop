@@ -27,9 +27,16 @@ function expert(
     memory: { mode: "isolated" },
     policy: BASE_POLICY,
     starterPrompts: [],
-    installStatus: "not_installed",
+    installStatus: "installed",
     trustStatus: "untrusted",
+    toolName: partial.slug?.replace(/-/g, "_") ?? partial.expertId,
+    executionMode: "remote_mcp",
     ...partial,
+    profile: {
+      profileId: "remote",
+      runtimeType: "hermes-local",
+      port: partial.profile?.port,
+    },
   };
 }
 
@@ -161,7 +168,9 @@ export const MOCK_EXPERT_TEAMS: HermesExpertTeam[] = [
     starterPrompts: [
       { title: "制定大客户攻坚策略", prompt: "制定大客户攻坚和赢单策略。" },
     ],
-    installStatus: "not_installed",
+    installStatus: "installed",
+    toolName: "team_sales_war_room",
+    executionMode: "remote_mcp",
   },
 ];
 

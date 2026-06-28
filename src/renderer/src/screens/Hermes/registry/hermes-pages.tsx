@@ -8,9 +8,11 @@ const MemoryPage = lazy(() => import("../pages/Memory/HermesMemoryPage"));
 const ProvidersPage = lazy(() => import("../pages/Providers/HermesProvidersPage"));
 const ModelsPage = lazy(() => import("../pages/Models/HermesModelsPage"));
 const ChatPage = lazy(() => import("../pages/Chat/HermesDefaultChatPage"));
+const WorkbenchPage = lazy(() => import("../pages/Workbench/HermesWorkbenchPage"));
 const ExpertsPage = lazy(() => import("../pages/Experts/HermesExpertsPage"));
 const ExpertTeamsPage = lazy(() => import("../pages/ExpertTeams/HermesExpertTeamsPage"));
 const ExpertRunsPage = lazy(() => import("../pages/ExpertRuns/HermesExpertRunsPage"));
+const ArtifactsPage = lazy(() => import("../pages/Artifacts/HermesArtifactsPage"));
 const McpPage = lazy(() => import("../pages/MCP/HermesMCPPage"));
 const McpGatewayPage = lazy(() => import("../pages/McpGateway/HermesMcpGatewayPage"));
 const GeneHubSkillCenterPage = lazy(() => import("../pages/GeneHub/GeneHubSkillCenterPage"));
@@ -18,10 +20,12 @@ const GeneHubSkillCenterPage = lazy(() => import("../pages/GeneHub/GeneHubSkillC
 export type HermesPageKey = HermesNavItemKey;
 
 export const HERMES_PAGE_REGISTRY: Record<HermesPageKey, ComponentType> = {
+  workbench: WorkbenchPage,
   chat: ChatPage,
   experts: ExpertsPage,
   expertTeams: ExpertTeamsPage,
   expertRuns: ExpertRunsPage,
+  artifacts: ArtifactsPage,
   sessions: SessionsPage,
   skills: SkillsPage,
   skillCenter: GeneHubSkillCenterPage,

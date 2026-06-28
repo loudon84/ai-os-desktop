@@ -1,3 +1,4 @@
+/** @deprecated V7.2 — local expert Gateway registration superseded by remote MCP execution. */
 import { existsSync } from "fs";
 import {
   checkPortConflict,

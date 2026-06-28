@@ -6,12 +6,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { HermesExpert, ExpertCatalogQuery } from "../types/hermes-experts";
+import type { HermesExpert, ExpertCatalogQuery, ExpertCatalogSource } from "../../../../../shared/hermes-experts/hermes-experts-contract";
 import type { HermesExpertTeam, ExpertTeamCatalogQuery } from "../types/hermes-expert-teams";
 import type { HermesExpertRun, ExpertRunFilter } from "../types/hermes-expert-runs";
 import { MOCK_EXPERTS, MOCK_EXPERT_TEAMS } from "../pages/Experts/mock/expert-mock-data";
 
-export type HermesExpertsCatalogSource = "remote" | "mock" | "cache";
+export type HermesExpertsCatalogSource = ExpertCatalogSource;
 
 type HermesExpertsContextValue = {
   experts: HermesExpert[];

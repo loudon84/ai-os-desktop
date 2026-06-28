@@ -26,6 +26,7 @@ export const GENEHUB_SKILL_CENTER_TABS = [
   "installed",
   "pending",
   "mcpRegistration",
+  "skillPush",
   "logs",
 ] as const;
 
@@ -64,10 +65,12 @@ export function clearGeneHubSkillCenterTab(): void {
 export const HERMES_DRAFT_SESSION_ID = "draft_default" as const;
 
 export type HermesNavItemKey =
+  | "workbench"
   | "chat"
   | "experts"
   | "expertTeams"
   | "expertRuns"
+  | "artifacts"
   | "sessions"
   | "skills"
   | "skillCenter"
@@ -79,10 +82,12 @@ export type HermesNavItemKey =
   | "models";
 
 export const HERMES_NAV_ITEMS = [
+  { key: "workbench", labelI18nKey: "workspaces.nav.workbench", icon: "LayoutDashboard" },
   { key: "chat", labelI18nKey: "workspaces.nav.chat", icon: "MessageSquare" },
   { key: "experts", labelI18nKey: "workspaces.nav.experts", icon: "Users" },
   { key: "expertTeams", labelI18nKey: "workspaces.nav.expertTeams", icon: "UsersRound" },
   { key: "expertRuns", labelI18nKey: "workspaces.nav.expertRuns", icon: "Activity" },
+  { key: "artifacts", labelI18nKey: "workspaces.nav.artifacts", icon: "FileBox" },
   { key: "sessions", labelI18nKey: "workspaces.nav.sessions", icon: "History" },
   { key: "skills", labelI18nKey: "workspaces.nav.skills", icon: "Sparkles" },
   { key: "skillCenter", labelI18nKey: "workspaces.nav.skillCenter", icon: "Library" },

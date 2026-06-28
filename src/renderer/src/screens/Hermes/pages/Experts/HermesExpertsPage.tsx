@@ -1,38 +1,50 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Wifi, WifiOff, Cloud } from "lucide-react";
+import { RefreshCw, Search, Wifi, WifiOff, Cloud, Info, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useHermesDefault } from "../../context/HermesDefaultContext";
 import { useHermesExpertsCatalog } from "../../context/HermesExpertsContext";
+import type { ExpertGatewayDiagnostics } from "../../../../../../shared/hermes-experts/hermes-experts-contract";
 import type { HermesExpert } from "../../types/hermes-experts";
 import { EXPERT_CATEGORIES, FEATURED_SCENARIOS } from "./mock/expert-mock-data";
 import { ExpertCard } from "./components/ExpertCard";
 import { ExpertDetailDrawer } from "./components/ExpertDetailDrawer";
-import { ExpertInstallPlanDrawer } from "./components/ExpertInstallPlanDrawer";
-import { useExpertInstall } from "./hooks/useExpertInstall";
-import { useSummonExpert } from "./hooks/useSummonExpert";
+import {
+  ExpertCatalogCallDrawer,
+  type ExpertCatalogCallItem,
+} from "./components/ExpertCatalogCallDrawer";
 
 export default function HermesExpertsPage() {
   const { t } = useTranslation();
+  const { setActiveNavItem } = useHermesDefault();
   const { experts, catalogSource, loading, error, refreshExperts } = useHermesExpertsCatalog();
-  const install = useExpertInstall();
-  const { summonExpert } = useSummonExpert();
   const [category, setCategory] = useState("all");
   const [keyword, setKeyword] = useState("");
   const [selected, setSelected] = useState<HermesExpert | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [installTarget, setInstallTarget] = useState<HermesExpert | null>(null);
-  const [installDrawerOpen, setInstallDrawerOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState<ExpertCatalogCallItem | null>(null);
+  const [callOpen, setCallOpen] = useState(false);
   const [desktopSyncRegistered, setDesktopSyncRegistered] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<ExpertGatewayDiagnostics | null>(null);
+  const [cacheNotice, setCacheNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window.hermesExperts === "undefined") return;
     void window.hermesExperts.getDesktopSyncStatus().then((res) => {
       if (res.ok && res.data) setDesktopSyncRegistered(res.data.registered);
     });
-  }, []);
+    void window.hermesExperts.getExpertGatewayDiagnostics().then(setDiagnostics);
+  }, [experts, catalogSource]);
 
   const load = useCallback(() => {
     void refreshExperts({ category, keyword });
   }, [refreshExperts, category, keyword]);
+
+  const clearCache = useCallback(async () => {
+    if (typeof window.hermesExperts === "undefined") return;
+    await window.hermesExperts.clearExpertCatalogCache();
+    setCacheNotice(t("workspaces.hermes.experts.catalogCacheCleared"));
+    load();
+  }, [load, t]);
 
   useEffect(() => {
     load();
@@ -55,31 +67,15 @@ export default function HermesExpertsPage() {
     return list;
   }, [experts, category, keyword]);
 
-  const handleView = (expert: HermesExpert) => {
-    setSelected(expert);
-    setDrawerOpen(true);
-  };
-
-  const handleInstall = (expert: HermesExpert) => {
-    setInstallTarget(expert);
-    setInstallDrawerOpen(true);
-    void install.previewExpert(expert.expertId);
-  };
-
-  const handleSummon = (expert: HermesExpert) => {
-    void summonExpert(expert);
-    setDrawerOpen(false);
-  };
-
-  const confirmInstall = () => {
-    if (!installTarget) return;
-    void install.installExpert(installTarget.expertId).then((result) => {
-      if (result.ok) {
-        setInstallDrawerOpen(false);
-        install.clearPlan();
-        load();
-      }
+  const openCall = (expert: HermesExpert) => {
+    setCallTarget({
+      slug: expert.catalogSlug ?? expert.expertSlug ?? expert.slug ?? expert.expertId,
+      kind: "expert",
+      displayName: expert.displayName,
+      callableSkillCount: expert.callableSkillCount,
+      starterPrompt: expert.starterPrompts[0]?.prompt,
     });
+    setCallOpen(true);
   };
 
   return (
@@ -90,16 +86,33 @@ export default function HermesExpertsPage() {
           <p className="hermes-page__subtitle">{t("workspaces.hermes.experts.subtitle")}</p>
         </div>
         <div className="hermes-page__header-actions">
-          <span className="hermes-connection-pill" title={catalogSource}>
+          <span
+            className={`hermes-connection-pill${catalogSource === "legacy_rest_fallback" ? " hermes-connection-pill--warn" : ""}`}
+            title={
+              diagnostics
+                ? `${t("workspaces.hermes.experts.diagnosticsTitle")}: ${diagnostics.expertMcpRootUrl}\n${t(`workspaces.hermes.experts.source.${catalogSource}`, { defaultValue: catalogSource })}`
+                : catalogSource
+            }
+          >
             {catalogSource === "remote" ? <Wifi size={14} /> : <WifiOff size={14} />}
             {t(`workspaces.hermes.experts.source.${catalogSource}`, { defaultValue: catalogSource })}
           </span>
+          {diagnostics?.expertMcpRootUrl ? (
+            <span className="hermes-connection-pill" title={diagnostics.expertMcpRootUrl}>
+              <Info size={14} />
+              Expert MCP
+            </span>
+          ) : null}
           <span className="hermes-connection-pill">
             <Cloud size={14} />
             {desktopSyncRegistered
               ? t("workspaces.hermes.experts.desktopSync.registered")
               : t("workspaces.hermes.experts.desktopSync.offline")}
           </span>
+          <button type="button" className="hermes-btn-ghost" onClick={() => void clearCache()} disabled={loading}>
+            <Trash2 size={14} />
+            {t("workspaces.hermes.experts.clearCatalogCache")}
+          </button>
           <button type="button" className="hermes-btn-ghost" onClick={load} disabled={loading}>
             <RefreshCw size={14} className={loading ? "hermes-spin" : undefined} />
             {t("workspaces.hermes.common.refresh")}
@@ -140,6 +153,12 @@ export default function HermesExpertsPage() {
         ))}
       </div>
 
+      {cacheNotice ? <p className="hermes-muted">{cacheNotice}</p> : null}
+
+      {catalogSource === "remote" && filtered.length === 0 && !loading ? (
+        <p className="hermes-page__empty">{t("workspaces.hermes.experts.catalogEmpty")}</p>
+      ) : null}
+
       {error ? (
         <div className="hermes-page__error">
           <p>{error}</p>
@@ -153,39 +172,38 @@ export default function HermesExpertsPage() {
         <p className="hermes-page__loading">{t("workspaces.hermes.common.loading")}</p>
       ) : null}
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && filtered.length === 0 && catalogSource !== "remote" ? (
         <p className="hermes-page__empty">{t("workspaces.hermes.experts.empty")}</p>
-      ) : (
+      ) : filtered.length > 0 ? (
         <div className="hermes-expert-grid">
           {filtered.map((expert) => (
             <ExpertCard
               key={expert.expertId}
               expert={expert}
-              onView={handleView}
-              onInstall={handleInstall}
-              onSummon={handleSummon}
+              onView={(e) => {
+                setSelected(e);
+                setDrawerOpen(true);
+              }}
+              onSummon={openCall}
             />
           ))}
         </div>
-      )}
+      ) : null}
 
       <ExpertDetailDrawer
         expert={selected}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onInstall={handleInstall}
-        onSummon={handleSummon}
+        onSummon={openCall}
       />
-      <ExpertInstallPlanDrawer
-        plan={install.plan}
-        open={installDrawerOpen}
-        loading={install.loading}
-        error={install.error}
-        onClose={() => {
-          setInstallDrawerOpen(false);
-          install.clearPlan();
+      <ExpertCatalogCallDrawer
+        catalogItem={callTarget}
+        open={callOpen}
+        onClose={() => setCallOpen(false)}
+        onSuccess={() => {
+          setDrawerOpen(false);
+          setActiveNavItem("expertRuns");
         }}
-        onConfirm={confirmInstall}
       />
     </div>
   );

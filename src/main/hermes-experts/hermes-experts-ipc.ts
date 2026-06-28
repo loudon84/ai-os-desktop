@@ -3,8 +3,11 @@ import type {
   ExpertCatalogQuery,
   ExpertRunFilter,
   ExpertTeamCatalogQuery,
+  CallCatalogSkillInput,
   HermesExpertTrustStatus,
+  ImportArtifactInput,
   InstallOptions,
+  PushSkillInput,
   SummonExpertInput,
   SummonTeamInput,
 } from "../../shared/hermes-experts/hermes-experts-contract";
@@ -16,10 +19,12 @@ import {
   getExpertTeam,
   listExpertCatalog,
   listExpertTeams,
+  getExpertGatewayDiagnostics,
+  clearExpertCatalogCache,
 } from "./expert-catalog-client";
 import { installExpertById, installTeamById } from "./expert-installer";
 import { initExpertRuntimeDb, listExpertRuns, getExpertRun, setExpertTrust } from "./expert-runtime-db";
-import { summonExpert, cancelExpertRun } from "./expert-runtime";
+import { summonExpert, cancelExpertRun, syncExpertRun, callCatalogSkill } from "./expert-runtime";
 import { summonTeam, retryExpertRun, dispatchTeamRun } from "./expert-team-runtime";
 import { runExpertPreflight } from "./expert-preflight";
 import {
@@ -28,6 +33,22 @@ import {
   startExpertDesktopHeartbeat,
   stopExpertDesktopHeartbeat,
 } from "./expert-desktop-client";
+import {
+  pushGeneHubSkill,
+  listGeneHubSubmissions,
+  listGeneHubPullJobs,
+} from "./expert-genehub-client";
+import {
+  getRemoteRunResult,
+  getRemoteRunTimeline,
+  listRemoteRunArtifacts,
+  previewRunArtifact,
+  downloadRunArtifact,
+  importRunArtifact,
+  syncRunFromRemote,
+} from "./expert-remote-run-service";
+import { getExpertGatewayHealth, listCatalogSkills, listExpertSkills } from "./expert-mcp-client";
+import { listAllArtifacts } from "./expert-runtime-db";
 
 function toError(err: unknown): { ok: false; error: string; errorCode: string } {
   if (isHermesExpertsError(err)) {
@@ -55,6 +76,41 @@ export function registerHermesExpertsIpc(): void {
   );
 
   ipcMain.handle("hermes-experts:get-team", async (_, teamId: string) => getExpertTeam(teamId));
+
+  ipcMain.handle("hermes-experts:get-expert-gateway-health", async () => getExpertGatewayHealth());
+
+  ipcMain.handle("hermes-experts:get-expert-gateway-diagnostics", async () =>
+    getExpertGatewayDiagnostics(),
+  );
+
+  ipcMain.handle("hermes-experts:clear-expert-catalog-cache", async () => clearExpertCatalogCache());
+
+  ipcMain.handle("hermes-experts:list-catalog-skills", async (_, slug: string) => {
+    try {
+      const data = await listCatalogSkills(slug);
+      return { ok: true as const, data };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:list-expert-skills", async (_, expertSlug: string) => {
+    try {
+      const data = await listExpertSkills(expertSlug);
+      return { ok: true as const, data };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:call-catalog-skill", async (_, input: CallCatalogSkillInput) =>
+    callCatalogSkill(input),
+  );
+
+  ipcMain.handle("hermes-experts:list-local-artifacts", async (_, limit?: number) => ({
+    ok: true as const,
+    data: listAllArtifacts(limit ?? 100),
+  }));
 
   ipcMain.handle("hermes-experts:preview-install-expert", async (_, expertId: string) => {
     try {
@@ -112,7 +168,86 @@ export function registerHermesExpertsIpc(): void {
     }),
   );
 
-  ipcMain.handle("hermes-experts:get-run", async (_, runId: string) => getExpertRun(runId));
+  ipcMain.handle("hermes-experts:get-run", async (_, runId: string) => {
+    const run = getExpertRun(runId);
+    if (run?.remoteTaskId) {
+      try {
+        await syncRunFromRemote(runId);
+      } catch {
+        /* best-effort refresh */
+      }
+    }
+    return getExpertRun(runId);
+  });
+
+  ipcMain.handle("hermes-experts:sync-remote-run", async (_, runId: string) => {
+    try {
+      await syncExpertRun(runId);
+      return { ok: true as const };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:get-run-result", async (_, runId: string) => {
+    try {
+      const data = await getRemoteRunResult(runId);
+      if (!data) return { ok: false, error: "Run not found", errorCode: "EXPERT_RUN_NOT_FOUND" };
+      return { ok: true as const, data };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:get-run-timeline", async (_, runId: string) => {
+    try {
+      const data = await getRemoteRunTimeline(runId);
+      return { ok: true as const, data };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:list-run-artifacts", async (_, runId: string) => {
+    try {
+      const data = await listRemoteRunArtifacts(runId);
+      return { ok: true as const, data };
+    } catch (err) {
+      return toError(err);
+    }
+  });
+
+  ipcMain.handle("hermes-experts:preview-run-artifact", async (_, artifactId: string) => {
+    const result = await previewRunArtifact(artifactId);
+    if (!result.ok) return { ok: false, error: result.error, errorCode: result.errorCode };
+    return { ok: true as const, data: { text: result.text, contentType: result.contentType } };
+  });
+
+  ipcMain.handle("hermes-experts:download-run-artifact", async (_, artifactId: string) => {
+    const result = await downloadRunArtifact(artifactId);
+    if (!result.ok) return { ok: false, error: result.error, errorCode: result.errorCode };
+    return { ok: true as const, data: { savedPath: result.savedPath } };
+  });
+
+  ipcMain.handle("hermes-experts:import-run-artifact", async (_, input: ImportArtifactInput) =>
+    importRunArtifact(input),
+  );
+
+  ipcMain.handle("hermes-experts:push-genehub-skill", async (_, input: PushSkillInput) => {
+    const result = await pushGeneHubSkill(input);
+    if (!result.ok) return { ok: false, error: result.error, errorCode: "GENEHUB_PUSH_FAILED" };
+    return { ok: true as const, data: { submissionId: result.submissionId } };
+  });
+
+  ipcMain.handle("hermes-experts:list-genehub-submissions", async () => ({
+    ok: true as const,
+    data: await listGeneHubSubmissions(),
+  }));
+
+  ipcMain.handle("hermes-experts:list-genehub-pull-jobs", async () => ({
+    ok: true as const,
+    data: await listGeneHubPullJobs(),
+  }));
 
   ipcMain.handle("hermes-experts:cancel-run", async (_, runId: string) => cancelExpertRun(runId));
 

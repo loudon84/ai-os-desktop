@@ -13,6 +13,7 @@ import { GeneHubInstallJobList } from "./components/GeneHubInstallJobList";
 import { GeneHubInstalledSkillList } from "./components/GeneHubInstalledSkillList";
 import { GeneHubInstallLogPanel } from "./components/GeneHubInstallLogPanel";
 import { GeneHubMcpRegistrationPanel } from "./components/GeneHubMcpRegistrationPanel";
+import { GeneHubSkillPushPanel } from "./components/GeneHubSkillPushPanel";
 
 function resolveInitialTab(): GeneHubSkillCenterTabKey {
   return readGeneHubSkillCenterTab() ?? "available";
@@ -95,6 +96,7 @@ export default function GeneHubSkillCenterPage() {
     { key: "installed", label: t("workspaces.hermes.geneHub.tabInstalled") },
     { key: "pending", label: t("workspaces.hermes.geneHub.tabPending") },
     { key: "mcpRegistration", label: t("workspaces.hermes.geneHub.tabMcpRegistration") },
+    { key: "skillPush", label: t("workspaces.hermes.geneHub.tabSkillPush", { defaultValue: "Skill push" }) },
     { key: "logs", label: t("workspaces.hermes.geneHub.tabLogs") },
   ];
 
@@ -186,6 +188,8 @@ export default function GeneHubSkillCenterPage() {
           onViewLogsTab={() => setActiveTab("logs")}
         />
       ) : null}
+
+      {activeTab === "skillPush" ? <GeneHubSkillPushPanel /> : null}
 
       {activeTab === "logs" ? <GeneHubInstallLogPanel logs={installLogs} /> : null}
     </div>

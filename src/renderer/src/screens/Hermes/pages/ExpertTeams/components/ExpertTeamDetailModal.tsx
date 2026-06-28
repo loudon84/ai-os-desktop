@@ -7,11 +7,10 @@ type Props = {
   team: HermesExpertTeam | null;
   open: boolean;
   onClose: () => void;
-  onInstall: (team: HermesExpertTeam) => void;
   onSummon: (team: HermesExpertTeam) => void;
 };
 
-export function ExpertTeamDetailModal({ team, open, onClose, onInstall, onSummon }: Props) {
+export function ExpertTeamDetailModal({ team, open, onClose, onSummon }: Props) {
   const { t } = useTranslation();
   if (!open || !team) return null;
 
@@ -31,6 +30,12 @@ export function ExpertTeamDetailModal({ team, open, onClose, onInstall, onSummon
         </header>
         <div className="hermes-modal__body">
           <p>{team.description}</p>
+          {team.toolName ? (
+            <section>
+              <h3>{t("workspaces.hermes.experts.toolName", { defaultValue: "MCP tool" })}</h3>
+              <code>{team.toolName}</code>
+            </section>
+          ) : null}
           <section>
             <h3>{t("workspaces.hermes.expertTeams.leader")}</h3>
             <p>{team.leader.roleName}</p>
@@ -41,13 +46,15 @@ export function ExpertTeamDetailModal({ team, open, onClose, onInstall, onSummon
             <p>
               {team.orchestration.mode} / {team.orchestration.mergeStrategy}
             </p>
+            <p className="hermes-muted">
+              {t("workspaces.hermes.expertTeams.serverManaged", {
+                defaultValue: "Member execution is orchestrated on nodeskclaw (server_managed).",
+              })}
+            </p>
           </section>
-          <ExpertStarterPrompts prompts={team.starterPrompts} onSelect={() => undefined} />
+          <ExpertStarterPrompts prompts={team.starterPrompts} onSelect={() => onSummon(team)} />
         </div>
         <footer className="hermes-modal__footer">
-          <button type="button" className="hermes-btn-ghost" onClick={() => onInstall(team)}>
-            {t("workspaces.hermes.experts.install")}
-          </button>
           <button type="button" className="hermes-btn-primary" onClick={() => onSummon(team)}>
             {t("workspaces.hermes.expertTeams.summonTeam")}
           </button>

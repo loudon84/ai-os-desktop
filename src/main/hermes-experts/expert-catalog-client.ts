@@ -1,10 +1,9 @@
-import { unwrapNodeDeskClawResponse } from "../auth/nodeskclaw-auth-response";
 import { resolveBackendBaseUrl } from "../mcp-skill-gateway-runtime/mcp-skill-gateway-config";
-import { getMcpAccessToken } from "../mcp-skill-gateway-runtime/mcp-token-provider";
 import { getDeviceIdentity } from "../genehub/device-identity";
 import type {
   ExpertCatalogPage,
   ExpertCatalogQuery,
+  ExpertGatewayDiagnostics,
   ExpertInstallPlan,
   ExpertTeamCatalogPage,
   ExpertTeamCatalogQuery,
@@ -13,20 +12,34 @@ import type {
 } from "../../shared/hermes-experts/hermes-experts-contract";
 import { HermesExpertsError } from "../../shared/hermes-experts/hermes-experts-errors";
 import {
+  EXPERT_CATALOG_CACHE_VERSION,
+  resolveExpertHealthUrl,
+  resolveExpertMcpRootUrl,
+} from "./expert-mcp-endpoint";
+import {
   MOCK_EXPERT_CATALOG,
   MOCK_EXPERT_TEAMS,
   getMockExpert,
   getMockTeam,
 } from "./expert-mock-catalog";
 import {
-  cacheExpertCatalog,
-  cacheExpertTeamCatalog,
+  clearExpertCatalogCaches,
   getCachedExpert,
   getCachedTeam,
+  getExpertCatalogMeta,
   getExpertInstance,
   listCachedExperts,
   listCachedTeams,
+  replaceExpertCatalogCache,
+  replaceExpertTeamCatalogCache,
 } from "./expert-runtime-db";
+import { unwrapNodeDeskClawResponse } from "../auth/nodeskclaw-auth-response";
+import { getMcpAccessToken } from "../mcp-skill-gateway-runtime/mcp-token-provider";
+
+export type ExpertCatalogSource = "remote" | "cache" | "mock" | "legacy_rest_fallback";
+
+let lastCatalogSource: ExpertCatalogSource = "mock";
+let lastCatalogError: string | undefined;
 
 function joinUrl(base: string, path: string): string {
   return `${base.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
@@ -45,8 +58,8 @@ async function expertsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     Authorization: `Bearer ${token}`,
-    "X-Desktop-Id": device.deviceFingerprint,
-    "X-Client-Version": `copilot-desktop/${process.env.npm_package_version ?? "7.1.0"}`,
+    "X-NoDeskClaw-Desktop-Device-Id": device.deviceFingerprint,
+    "X-NoDeskClaw-Client": "copilot-desktop",
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (init?.body) headers["Content-Type"] = "application/json";
@@ -63,6 +76,9 @@ async function expertsFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function applyInstallStatus(expert: HermesExpert): HermesExpert {
+  if (expert.executionMode === "remote_mcp" || expert.profile.profileId === "remote") {
+    return { ...expert, installStatus: "installed" };
+  }
   const instance = getExpertInstance(expert.expertId);
   if (!instance) return expert;
   return {
@@ -106,81 +122,170 @@ function filterTeams(items: HermesExpertTeam[], query?: ExpertTeamCatalogQuery):
   return result;
 }
 
+function paginate<T>(items: T[], page: number, pageSize: number): { items: T[]; total: number } {
+  const start = (page - 1) * pageSize;
+  return { items: items.slice(start, start + pageSize), total: items.length };
+}
+
+async function listExpertsFromLegacyRest(): Promise<HermesExpert[]> {
+  const data = await expertsFetch<{ items?: HermesExpert[] }>(
+    "/api/v1/hermes/experts?page=1&pageSize=100",
+  );
+  return (data.items ?? []).filter((e) => e.catalogKind === "expert" || e.executionMode === "remote_mcp");
+}
+
+async function listTeamsFromLegacyRest(): Promise<HermesExpertTeam[]> {
+  const data = await expertsFetch<{ items?: HermesExpertTeam[] }>(
+    "/api/v1/hermes/expert-teams?page=1&pageSize=100",
+  );
+  return (data.items ?? []).filter((t) => t.catalogKind === "expert_team");
+}
+
+export function getLastExpertCatalogSource(): ExpertCatalogSource {
+  return lastCatalogSource;
+}
+
+export function getLastExpertCatalogError(): string | undefined {
+  return lastCatalogError;
+}
+
+export async function getExpertGatewayDiagnostics(): Promise<ExpertGatewayDiagnostics> {
+  const backendBaseUrl = resolveBackendBaseUrl() ?? "";
+  return {
+    ok: Boolean(backendBaseUrl && resolveExpertMcpRootUrl()),
+    backendBaseUrl,
+    expertHealthUrl: resolveExpertHealthUrl(),
+    expertMcpRootUrl: resolveExpertMcpRootUrl(),
+    currentCatalogSource: lastCatalogSource,
+    lastError: lastCatalogError,
+    catalogCacheVersion: getExpertCatalogMeta("cache_version") ?? EXPERT_CATALOG_CACHE_VERSION,
+  };
+}
+
+export async function clearExpertCatalogCache(): Promise<{ ok: true }> {
+  clearExpertCatalogCaches();
+  lastCatalogSource = "mock";
+  lastCatalogError = undefined;
+  return { ok: true };
+}
+
 export async function listExpertCatalog(query?: ExpertCatalogQuery): Promise<ExpertCatalogPage> {
   const page = query?.page ?? 1;
   const pageSize = query?.pageSize ?? 20;
-  try {
-    const params = new URLSearchParams();
-    if (query?.category) params.set("category", query.category);
-    if (query?.keyword) params.set("keyword", query.keyword);
-    params.set("page", String(page));
-    params.set("pageSize", String(pageSize));
-    const data = await expertsFetch<{ items: HermesExpert[]; page: number; pageSize: number; total: number }>(
-      `/api/v1/hermes/experts?${params.toString()}`,
-    );
-    cacheExpertCatalog(data.items, "remote");
-    const items = filterExperts(data.items, query);
-    return { items, page: data.page, pageSize: data.pageSize, total: data.total, source: "remote" };
-  } catch {
-    const cached = listCachedExperts();
-    const source = cached.length > 0 ? "cache" : "mock";
-    const base = cached.length > 0 ? cached : MOCK_EXPERT_CATALOG;
-    if (source === "mock") cacheExpertCatalog(base, "mock");
-    const items = filterExperts(base, query);
-    return { items, page, pageSize, total: items.length, source };
+
+  const { listExpertsFromExpertMcpGateway } = await import("./expert-remote-catalog");
+  const mcpResult = await listExpertsFromExpertMcpGateway();
+
+  if (mcpResult.mcpReached) {
+    replaceExpertCatalogCache(mcpResult.experts, "remote");
+    lastCatalogSource = "remote";
+    lastCatalogError = mcpResult.experts.length === 0 ? "EXPERT_CATALOG_EMPTY" : undefined;
+    const items = filterExperts(mcpResult.experts, query);
+    const paged = paginate(items, page, pageSize);
+    return { ...paged, page, pageSize, source: "remote" };
   }
+
+  lastCatalogError = mcpResult.error;
+
+  const cached = listCachedExperts();
+  if (cached.length > 0) {
+    lastCatalogSource = "cache";
+    const items = filterExperts(cached, query);
+    const paged = paginate(items, page, pageSize);
+    return { ...paged, page, pageSize, source: "cache" };
+  }
+
+  try {
+    const legacy = await listExpertsFromLegacyRest();
+    if (legacy.length > 0) {
+      replaceExpertCatalogCache(legacy, "legacy_rest_fallback");
+      lastCatalogSource = "legacy_rest_fallback";
+      const items = filterExperts(legacy, query);
+      const paged = paginate(items, page, pageSize);
+      return { ...paged, page, pageSize, source: "legacy_rest_fallback" };
+    }
+  } catch {
+    /* ignore legacy failure */
+  }
+
+  lastCatalogSource = "mock";
+  const base = MOCK_EXPERT_CATALOG.map((e) => ({
+    ...e,
+    executionMode: "remote_mcp" as const,
+    installStatus: "installed" as const,
+    catalogKind: "expert" as const,
+    expertSlug: e.expertSlug ?? e.slug,
+    catalogSlug: e.catalogSlug ?? e.expertSlug ?? e.slug,
+    toolName: e.toolName ?? e.expertSlug ?? e.slug,
+    profile: { ...e.profile, profileId: "remote" },
+  }));
+  const items = filterExperts(base, query);
+  const paged = paginate(items, page, pageSize);
+  return { ...paged, page, pageSize, source: "mock" };
 }
 
 export async function getExpert(expertId: string): Promise<HermesExpert | null> {
-  try {
-    const data = await expertsFetch<HermesExpert>(`/api/v1/hermes/experts/${encodeURIComponent(expertId)}`);
-    cacheExpertCatalog([data], "remote");
-    return applyInstallStatus(data);
-  } catch {
-    const cached = getCachedExpert(expertId) ?? getMockExpert(expertId);
-    return cached ? applyInstallStatus(cached) : null;
-  }
+  const cached = getCachedExpert(expertId) ?? getMockExpert(expertId);
+  return cached ? applyInstallStatus(cached) : null;
 }
 
 export async function listExpertTeams(query?: ExpertTeamCatalogQuery): Promise<ExpertTeamCatalogPage> {
   const page = query?.page ?? 1;
   const pageSize = query?.pageSize ?? 20;
-  try {
-    const params = new URLSearchParams();
-    if (query?.category) params.set("category", query.category);
-    if (query?.keyword) params.set("keyword", query.keyword);
-    const data = await expertsFetch<{ items: HermesExpertTeam[]; page?: number; pageSize?: number; total?: number }>(
-      `/api/v1/hermes/expert-teams?${params.toString()}`,
-    );
-    cacheExpertTeamCatalog(data.items);
-    const items = filterTeams(data.items, query);
-    return {
-      items,
-      page: data.page ?? page,
-      pageSize: data.pageSize ?? pageSize,
-      total: data.total ?? items.length,
-      source: "remote",
-    };
-  } catch {
-    const cached = listCachedTeams();
-    const source = cached.length > 0 ? "cache" : "mock";
-    const base = cached.length > 0 ? cached : MOCK_EXPERT_TEAMS;
-    if (source === "mock") cacheExpertTeamCatalog(base);
-    const items = filterTeams(base, query);
-    return { items, page, pageSize, total: items.length, source };
+
+  const { listTeamsFromExpertMcpGateway } = await import("./expert-remote-catalog");
+  const mcpResult = await listTeamsFromExpertMcpGateway();
+
+  if (mcpResult.mcpReached) {
+    replaceExpertTeamCatalogCache(mcpResult.teams, "remote");
+    lastCatalogSource = "remote";
+    lastCatalogError = mcpResult.teams.length === 0 ? "EXPERT_CATALOG_EMPTY" : undefined;
+    const items = filterTeams(mcpResult.teams, query);
+    const paged = paginate(items, page, pageSize);
+    return { ...paged, page, pageSize, source: "remote" };
   }
+
+  lastCatalogError = mcpResult.error;
+
+  const cached = listCachedTeams();
+  if (cached.length > 0) {
+    lastCatalogSource = "cache";
+    const items = filterTeams(cached, query);
+    const paged = paginate(items, page, pageSize);
+    return { ...paged, page, pageSize, source: "cache" };
+  }
+
+  try {
+    const legacy = await listTeamsFromLegacyRest();
+    if (legacy.length > 0) {
+      replaceExpertTeamCatalogCache(legacy, "legacy_rest_fallback");
+      lastCatalogSource = "legacy_rest_fallback";
+      const items = filterTeams(legacy, query);
+      const paged = paginate(items, page, pageSize);
+      return { ...paged, page, pageSize, source: "legacy_rest_fallback" };
+    }
+  } catch {
+    /* ignore legacy failure */
+  }
+
+  lastCatalogSource = "mock";
+  const base = MOCK_EXPERT_TEAMS.map((t) => ({
+    ...t,
+    executionMode: "remote_mcp" as const,
+    installStatus: "installed" as const,
+    catalogKind: "expert_team" as const,
+    teamSlug: t.teamSlug ?? t.slug,
+    catalogSlug: t.catalogSlug ?? t.teamSlug ?? t.slug,
+    toolName: t.toolName ?? t.teamSlug ?? t.slug,
+    orchestrationMode: "server_managed" as const,
+  }));
+  const items = filterTeams(base, query);
+  const paged = paginate(items, page, pageSize);
+  return { ...paged, page, pageSize, source: "mock" };
 }
 
 export async function getExpertTeam(teamId: string): Promise<HermesExpertTeam | null> {
-  try {
-    const data = await expertsFetch<HermesExpertTeam>(
-      `/api/v1/hermes/expert-teams/${encodeURIComponent(teamId)}`,
-    );
-    cacheExpertTeamCatalog([data]);
-    return data;
-  } catch {
-    return getCachedTeam(teamId) ?? getMockTeam(teamId);
-  }
+  return getCachedTeam(teamId) ?? getMockTeam(teamId);
 }
 
 function buildLocalInstallPlan(expert: HermesExpert): ExpertInstallPlan {

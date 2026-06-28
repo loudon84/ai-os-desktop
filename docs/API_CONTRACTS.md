@@ -688,43 +688,64 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 ---
 
-## Hermes Experts Workspace（V7.1 / V7.1.1 E2E）
+## Hermes Experts Workspace（V7.1 / V7.1.1 E2E → **V7.2 Remote Experts Pivot** → **Expert MCP Gateway v6.1**）
 
-专家广场 / 专家团队 / 专家运行：nodeskclaw 目录 HTTP + mock/cache 回退；安装物化 `policy.json` / `config.yaml` merge / Skill / MCP；安装后注册 `profile-runtime.db`（`expert-profile-manager`）；专家 Chat 经 `getApiUrl(profile)` 路由至 `9601+` Gateway；运行事件桥接 `expert-run-bridge`；**V7.1.1** nodeskclaw Desktop register/heartbeat/run-report（`expert-desktop-client`）。
+专家广场 / 专家团队 / 专家运行：**V7.2 起不再本地安装专家 Profile**；**Expert MCP Gateway v6.1** 直连 `POST /api/v1/expert/mcp`（同步 JSON-RPC `tools/call`，无 HermesTask）；目录来自 root `tools/list`（严格 `annotations.kind=expert|expert_team`）；per-slug `tools/list` 取 skill；统一 `callCatalogSkill` 创建 run + artifact；Runs/Artifacts 为本地 UI 缓存（`expert-runtime-db` schema v3）。边界见 `docs/specs/v7.2-nodeskclaw-remote-experts/01-architecture-boundary.md`。
 
 **Preload**：`window.hermesExperts`（`src/preload/hermes-experts-api.ts`）— **不向 Renderer 暴露 token**。
 
 | Channel | Args | Returns |
 |---------|------|---------|
-| `hermes-experts:list-catalog` | `ExpertCatalogQuery?` | `ExpertCatalogPage` |
+| `hermes-experts:list-catalog` | `ExpertCatalogQuery?` | `ExpertCatalogPage`（Expert MCP root `tools/list`） |
 | `hermes-experts:get-expert` | `expertId` | `HermesExpert \| null` |
 | `hermes-experts:list-teams` | `ExpertTeamCatalogQuery?` | `ExpertTeamCatalogPage` |
 | `hermes-experts:get-team` | `teamId` | `HermesExpertTeam \| null` |
-| `hermes-experts:preview-install-expert` | `expertId` | `{ ok, data?: ExpertInstallPlan, error?, errorCode? }` |
-| `hermes-experts:install-expert` | `expertId`, `InstallOptions?` | `{ ok, data?: { profileId }, error?, errorCode? }` |
-| `hermes-experts:preview-install-team` | `teamId` | `{ ok, data?: ExpertInstallPlan, ... }` |
-| `hermes-experts:install-team` | `teamId`, `InstallOptions?` | `{ ok, data?: { profileIds }, ... }` |
-| `hermes-experts:summon-expert` | `SummonExpertInput` | `SummonExpertResult` |
-| `hermes-experts:summon-team` | `SummonTeamInput` | `SummonTeamResult` |
-| `hermes-experts:list-runs` | `ExpertRunFilter?` | `HermesExpertRun[]` |
+| `hermes-experts:get-expert-gateway-health` | — | `ExpertHealthResponse` |
+| `hermes-experts:get-expert-gateway-diagnostics` | — | `ExpertGatewayDiagnostics`（endpoint + `currentCatalogSource` + `lastError`） |
+| `hermes-experts:clear-expert-catalog-cache` | — | `{ ok: true }` — 清除本地 expert/team catalog cache（v1.2.1 hotfix） |
+| `hermes-experts:list-catalog-skills` | `slug` | `{ ok, data?: RemoteExpertSkill[], error?, errorCode? }` |
+| `hermes-experts:list-expert-skills` | `expertSlug` | `{ ok, data?: RemoteExpertSkill[], error?, errorCode? }`（委托 `list-catalog-skills`） |
+| `hermes-experts:call-catalog-skill` | `CallCatalogSkillInput`（**禁止** route override；Main `assertNoRouteOverride` 抛错） | `CallCatalogSkillResult` |
+| `hermes-experts:list-local-artifacts` | `limit?` | `{ ok, data?: HermesExpertArtifact[] }` |
+| `hermes-experts:preview-install-expert` | `expertId` | `{ ok, data?, error?, errorCode? }` — **@deprecated V7.2** |
+| `hermes-experts:install-expert` | `expertId`, `InstallOptions?` | `{ ok, data?, ... }` — **@deprecated V7.2** |
+| `hermes-experts:preview-install-team` | `teamId` | `{ ok, data?, ... }` — **@deprecated V7.2** |
+| `hermes-experts:install-team` | `teamId`, `InstallOptions?` | `{ ok, data?, ... }` — **@deprecated V7.2** |
+| `hermes-experts:summon-expert` | `SummonExpertInput`（含 `skillName?`、`context?`；内部委托 `callCatalogSkill`） | `SummonExpertResult`（同步完成，**无** `taskId`） |
+| `hermes-experts:summon-team` | `SummonTeamInput`（含 `skillName?`；内部委托 `callCatalogSkill`） | `SummonTeamResult`（同步完成） |
+| `hermes-experts:list-runs` | `ExpertRunFilter?` | `HermesExpertRun[]`（含 `responseText?`、`catalogSlug?`、`skillName?`、`invocationId?`） |
 | `hermes-experts:get-run` | `runId` | `HermesExpertRun \| null` |
+| `hermes-experts:sync-remote-run` | `runId` | `{ ok, error?, errorCode? }` — **legacy HermesTask only**；Expert Gateway 路径 no-op |
+| `hermes-experts:get-run-result` | `runId` | `{ ok, data?: RemoteRunResult, ... }` — **legacy HermesTask** |
+| `hermes-experts:get-run-timeline` | `runId` | `{ ok, data?: ExpertRunEvent[], error?, errorCode? }` |
+| `hermes-experts:list-run-artifacts` | `runId` | `{ ok, data?: RemoteArtifact[], error?, errorCode? }` |
+| `hermes-experts:preview-run-artifact` | `artifactId` | hermes-client preview |
+| `hermes-experts:download-run-artifact` | `artifactId` | hermes-client download |
+| `hermes-experts:import-run-artifact` | `ImportArtifactInput` | `{ ok, localPath?, error? }` — 导入副本至 `~/.hermes/desktop/imported-artifacts/` |
 | `hermes-experts:cancel-run` | `runId` | `{ ok, errorCode?, message? }` |
 | `hermes-experts:retry-run` | `runId` | `SummonTeamResult \| SummonExpertResult` |
 | `hermes-experts:set-trust` | `expertId`, `HermesExpertTrustStatus` | `{ ok, error?, errorCode? }` |
-| `hermes-experts:preflight` | `profileId`, `port?` | `ExpertPreflightResult` |
-| `hermes-experts:dispatch-team` | `{ runId, teamId, leaderProfileId, userPrompt }` | `{ ok, error?, errorCode? }` |
+| `hermes-experts:preflight` | `profileId`, `port?` | `ExpertPreflightResult` — **@deprecated V7.2 本地安装** |
+| `hermes-experts:dispatch-team` | `{ runId, teamId, ... }` | `{ ok }` — **@deprecated V7.2 no-op（server_managed）** |
+| `hermes-experts:push-genehub-skill` | `PushSkillInput` | `{ ok, data?: { submissionId }, error? }` |
+| `hermes-experts:list-genehub-submissions` | — | `{ ok, data?: GeneHubSkillSubmission[] }` |
+| `hermes-experts:list-genehub-pull-jobs` | — | `{ ok, data?: GeneHubPullJob[] }` |
 | `hermes-experts:get-desktop-sync-status` | — | `{ ok, data: ExpertDesktopSyncStatus }` |
-| `hermes-experts:register-desktop` | — | `{ ok, data?: ExpertDesktopSyncStatus, error?, errorCode? }` |
+| `hermes-experts:register-desktop` | — | `{ ok, data?, error?, errorCode? }` |
 
 **事件（Main → Renderer）**：`hermes-experts:event` — Preload `hermesExperts.onExpertRuntimeEvent(cb)` 返回 unsubscribe。
 
-**Main 模块**：`src/main/hermes-experts/`（`expert-profile-manager.ts`、`expert-install-materializer.ts`、`expert-run-bridge.ts`、`expert-preflight.ts`、`expert-desktop-client.ts`、`expert-catalog-client.ts`、`expert-installer.ts`、`expert-runtime.ts`、`expert-team-runtime.ts`、`expert-runtime-db.ts`、`expert-policy.ts`）。
+**Main 模块**：`src/main/hermes-experts/`（**Expert MCP v6.1 / v1.2.1 hotfix** `expert-mcp-endpoint.ts` + `ExpertMcpClient` + `expert-mcp-mappers.ts` + `expert-route-guard.ts`；`expert-catalog-client.ts` 主路径 `POST /api/v1/expert/mcp` tools/list，MCP 成功但 0 expert **不** fallback 旧 cache；`callCatalogSkill` in `expert-runtime.ts`；legacy HermesTask：`expert-remote-client.ts`；deprecated：`expert-installer.ts`、`expert-profile-manager.ts`）。
 
-**Chat 桥接**：`hermes-chat:send-message` 在含 `expert_run_id` 时写入 `expert_run_events` / artifacts；`getApiUrl(profile)` 专家 profile 走独立 Gateway 端口。
+**传输**：Expert 域 → `GET /api/v1/expert/health` + `POST /api/v1/expert/mcp`（root/slug JSON-RPC）；非专家 Skill 仍走 `mcp-skill-gateway-runtime`。
 
-**契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`hermes-experts-errors.ts`
+**Route guard**：`assertNoRouteOverride` 拦截 12+ 禁止字段（含 `arguments.context` 子字段）；命中抛 `EXPERT_ROUTE_OVERRIDE_FORBIDDEN`。
 
-**Renderer**：`screens/Hermes/pages/Experts/`、`ExpertTeams/`、`ExpertRuns/`；Inspector **Tools/MCP** Tab；Run 详情 Cancel/Retry；Starter prompts → 召唤并进入 Chat。
+**Chat 桥接**：`expert-run-bridge.ts` 远端 run（`profileId: remote`）跳过本地 team dispatch；artifact 预览优先本地 `preview_text`，legacy 走 `hermes-client-api`。
+
+**契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`hermes-experts-errors.ts`（含 `ExpertErrorCode`）
+
+**Renderer**：默认页 `workbench`；`pages/Workbench/`、`pages/Artifacts/`、`pages/Experts/` + `pages/ExpertTeams/`（统一 `ExpertCatalogCallDrawer` + `callCatalogSkill`）；`ExpertRuns/`（`responseText` / `skillName` / `invocationId`）；GeneHub `skillPush` 页签；上下文桥接 `utils/remote-expert-context.ts` + `hooks/useRemoteExpertContextBridge.ts`（`hermes:remote-expert-context` 事件）。
 
 ---
 

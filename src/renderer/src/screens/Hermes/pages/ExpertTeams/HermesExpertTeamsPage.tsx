@@ -1,25 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useHermesDefault } from "../../context/HermesDefaultContext";
 import { useHermesExpertsCatalog } from "../../context/HermesExpertsContext";
 import type { HermesExpertTeam } from "../../types/hermes-expert-teams";
 import { EXPERT_CATEGORIES } from "../Experts/mock/expert-mock-data";
+import {
+  ExpertCatalogCallDrawer,
+  type ExpertCatalogCallItem,
+} from "../Experts/components/ExpertCatalogCallDrawer";
 import { ExpertTeamCard } from "./components/ExpertTeamCard";
 import { ExpertTeamDetailModal } from "./components/ExpertTeamDetailModal";
-import { useSummonExpert } from "../Experts/hooks/useSummonExpert";
-import { useExpertInstall } from "../Experts/hooks/useExpertInstall";
-import { ExpertInstallPlanDrawer } from "../Experts/components/ExpertInstallPlanDrawer";
 
 export default function HermesExpertTeamsPage() {
   const { t } = useTranslation();
+  const { setActiveNavItem } = useHermesDefault();
   const { teams, loading, error, refreshTeams } = useHermesExpertsCatalog();
-  const { summonTeam } = useSummonExpert();
-  const install = useExpertInstall();
   const [category, setCategory] = useState("all");
   const [keyword, setKeyword] = useState("");
   const [selected, setSelected] = useState<HermesExpertTeam | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [installDrawerOpen, setInstallDrawerOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState<ExpertCatalogCallItem | null>(null);
+  const [callOpen, setCallOpen] = useState(false);
 
   const load = useCallback(() => {
     void refreshTeams({ category, keyword });
@@ -45,6 +47,17 @@ export default function HermesExpertTeamsPage() {
     }
     return list;
   }, [teams, category, keyword]);
+
+  const openCall = (team: HermesExpertTeam) => {
+    setCallTarget({
+      slug: team.catalogSlug ?? team.teamSlug ?? team.slug ?? team.teamId,
+      kind: "expert_team",
+      displayName: team.displayName,
+      callableSkillCount: team.callableSkillCount,
+      starterPrompt: team.starterPrompts[0]?.prompt,
+    });
+    setCallOpen(true);
+  };
 
   return (
     <div className="hermes-page hermes-expert-teams-page">
@@ -109,12 +122,7 @@ export default function HermesExpertTeamsPage() {
                 setSelected(item);
                 setModalOpen(true);
               }}
-              onInstall={(team) => {
-                setSelected(team);
-                setInstallDrawerOpen(true);
-                void install.previewTeam(team.teamId);
-              }}
-              onSummon={(team) => void summonTeam(team)}
+              onSummon={openCall}
             />
           ))}
         </div>
@@ -124,30 +132,15 @@ export default function HermesExpertTeamsPage() {
         team={selected}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onInstall={(team) => {
-          setInstallDrawerOpen(true);
-          void install.previewTeam(team.teamId);
-        }}
-        onSummon={(team) => void summonTeam(team)}
+        onSummon={openCall}
       />
-      <ExpertInstallPlanDrawer
-        plan={install.plan}
-        open={installDrawerOpen}
-        loading={install.loading}
-        error={install.error}
-        onClose={() => {
-          setInstallDrawerOpen(false);
-          install.clearPlan();
-        }}
-        onConfirm={() => {
-          if (!selected) return;
-          void install.installTeam(selected.teamId).then((result) => {
-            if (result.ok) {
-              setInstallDrawerOpen(false);
-              install.clearPlan();
-              load();
-            }
-          });
+      <ExpertCatalogCallDrawer
+        catalogItem={callTarget}
+        open={callOpen}
+        onClose={() => setCallOpen(false)}
+        onSuccess={() => {
+          setModalOpen(false);
+          setActiveNavItem("expertRuns");
         }}
       />
     </div>

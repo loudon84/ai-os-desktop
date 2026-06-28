@@ -1,3 +1,4 @@
+/** @deprecated V7.2 — local Profile materialization superseded by remote MCP experts. */
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import type {

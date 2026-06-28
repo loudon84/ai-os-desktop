@@ -3,6 +3,7 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import Database from "better-sqlite3";
 import { HERMES_HOME } from "../installer";
+import { EXPERT_CATALOG_CACHE_VERSION } from "./expert-mcp-endpoint";
 import type {
   ExpertRunEvent,
   HermesExpert,
@@ -147,11 +148,48 @@ function migrate(db: Database.Database): void {
       error_message TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS expert_catalog_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 
   const row = db.prepare("SELECT MAX(version) as v FROM schema_version").get() as { v: number | null };
-  if (row?.v == null) {
+  const currentVersion = row?.v ?? 0;
+  if (currentVersion < 1) {
     db.prepare("INSERT INTO schema_version (version, applied_at) VALUES (?, ?)").run(1, now());
+  }
+  if (currentVersion < 2) {
+    const cols = db.prepare("PRAGMA table_info(expert_runs)").all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === "remote_task_id")) {
+      db.exec("ALTER TABLE expert_runs ADD COLUMN remote_task_id TEXT");
+    }
+    db.prepare("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)").run(2, now());
+  }
+  if (currentVersion < 3) {
+    const cols = db.prepare("PRAGMA table_info(expert_runs)").all() as Array<{ name: string }>;
+    const addCol = (name: string, ddl: string) => {
+      if (!cols.some((c) => c.name === name)) db.exec(ddl);
+    };
+    addCol("catalog_slug", "ALTER TABLE expert_runs ADD COLUMN catalog_slug TEXT");
+    addCol("catalog_kind", "ALTER TABLE expert_runs ADD COLUMN catalog_kind TEXT");
+    addCol("skill_name", "ALTER TABLE expert_runs ADD COLUMN skill_name TEXT");
+    addCol("structured_content_json", "ALTER TABLE expert_runs ADD COLUMN structured_content_json TEXT");
+    addCol("invocation_id", "ALTER TABLE expert_runs ADD COLUMN invocation_id TEXT");
+    addCol("execution_mode", "ALTER TABLE expert_runs ADD COLUMN execution_mode TEXT DEFAULT 'remote_mcp'");
+    db.prepare("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)").run(3, now());
+  }
+  if (currentVersion < 4) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS expert_catalog_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    db.prepare("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)").run(4, now());
   }
 }
 
@@ -160,14 +198,18 @@ export function initExpertRuntimeDb(): void {
 }
 
 export function cacheExpertCatalog(experts: HermesExpert[], source: string): void {
+  replaceExpertCatalogCache(experts, source);
+}
+
+export function replaceExpertCatalogCache(experts: HermesExpert[], source: string): void {
   const db = getDb();
+  db.prepare("DELETE FROM expert_catalog_cache").run();
+  setExpertCatalogMeta("cache_version", EXPERT_CATALOG_CACHE_VERSION);
+  setExpertCatalogMeta("last_source", source);
+  if (experts.length === 0) return;
   const stmt = db.prepare(`
     INSERT INTO expert_catalog_cache (expert_id, slug, name, display_name, category, version, source, manifest_json, synced_at)
     VALUES (@expert_id, @slug, @name, @display_name, @category, @version, @source, @manifest_json, @synced_at)
-    ON CONFLICT(expert_id) DO UPDATE SET
-      slug=excluded.slug, name=excluded.name, display_name=excluded.display_name,
-      category=excluded.category, version=excluded.version, source=excluded.source,
-      manifest_json=excluded.manifest_json, synced_at=excluded.synced_at
   `);
   const syncedAt = now();
   for (const e of experts) {
@@ -185,15 +227,15 @@ export function cacheExpertCatalog(experts: HermesExpert[], source: string): voi
   }
 }
 
-export function cacheExpertTeamCatalog(teams: HermesExpertTeam[]): void {
+export function replaceExpertTeamCatalogCache(teams: HermesExpertTeam[], source: string): void {
   const db = getDb();
+  db.prepare("DELETE FROM expert_team_catalog_cache").run();
+  setExpertCatalogMeta("team_cache_version", EXPERT_CATALOG_CACHE_VERSION);
+  setExpertCatalogMeta("last_team_source", source);
+  if (teams.length === 0) return;
   const stmt = db.prepare(`
     INSERT INTO expert_team_catalog_cache (team_id, slug, name, display_name, category, version, manifest_json, synced_at)
     VALUES (@team_id, @slug, @name, @display_name, @category, @version, @manifest_json, @synced_at)
-    ON CONFLICT(team_id) DO UPDATE SET
-      slug=excluded.slug, name=excluded.name, display_name=excluded.display_name,
-      category=excluded.category, version=excluded.version,
-      manifest_json=excluded.manifest_json, synced_at=excluded.synced_at
   `);
   const syncedAt = now();
   for (const t of teams) {
@@ -210,12 +252,59 @@ export function cacheExpertTeamCatalog(teams: HermesExpertTeam[]): void {
   }
 }
 
+export function clearExpertCatalogCaches(): void {
+  const db = getDb();
+  db.prepare("DELETE FROM expert_catalog_cache").run();
+  db.prepare("DELETE FROM expert_team_catalog_cache").run();
+  setExpertCatalogMeta("cache_version", EXPERT_CATALOG_CACHE_VERSION);
+  setExpertCatalogMeta("last_source", "cleared");
+  setExpertCatalogMeta("last_team_source", "cleared");
+}
+
+function setExpertCatalogMeta(key: string, value: string): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO expert_catalog_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
+  `).run(key, value, now());
+}
+
+export function getExpertCatalogMeta(key: string): string | null {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT value FROM expert_catalog_meta WHERE key = ?")
+    .get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function isValidRemoteExpertCacheEntry(expert: HermesExpert): boolean {
+  const cacheVersion = getExpertCatalogMeta("cache_version");
+  if (cacheVersion && cacheVersion !== EXPERT_CATALOG_CACHE_VERSION) return false;
+  return (
+    expert.catalogKind === "expert" &&
+    (expert.executionMode === "remote_mcp" || expert.profile?.profileId === "remote")
+  );
+}
+
+export function isValidRemoteTeamCacheEntry(team: HermesExpertTeam): boolean {
+  const cacheVersion = getExpertCatalogMeta("team_cache_version");
+  if (cacheVersion && cacheVersion !== EXPERT_CATALOG_CACHE_VERSION) return false;
+  return team.catalogKind === "expert_team" && team.executionMode === "remote_mcp";
+}
+
+export function cacheExpertTeamCatalog(teams: HermesExpertTeam[], source = "remote"): void {
+  replaceExpertTeamCatalogCache(teams, source);
+}
+
 export function listCachedExperts(): HermesExpert[] {
   const db = getDb();
   const rows = db.prepare("SELECT manifest_json FROM expert_catalog_cache ORDER BY display_name").all() as Array<{
     manifest_json: string;
   }>;
-  return rows.map((r) => JSON.parse(r.manifest_json) as HermesExpert);
+  return rows
+    .map((r) => JSON.parse(r.manifest_json) as HermesExpert)
+    .filter(isValidRemoteExpertCacheEntry);
 }
 
 export function listCachedTeams(): HermesExpertTeam[] {
@@ -223,7 +312,9 @@ export function listCachedTeams(): HermesExpertTeam[] {
   const rows = db.prepare("SELECT manifest_json FROM expert_team_catalog_cache ORDER BY display_name").all() as Array<{
     manifest_json: string;
   }>;
-  return rows.map((r) => JSON.parse(r.manifest_json) as HermesExpertTeam);
+  return rows
+    .map((r) => JSON.parse(r.manifest_json) as HermesExpertTeam)
+    .filter(isValidRemoteTeamCacheEntry);
 }
 
 export function getCachedExpert(expertId: string): HermesExpert | null {
@@ -457,13 +548,21 @@ export function createExpertRun(input: {
   title: string;
   userPrompt: string;
   status: string;
+  remoteTaskId?: string;
+  catalogSlug?: string;
+  catalogKind?: string;
+  skillName?: string;
+  executionMode?: string;
 }): HermesExpertRun {
   const db = getDb();
   const runId = randomUUID();
   const ts = now();
   db.prepare(`
-    INSERT INTO expert_runs (id, run_type, expert_id, team_id, session_id, profile_id, status, title, user_prompt, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO expert_runs (
+      id, run_type, expert_id, team_id, session_id, profile_id, status, title, user_prompt,
+      remote_task_id, catalog_slug, catalog_kind, skill_name, execution_mode, created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     runId,
     input.runType,
@@ -474,6 +573,11 @@ export function createExpertRun(input: {
     input.status,
     input.title,
     input.userPrompt,
+    input.remoteTaskId ?? null,
+    input.catalogSlug ?? null,
+    input.catalogKind ?? null,
+    input.skillName ?? null,
+    input.executionMode ?? "remote_mcp",
     ts,
     ts,
   );
@@ -482,31 +586,61 @@ export function createExpertRun(input: {
     runType: input.runType as HermesExpertRun["runType"],
     expertId: input.expertId,
     teamId: input.teamId,
+    remoteTaskId: input.remoteTaskId,
     activeProfileId: input.profileId,
     sessionId: input.sessionId,
     title: input.title,
     userPrompt: input.userPrompt,
+    catalogSlug: input.catalogSlug,
+    catalogKind: input.catalogKind as HermesExpertRun["catalogKind"],
+    skillName: input.skillName,
+    executionMode: (input.executionMode ?? "remote_mcp") as HermesExpertRun["executionMode"],
     status: input.status as HermesExpertRun["status"],
     startedAt: ts,
   };
 }
 
+export function setExpertRunRemoteTaskId(runId: string, remoteTaskId: string): void {
+  const db = getDb();
+  db.prepare("UPDATE expert_runs SET remote_task_id = ?, updated_at = ? WHERE id = ?").run(
+    remoteTaskId,
+    now(),
+    runId,
+  );
+}
+
 export function updateExpertRunStatus(
   runId: string,
   status: string,
-  opts?: { resultSummary?: string; errorCode?: string; errorMessage?: string },
+  opts?: {
+    resultSummary?: string;
+    errorCode?: string;
+    errorMessage?: string;
+    structuredContentJson?: string;
+    invocationId?: string;
+  },
 ): void {
   const db = getDb();
   const completed =
     status === "completed" || status === "failed" || status === "cancelled" ? now() : null;
   db.prepare(`
-    UPDATE expert_runs SET status=?, result_summary=?, error_code=?, error_message=?, updated_at=?, completed_at=COALESCE(?, completed_at)
+    UPDATE expert_runs SET
+      status=?,
+      result_summary=?,
+      error_code=?,
+      error_message=?,
+      structured_content_json=COALESCE(?, structured_content_json),
+      invocation_id=COALESCE(?, invocation_id),
+      updated_at=?,
+      completed_at=COALESCE(?, completed_at)
     WHERE id=?
   `).run(
     status,
     opts?.resultSummary ?? null,
     opts?.errorCode ?? null,
     opts?.errorMessage ?? null,
+    opts?.structuredContentJson ?? null,
+    opts?.invocationId ?? null,
     now(),
     completed,
     runId,
@@ -514,15 +648,28 @@ export function updateExpertRunStatus(
 }
 
 function mapRunRow(row: Record<string, unknown>): HermesExpertRun {
+  const resultSummary = row.result_summary ? String(row.result_summary) : undefined;
   return {
     runId: String(row.id),
     runType: row.run_type as HermesExpertRun["runType"],
     expertId: row.expert_id ? String(row.expert_id) : undefined,
     teamId: row.team_id ? String(row.team_id) : undefined,
+    remoteTaskId: row.remote_task_id ? String(row.remote_task_id) : undefined,
     activeProfileId: String(row.profile_id),
     sessionId: row.session_id ? String(row.session_id) : undefined,
     title: String(row.title ?? ""),
     userPrompt: String(row.user_prompt ?? ""),
+    responseText: resultSummary,
+    catalogSlug: row.catalog_slug ? String(row.catalog_slug) : undefined,
+    catalogKind: row.catalog_kind ? (String(row.catalog_kind) as HermesExpertRun["catalogKind"]) : undefined,
+    skillName: row.skill_name ? String(row.skill_name) : undefined,
+    structuredContentJson: row.structured_content_json
+      ? String(row.structured_content_json)
+      : undefined,
+    invocationId: row.invocation_id ? String(row.invocation_id) : undefined,
+    executionMode: row.execution_mode
+      ? (String(row.execution_mode) as HermesExpertRun["executionMode"])
+      : undefined,
     status: row.status as HermesExpertRun["status"],
     startedAt: String(row.created_at),
     completedAt: row.completed_at ? String(row.completed_at) : undefined,
@@ -649,7 +796,11 @@ export function listArtifactsForRun(runId: string): HermesExpertArtifact[] {
   const rows = db
     .prepare("SELECT * FROM expert_artifacts WHERE run_id = ? ORDER BY created_at ASC")
     .all(runId) as Array<Record<string, unknown>>;
-  return rows.map((row) => ({
+  return rows.map(mapArtifactRow);
+}
+
+function mapArtifactRow(row: Record<string, unknown>): HermesExpertArtifact {
+  return {
     id: String(row.id),
     runId: String(row.run_id),
     profileId: row.profile_id ? String(row.profile_id) : undefined,
@@ -661,5 +812,21 @@ export function listArtifactsForRun(runId: string): HermesExpertArtifact[] {
     previewText: row.preview_text ? String(row.preview_text) : undefined,
     source: String(row.source),
     createdAt: String(row.created_at),
-  }));
+  };
+}
+
+export function getArtifactById(artifactId: string): HermesExpertArtifact | null {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM expert_artifacts WHERE id = ?").get(artifactId) as
+    | Record<string, unknown>
+    | undefined;
+  return row ? mapArtifactRow(row) : null;
+}
+
+export function listAllArtifacts(limit = 100): HermesExpertArtifact[] {
+  const db = getDb();
+  const rows = db
+    .prepare(`SELECT * FROM expert_artifacts ORDER BY created_at DESC LIMIT ${limit}`)
+    .all() as Array<Record<string, unknown>>;
+  return rows.map(mapArtifactRow);
 }

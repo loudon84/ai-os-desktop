@@ -60,7 +60,7 @@ const HermesDefaultContext = createContext<HermesDefaultContextValue | null>(nul
 
 export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const [activeNavItem, setActiveNavItemState] = useState<HermesNavItemKey>(() =>
-    readStorage(STORAGE_KEYS.activeNavItem, "chat"),
+    readStorage(STORAGE_KEYS.activeNavItem, "workbench"),
   );
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(() =>
     readStorage(STORAGE_KEYS.activeSessionId, null),

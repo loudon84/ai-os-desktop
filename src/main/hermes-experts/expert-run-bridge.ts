@@ -35,12 +35,16 @@ export async function beforeExpertChatSend(
   const runId = payload.expert_run_id;
   if (!runId) return null;
 
+  const run = getExpertRun(runId);
+  if (run?.activeProfileId === "remote" || run?.remoteTaskId) {
+    return null;
+  }
+
   const priorEvents = listRunEvents(runId);
   const isFirstMessage = !priorEvents.some((e) => e.eventType === "message_sent");
 
-  if (payload.team_id && isFirstMessage && payload.message.trim()) {
-    const run = getExpertRun(runId);
-    if (run && (run.status === "running" || run.status === "dispatching")) {
+  if (payload.team_id && isFirstMessage && payload.message.trim() && run) {
+    if (run.status === "running" || run.status === "dispatching") {
       await dispatchTeamRun({
         runId,
         teamId: payload.team_id,

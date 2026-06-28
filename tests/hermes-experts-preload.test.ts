@@ -30,4 +30,28 @@ describe("hermesExperts preload surface", () => {
     expect(typeof hermesExpertsApi.registerDesktop).toBe("function");
     expect(typeof hermesExpertsApi.onExpertRuntimeEvent).toBe("function");
   });
+
+  it("exposes expert gateway and skill methods", () => {
+    expect(typeof hermesExpertsApi.getExpertGatewayHealth).toBe("function");
+    expect(typeof hermesExpertsApi.listCatalogSkills).toBe("function");
+    expect(typeof hermesExpertsApi.listExpertSkills).toBe("function");
+    expect(typeof hermesExpertsApi.callCatalogSkill).toBe("function");
+    expect(typeof hermesExpertsApi.listLocalArtifacts).toBe("function");
+  });
+
+  it("exposes remote run sync and artifact methods", () => {
+    expect(typeof hermesExpertsApi.syncRemoteRun).toBe("function");
+    expect(typeof hermesExpertsApi.getRunResult).toBe("function");
+    expect(typeof hermesExpertsApi.getRunTimeline).toBe("function");
+    expect(typeof hermesExpertsApi.listRunArtifacts).toBe("function");
+    expect(typeof hermesExpertsApi.previewRunArtifact).toBe("function");
+    expect(typeof hermesExpertsApi.downloadRunArtifact).toBe("function");
+    expect(typeof hermesExpertsApi.importRunArtifact).toBe("function");
+  });
+
+  it("exposes genehub push and submission methods", () => {
+    expect(typeof hermesExpertsApi.pushGeneHubSkill).toBe("function");
+    expect(typeof hermesExpertsApi.listGeneHubSubmissions).toBe("function");
+    expect(typeof hermesExpertsApi.listGeneHubPullJobs).toBe("function");
+  });
 });

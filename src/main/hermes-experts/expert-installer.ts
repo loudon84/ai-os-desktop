@@ -1,3 +1,4 @@
+/** @deprecated V7.2 — local Profile install superseded by remote MCP experts. Kept for rollback only. */
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "fs";
 import { join } from "path";
 import { profileHome } from "../utils";

@@ -13,84 +13,50 @@ src/renderer/src/screens/Hermes/
 ## 3. 职责
 
 - V5.6 Local Hermes 默认 Profile 三栏工作台
+- **V7.2 Remote Experts Pivot** + **Expert MCP Gateway v6.1**：直连 `/api/v1/expert/mcp` 同步召唤（无 HermesTask）；root `tools/list` 严格 kind 过滤；统一 `callCatalogSkill`；`ExpertCatalogCallDrawer`；Workbench Expert Gateway 健康；本地 Runs/Artifacts（schema v3）
 - **V7.1** Hermes Experts Workspace：专家广场 / 专家团队 / 专家运行 + profile-aware Chat
-- **V7.1.1** E2E 闭环：专家 Gateway 端口路由、`policy.json`/MCP/Skills 物化、Chat↔Run 事件桥接、Tools&MCP Inspector、Desktop register/heartbeat
-- **V7.1.1** E2E：`expert-profile-manager` 注册 runtime、`getApiUrl(profile)` 专家 Gateway、`expert-run-bridge` Chat↔Run、Tools/MCP Inspector、Desktop register/heartbeat/report
-- 左栏 Sidebar：Chat / Experts / Expert Teams / Expert Runs / Sessions / models / skills / tools / memory / providers 导航
+- **V7.1.1** E2E：Chat↔Run 事件桥接、Tools&MCP Inspector、Desktop register/heartbeat
+- 左栏 Sidebar：**Workbench** / Chat / Experts / Expert Teams / Expert Runs / **Artifacts** / Sessions / models / skills / tools / memory / providers / mcpGateway
 - 中栏：当前选中页面内容
 - 右栏：Right Panel（Runtime / Inspector）
-- 固定使用 `default` profile，通过 `hermesAPI` IPC 通信
+- 固定使用 `default` profile 做本地 Chat；远端专家 `profileId: remote`
 - 与 Workspaces / copilot-serve 隔离
 
 ## 4. 关键文件
 
 | 文件 | 作用 |
 |---|---|
-| `index.tsx` | 导出入口 |
-| `api/hermesDefaultApi.ts` | 封装 `window.hermesAPI` 为 Screen 级 API |
-| `constants.ts` | 常量 |
-| `types.ts` | 类型定义 |
-| `context/HermesDefaultContext.tsx` | Context Provider |
-| `components/HermesSidebar.tsx` | 左栏导航 |
-| `components/HermesShell.tsx` | 三栏壳层（实际在 panels/） |
-| `components/HermesStatusCards.tsx` | 状态卡片 |
-| `components/HermesStatusBadge.tsx` | 状态徽章 |
-| `components/HermesPageErrorBoundary.tsx` | 页面错误边界 |
-| `components/HermesPageSkeleton.tsx` | 页面骨架屏 |
-| `components/HermesRightInspectorTabs.tsx` | 右栏 Inspector Tabs |
-| `panels/HermesShell.tsx` | 三栏壳层编排 |
-| `panels/HermesRightPanel.tsx` | 右面板 |
-| `panels/HermesRightPanelRail.tsx` | 右面板 Rail |
-| `panels/HermesRuntimePanel.tsx` | Runtime 运维面板 |
+| `index.tsx` | 导出入口 + `useRemoteExpertContextBridge` |
+| `api/hermesDefaultApi.ts` | 封装 `window.hermesAPI` |
+| `constants.ts` | 导航项（含 workbench / artifacts） |
+| `context/HermesDefaultContext.tsx` | 默认页 workbench |
+| `context/HermesExpertsContext.tsx` | 专家目录 Context |
+| `hooks/useRemoteExpertContextBridge.ts` | WebOperator/屏幕上下文事件桥 |
+| `utils/remote-expert-context.ts` | tools/call context 存储 |
+| `pages/Workbench/HermesWorkbenchPage.tsx` | **V7.2** 工作台首页 + Expert Gateway 健康（`publishedExperts` / `callableSkills` 等） |
+| `pages/Artifacts/HermesArtifactsPage.tsx` | **V7.2** 本地 `expert_mcp_response` 成果 |
+| `pages/Experts/components/ExpertCatalogCallDrawer.tsx` | **v6.1** 统一 expert/team 召唤 Drawer（`listCatalogSkills` + `callCatalogSkill`） |
+| `pages/Experts/hooks/useCatalogSkillCall.ts` | skill 列表加载 + catalog skill 调用 |
+| `pages/Experts/components/ExpertCallDrawer.tsx` | legacy Call Drawer（保留） |
+| `pages/ExpertTeams/components/ExpertTeamCallDrawer.tsx` | legacy 团队 Call Drawer（主路径已切 `ExpertCatalogCallDrawer`） |
+| `pages/Experts/` | 专家广场 |
+| `pages/ExpertTeams/` | 专家团队 |
+| `pages/ExpertRuns/` | 运行记录（同步本地 timeline + responseText） |
+| `pages/GeneHub/components/GeneHubSkillPushPanel.tsx` | **V7.2** Skill Push / Submissions / Pull |
 | `registry/hermes-pages.tsx` | 页面注册表 |
-| `pages/Chat/` | Chat 页面（WebChat Surface + Active Expert Bar） |
-| `pages/Experts/` | 专家广场（V7.1） |
-| `pages/ExpertTeams/` | 专家团队（V7.1） |
-| `pages/ExpertRuns/` | 专家运行记录（V7.1） |
-| `context/HermesWorkspaceContext.tsx` | 专家/团队激活态与 work mode |
-| `api/hermesProfileApi.ts` | profile-aware Chat API 工厂 |
-| `panels/HermesExpertInspectorPanel.tsx` | 右栏专家 Timeline/Artifacts/Tools·MCP/Audit |
-| `pages/Sessions/` | 会话列表页 |
-| `pages/Models/` | 模型库页 |
-| `pages/Skills/` | 技能页 |
-| `pages/Tools/` | 工具页 |
-| `pages/Memory/` | 记忆页 |
-| `pages/Providers/` | Provider 页 |
-| `hooks/` | Profile / Runtime / Sessions / Models 等 hooks |
-| `utils/formatChatError.ts` | 错误格式化 |
 
 ## 5. 数据来源
 
 | 来源 | API |
 |---|---|
-| Preload | `window.hermesAPI.*`（安装/配置/聊天/会话/模型/技能等） |
-| Preload | `window.hermesExperts.*`（V7.1 专家目录/安装/召唤/运行） |
-| Context | `HermesDefaultContext` + `HermesWorkspaceContext` + `HermesExpertsContext` |
-| Local | `hermesDefaultApi` 封装层 |
+| Preload | `window.hermesAPI.*`（本地 default profile） |
+| Preload | `window.hermesExperts.*`（Expert MCP v6.1：`listCatalogSkills` / `callCatalogSkill` / catalog/summon/Runs/本地 artifacts；`getExpertGatewayHealth`；`listExpertSkills` 委托 `listCatalogSkills`；install* deprecated） |
+| Preload | `window.mcpSkillGatewayRuntime.*`（非专家 MCP Skill Gateway；legacy hermes-client task） |
 
-## 6. 状态流
+## 6. 边界
 
-```text
-HermesDefaultContext 初始化
-  → hermesDefaultApi → window.hermesAPI
-  → Sidebar 页面选择 → registry 渲染对应 page
-  → Chat: sendMessage / onChatChunk / onChatDone → SSE 流
-  → Models: getModels / setEnv / setModelConfig
-  → Sessions: getSessions / deleteSession
-```
+见 `docs/specs/v7.2-nodeskclaw-remote-experts/01-architecture-boundary.md`：禁止 route override；server_artifacts 导入为本地副本。
 
-## 7. 约束
+## 7. IPC
 
-- 不直接访问 Node.js
-- 不新增未登记 IPC
-- 不跨层 import main/preload
-- **禁止**引入 `workspaceChat` / `profileRuntime` API（与 Workspaces 隔离）
-- 固定 `default` 为 Portal 入口；专家召唤可切换到 expert profile（`HermesWorkspaceContext`）
-- 专家 IPC 使用 `window.hermesExperts`，禁止 Renderer 直接 `ipcRenderer`
-
-## 8. 相关文档
-
-- `docs/API_CONTRACTS.md` § Hermes Chat / Models
-- `docs/renderer/WORKSPACE_ROUTING.md`
-- `prd/v5.6.2_hermes-webchat-surface.md`
-- `prd/v5.6.4_hermes-chat.md`
+见 `docs/API_CONTRACTS.md` § Hermes Experts Workspace（V7.2）。

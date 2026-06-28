@@ -10,7 +10,7 @@
 |---|---|
 | **产品名称** | SMC-Copilot |
 | **包名 / 主程序** | `smc-ai-copilot`（npm）/ **`desktop.exe`**（Windows 安装产物） |
-| **版本** | 0.3.6（… + **V7.1.1 Hermes Experts E2E + Desktop Sync** + **V7.1 Hermes Experts Workspace** + **V7.0 Hermes MCP Client Integration** + **V6.7.1 GeneHub MCP Registration Hardening** + **V6.7 MCP Write Tools Approval** + **V6.6.2 GeneHub MCP Registration** + **V6.6.1 MCP Gateway Operations** + **V6.6 MCP Skill Gateway E2E** + **V6.5.1 Hotfix GeneHub 连接** + **V6.5 GeneHub Skill Sync** + **V5.4 Install Identity** + **V5.4.1 Hotfix**） |
+| **版本** | 0.3.6（… + **V7.2.1 Expert MCP v6.1 Hotfix** + **V7.2 Remote Experts Pivot** + **V7.1.1 Hermes Experts E2E + Desktop Sync** + **V7.1 Hermes Experts Workspace** + **V7.0 Hermes MCP Client Integration** + …） |
 | **appId** | `com.smc.smc-ai-copilot` |
 | **仓库** | https://github.com/loudon84/ai-os-desktop |
 | **用户文档** | [README.md](../README.md) · [README.zh-CN.md](../README.zh-CN.md) |
@@ -216,6 +216,15 @@ V1.4 在 V1.2.1 基础上完成 **Desktop Shell 布局重构** 与 **Windows NSI
 - **Profile mapping**：`~/.hermes/desktop/genehub/profile-mapping.json`；`syncInstalledSkills` 使用 serverProfileId
 - **Install worker**：`getInstallJob` → claim → validate（签名校验 + `trustedPublicKeys`）→ write（scripts provenance sidecar）→ restart → sync → finally 刷新 cache
 - **UI**：mapping 缺失禁用确认；MCP Gateway 卡片 pending/in-progress/lastSync
+
+**V7.2.1（Expert MCP v6.1 Hotfix，PRD `prd_work/v1.2_expert-mcp-compact.md`）**：
+- **统一调用**：`callCatalogSkill` — expert / expert_team 同链路；`summonExpert` / `summonTeam` 内部委托
+- **MCP Client**：`ExpertMcpClient` class（health / listCatalog / listSkills / callSkill）；`expert-mcp-mappers.ts` 严格 `annotations.kind` 过滤
+- **Route guard**：`expert-route-guard.ts` — 12+ 禁止字段抛 `EXPERT_ROUTE_OVERRIDE_FORBIDDEN`（非静默剥离）
+- **IPC**：`hermes-experts:list-catalog-skills`、`hermes-experts:call-catalog-skill`；Preload `listCatalogSkills` / `callCatalogSkill`
+- **DB**：`expert_runs` schema v3 — `catalog_slug`、`skill_name`、`invocation_id`、`structured_content_json` 等
+- **UI**：`ExpertCatalogCallDrawer`（Experts + ExpertTeams）；卡片 `catalogStatus` / `callableSkillCount` 门禁；Runs 展示 `responseText` / `invocationId`
+- **契约**：`src/shared/hermes-experts/`；见 [`docs/API_CONTRACTS.md`](API_CONTRACTS.md) § Hermes Experts Workspace
 
 **V7.0（Hermes MCP Client Integration，PRD `prd/v7.0_desktop-hermes-mcp-client-integration.md`）**：
 - **REST**：Main `hermes-client-api.ts` — bootstrap / agents / tools / readiness / task events-token / task result / artifact preview&download

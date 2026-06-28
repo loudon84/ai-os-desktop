@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（… + **V7.1.1 Hermes Experts E2E + Desktop Sync** + **V7.1 Hermes Experts Workspace** + **V7.0 Hermes MCP Client Integration** + …） |
+| 版本 | 0.3.6（… + **V7.2.1 Expert MCP v6.1 Hotfix** + **V7.2 Remote Experts Pivot** + **V7.1.1 Hermes Experts E2E + Desktop Sync** + **V7.1 Hermes Experts Workspace** + …） |
 | appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -82,7 +82,7 @@ Portal Auth Backend (:8000)  +  Hermes Python Gateway (:8642)
 | `window.aiosRuntime` | `src/preload/aios-api.ts` | Portal Runtime 启停/Doctor/日志；**V5.3.4** `getPortalInfo()` 展示 monorepo 安装路径 |
 | `window.mcpSkillGatewayRuntime` | `src/preload/mcp-skill-gateway-runtime-api.ts` | **V6.4** MCP Skill Gateway Runtime（Proxy 启停、Hermes 注册、远程 MCP 健康检查）；**V6.6.1** `readStructuredLogs` / 运营诊断；**V7.0** Hermes Client bootstrap/agents/tools/readiness/task result/artifact（`hermes-client:*` IPC）；**不向 Renderer 暴露 token** |
 | `window.genehubRuntime` | `src/preload/genehub-runtime-api.ts` | **V6.5** GeneHub 连接探测、授权 Skill 列表、安装任务执行与日志；**不向 Renderer 暴露 token** |
-| `window.hermesExperts` | `src/preload/hermes-experts-api.ts` | **V7.1** Hermes Experts Workspace（目录/安装/召唤/运行/信任）；`hermes-experts:*` IPC；**不向 Renderer 暴露 token** |
+| `window.hermesExperts` | `src/preload/hermes-experts-api.ts` | **Expert MCP v6.1** 直连 `/api/v1/expert/mcp`：`listCatalogSkills` / `callCatalogSkill` + root `tools/list` 目录 + 本地 Runs/Artifacts；`summonExpert`/`summonTeam` 委托 `callCatalogSkill`；legacy HermesTask IPC 保留；install* deprecated；**不向 Renderer 暴露 token** |
 
 类型定义：`src/preload/index.d.ts`。契约类型：`src/shared/profile-runtime/`、`src/shared/enterprise/`、**`src/shared/mcp/`（V6.1）**、**`src/shared/mcp-skill-gateway-runtime/`（V6.4）**、**`src/shared/genehub/`（V6.5）**。
 
@@ -536,6 +536,8 @@ npm run lint         # ESLint
 | **V6.3.3** | **WebOperator Task Session 绑定键调整**：`source + requestId` 替代 `pageUrl` 唯一键；schema v2 + v1 迁移；Main 派生 `taskId`；HostBridge `web-host-bridge` | `prd/v6.3.3_task-to-session-request.md`, `web-operator-task-session-*`, `shared/web-operator/build-task-id.ts`, `HermesTaskPanel.tsx`, `HostBridgePanel.tsx` |
 | **V6.3.4** | **WebOperator Hermes→Host 表单写回**：Hermes 输出 `host_form_fill` artifact；Panel「写回当前表单」按钮；`HostBridgeCommandContext` 共享 `runCommand`；`desktop.host.form.fill` | `prd/v6.3.4_weboperator-hermes-host-form-fill.md`, `host-bridge/HostBridgeCommandContext.tsx`, `components/hermes/panel/host-form-fill/*`, `WebOperatorHermesPanelMessageList.tsx` |
 | **V6.7.1** | **GeneHub MCP Registration Hardening**：bundle-preview 不 claim、ignore 同步服务端、profile-mapping.json、serverProfileId sync、签名校验、scripts provenance、MCP Gateway 卡片增强 | `genehub-profile-mapping.ts`, `genehub-client.ts`, `mcp-registration-service.ts`, `skill-install-worker.ts`, `script-provenance.ts`, `skill-package-validator.ts`, `GeneHubMcpRegistrationPanel.tsx`, `McpGatewayGeneHubRegistrationCard.tsx` |
+| **V7.2.1** | **Expert MCP v6.1 Hotfix**：`ExpertMcpClient` class、`callCatalogSkill` 统一调用、`expert-route-guard` 强拦截、`expert-mcp-mappers`、严格 catalog kind 过滤、DB schema v3、`ExpertCatalogCallDrawer`、IPC `list-catalog-skills` / `call-catalog-skill` | `expert-mcp-client.ts`, `expert-route-guard.ts`, `expert-mcp-mappers.ts`, `expert-runtime.ts`, `ExpertCatalogCallDrawer.tsx`, `docs/API_CONTRACTS.md` § Hermes Experts |
+| **V7.2** | **Remote Experts Pivot** + **Expert MCP Gateway v6**：直连 `/api/v1/expert/mcp` 同步 `tools/call`（无 HermesTask）；root `tools/list` 目录；`expert-mcp-client.ts`；Workbench Expert Gateway 健康；skill 选择 Call Drawer；本地 Runs/Artifacts | `expert-mcp-client.ts`, `expert-remote-catalog.ts`, `pages/Workbench|Artifacts|Experts`, `docs/specs/v7.2-nodeskclaw-remote-experts/` |
 | **V7.1.1** | **Hermes Experts E2E + Desktop Sync**：`expert-profile-manager` Gateway 路由、`expert-run-bridge` Chat↔Run、InstallPlan policy/MCP/Skills、`expert-preflight`、Tools/MCP Inspector、nodeskclaw register/heartbeat/report | `expert-profile-manager.ts`, `expert-run-bridge.ts`, `expert-desktop-client.ts`, `hermes.ts` `getApiUrl(profile)` |
 | **V7.1** | **Hermes Experts Workspace**：专家广场/团队/运行三页 + InstallPlan 物化 + summon + leader dispatch + Chat profile-aware + Inspector Timeline/Trust | `src/main/hermes-experts/*`, `src/shared/hermes-experts/*`, `screens/Hermes/pages/Experts|ExpertTeams|ExpertRuns`, `prd_work/v1.0_clone-workbuddy-expert.md` |
 | **V7.0** | **Hermes MCP Client Integration**：nodeskclaw v4.3 client bootstrap/agents/tools/readiness、task events token、task result/artifact、structuredContent→recent tasks、MCP Gateway Client Contract UI | `hermes-client-api.ts`, `src/shared/hermes-client/`, `McpGatewayClientContractCard.tsx`, `McpGatewayAgentAliasPanel.tsx`, `McpGatewayTaskResultPanel.tsx`, `prd/v7.0_desktop-hermes-mcp-client-integration.md` |
