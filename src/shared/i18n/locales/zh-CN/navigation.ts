@@ -1,7 +1,7 @@
 export default {
   portal: "Portal",
   workspaces: "智能体工作区",
-  localHermes: "本地 Hermes",
+  localHermes: "Work 专家工作台",
   taskWorkbench: "任务工作台",
   webOperator: "Web 操作",
   webOperatorSide: {

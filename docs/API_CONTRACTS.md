@@ -749,4 +749,24 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 ---
 
+## Work 任务窗口（v1.4 Work Task Window + SSE）
+
+**Preload**：`window.work`（`src/preload/work-api.ts`）— MVP 仅 `task.send` / `task.stop` / `task.list` / `task.onEvent`；`task.create` 在 Renderer 侧由 `workTaskApi` 处理。
+
+| Channel | Args | Returns |
+|---------|------|---------|
+| `work:task-send` | `WorkTaskSendInput` | `WorkTaskSendResult` |
+| `work:task-stop` | `taskId: string` | `void` |
+| `work:task-list` | — | `WorkTask[]`（MVP 返回 `[]`） |
+
+**事件（Main → Renderer）**：`work:task-event` — Preload `work.task.onEvent(cb)` 返回 unsubscribe。
+
+**Main 模块**：`src/main/work/`（`work-ipc.ts`、`work-task-stream.ts`、`work-event-mapper.ts`）— MVP 占位 SSE 桥接；后续包装 `workspace-chat` / Expert Team SSE。
+
+**Shared 契约**：`src/shared/work/`（`work-task-contract.ts`、`work-event-contract.ts`、`work-output-contract.ts`、`work-participant-contract.ts`、`work-context-contract.ts`、`work-error-contract.ts`）。
+
+**Renderer**：`screens/Hermes/pages/Tasks/` — `WorkTasksPage`（TaskHomeEntry / TaskWindow 三栏）；`api/workTaskApi.ts` + `workApi.task.*`；`features/task-store/`、`features/task-stream/`；`VITE_WORK_MOCK_MODE` 销售作战 mock 流。
+
+---
+
 See `copilot-desktop/AGENTS.md` §「新增 IPC」for the checklist when adding channels.

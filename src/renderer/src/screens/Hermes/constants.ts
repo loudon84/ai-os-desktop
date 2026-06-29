@@ -1,3 +1,7 @@
+import type { HermesNavItemDefinition, HermesPageSection } from "./model/page";
+
+export type { HermesNavItemDefinition, HermesPageSection };
+
 /** v5.6 — Local Hermes default profile layout & storage keys. */
 export const HERMES_DEFAULT_PROFILE = "default" as const;
 
@@ -65,6 +69,7 @@ export function clearGeneHubSkillCenterTab(): void {
 export const HERMES_DRAFT_SESSION_ID = "draft_default" as const;
 
 export type HermesNavItemKey =
+  | "tasks"
   | "workbench"
   | "chat"
   | "experts"
@@ -81,23 +86,108 @@ export type HermesNavItemKey =
   | "providers"
   | "models";
 
-export const HERMES_NAV_ITEMS = [
-  { key: "workbench", labelI18nKey: "workspaces.nav.workbench", icon: "LayoutDashboard" },
-  { key: "chat", labelI18nKey: "workspaces.nav.chat", icon: "MessageSquare" },
-  { key: "experts", labelI18nKey: "workspaces.nav.experts", icon: "Users" },
-  { key: "expertTeams", labelI18nKey: "workspaces.nav.expertTeams", icon: "UsersRound" },
-  { key: "expertRuns", labelI18nKey: "workspaces.nav.expertRuns", icon: "Activity" },
-  { key: "artifacts", labelI18nKey: "workspaces.nav.artifacts", icon: "FileBox" },
-  { key: "sessions", labelI18nKey: "workspaces.nav.sessions", icon: "History" },
-  { key: "skills", labelI18nKey: "workspaces.nav.skills", icon: "Sparkles" },
-  { key: "skillCenter", labelI18nKey: "workspaces.nav.skillCenter", icon: "Library" },
-  { key: "mcp", labelI18nKey: "workspaces.nav.mcp", icon: "Plug" },
-  { key: "mcpGateway", labelI18nKey: "workspaces.nav.mcpGateway", icon: "Globe" },
-  { key: "tools", labelI18nKey: "workspaces.nav.tools", icon: "Wrench" },
-  { key: "memory", labelI18nKey: "workspaces.nav.memory", icon: "Brain" },
-  { key: "providers", labelI18nKey: "workspaces.nav.providers", icon: "Server" },
-  { key: "models", labelI18nKey: "workspaces.nav.models", icon: "Box" },
-] as const;
+export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
+  {
+    key: "tasks",
+    labelI18nKey: "workspaces.nav.tasks",
+    icon: "ClipboardList",
+    section: "primary",
+  },
+  {
+    key: "workbench",
+    labelI18nKey: "workspaces.nav.workbench",
+    icon: "LayoutDashboard",
+    section: "primary",
+  },
+  {
+    key: "chat",
+    labelI18nKey: "workspaces.nav.chat",
+    icon: "MessageSquare",
+    section: "primary",
+  },
+  {
+    key: "experts",
+    labelI18nKey: "workspaces.nav.experts",
+    icon: "Users",
+    section: "primary",
+    requiresGateway: true,
+  },
+  {
+    key: "expertTeams",
+    labelI18nKey: "workspaces.nav.expertTeams",
+    icon: "UsersRound",
+    section: "primary",
+    requiresGateway: true,
+  },
+  {
+    key: "expertRuns",
+    labelI18nKey: "workspaces.nav.expertRuns",
+    icon: "Activity",
+    section: "primary",
+    requiresGateway: true,
+  },
+  {
+    key: "artifacts",
+    labelI18nKey: "workspaces.nav.artifacts",
+    icon: "FileBox",
+    section: "primary",
+    requiresGateway: true,
+  },
+  {
+    key: "skillCenter",
+    labelI18nKey: "workspaces.nav.skillCenter",
+    icon: "Library",
+    section: "capability",
+  },
+  {
+    key: "mcp",
+    labelI18nKey: "workspaces.nav.mcp",
+    icon: "Plug",
+    section: "capability",
+  },
+  {
+    key: "mcpGateway",
+    labelI18nKey: "workspaces.nav.mcpGateway",
+    icon: "Globe",
+    section: "capability",
+  },
+  {
+    key: "sessions",
+    labelI18nKey: "workspaces.nav.sessions",
+    icon: "History",
+    section: "advanced",
+  },
+  {
+    key: "skills",
+    labelI18nKey: "workspaces.nav.skills",
+    icon: "Sparkles",
+    section: "advanced",
+  },
+  {
+    key: "tools",
+    labelI18nKey: "workspaces.nav.tools",
+    icon: "Wrench",
+    section: "advanced",
+  },
+  {
+    key: "memory",
+    labelI18nKey: "workspaces.nav.memory",
+    icon: "Brain",
+    section: "advanced",
+  },
+  {
+    key: "providers",
+    labelI18nKey: "workspaces.nav.providers",
+    icon: "Server",
+    section: "advanced",
+  },
+  {
+    key: "models",
+    labelI18nKey: "workspaces.nav.models",
+    icon: "Box",
+    section: "advanced",
+  },
+];
 
 export const HERMES_CONFIG_KEYS = ["provider", "default", "base_url", "streaming"] as const;
 
@@ -107,4 +197,6 @@ export const LAYOUT = {
   rightPanelWidthPx: 340,
   rightPanelCollapsedWidthPx: 48,
   centerMinWidthPx: 520,
+  taskListWidthPx: 280,
+  taskRightPanelWidthPx: 420,
 } as const;

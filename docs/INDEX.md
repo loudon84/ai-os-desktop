@@ -311,6 +311,13 @@ Renderer 详细文档已拆分到 `docs/renderer/` 目录，按 `src/renderer/sr
 - [`docs/renderer/components/INDEX.md`](renderer/components/INDEX.md) — 组件族索引
 - [`docs/renderer/workspace/INDEX.md`](renderer/workspace/INDEX.md) — Workspace 文档索引
 
+**v1.3 Work 专家工作台 Spec Pack**（改 `screens/Hermes` 时 Agent 必读）：
+
+- [`docs/specs/v1.3-workbuddy-product-line/00-overview.md`](specs/v1.3-workbuddy-product-line/00-overview.md) — 入口、分层约束、Phase 状态
+- [`03-layout-boundary.md`](specs/v1.3-workbuddy-product-line/03-layout-boundary.md) — MainPage vs Hermes 三栏、页面 UI 模板
+- [`13-ai-coding-structure.md`](specs/v1.3-workbuddy-product-line/13-ai-coding-structure.md) — Screen 组件输出质量 Checklist
+- PRD：[`prd_work/v1.3_project-layout-prompt.md`](../prd_work/v1.3_project-layout-prompt.md)
+
 ## 开发前必须阅读
 
 1. docs/ARCHITECTURE.md — 架构总览与进程模型

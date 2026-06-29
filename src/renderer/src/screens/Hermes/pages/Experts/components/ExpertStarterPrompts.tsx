@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
-import type { HermesStarterPrompt } from "../../../types/hermes-experts";
+import type { WorkStarterPrompt } from "../../../model/expert";
 
 type Props = {
-  prompts: HermesStarterPrompt[];
+  prompts: WorkStarterPrompt[];
   onSelect: (prompt: string) => void;
 };
 

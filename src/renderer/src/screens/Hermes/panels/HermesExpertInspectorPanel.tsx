@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { useHermesExpertsCatalog } from "../context/HermesExpertsContext";
 import { useHermesWorkspace } from "../context/HermesWorkspaceContext";
-import { ExpertRunTimeline } from "../pages/ExpertRuns/components/ExpertRunTimeline";
+import { useExpertRunDetail } from "../features/expert-run/useExpertRunDetail";
 import { ExpertRunMemberPanel } from "../pages/ExpertRuns/components/ExpertRunMemberPanel";
-import { useExpertRunEvents } from "../pages/ExpertRuns/hooks/useExpertRuns";
+import { RunTimeline } from "../pages/ExpertRuns/components/RunTimeline";
 
 type Props = {
   tab: "timeline" | "artifacts" | "members" | "audit" | "toolsMcp";
@@ -13,7 +13,7 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
   const { t } = useTranslation();
   const workspace = useHermesWorkspace();
   const { getExpertById, getTeamById, refreshExperts } = useHermesExpertsCatalog();
-  const { run, events } = useExpertRunEvents(workspace.activeRunId ?? null);
+  const { detail } = useExpertRunDetail(workspace.activeRunId ?? null);
 
   const expert =
     workspace.activeExpertId != null ? getExpertById(workspace.activeExpertId) : undefined;
@@ -26,7 +26,10 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
     });
   };
 
-  const toolEvents = events.filter((e) => e.eventType === "tool_call" || e.eventType === "mcp_registered");
+  const timeline = detail?.timeline ?? [];
+  const toolEvents = timeline.filter(
+    (e) => e.eventType === "tool_call" || e.eventType === "mcp_registered",
+  );
 
   if (tab === "toolsMcp") {
     return (
@@ -61,7 +64,7 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
         {toolEvents.length > 0 ? (
           <section>
             <h5>{t("workspaces.hermes.expertRuns.timeline")}</h5>
-            <ExpertRunTimeline events={toolEvents} />
+            <RunTimeline events={toolEvents} />
           </section>
         ) : (
           <p className="hermes-muted">{t("workspaces.hermes.inspector.toolsMcpEmpty")}</p>
@@ -74,13 +77,13 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
     return (
       <div className="hermes-panel-root hermes-panel-padded">
         <h4>{t("workspaces.hermes.expertRuns.timeline")}</h4>
-        <ExpertRunTimeline events={events.length > 0 ? events : (run?.events ?? [])} />
+        <RunTimeline events={timeline} />
       </div>
     );
   }
 
   if (tab === "artifacts") {
-    const artifacts = run?.artifacts ?? [];
+    const artifacts = detail?.artifacts ?? [];
     return (
       <div className="hermes-panel-root hermes-panel-padded">
         <h4>{t("workspaces.hermes.expertRuns.artifacts")}</h4>
@@ -90,8 +93,8 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
           <ul className="hermes-list">
             {artifacts.map((a) => (
               <li key={a.id}>
-                <strong>{a.title}</strong>
-                <span className="hermes-muted"> — {a.artifactType}</span>
+                <strong>{a.name}</strong>
+                <span className="hermes-muted"> — {a.type}</span>
               </li>
             ))}
           </ul>
@@ -104,8 +107,8 @@ export function HermesExpertInspectorPanel({ tab }: Props) {
     return (
       <div className="hermes-panel-root hermes-panel-padded">
         <h4>{t("workspaces.hermes.expertTeams.members")}</h4>
-        {run?.memberRuns && run.memberRuns.length > 0 ? (
-          <ExpertRunMemberPanel memberRuns={run.memberRuns} />
+        {detail?.memberRuns && detail.memberRuns.length > 0 ? (
+          <ExpertRunMemberPanel memberRuns={detail.memberRuns} teamEvents={timeline} />
         ) : team ? (
           <ul className="hermes-list">
             <li>

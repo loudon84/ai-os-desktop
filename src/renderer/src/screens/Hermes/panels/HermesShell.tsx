@@ -1,9 +1,10 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { LAYOUT } from "../constants";
 import { HermesSidebar } from "../components/HermesSidebar";
 import { HermesPageErrorBoundary } from "../components/HermesPageErrorBoundary";
 import { HermesPageSkeleton } from "../components/HermesPageSkeleton";
 import { useHermesDefault } from "../context/HermesDefaultContext";
+import { useGatewayNavGate } from "../features/nav/useGatewayNavGate";
 import { HERMES_PAGE_REGISTRY, type HermesPageKey } from "../registry/hermes-pages";
 import { HermesRightPanel } from "./HermesRightPanel";
 import { HermesRightPanelRail } from "./HermesRightPanelRail";
@@ -36,15 +37,36 @@ export function HermesShell({
     setActiveNavItem,
     leftPanelCollapsed,
     rightPanelCollapsed,
+    navItems,
   } = useHermesDefault();
+  const { gatewayOnline, loading: gatewayLoading } = useGatewayNavGate();
 
   const pageKey = ((activePanel as HermesNavItemKey | undefined) ?? activeNavItem) as HermesPageKey;
+
+  const activeNavDefinition = useMemo(
+    () => navItems.find((item) => item.key === pageKey),
+    [navItems, pageKey],
+  );
 
   useEffect(() => {
     if (activePanel && activePanel !== activeNavItem) {
       setActiveNavItem(activePanel as HermesNavItemKey);
     }
   }, [activePanel, activeNavItem, setActiveNavItem]);
+
+  useEffect(() => {
+    if (gatewayLoading) return;
+    if (activeNavDefinition?.requiresGateway && !gatewayOnline) {
+      setActiveNavItem("workbench");
+      onPanelChange?.("workbench");
+    }
+  }, [
+    gatewayLoading,
+    gatewayOnline,
+    activeNavDefinition,
+    setActiveNavItem,
+    onPanelChange,
+  ]);
 
   const leftCol = leftPanelCollapsed
     ? `${LAYOUT.sidebarCollapsedWidthPx}px`

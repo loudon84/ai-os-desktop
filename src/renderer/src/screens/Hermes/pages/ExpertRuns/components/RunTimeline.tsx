@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
-import type { ExpertRunEvent } from "../../../../../../../shared/hermes-experts/hermes-experts-contract";
+import type { WorkRunTimelineEvent } from "../../../model/run";
 
 type Props = {
-  events: ExpertRunEvent[];
+  events: WorkRunTimelineEvent[];
 };
 
-export function ExpertRunTimeline({ events }: Props) {
+export function RunTimeline({ events }: Props) {
   const { t } = useTranslation();
   if (events.length === 0) {
     return <p className="hermes-muted">{t("workspaces.hermes.expertRuns.noEvents")}</p>;

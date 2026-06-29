@@ -34,6 +34,7 @@ import { userConfigApi } from "./user-config-api";
 import { shellApi } from "./shell-api";
 import { copilotServeApi } from "./copilot-serve-api";
 import { workspaceChatApi } from "./workspace-chat-api";
+import { workApiBridge } from "./work-api";
 import { hermesDefaultChatApi } from "./hermes-default-chat-api";
 import { webOperatorTaskSessionApi } from "./web-operator-task-session-api";
 import { mcpApi } from "./mcp-api";
@@ -900,6 +901,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("mcpSkillGatewayRuntime", mcpSkillGatewayRuntimeApi);
     contextBridge.exposeInMainWorld("genehubRuntime", genehubRuntimeApi);
     contextBridge.exposeInMainWorld("hermesExperts", hermesExpertsApi);
+    contextBridge.exposeInMainWorld("work", workApiBridge);
   } catch (error) {
     console.error(error);
   }
@@ -942,4 +944,6 @@ if (process.contextIsolated) {
   window.genehubRuntime = genehubRuntimeApi;
   // @ts-ignore (define in dts)
   window.hermesExperts = hermesExpertsApi;
+  // @ts-ignore (define in dts)
+  window.work = workApiBridge;
 }

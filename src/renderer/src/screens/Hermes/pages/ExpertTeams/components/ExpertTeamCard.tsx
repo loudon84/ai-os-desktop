@@ -1,26 +1,17 @@
 import { UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { HermesExpertTeam } from "../../../types/hermes-expert-teams";
+import type { WorkExpertTeam } from "../../../model/expert-team";
 
 type Props = {
-  team: HermesExpertTeam;
-  onView: (team: HermesExpertTeam) => void;
-  onSummon: (team: HermesExpertTeam) => void;
+  team: WorkExpertTeam;
+  canSummon: boolean;
+  onView: (team: WorkExpertTeam) => void;
+  onSummon: (team: WorkExpertTeam) => void;
 };
 
-function canSummonTeam(team: HermesExpertTeam): boolean {
-  if (team.executionMode === "remote_mcp") {
-    if (team.catalogStatus && team.catalogStatus !== "ready") return false;
-    if (team.callableSkillCount === 0) return false;
-    return true;
-  }
-  return team.installStatus === "installed";
-}
-
-export function ExpertTeamCard({ team, onView, onSummon }: Props) {
+export function ExpertTeamCard({ team, canSummon, onView, onSummon }: Props) {
   const { t } = useTranslation();
   const memberCount = team.memberCount ?? team.members.length + 1;
-  const summonEnabled = canSummonTeam(team);
 
   return (
     <article className="hermes-expert-card hermes-team-card">
@@ -36,9 +27,9 @@ export function ExpertTeamCard({ team, onView, onSummon }: Props) {
         </div>
       </div>
       <p className="hermes-expert-card__desc">{team.description}</p>
-      {(team.tags ?? []).length > 0 ? (
+      {team.tags.length > 0 ? (
         <div className="hermes-expert-card__tags">
-          {(team.tags ?? []).slice(0, 3).map((tag) => (
+          {team.tags.slice(0, 3).map((tag) => (
             <span key={tag} className="hermes-tag">
               {tag}
             </span>
@@ -46,15 +37,15 @@ export function ExpertTeamCard({ team, onView, onSummon }: Props) {
         </div>
       ) : null}
       <div className="hermes-expert-card__meta">
-        {team.catalogStatus ? <span className="hermes-badge">{team.catalogStatus}</span> : null}
+        {team.status ? <span className="hermes-badge">{team.status}</span> : null}
         <span className="hermes-badge hermes-badge--remote">
           {t("workspaces.hermes.expertTeams.remote", { defaultValue: "Remote team" })}
         </span>
-        {team.callableSkillCount != null ? (
+        {team.skillCount != null ? (
           <span className="hermes-badge">
             {t("workspaces.hermes.experts.callableSkills", {
               defaultValue: "{{count}} callable",
-              count: team.callableSkillCount,
+              count: team.skillCount,
             })}
           </span>
         ) : null}
@@ -66,9 +57,9 @@ export function ExpertTeamCard({ team, onView, onSummon }: Props) {
         <button
           type="button"
           className="hermes-btn-primary"
-          disabled={!summonEnabled}
+          disabled={!canSummon}
           title={
-            !summonEnabled
+            !canSummon
               ? t("workspaces.hermes.experts.summonDisabled", {
                   defaultValue: "Not ready or no callable skills",
                 })

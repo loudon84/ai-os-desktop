@@ -1,7 +1,7 @@
 export default {
   portal: "Portal",
   workspaces: "Agent Workspace",
-  localHermes: "Local Hermes",
+  localHermes: "Work Expert Workspace",
   taskWorkbench: "Task Workbench",
   webOperator: "Web Operator",
   webOperatorSide: {

@@ -1,16 +1,13 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  ExpertRunEvent,
-  HermesExpertMemberRun,
-} from "../../../../../../../shared/hermes-experts/hermes-experts-contract";
+import type { WorkRunMemberSummary, WorkRunTimelineEvent } from "../../../model/run";
 
 type Props = {
-  memberRuns?: HermesExpertMemberRun[];
-  teamEvents?: ExpertRunEvent[];
+  memberRuns?: WorkRunMemberSummary[];
+  teamEvents?: WorkRunTimelineEvent[];
 };
 
-function statusFromTeamEvent(eventType: string): HermesExpertMemberRun["status"] {
+function statusFromTeamEvent(eventType: string): string {
   if (eventType.includes("completed") || eventType.includes("succeeded")) return "succeeded";
   if (eventType.includes("failed") || eventType.includes("error")) return "failed";
   if (eventType.includes("timeout")) return "timeout";
@@ -19,19 +16,19 @@ function statusFromTeamEvent(eventType: string): HermesExpertMemberRun["status"]
   return "pending";
 }
 
-function deriveMemberRunsFromTimeline(events: ExpertRunEvent[]): HermesExpertMemberRun[] {
-  const map = new Map<string, HermesExpertMemberRun>();
+function deriveMemberRunsFromTimeline(events: WorkRunTimelineEvent[]): WorkRunMemberSummary[] {
+  const map = new Map<string, WorkRunMemberSummary>();
 
   for (const event of events) {
     if (!event.eventType.startsWith("team.")) continue;
-    const payload = (event.payload ?? {}) as Record<string, unknown>;
+    const payload = event.payload ?? {};
     const roleName = String(payload.role_name ?? payload.roleName ?? payload.member ?? "Member");
     const memberProfileId = String(
       payload.member_profile_id ?? payload.profileId ?? payload.member_id ?? roleName,
     );
     const key = memberProfileId;
 
-    const existing: HermesExpertMemberRun = map.get(key) ?? {
+    const existing: WorkRunMemberSummary = map.get(key) ?? {
       memberProfileId,
       roleName,
       status: "pending",

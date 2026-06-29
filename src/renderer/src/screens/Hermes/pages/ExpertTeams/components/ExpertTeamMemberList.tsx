@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
-import type { HermesExpertTeam } from "../../../types/hermes-expert-teams";
+import type { WorkTeamMember } from "../../../model/expert-team";
 
 type Props = {
-  members: HermesExpertTeam["members"];
+  members: WorkTeamMember[];
 };
 
 export function ExpertTeamMemberList({ members }: Props) {

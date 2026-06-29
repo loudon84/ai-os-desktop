@@ -37,6 +37,9 @@ function writeStorage(key: string, value: unknown): void {
 type HermesDefaultContextValue = {
   activeNavItem: HermesNavItemKey;
   setActiveNavItem: (key: HermesNavItemKey) => void;
+  pendingExpertRunId: string | null;
+  setPendingExpertRunId: (id: string | null) => void;
+  navigateToExpertRun: (runId: string) => void;
   activeSessionId: string | null;
   setActiveSessionId: (id: string | null) => void;
   activeRightTab: HermesRightInspectorTab;
@@ -60,7 +63,7 @@ const HermesDefaultContext = createContext<HermesDefaultContextValue | null>(nul
 
 export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const [activeNavItem, setActiveNavItemState] = useState<HermesNavItemKey>(() =>
-    readStorage(STORAGE_KEYS.activeNavItem, "workbench"),
+    readStorage(STORAGE_KEYS.activeNavItem, "tasks"),
   );
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(() =>
     readStorage(STORAGE_KEYS.activeSessionId, null),
@@ -74,6 +77,7 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const [rightPanelCollapsed, setRightPanelCollapsedState] = useState(() =>
     readStorage(STORAGE_KEYS.collapsedRightPanel, false),
   );
+  const [pendingExpertRunId, setPendingExpertRunIdState] = useState<string | null>(null);
 
   const profile = useHermesDefaultProfile();
   const runtime = useHermesDefaultRuntime();
@@ -87,6 +91,19 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     setActiveNavItemState(key);
     writeStorage(STORAGE_KEYS.activeNavItem, key);
   }, []);
+
+  const setPendingExpertRunId = useCallback((id: string | null) => {
+    setPendingExpertRunIdState(id);
+  }, []);
+
+  const navigateToExpertRun = useCallback(
+    (runId: string) => {
+      setPendingExpertRunIdState(runId);
+      setActiveNavItemState("expertRuns");
+      writeStorage(STORAGE_KEYS.activeNavItem, "expertRuns");
+    },
+    [],
+  );
 
   const setActiveSessionId = useCallback((id: string | null) => {
     setActiveSessionIdState(id);
@@ -117,6 +134,9 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     () => ({
       activeNavItem,
       setActiveNavItem,
+      pendingExpertRunId,
+      setPendingExpertRunId,
+      navigateToExpertRun,
       activeSessionId,
       setActiveSessionId,
       activeRightTab,
@@ -138,6 +158,9 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
     [
       activeNavItem,
       setActiveNavItem,
+      pendingExpertRunId,
+      setPendingExpertRunId,
+      navigateToExpertRun,
       activeSessionId,
       setActiveSessionId,
       activeRightTab,

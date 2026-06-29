@@ -738,6 +738,15 @@ declare global {
     mcpSkillGatewayRuntime: McpSkillGatewayRuntimeAPI;
     genehubRuntime: GeneHubRuntimeAPI;
     hermesExperts: import("../shared/hermes-experts/hermes-experts-contract").HermesExpertsAPI;
+    work: {
+      task: {
+        send: (input: import("../shared/work/work-task-contract").WorkTaskSendInput) => Promise<import("../shared/work/work-task-contract").WorkTaskSendResult>;
+        stop: (taskId: string) => Promise<void>;
+        list: () => Promise<import("../shared/work/work-task-contract").WorkTask[]>;
+        get: (taskId: string) => Promise<import("../shared/work/work-task-contract").WorkTask | null>;
+        onEvent: (callback: (event: import("../shared/work/work-event-contract").WorkTaskEvent) => void) => () => void;
+      };
+    };
     internalView?: import("../shared/shell/overlay-contract").InternalViewAPI;
   }
 

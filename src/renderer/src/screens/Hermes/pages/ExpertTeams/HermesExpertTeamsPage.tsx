@@ -1,59 +1,44 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useHermesDefault } from "../../context/HermesDefaultContext";
-import { useHermesExpertsCatalog } from "../../context/HermesExpertsContext";
-import type { HermesExpertTeam } from "../../types/hermes-expert-teams";
-import { EXPERT_CATEGORIES } from "../Experts/mock/expert-mock-data";
+import { useExpertTeams } from "../../features/expert-team/useExpertTeams";
+import { canSummonTeam } from "../../features/expert-call/canSummon";
+import { useNavigateToRun } from "../../features/expert-call/useNavigateToRun";
+import type { WorkExpertTeam } from "../../model/expert-team";
+import { ExpertFilterBar } from "../Experts/components/ExpertFilterBar";
+import { ExpertGrid } from "../Experts/components/ExpertGrid";
 import {
-  ExpertCatalogCallDrawer,
-  type ExpertCatalogCallItem,
-} from "../Experts/components/ExpertCatalogCallDrawer";
+  ExpertSummonDrawer,
+  type ExpertSummonTarget,
+} from "../Experts/components/ExpertSummonDrawer";
 import { ExpertTeamCard } from "./components/ExpertTeamCard";
-import { ExpertTeamDetailModal } from "./components/ExpertTeamDetailModal";
+import { TeamDetailDrawer } from "./components/TeamDetailDrawer";
 
 export default function HermesExpertTeamsPage() {
   const { t } = useTranslation();
-  const { setActiveNavItem } = useHermesDefault();
-  const { teams, loading, error, refreshTeams } = useHermesExpertsCatalog();
-  const [category, setCategory] = useState("all");
-  const [keyword, setKeyword] = useState("");
-  const [selected, setSelected] = useState<HermesExpertTeam | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [callTarget, setCallTarget] = useState<ExpertCatalogCallItem | null>(null);
+  const navigateToRun = useNavigateToRun();
+  const {
+    teams,
+    loading,
+    error,
+    category,
+    setCategory,
+    keyword,
+    setKeyword,
+    refresh,
+  } = useExpertTeams();
+
+  const [selected, setSelected] = useState<WorkExpertTeam | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState<ExpertSummonTarget | null>(null);
   const [callOpen, setCallOpen] = useState(false);
 
-  const load = useCallback(() => {
-    void refreshTeams({ category, keyword });
-  }, [refreshTeams, category, keyword]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    let list = teams;
-    if (category !== "all") {
-      list = list.filter((team) => team.category === category);
-    }
-    if (keyword.trim()) {
-      const q = keyword.trim().toLowerCase();
-      list = list.filter(
-        (team) =>
-          team.name.toLowerCase().includes(q) ||
-          team.description.toLowerCase().includes(q) ||
-          (team.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
-      );
-    }
-    return list;
-  }, [teams, category, keyword]);
-
-  const openCall = (team: HermesExpertTeam) => {
+  const openCall = (team: WorkExpertTeam) => {
     setCallTarget({
-      slug: team.catalogSlug ?? team.teamSlug ?? team.slug ?? team.teamId,
+      slug: team.slug,
       kind: "expert_team",
       displayName: team.displayName,
-      callableSkillCount: team.callableSkillCount,
+      callableSkillCount: team.skillCount,
       starterPrompt: team.starterPrompts[0]?.prompt,
     });
     setCallOpen(true);
@@ -66,81 +51,65 @@ export default function HermesExpertTeamsPage() {
           <h2>{t("workspaces.nav.expertTeams")}</h2>
           <p className="hermes-page__subtitle">{t("workspaces.hermes.expertTeams.subtitle")}</p>
         </div>
-        <button type="button" className="hermes-btn-ghost" onClick={load} disabled={loading}>
+        <button type="button" className="hermes-btn-ghost" onClick={() => void refresh()} disabled={loading}>
           <RefreshCw size={14} className={loading ? "hermes-spin" : undefined} />
           {t("workspaces.hermes.common.refresh")}
         </button>
       </header>
 
-      <div className="hermes-experts-toolbar">
-        <div className="hermes-search-field">
-          <Search size={14} />
-          <input
-            type="search"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder={t("workspaces.hermes.experts.search")}
-          />
-        </div>
-      </div>
-
-      <nav className="hermes-category-tabs" aria-label="Team categories">
-        {EXPERT_CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            className={category === c.key ? "is-active" : undefined}
-            onClick={() => setCategory(c.key)}
-          >
-            {t(c.labelKey, { defaultValue: c.key })}
-          </button>
-        ))}
-      </nav>
+      <ExpertFilterBar
+        keyword={keyword}
+        category={category}
+        onKeywordChange={setKeyword}
+        onCategoryChange={setCategory}
+        ariaLabel="Team categories"
+      />
 
       {error ? (
         <div className="hermes-page__error">
           <p>{error}</p>
-          <button type="button" className="hermes-btn-ghost" onClick={load}>
+          <button type="button" className="hermes-btn-ghost" onClick={() => void refresh()}>
             {t("workspaces.hermes.chat.retry")}
           </button>
         </div>
       ) : null}
 
-      {loading && filtered.length === 0 ? (
+      {loading && teams.length === 0 ? (
         <p className="hermes-page__loading">{t("workspaces.hermes.common.loading")}</p>
       ) : null}
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && teams.length === 0 ? (
         <p className="hermes-page__empty">{t("workspaces.hermes.expertTeams.empty")}</p>
       ) : (
-        <div className="hermes-expert-grid">
-          {filtered.map((team) => (
+        <ExpertGrid>
+          {teams.map((team) => (
             <ExpertTeamCard
-              key={team.teamId}
+              key={team.id}
               team={team}
+              canSummon={canSummonTeam(team)}
               onView={(item) => {
                 setSelected(item);
-                setModalOpen(true);
+                setDrawerOpen(true);
               }}
               onSummon={openCall}
             />
           ))}
-        </div>
+        </ExpertGrid>
       )}
 
-      <ExpertTeamDetailModal
+      <TeamDetailDrawer
         team={selected}
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         onSummon={openCall}
       />
-      <ExpertCatalogCallDrawer
-        catalogItem={callTarget}
+      <ExpertSummonDrawer
+        target={callTarget?.kind === "expert_team" ? callTarget : null}
         open={callOpen}
         onClose={() => setCallOpen(false)}
-        onSuccess={() => {
-          setModalOpen(false);
-          setActiveNavItem("expertRuns");
+        onSuccess={(runId) => {
+          setDrawerOpen(false);
+          navigateToRun(runId);
         }}
       />
     </div>

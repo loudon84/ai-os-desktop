@@ -1,31 +1,19 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RemoteExpertSkill } from "../../../../../../../shared/hermes-experts/hermes-experts-contract";
-import type { HermesExpert } from "../../../types/hermes-experts";
+import type { WorkExpert } from "../../../model/expert";
+import type { WorkExpertSkill } from "../../../model/expert";
 import { ExpertCapabilityList } from "./ExpertCapabilityList";
 import { ExpertStarterPrompts } from "./ExpertStarterPrompts";
 
 type Props = {
-  expert: HermesExpert | null;
+  expert: WorkExpert | null;
+  skills: WorkExpertSkill[];
   open: boolean;
   onClose: () => void;
-  onSummon: (expert: HermesExpert) => void;
+  onSummon: (expert: WorkExpert) => void;
 };
 
-export function ExpertDetailDrawer({ expert, open, onClose, onSummon }: Props) {
+export function ExpertDetailDrawer({ expert, skills, open, onClose, onSummon }: Props) {
   const { t } = useTranslation();
-  const [skills, setSkills] = useState<RemoteExpertSkill[]>([]);
-  const expertSlug = expert?.catalogSlug ?? expert?.expertSlug ?? expert?.slug;
-
-  useEffect(() => {
-    if (!open || !expertSlug || typeof window.hermesExperts === "undefined") {
-      setSkills([]);
-      return;
-    }
-    void window.hermesExperts.listCatalogSkills(expertSlug).then((res) => {
-      if (res.ok && res.data) setSkills(res.data);
-    });
-  }, [open, expertSlug]);
 
   if (!open || !expert) return null;
 
@@ -45,10 +33,10 @@ export function ExpertDetailDrawer({ expert, open, onClose, onSummon }: Props) {
         </header>
         <div className="hermes-drawer__body">
           <p>{expert.description}</p>
-          {expertSlug ? (
+          {expert.slug ? (
             <section>
               <h3>{t("workspaces.hermes.experts.expertSlug", { defaultValue: "Expert slug" })}</h3>
-              <code>{expertSlug}</code>
+              <code>{expert.slug}</code>
               {expert.publicSkillCount != null ? (
                 <p className="hermes-muted">
                   {t("workspaces.hermes.experts.publicSkills", {
@@ -57,11 +45,11 @@ export function ExpertDetailDrawer({ expert, open, onClose, onSummon }: Props) {
                   })}
                 </p>
               ) : null}
-              {expert.callableSkillCount != null ? (
+              {expert.skillCount != null ? (
                 <p className="hermes-muted">
                   {t("workspaces.hermes.experts.callableSkills", {
                     defaultValue: "{{count}} callable",
-                    count: expert.callableSkillCount,
+                    count: expert.skillCount,
                   })}
                 </p>
               ) : null}
@@ -72,7 +60,7 @@ export function ExpertDetailDrawer({ expert, open, onClose, onSummon }: Props) {
               <h3>{t("workspaces.hermes.experts.skillName", { defaultValue: "Skills" })}</h3>
               <ul className="hermes-expert-skills-list">
                 {skills.map((s) => (
-                  <li key={s.skillName}>
+                  <li key={s.name}>
                     <strong>{s.displayName}</strong>
                     {s.riskLevel ? <span className="hermes-badge">{s.riskLevel}</span> : null}
                     {s.description ? <p className="hermes-muted">{s.description}</p> : null}
@@ -99,11 +87,13 @@ export function ExpertDetailDrawer({ expert, open, onClose, onSummon }: Props) {
               <p>{expert.outputFormats.join(", ")}</p>
             </section>
           ) : null}
-          <section>
-            <h3>{t("workspaces.hermes.experts.detail.role")}</h3>
-            <p>{expert.identity.roleName}</p>
-          </section>
-          <ExpertCapabilityList expert={expert} />
+          {expert.roleName ? (
+            <section>
+              <h3>{t("workspaces.hermes.experts.detail.role")}</h3>
+              <p>{expert.roleName}</p>
+            </section>
+          ) : null}
+          {expert.capabilities ? <ExpertCapabilityList capabilities={expert.capabilities} /> : null}
           <ExpertStarterPrompts
             prompts={expert.starterPrompts}
             onSelect={() => onSummon(expert)}

@@ -225,6 +225,7 @@ import {
   stopGeneHubScheduler,
 } from "./genehub";
 import { registerHermesExpertsIpc, shutdownHermesExpertsIpc } from "./hermes-experts";
+import { registerWorkIpc } from "./work/work-ipc";
 
 process.on("uncaughtException", (err) => {
   console.error("[MAIN UNCAUGHT]", err);
@@ -472,6 +473,7 @@ function setupIPC(): void {
     registerMcpSkillGatewayRuntimeIpc();
     registerGeneHubIpc();
     registerHermesExpertsIpc();
+    registerWorkIpc(() => mainWindow);
   } catch { /* profile-runtime not available in early setup */ }
 
   try {
