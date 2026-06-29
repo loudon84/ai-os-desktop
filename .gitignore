@@ -29,6 +29,9 @@ pnpm-debug.log*
 release/
 .claude/worktrees
 
+# Superpowers brainstorming prototypes (local session artifacts)
+.superpowers/
+
 # Tauri
 **/src-tauri/target/
 **/src-tauri/gen/
