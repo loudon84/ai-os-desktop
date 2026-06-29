@@ -18,7 +18,8 @@ src/renderer/src/screens/Hermes/
 - **V7.2 Remote Experts Pivot** + **Expert MCP Gateway v6.1**：直连 `/api/v1/expert/mcp` 同步召唤（无 HermesTask）；root `tools/list` 严格 kind 过滤；统一 `callCatalogSkill`；`ExpertCatalogCallDrawer`；Workbench Expert Gateway 健康；本地 Runs/Artifacts（schema v3）
 - **V7.1** Hermes Experts Workspace：专家广场 / 专家团队 / 专家运行 + profile-aware Chat
 - **V7.1.1** E2E：Chat↔Run 事件桥接、Tools&MCP Inspector、Desktop register/heartbeat
-- **v1.4 Work 任务窗口**：`pages/Tasks/` — TaskHomeEntry + TaskWindow 三栏（TaskStream 事件流 / TaskRightPanel 五 Tab）；`workApi.task.*` + `workTaskApi`；`VITE_WORK_MOCK_MODE` 销售作战 mock SSE；Main 预留 `work:task-*` IPC
+- **v7.4.1 Work 任务 Hotfix**：`pages/Tasks/` — `WorkTaskStartComposer` 启动任务并绑定 Hermes `sessionId`；`TaskWindow` = `HermesDefaultWebChatSurface` + `WorkTaskContextBar` + 可折叠 `TaskRightPanel`；主导航仅 tasks / experts / expertTeams；`work-tasks.json` 元数据持久化
+- **v1.4 Work 任务窗口**（已由 v7.4.1 取代主路径）：~~TaskStream mock SSE~~
 - 左栏 Sidebar：**三段分组**（主流程含 **tasks** / workbench / chat …；能力管理 / 高级设置，后两组默认折叠）；**v1.3 Phase 6** `requiresGateway` 离线门控（disabled + tooltip，当前页自动回 workbench）；窄栏仅显示主流程 icon
 - 中栏：当前选中页面内容
 - 右栏：Right Panel（Runtime / Inspector）
@@ -47,10 +48,12 @@ src/renderer/src/screens/Hermes/
 | `pages/ExpertRuns/` | 运行记录（`features/expert-run` + `workApi.runs`；组件 RunFilterBar / RunList / RunDetailPanel） |
 | `pages/Artifacts/` | 成果中心（`features/artifact` + `workApi.artifacts`；ArtifactList / PreviewPanel / ImportDialog） |
 | `api/workApi.ts` | **v1.3** Work 域 API 封装（Experts / Teams / Runs / Artifacts → `window.hermesExperts`；**v1.4** `task.*` → `workTaskApi`） |
-| `api/workTaskApi.ts` | **v1.4** 任务 create/send/stop/subscribe；mock 流 + `workspaceChat` 归一化 |
-| `features/task-store/` | **v1.4** `useWorkTaskStore` / reducer / selectors |
-| `features/task-stream/` | **v1.4** `useWorkTaskStream` / `workEventNormalizer` / aggregator |
-| `pages/Tasks/WorkTasksPage.tsx` | **v1.4** 任务首页 + 三栏任务窗口 |
+| `api/workTaskApi.ts` | **v7.4.1** `startTask` / `resumeTask` / `listRecentTasks` → `hermesDefaultChat` + `window.work.task.*` |
+| `features/task-store/` | **v7.4.1** 任务 metadata + activeTask / rightDock UI 状态 |
+| `pages/Tasks/WorkTasksPage.tsx` | **v7.4.1** 任务首页 + Hermes Chat 任务窗口 |
+| `pages/Tasks/components/WorkTaskStartComposer.tsx` | Popover 选择器 + 首条消息启动 |
+| `pages/Tasks/components/WorkTaskContextBar.tsx` | 任务上下文 chips |
+| `pages/Chat/HermesDefaultWebChatSurface.tsx` | 支持 `forcedSessionId`（任务窗口复用） |
 | `features/expert-run/` | Runs 列表/详情 hooks（`useExpertRuns`、`useExpertRunDetail`） |
 | `features/artifact/` | 成果列表/预览/导入 hooks |
 | `features/workbench/` | Workbench 聚合 hooks（`useWorkbenchOverview`、`useQuickTaskEntry`） |
@@ -64,7 +67,7 @@ src/renderer/src/screens/Hermes/
 |---|---|
 | Preload | `window.hermesAPI.*`（本地 default profile） |
 | Preload | `window.hermesExperts.*`（Expert MCP v6.1：`listCatalogSkills` / `callCatalogSkill` / catalog/summon/Runs/本地 artifacts；`getExpertGatewayHealth`；`listExpertSkills` 委托 `listCatalogSkills`；install* deprecated） |
-| Preload | `window.work.task.*`（**v1.4** 任务 IPC：`work:task-send` / `work:task-stop` / `work:task-event`） |
+| Preload | `window.work.task.*`（**v7.4.1**：`start` / `resume` / `list` / `getBySession`；legacy `send`/`onEvent` 保留） |
 | Preload | `window.mcpSkillGatewayRuntime.*`（非专家 MCP Skill Gateway；legacy hermes-client task） |
 
 ## 6. 边界

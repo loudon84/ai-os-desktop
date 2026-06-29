@@ -487,11 +487,12 @@ export const workApi = {
   },
 
   task: {
+    start: workTaskApi.startTask,
+    resume: workTaskApi.resumeTask,
     list: workTaskApi.list,
-    create: workTaskApi.create,
+    listRecent: workTaskApi.listRecentTasks,
     get: workTaskApi.get,
-    send: workTaskApi.send,
+    getBySession: workTaskApi.getBySessionId,
     stop: workTaskApi.stop,
-    subscribe: workTaskApi.subscribe,
   },
 };

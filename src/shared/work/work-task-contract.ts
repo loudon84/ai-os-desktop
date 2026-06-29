@@ -22,15 +22,27 @@ export type WorkTaskStatus =
   | "failed"
   | "cancelled";
 
-export type WorkTaskPermissionMode = "default" | "confirm_sensitive" | "auto";
+/** v7.4.1 — PRD aligned permission modes */
+export type WorkTaskPermissionMode = "default" | "confirm_each" | "auto_low_risk";
 
 export type WorkTaskMode = "ask" | "plan" | "craft" | "execute";
+
+export type WorkTaskSource =
+  | "work_home"
+  | "expert"
+  | "team"
+  | "web_operator"
+  | "session_resume";
 
 export interface WorkTask {
   id: string;
   title: string;
+  /** Hermes session binding — required for v7.4.1+ tasks */
+  sessionId: string;
+  profile: string;
   taskType: WorkTaskType;
   status: WorkTaskStatus;
+  source: WorkTaskSource;
   sourceWorkspace: "work" | "web";
   workspaceId?: string;
   projectId?: string;
@@ -39,6 +51,8 @@ export interface WorkTask {
   selectedExpertIds: string[];
   selectedSkillIds: string[];
   selectedAppIds: string[];
+  permissionMode: WorkTaskPermissionMode;
+  mode?: WorkTaskMode;
   contextRefs: WorkContextRef[];
   outputRefs: WorkOutputRef[];
   createdAt: string;
@@ -48,10 +62,53 @@ export interface WorkTask {
 
 export interface WorkTaskDetail extends WorkTask {
   prompt?: string;
-  mode?: WorkTaskMode;
-  permissionMode?: WorkTaskPermissionMode;
 }
 
+export interface WorkTaskSessionBinding {
+  taskId: string;
+  sessionId: string;
+  profile: string;
+  firstMessageId?: string;
+  lastMessageId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkTasksJson {
+  version: 1;
+  tasks: WorkTask[];
+  bindings: WorkTaskSessionBinding[];
+}
+
+export interface WorkTaskStartInput {
+  prompt: string;
+  profile?: string;
+  resumeSessionId?: string;
+  selectedTeamId?: string;
+  selectedExpertIds?: string[];
+  selectedSkillIds?: string[];
+  selectedAppIds?: string[];
+  permissionMode?: WorkTaskPermissionMode;
+  mode?: WorkTaskMode;
+  attachmentIds?: string[];
+  contextRefs?: WorkContextRef[];
+}
+
+export interface WorkTaskStartResult {
+  ok: boolean;
+  taskId: string;
+  sessionId: string;
+  profile: string;
+  error?: string;
+}
+
+export interface WorkTaskResumeResult {
+  ok: boolean;
+  task: WorkTask | null;
+  error?: string;
+}
+
+/** @deprecated v7.4 legacy — use WorkTaskStartInput */
 export interface WorkTaskSendInput {
   taskId?: string;
   text: string;

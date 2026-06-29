@@ -5,15 +5,24 @@ import { useHermesDefaultChatModels } from "./useHermesDefaultChatModels";
 import { useHermesDefaultComposerState } from "./useHermesDefaultComposerState";
 import { useHermesDefaultChatStream } from "./useHermesDefaultChatStream";
 
-export function useHermesDefaultWebChat() {
+type Options = {
+  /** When set, chat binds to this session instead of context activeSessionId */
+  forcedSessionId?: string | null;
+};
+
+export function useHermesDefaultWebChat(options?: Options) {
   const { activeSessionId, setActiveSessionId, setActiveNavItem, sessions } = useHermesDefault();
+  const boundSessionId: string | null =
+    options && "forcedSessionId" in options
+      ? (options.forcedSessionId ?? null)
+      : activeSessionId;
 
   const sessionId = useMemo(
-    () => activeSessionId ?? `draft_default`,
-    [activeSessionId],
+    () => boundSessionId ?? `draft_default`,
+    [boundSessionId],
   );
 
-  const models = useHermesDefaultChatModels(true, activeSessionId);
+  const models = useHermesDefaultChatModels(true, boundSessionId);
   const attachments = useHermesDefaultChatAttachments(sessionId);
   const composer = useHermesDefaultComposerState();
 
@@ -33,19 +42,19 @@ export function useHermesDefaultWebChat() {
   );
 
   const stream = useHermesDefaultChatStream({
-    activeSessionId,
+    activeSessionId: boundSessionId,
     onSessionId,
   });
 
   const { loadSessionHistory, clearMessages, cancel } = stream;
 
   useEffect(() => {
-    if (activeSessionId) {
-      void loadSessionHistory(activeSessionId);
+    if (boundSessionId) {
+      void loadSessionHistory(boundSessionId);
     } else {
       clearMessages();
     }
-  }, [activeSessionId, loadSessionHistory, clearMessages]);
+  }, [boundSessionId, loadSessionHistory, clearMessages]);
 
   const newConversation = useCallback(() => {
     void cancel();
@@ -60,7 +69,7 @@ export function useHermesDefaultWebChat() {
   }, [setActiveNavItem]);
 
   return {
-    activeSessionId,
+    activeSessionId: boundSessionId,
     sessionId,
     modelId,
     models,

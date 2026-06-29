@@ -749,23 +749,26 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 ---
 
-## Work 任务窗口（v1.4 Work Task Window + SSE）
+## Work 任务窗口（v7.4.1 Hotfix — Hermes Session 绑定）
 
-**Preload**：`window.work`（`src/preload/work-api.ts`）— MVP 仅 `task.send` / `task.stop` / `task.list` / `task.onEvent`；`task.create` 在 Renderer 侧由 `workTaskApi` 处理。
+**Preload**：`window.work`（`src/preload/work-api.ts`）
 
 | Channel | Args | Returns |
 |---------|------|---------|
-| `work:task-send` | `WorkTaskSendInput` | `WorkTaskSendResult` |
+| `work:task-start` | `WorkTaskStartInput & { task: WorkTask }` | `WorkTaskStartResult` |
+| `work:task-list` | `profile?: string` | `WorkTask[]` |
+| `work:task-resume` | `taskId`, `profile?` | `WorkTaskResumeResult` |
+| `work:task-get-by-session` | `sessionId`, `profile?` | `WorkTask \| null` |
+| `work:task-send` | `WorkTaskSendInput` | `WorkTaskSendResult`（**@deprecated** legacy mock SSE） |
 | `work:task-stop` | `taskId: string` | `void` |
-| `work:task-list` | — | `WorkTask[]`（MVP 返回 `[]`） |
 
-**事件（Main → Renderer）**：`work:task-event` — Preload `work.task.onEvent(cb)` 返回 unsubscribe。
+**持久化**：`~/.hermes/desktop/work-tasks.json`（`src/main/work/work-task-store.ts`）。
 
-**Main 模块**：`src/main/work/`（`work-ipc.ts`、`work-task-stream.ts`、`work-event-mapper.ts`）— MVP 占位 SSE 桥接；后续包装 `workspace-chat` / Expert Team SSE。
+**事件（Main → Renderer）**：`work:task-event` — Preload `work.task.onEvent(cb)`（legacy mock 流；v7.4.1 主路径走 Hermes Chat SSE）。
 
-**Shared 契约**：`src/shared/work/`（`work-task-contract.ts`、`work-event-contract.ts`、`work-output-contract.ts`、`work-participant-contract.ts`、`work-context-contract.ts`、`work-error-contract.ts`）。
+**Shared 契约**：`src/shared/work/`（`WorkTask.sessionId` / `profile` / `source` / `permissionMode: default \| confirm_each \| auto_low_risk`）。
 
-**Renderer**：`screens/Hermes/pages/Tasks/` — `WorkTasksPage`（TaskHomeEntry / TaskWindow 三栏）；`api/workTaskApi.ts` + `workApi.task.*`；`features/task-store/`、`features/task-stream/`；`VITE_WORK_MOCK_MODE` 销售作战 mock 流。
+**Renderer**：`screens/Hermes/pages/Tasks/` — `WorkTaskStartComposer` → `workTaskApi.startTask` → `hermesDefaultChat.sendMessage`；任务窗口复用 `HermesDefaultWebChatSurface`（`forcedSessionId`）；最近任务 = Hermes sessions ⨝ `work-tasks.json`。
 
 ---
 

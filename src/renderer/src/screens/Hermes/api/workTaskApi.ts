@@ -1,251 +1,220 @@
-import type { WorkOutput } from "../../../../../shared/work/work-output-contract";
-import type { WorkParticipant } from "../../../../../shared/work/work-participant-contract";
+import type { WorkTaskEvent } from "../../../../../shared/work/work-event-contract";
 import type {
   WorkTask,
   WorkTaskListQuery,
+  WorkTaskPermissionMode,
+  WorkTaskResumeResult,
   WorkTaskSendInput,
   WorkTaskSendResult,
+  WorkTaskStartInput,
+  WorkTaskStartResult,
 } from "../../../../../shared/work/work-task-contract";
-import type { WorkTaskEvent } from "../../../../../shared/work/work-event-contract";
-import { buildSalesCombatMockEvents, buildUserMessageEvent } from "../mock/mockEvents";
-import { createDraftTask } from "../mock/mockTasks";
-import { MOCK_OUTPUTS } from "../mock/mockOutputs";
-import { WORK_MOCK_MODE } from "../mock/workMockMode";
-import { participantsFromEvents } from "../features/task-store/workTaskSelectors";
-import {
-  normalizeWorkspaceChatChunk,
-  normalizeWorkspaceChatDone,
-  normalizeWorkspaceChatError,
-  normalizeWorkspaceChatToolProgress,
-} from "../features/task-stream/workEventNormalizer";
+import { HERMES_DEFAULT_PROFILE } from "../constants";
+import { workApi } from "./workApi";
+import { buildWorkTaskFirstMessage, deriveTaskTitle } from "./workTaskMessageBuilder";
+import { hermesDefaultApi } from "./hermesDefaultApi";
 
-const taskStore = new Map<string, WorkTask>();
-const eventStore = new Map<string, WorkTaskEvent[]>();
-const outputStore = new Map<string, WorkOutput[]>();
-const mockAbortControllers = new Map<string, AbortController>();
-
-function workspaceChatApi(): NonNullable<typeof window.workspaceChat> {
-  if (!window.workspaceChat) {
-    throw new Error("window.workspaceChat is not available");
+function workBridge(): NonNullable<typeof window.work> {
+  if (!window.work?.task) {
+    throw new Error("window.work.task is not available");
   }
-  return window.workspaceChat;
+  return window.work;
 }
 
-function persistTask(task: WorkTask): void {
-  taskStore.set(task.id, task);
+function hermesChat() {
+  if (!window.hermesDefaultChat) {
+    throw new Error("window.hermesDefaultChat is not available");
+  }
+  return window.hermesDefaultChat;
+}
+
+async function resolveTeamName(teamId?: string): Promise<string | undefined> {
+  if (!teamId) return undefined;
+  const team = await workApi.teams.get(teamId);
+  return team?.displayName;
+}
+
+async function resolveExpertNames(ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  const experts = await workApi.experts.list();
+  return ids
+    .map((id) => experts.find((e) => e.id === id)?.displayName ?? id)
+    .filter(Boolean);
+}
+
+async function resolveSkillNames(ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
   try {
-    const ids = Array.from(taskStore.keys());
-    localStorage.setItem("work.tasks.ids", JSON.stringify(ids));
-    localStorage.setItem(`work.task.${task.id}`, JSON.stringify(task));
+    const skills = await hermesDefaultApi.skills.installed();
+    return ids.map((id) => skills.find((s) => s.name === id)?.name ?? id);
   } catch {
-    /* ignore */
-  }
-}
-
-function loadPersistedTasks(): WorkTask[] {
-  try {
-    const raw = localStorage.getItem("work.tasks.ids");
-    if (!raw) return [];
-    const ids = JSON.parse(raw) as string[];
-    return ids
-      .map((id) => {
-        const t = localStorage.getItem(`work.task.${id}`);
-        return t ? (JSON.parse(t) as WorkTask) : null;
-      })
-      .filter((t): t is WorkTask => t !== null);
-  } catch {
-    return [];
-  }
-}
-
-// hydrate on module load
-for (const t of loadPersistedTasks()) {
-  taskStore.set(t.id, t);
-}
-
-async function replayMockStream(
-  taskId: string,
-  onEvent: (event: WorkTaskEvent) => void,
-  signal: AbortSignal,
-): Promise<void> {
-  const events = buildSalesCombatMockEvents(taskId);
-  for (const event of events) {
-    if (signal.aborted) break;
-    onEvent(event);
-    eventStore.set(taskId, [...(eventStore.get(taskId) ?? []), event]);
-    if (event.type === "output.created") {
-      const out: WorkOutput = {
-        id: event.outputId,
-        taskId,
-        name: event.name,
-        type: event.outputType,
-        source: "agent",
-        previewable: true,
-        version: 1,
-        content: event.content,
-        createdBy: "agent",
-        createdAt: event.createdAt,
-      };
-      outputStore.set(taskId, [...(outputStore.get(taskId) ?? []), out]);
-    }
-    await new Promise((r) => setTimeout(r, 120));
+    return ids;
   }
 }
 
 export const workTaskApi = {
+  async startTask(input: WorkTaskStartInput): Promise<WorkTaskStartResult> {
+    const profile = input.profile ?? HERMES_DEFAULT_PROFILE;
+    const prompt = input.prompt.trim();
+    if (!prompt) {
+      return { ok: false, taskId: "", sessionId: "", profile, error: "PROMPT_REQUIRED" };
+    }
+
+    const teamName = await resolveTeamName(input.selectedTeamId);
+    const expertNames = await resolveExpertNames(input.selectedExpertIds ?? []);
+    const skillNames = await resolveSkillNames(input.selectedSkillIds ?? []);
+    const title = deriveTaskTitle(prompt);
+    const message = buildWorkTaskFirstMessage({
+      title,
+      userPrompt: prompt,
+      teamName,
+      expertNames,
+      skillNames,
+      appNames: input.selectedAppIds,
+      permissionMode: input.permissionMode ?? "default",
+      contextRefs: input.contextRefs,
+    });
+
+    const workMode =
+      input.mode === "ask" || input.mode === "plan" || input.mode === "craft"
+        ? input.mode
+        : undefined;
+
+    try {
+      const result = await hermesChat().sendMessage({
+        message,
+        profile,
+        resumeSessionId: input.resumeSessionId,
+        attachment_ids: input.attachmentIds,
+        team_id: input.selectedTeamId,
+        work_mode: workMode,
+        invocation_source: input.selectedTeamId ? "team_chat" : "default_chat",
+      });
+
+      const sessionId = result.sessionId ?? input.resumeSessionId;
+      if (!sessionId) {
+        return { ok: false, taskId: "", sessionId: "", profile, error: "SESSION_ID_MISSING" };
+      }
+
+      const now = new Date().toISOString();
+      const task: WorkTask = {
+        id: crypto.randomUUID(),
+        title,
+        sessionId,
+        profile,
+        taskType: input.selectedTeamId ? "expert_team" : "chat",
+        status: "running",
+        source: input.resumeSessionId ? "session_resume" : "work_home",
+        sourceWorkspace: "work",
+        activeTeamId: input.selectedTeamId,
+        selectedExpertIds: input.selectedExpertIds ?? [],
+        selectedSkillIds: input.selectedSkillIds ?? [],
+        selectedAppIds: input.selectedAppIds ?? [],
+        permissionMode: input.permissionMode ?? "default",
+        mode: input.mode,
+        contextRefs: input.contextRefs ?? [],
+        outputRefs: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const persisted = await workBridge().task.start({ ...input, task });
+      return persisted;
+    } catch (err) {
+      return {
+        ok: false,
+        taskId: "",
+        sessionId: "",
+        profile,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  },
+
+  async resumeTask(taskId: string, profile?: string): Promise<WorkTaskResumeResult> {
+    return workBridge().task.resume(taskId, profile);
+  },
+
   async list(query?: WorkTaskListQuery): Promise<WorkTask[]> {
-    const all = Array.from(taskStore.values()).sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt),
-    );
-    if (!query?.status?.length) return all;
-    return all.filter((t) => query.status?.includes(t.status));
+    const stored = await workBridge().task.list(HERMES_DEFAULT_PROFILE);
+    if (!query?.status?.length) return stored;
+    return stored.filter((t) => query.status?.includes(t.status));
+  },
+
+  async listRecentTasks(limit = 12): Promise<WorkTask[]> {
+    const [sessions, metadata] = await Promise.all([
+      hermesDefaultApi.sessions.list(limit, 0),
+      workBridge().task.list(HERMES_DEFAULT_PROFILE),
+    ]);
+
+    const bySession = new Map(metadata.map((t) => [t.sessionId, t]));
+    const merged: WorkTask[] = [];
+
+    for (const session of sessions) {
+      const meta = bySession.get(session.id);
+      if (meta) {
+        merged.push({
+          ...meta,
+          title: meta.title || session.title || "任务",
+          updatedAt: new Date(session.startedAt).toISOString(),
+        });
+      } else {
+        merged.push({
+          id: `session-${session.id}`,
+          title: session.title || "Hermes 会话",
+          sessionId: session.id,
+          profile: HERMES_DEFAULT_PROFILE,
+          taskType: "chat",
+          status: "completed",
+          source: "session_resume",
+          sourceWorkspace: "work",
+          selectedExpertIds: [],
+          selectedSkillIds: [],
+          selectedAppIds: [],
+          permissionMode: "default",
+          contextRefs: [],
+          outputRefs: [],
+          createdAt: new Date(session.startedAt).toISOString(),
+          updatedAt: new Date(session.startedAt).toISOString(),
+        });
+      }
+    }
+
+    for (const task of metadata) {
+      if (!merged.some((m) => m.sessionId === task.sessionId)) {
+        merged.push(task);
+      }
+    }
+
+    return merged
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, limit);
   },
 
   async get(taskId: string): Promise<WorkTask | null> {
-    return taskStore.get(taskId) ?? null;
+    const list = await workBridge().task.list(HERMES_DEFAULT_PROFILE);
+    return list.find((t) => t.id === taskId) ?? null;
   },
 
-  async create(input: WorkTaskSendInput): Promise<WorkTask> {
-    const task = createDraftTask(input.text, input.selectedTeamId);
-    task.status = "ready";
-    task.selectedSkillIds = input.selectedSkillIds ?? [];
-    task.selectedExpertIds = input.selectedExpertIds ?? [];
-    task.selectedAppIds = input.selectedAppIds ?? [];
-    task.contextRefs = input.contextRefs ?? [];
-    if (input.selectedTeamId) {
-      task.taskType = "expert_team";
-      task.activeTeamId = input.selectedTeamId;
-    }
-    persistTask(task);
-    eventStore.set(task.id, []);
-    return task;
+  async getBySessionId(sessionId: string): Promise<WorkTask | null> {
+    return workBridge().task.getBySession(sessionId, HERMES_DEFAULT_PROFILE);
   },
 
-  async send(input: WorkTaskSendInput): Promise<WorkTaskSendResult> {
-    const taskId = input.taskId;
-    if (!taskId) {
-      return { taskId: "", ok: false, error: "taskId required" };
-    }
-    const task = taskStore.get(taskId);
-    if (!task) {
-      return { taskId, ok: false, error: "WORK_TASK_NOT_FOUND" };
-    }
-
-    const userEv = buildUserMessageEvent(taskId, input.text);
-    const listeners = eventListeners.get(taskId);
-    listeners?.forEach((cb) => cb(userEv));
-
-    const updated = { ...task, status: "running" as const, updatedAt: new Date().toISOString() };
-    persistTask(updated);
-
-    if (WORK_MOCK_MODE || input.selectedTeamId) {
-      const controller = new AbortController();
-      mockAbortControllers.set(taskId, controller);
-      try {
-        await replayMockStream(
-          taskId,
-          (ev) => {
-            listeners?.forEach((cb) => cb(ev));
-          },
-          controller.signal,
-        );
-      } finally {
-        mockAbortControllers.delete(taskId);
-      }
-      return { taskId, ok: true, streamId: `mock-${taskId}` };
-    }
-
-    if (window.workspaceChat) {
-      const profileId = "default";
-      const workspaceId = "work";
-      const sessionId = taskId;
-      const unsubChunk = workspaceChatApi().onChunk((ev) => {
-        if (ev.session_id !== sessionId) return;
-        listeners?.forEach((cb) => cb(normalizeWorkspaceChatChunk(taskId, ev)));
-      });
-      const unsubTool = workspaceChatApi().onToolProgress((ev) => {
-        if (ev.session_id !== sessionId) return;
-        listeners?.forEach((cb) => cb(normalizeWorkspaceChatToolProgress(taskId, ev)));
-      });
-      const unsubDone = workspaceChatApi().onDone((ev) => {
-        if (ev.session_id !== sessionId) return;
-        listeners?.forEach((cb) => cb(normalizeWorkspaceChatDone(taskId, ev)));
-        unsubChunk();
-        unsubTool();
-        unsubDone();
-        unsubErr();
-      });
-      const unsubErr = workspaceChatApi().onError((ev) => {
-        if (ev.session_id !== sessionId) return;
-        listeners?.forEach((cb) => cb(normalizeWorkspaceChatError(taskId, ev)));
-        unsubChunk();
-        unsubTool();
-        unsubDone();
-        unsubErr();
-      });
-      try {
-        await workspaceChatApi().sendMessage({
-          profile_id: profileId,
-          workspace_id: workspaceId,
-          session_id: sessionId,
-          messages: [{ role: "user", content: input.text }],
-        });
-      } catch (err) {
-        return {
-          taskId,
-          ok: false,
-          error: err instanceof Error ? err.message : String(err),
-        };
-      }
-      return { taskId, ok: true, streamId: sessionId };
-    }
-
-    return { taskId, ok: true };
+  /** @deprecated use startTask */
+  async create(_input: WorkTaskSendInput): Promise<WorkTask> {
+    throw new Error("workTaskApi.create is deprecated — use startTask");
   },
 
-  async stop(taskId: string): Promise<void> {
-    const mockCtrl = mockAbortControllers.get(taskId);
-    if (mockCtrl) {
-      mockCtrl.abort();
-      mockAbortControllers.delete(taskId);
-    }
-    if (window.work?.task?.stop) {
-      await window.work.task.stop(taskId);
-      return;
-    }
-    if (window.workspaceChat) {
-      await workspaceChatApi().abort({ profile_id: "default", session_id: taskId });
-    }
+  /** @deprecated use Hermes chat in task window */
+  async send(_input: WorkTaskSendInput): Promise<WorkTaskSendResult> {
+    return { taskId: "", ok: false, error: "use HermesDefaultWebChatSurface" };
   },
 
-  subscribe(taskId: string, callback: (event: WorkTaskEvent) => void): () => void {
-    if (!eventListeners.has(taskId)) {
-      eventListeners.set(taskId, new Set());
-    }
-    eventListeners.get(taskId)?.add(callback);
-
-    if (window.work?.task?.onEvent) {
-      const ipcUnsub = window.work.task.onEvent((event) => {
-        if (event.taskId === taskId) callback(event);
-      });
-      return () => {
-        eventListeners.get(taskId)?.delete(callback);
-        ipcUnsub();
-      };
-    }
-
-    return () => {
-      eventListeners.get(taskId)?.delete(callback);
-    };
+  async stop(_taskId: string): Promise<void> {
+    await hermesChat().abort();
   },
 
-  getOutputs(taskId: string): WorkOutput[] {
-    return outputStore.get(taskId) ?? MOCK_OUTPUTS.filter((o) => o.taskId === taskId);
-  },
-
-  getParticipants(taskId: string, events: WorkTaskEvent[]): WorkParticipant[] {
-    return participantsFromEvents(taskId, events);
+  subscribe(_taskId: string, _callback: (event: WorkTaskEvent) => void): () => void {
+    return () => undefined;
   },
 };
-
-const eventListeners = new Map<string, Set<(event: WorkTaskEvent) => void>>();

@@ -740,10 +740,22 @@ declare global {
     hermesExperts: import("../shared/hermes-experts/hermes-experts-contract").HermesExpertsAPI;
     work: {
       task: {
+        start: (
+          input: import("../shared/work/work-task-contract").WorkTaskStartInput & {
+            task: import("../shared/work/work-task-contract").WorkTask;
+          },
+        ) => Promise<import("../shared/work/work-task-contract").WorkTaskStartResult>;
+        resume: (
+          taskId: string,
+          profile?: string,
+        ) => Promise<import("../shared/work/work-task-contract").WorkTaskResumeResult>;
+        list: (profile?: string) => Promise<import("../shared/work/work-task-contract").WorkTask[]>;
+        getBySession: (
+          sessionId: string,
+          profile?: string,
+        ) => Promise<import("../shared/work/work-task-contract").WorkTask | null>;
         send: (input: import("../shared/work/work-task-contract").WorkTaskSendInput) => Promise<import("../shared/work/work-task-contract").WorkTaskSendResult>;
         stop: (taskId: string) => Promise<void>;
-        list: () => Promise<import("../shared/work/work-task-contract").WorkTask[]>;
-        get: (taskId: string) => Promise<import("../shared/work/work-task-contract").WorkTask | null>;
         onEvent: (callback: (event: import("../shared/work/work-event-contract").WorkTaskEvent) => void) => () => void;
       };
     };

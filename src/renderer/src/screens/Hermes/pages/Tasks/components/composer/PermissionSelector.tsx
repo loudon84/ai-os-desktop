@@ -1,7 +1,8 @@
 import type { WorkTaskPermissionMode } from "../../../../../../../../shared/work/work-task-contract";
 import { useTranslation } from "react-i18next";
+import { ComposerPopoverSelect } from "./ComposerPopoverSelect";
 
-const MODES: WorkTaskPermissionMode[] = ["default", "confirm_sensitive", "auto"];
+const MODES: WorkTaskPermissionMode[] = ["default", "confirm_each", "auto_low_risk"];
 
 type Props = {
   value: WorkTaskPermissionMode;
@@ -10,17 +11,18 @@ type Props = {
 
 export function PermissionSelector({ value, onChange }: Props) {
   const { t } = useTranslation();
+  const options = MODES.map((m) => ({
+    id: m,
+    label: t(`workspaces.hermes.tasks.permission.${m}`, { defaultValue: m }),
+  }));
+
   return (
-    <select
-      className="hermes-composer-select"
+    <ComposerPopoverSelect
       value={value}
-      onChange={(e) => onChange(e.target.value as WorkTaskPermissionMode)}
-    >
-      {MODES.map((m) => (
-        <option key={m} value={m}>
-          {t(`workspaces.hermes.tasks.permission.${m === "confirm_sensitive" ? "confirm" : m}`)}
-        </option>
-      ))}
-    </select>
+      options={options}
+      onChange={(id) => {
+        if (id) onChange(id as WorkTaskPermissionMode);
+      }}
+    />
   );
 }

@@ -1,4 +1,6 @@
-import { MOCK_TEAMS } from "../../../../mock/mockTeams";
+import { useEffect, useState } from "react";
+import { workApi } from "../../../../api/workApi";
+import { ComposerPopoverSelect } from "./ComposerPopoverSelect";
 
 type Props = {
   value?: string;
@@ -7,19 +9,22 @@ type Props = {
 };
 
 export function TeamSelector({ value, onChange, disabled }: Props) {
+  const [teams, setTeams] = useState<{ id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    void workApi.teams.list().then((items) => {
+      setTeams(items.map((t) => ({ id: t.id, label: t.displayName })));
+    });
+  }, []);
+
   return (
-    <select
-      className="hermes-composer-select"
-      value={value ?? ""}
+    <ComposerPopoverSelect
+      value={value}
+      options={teams}
       disabled={disabled}
-      onChange={(e) => onChange(e.target.value || undefined)}
-    >
-      <option value="">—</option>
-      {MOCK_TEAMS.map((team) => (
-        <option key={team.id} value={team.id}>
-          {team.displayName}
-        </option>
-      ))}
-    </select>
+      searchable
+      placeholder="—"
+      onChange={onChange}
+    />
   );
 }

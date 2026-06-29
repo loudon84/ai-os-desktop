@@ -98,12 +98,14 @@ export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
     labelI18nKey: "workspaces.nav.workbench",
     icon: "LayoutDashboard",
     section: "primary",
+    visible: false,
   },
   {
     key: "chat",
     labelI18nKey: "workspaces.nav.chat",
     icon: "MessageSquare",
     section: "primary",
+    visible: false,
   },
   {
     key: "experts",
@@ -125,6 +127,7 @@ export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
     icon: "Activity",
     section: "primary",
     requiresGateway: true,
+    visible: false,
   },
   {
     key: "artifacts",
@@ -132,6 +135,7 @@ export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
     icon: "FileBox",
     section: "primary",
     requiresGateway: true,
+    visible: false,
   },
   {
     key: "skillCenter",

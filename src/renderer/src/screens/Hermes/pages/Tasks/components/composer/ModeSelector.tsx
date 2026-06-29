@@ -1,5 +1,6 @@
 import type { WorkTaskMode } from "../../../../../../../../shared/work/work-task-contract";
 import { useTranslation } from "react-i18next";
+import { ComposerPopoverSelect } from "./ComposerPopoverSelect";
 
 const MODES: WorkTaskMode[] = ["ask", "plan", "craft", "execute"];
 
@@ -10,17 +11,18 @@ type Props = {
 
 export function ModeSelector({ value, onChange }: Props) {
   const { t } = useTranslation();
+  const options = MODES.map((m) => ({
+    id: m,
+    label: t(`workspaces.hermes.tasks.mode.${m}`, { defaultValue: m }),
+  }));
+
   return (
-    <select
-      className="hermes-composer-select"
+    <ComposerPopoverSelect
       value={value}
-      onChange={(e) => onChange(e.target.value as WorkTaskMode)}
-    >
-      {MODES.map((m) => (
-        <option key={m} value={m}>
-          {t(`workspaces.hermes.tasks.mode.${m}`)}
-        </option>
-      ))}
-    </select>
+      options={options}
+      onChange={(id) => {
+        if (id) onChange(id as WorkTaskMode);
+      }}
+    />
   );
 }

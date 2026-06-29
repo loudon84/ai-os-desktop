@@ -6,6 +6,10 @@ export const MOCK_TASKS: WorkTask[] = [
   {
     id: "task-mock-sales-001",
     title: "陕西天基通信 — 销售电话准备",
+    sessionId: "mock-session-sales-001",
+    profile: "default",
+    source: "work_home",
+    permissionMode: "default",
     taskType: "expert_team",
     status: "completed",
     sourceWorkspace: "work",
@@ -27,6 +31,10 @@ export function createDraftTask(title: string, teamId?: string): WorkTask {
   return {
     id,
     title: title.slice(0, 120) || "新任务",
+    sessionId: `draft-${id}`,
+    profile: "default",
+    source: "work_home",
+    permissionMode: "default",
     taskType: teamId ? "expert_team" : "chat",
     status: "draft",
     sourceWorkspace: "work",

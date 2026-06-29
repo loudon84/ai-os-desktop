@@ -99,8 +99,8 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const navigateToExpertRun = useCallback(
     (runId: string) => {
       setPendingExpertRunIdState(runId);
-      setActiveNavItemState("expertRuns");
-      writeStorage(STORAGE_KEYS.activeNavItem, "expertRuns");
+      setActiveNavItemState("tasks");
+      writeStorage(STORAGE_KEYS.activeNavItem, "tasks");
     },
     [],
   );

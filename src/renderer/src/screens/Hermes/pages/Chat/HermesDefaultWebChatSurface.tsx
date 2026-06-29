@@ -8,9 +8,19 @@ import { HermesActiveExpertBar } from "./components/HermesActiveExpertBar";
 import { StatusToast } from "./StatusToast";
 import { useHermesDefaultWebChat } from "./hooks/useHermesDefaultWebChat";
 
-export function HermesDefaultWebChatSurface(): React.JSX.Element {
+type Props = {
+  forcedSessionId?: string | null;
+  hideActiveExpertBar?: boolean;
+};
+
+export function HermesDefaultWebChatSurface({
+  forcedSessionId,
+  hideActiveExpertBar,
+}: Props = {}): React.JSX.Element {
   const { t } = useI18n();
-  const chat = useHermesDefaultWebChat();
+  const chat = useHermesDefaultWebChat(
+    forcedSessionId !== undefined ? { forcedSessionId } : undefined,
+  );
   const { models, attachments, composer, stream, newConversation, viewSessions, modelId } = chat;
   const [search, setSearch] = useState("");
   const selectedModelId =
@@ -57,7 +67,7 @@ export function HermesDefaultWebChatSurface(): React.JSX.Element {
 
   return (
     <div className="hermes-panel-root is-chat hermes-webchat-root">
-      <HermesActiveExpertBar />
+      {!hideActiveExpertBar ? <HermesActiveExpertBar /> : null}
       <StatusToast message={toast} variant={stream.lastError ? "error" : "info"} />
       <div className="hermes-skills-tab__toolbar">
         <label className="hermes-skills-search">

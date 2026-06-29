@@ -1,4 +1,5 @@
-import { MOCK_EXPERTS } from "../../../../mock/mockExperts";
+import { useEffect, useState } from "react";
+import { workApi } from "../../../../api/workApi";
 
 type Props = {
   value: string[];
@@ -7,6 +8,12 @@ type Props = {
 };
 
 export function ExpertSelector({ value, onChange, disabled }: Props) {
+  const [experts, setExperts] = useState<{ id: string; displayName: string }[]>([]);
+
+  useEffect(() => {
+    void workApi.experts.list().then(setExperts);
+  }, []);
+
   const toggle = (id: string) => {
     if (disabled) return;
     if (value.includes(id)) {
@@ -16,9 +23,11 @@ export function ExpertSelector({ value, onChange, disabled }: Props) {
     }
   };
 
+  if (!experts.length) return null;
+
   return (
     <div className="hermes-composer-expert-selector">
-      {MOCK_EXPERTS.map((expert) => (
+      {experts.slice(0, 8).map((expert) => (
         <button
           key={expert.id}
           type="button"

@@ -2546,3 +2546,125 @@
 .hermes-task-recent__card { text-align: left; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--bg-primary); cursor: pointer; }
 @media (max-width: 1279px) { .hermes-task-window { grid-template-columns: minmax(0, 1fr) minmax(360px, 420px); } .hermes-task-list-panel { display: none; } }
 @media (max-width: 959px) { .hermes-task-window { grid-template-columns: 1fr; } .hermes-task-right-panel { display: none; } }
+
+/* —— v7.4.1 Work Tasks hotfix —— */
+.hermes-task-window--v741 {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+}
+.hermes-task-window--v741 .hermes-task-window__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.hermes-task-window__chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.hermes-task-window__chat .hermes-webchat-root {
+  flex: 1;
+  min-height: 0;
+}
+.hermes-task-header__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hermes-task-header__session {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+}
+.hermes-work-task-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.hermes-task-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hermes-task-home__hero--compact h2 {
+  font-size: 18px;
+}
+.hermes-task-home__hero--compact p {
+  font-size: 13px;
+}
+.hermes-composer-popover {
+  position: relative;
+}
+.hermes-composer-popover__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 120px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.hermes-composer-popover__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.hermes-composer-popover__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.hermes-composer-popover__search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  outline: none;
+}
+.hermes-composer-popover__option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.hermes-composer-popover__option.is-active,
+.hermes-composer-popover__option:hover {
+  background: var(--bg-secondary);
+}
+.hermes-task-chip.is-active {
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+}
+@media (max-width: 1279px) {
+  .hermes-task-window--v741 {
+    grid-template-columns: 1fr;
+  }
+  .hermes-task-window--v741 .hermes-task-right-panel {
+    display: none;
+  }
+}

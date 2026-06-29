@@ -1,9 +1,5 @@
-const MOCK_SKILLS = [
-  { id: "crm-research", name: "CRM 客户研究" },
-  { id: "competitive-scan", name: "竞情扫描" },
-  { id: "pipeline-review", name: "Pipeline 评审" },
-  { id: "call-prep", name: "通话准备" },
-] as const;
+import { useEffect, useState } from "react";
+import { hermesDefaultApi } from "../../../../api/hermesDefaultApi";
 
 type Props = {
   value: string[];
@@ -12,6 +8,14 @@ type Props = {
 };
 
 export function SkillSelector({ value, onChange, disabled }: Props) {
+  const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    void hermesDefaultApi.skills.installed().then((items) => {
+      setSkills(items.map((s) => ({ id: s.name, name: s.name })));
+    });
+  }, []);
+
   const toggle = (id: string) => {
     if (disabled) return;
     if (value.includes(id)) {
@@ -21,9 +25,11 @@ export function SkillSelector({ value, onChange, disabled }: Props) {
     }
   };
 
+  if (!skills.length) return null;
+
   return (
     <div className="hermes-composer-skill-selector">
-      {MOCK_SKILLS.map((skill) => (
+      {skills.slice(0, 8).map((skill) => (
         <button
           key={skill.id}
           type="button"
