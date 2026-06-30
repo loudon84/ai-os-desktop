@@ -54,7 +54,16 @@ function resolveCallArguments(
   prompt: string,
 ): OpenAICompatibleExpertPayload | ReturnType<typeof buildExpertToolArguments> {
   if (input.payload?.messages?.length) {
-    return input.payload;
+    return {
+      ...input.payload,
+
+      /**
+       * Compatibility field for current Expert MCP Gateway.
+       * v7.5 source of truth remains payload.messages.
+       * Remove after nodeskclaw fully supports OpenAI-compatible tools/call arguments.
+       */
+      prompt,
+    } as OpenAICompatibleExpertPayload & { prompt: string };
   }
   return buildExpertToolArguments({ prompt, context: input.context as never });
 }
