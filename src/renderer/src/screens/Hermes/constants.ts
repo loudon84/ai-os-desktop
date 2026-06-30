@@ -88,9 +88,9 @@ export type HermesNavItemKey =
 
 export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
   {
-    key: "tasks",
-    labelI18nKey: "workspaces.nav.tasks",
-    icon: "ClipboardList",
+    key: "chat",
+    labelI18nKey: "workspaces.nav.chat",
+    icon: "MessageSquare",
     section: "primary",
   },
   {
@@ -101,9 +101,9 @@ export const HERMES_NAV_ITEMS: readonly HermesNavItemDefinition[] = [
     visible: false,
   },
   {
-    key: "chat",
-    labelI18nKey: "workspaces.nav.chat",
-    icon: "MessageSquare",
+    key: "tasks",
+    labelI18nKey: "workspaces.nav.tasks",
+    icon: "ClipboardList",
     section: "primary",
     visible: false,
   },

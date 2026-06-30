@@ -36,8 +36,10 @@ export function ComposerBar({
   onClear,
   onViewSessions,
   onDropFiles,
+  workControlsSlot,
 }: {
   onDropFiles?: (files: FileList) => void;
+  workControlsSlot?: React.ReactNode;
   displayModel: string;
   selectedModelId: string | null;
   modelGroups: ModelGroup[];
@@ -100,6 +102,10 @@ export function ComposerBar({
         disabled={disabled || busy}
         rows={3}
       />
+
+      {workControlsSlot ? (
+        <div className="hermes-webchat-work-controls">{workControlsSlot}</div>
+      ) : null}
 
       <div className="hermes-webchat-toolbar">
         <ModelSelector

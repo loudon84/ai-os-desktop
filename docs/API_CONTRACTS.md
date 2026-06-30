@@ -745,7 +745,29 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 **契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`hermes-experts-errors.ts`（含 `ExpertErrorCode`）
 
-**Renderer**：默认页 `workbench`；`pages/Workbench/`、`pages/Artifacts/`、`pages/Experts/` + `pages/ExpertTeams/`（统一 `ExpertCatalogCallDrawer` + `callCatalogSkill`）；`ExpertRuns/`（`responseText` / `skillName` / `invocationId`）；GeneHub `skillPush` 页签；上下文桥接 `utils/remote-expert-context.ts` + `hooks/useRemoteExpertContextBridge.ts`（`hermes:remote-expert-context` 事件）。
+**Renderer**：默认页 **chat**（**v7.4.2**）；`pages/Chat/` 内嵌 Work 控件（`workExpertGatewayApi` → `hermes-experts:call-catalog-skill`，无新 IPC）；`pages/Workbench/`、`pages/Artifacts/`、`pages/Experts/` + `pages/ExpertTeams/`（统一 `ExpertCatalogCallDrawer` + `callCatalogSkill`）；`ExpertRuns/`；GeneHub `skillPush` 页签；`pages/Tasks/` 保留但导航隐藏（v7.4.1 遗留）。
+
+---
+
+## v7.4.2 Chat-first Work Controls（Renderer 发送路径，无新 IPC）
+
+**背景**：从 v7.4.1「任务首页预发送」回退为 Chat 主入口；Expert + Skill 选择嵌入 `HermesDefaultWebChatSurface` / `ComposerBar`，仅在用户点击 **Send** 且 `useExpertGateway === true` 时走 Expert Gateway。
+
+**Renderer API 层**（禁止组件直接 `window.hermesExperts`）：
+
+| 模块 | 职责 |
+|------|------|
+| `api/workExpertGatewayApi.ts` | `getHealth` → `workApi.gateway.health`；`listAuthorizedExperts` / `listExpertSkills`；`callExpertSkill` → `window.hermesExperts.callCatalogSkill` |
+| `hooks/useWorkChatContext.ts` | gateway / expert / skill / permission 状态；`useExpertGateway = expert && skill && gatewayStatus === "remote"` |
+| `hooks/useWorkExpertGatewaySend.ts` | Send 时 `appendLocalMessage` + `callExpertSkill`；结果仅本地 UI 展示 |
+| `pages/Chat/hooks/useHermesDefaultChatStream.ts` | 扩展 `appendLocalMessage` / `setExternalRunState` / `setLastError` |
+
+**底层 IPC**（复用既有 Hermes Experts 通道，见上表）：
+
+- `hermes-experts:get-expert-gateway-health`（经 `workApi.gateway.health`）
+- `hermes-experts:list-catalog-skills` + `hermes-experts:call-catalog-skill`
+
+**Hermes 默认路径**（未选 Expert+Skill 或 gateway 非 remote）：`hermesDefaultChat.sendMessage` → Gateway `:8642` SSE（`hermes-chat:*` IPC，无变更）。
 
 ---
 
@@ -768,7 +790,22 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 **Shared 契约**：`src/shared/work/`（`WorkTask.sessionId` / `profile` / `source` / `permissionMode: default \| confirm_each \| auto_low_risk`）。
 
-**Renderer**：`screens/Hermes/pages/Tasks/` — `WorkTaskStartComposer` → `workTaskApi.startTask` → `hermesDefaultChat.sendMessage`；任务窗口复用 `HermesDefaultWebChatSurface`（`forcedSessionId`）；最近任务 = Hermes sessions ⨝ `work-tasks.json`。
+**Renderer**：`screens/Hermes/pages/Tasks/` — `WorkTaskStartComposer` → `workTaskApi.startTask` → `hermesDefaultChat.sendMessage`；任务窗口复用 `HermesDefaultWebChatSurface`（`forcedSessionId`）；最近任务 = Hermes sessions ⨝ `work-tasks.json`。**v7.4.2**：`tasks` 导航隐藏；主发送路径见下节。
+
+---
+
+## v7.4.2 Chat-first Work Controls（Renderer，无新 IPC）
+
+Chat 为 Local Hermes 默认页；Work 控件（Expert / Skill / Permission / Gateway badge）嵌入 `ComposerBar.workControlsSlot` 与 `WorkChatContextBar`。
+
+**发送双路径**（用户点击 Send 时）：
+
+| 条件 | 路径 |
+|------|------|
+| `selectedExpert` + `selectedSkill` + `gatewayStatus === "remote"` | `workExpertGatewayApi.callExpertSkill` → `hermes-experts:call-catalog-skill`；消息经 `useHermesDefaultChatStream.appendLocalMessage` 展示 |
+| 否则 | `hermesDefaultChat.sendMessage` → `hermes-chat:*` → Gateway `:8642` SSE |
+
+**Renderer 模块**：`api/workExpertGatewayApi.ts`、`types/work-chat.ts`、`pages/Chat/hooks/useWorkChatContext.ts`、`useWorkExpertGatewaySend.ts`、`pages/Chat/components/work/*`（English-only UI literals）。
 
 ---
 

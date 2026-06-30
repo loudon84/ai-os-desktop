@@ -32,6 +32,9 @@ export function useHermesDefaultChatStream(input: {
   cancel: () => Promise<void>;
   clearMessages: () => void;
   loadSessionHistory: (sid: string) => Promise<void>;
+  appendLocalMessage: (message: { role: "user" | "assistant"; content: string }) => void;
+  setExternalRunState: (state: HermesChatRunState) => void;
+  setLastError: (error: string | null) => void;
 } {
   const workspace = useHermesWorkspace();
   const chatApi = useMemo(
@@ -152,6 +155,32 @@ export function useHermesDefaultChatStream(input: {
     setHistoryLoadError(null);
   }, []);
 
+  const appendLocalMessage = useCallback(
+    (message: { role: "user" | "assistant"; content: string }) => {
+      const msg: HermesMessage = {
+        id: newId(),
+        role: message.role,
+        content: message.content,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => {
+        const next = [...prev, msg];
+        messagesRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setExternalRunState = useCallback((state: HermesChatRunState) => {
+    setRunState(state);
+    runStateRef.current = state;
+  }, []);
+
+  const setLastErrorExplicit = useCallback((error: string | null) => {
+    setLastError(error);
+  }, []);
+
   const send = useCallback(
     async (
       text: string,
@@ -238,6 +267,9 @@ export function useHermesDefaultChatStream(input: {
     cancel,
     clearMessages,
     loadSessionHistory,
+    appendLocalMessage,
+    setExternalRunState,
+    setLastError: setLastErrorExplicit,
   };
 }
 

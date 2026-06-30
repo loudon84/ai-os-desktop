@@ -61,10 +61,14 @@ type HermesDefaultContextValue = {
 
 const HermesDefaultContext = createContext<HermesDefaultContextValue | null>(null);
 
+function readActiveNavItem(): HermesNavItemKey {
+  const stored = readStorage<HermesNavItemKey>(STORAGE_KEYS.activeNavItem, "chat");
+  if (stored === "tasks" || stored === "workbench") return "chat";
+  return stored;
+}
+
 export function HermesDefaultProvider({ children }: { children: ReactNode }) {
-  const [activeNavItem, setActiveNavItemState] = useState<HermesNavItemKey>(() =>
-    readStorage(STORAGE_KEYS.activeNavItem, "tasks"),
-  );
+  const [activeNavItem, setActiveNavItemState] = useState<HermesNavItemKey>(readActiveNavItem);
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(() =>
     readStorage(STORAGE_KEYS.activeSessionId, null),
   );
@@ -99,8 +103,8 @@ export function HermesDefaultProvider({ children }: { children: ReactNode }) {
   const navigateToExpertRun = useCallback(
     (runId: string) => {
       setPendingExpertRunIdState(runId);
-      setActiveNavItemState("tasks");
-      writeStorage(STORAGE_KEYS.activeNavItem, "tasks");
+      setActiveNavItemState("chat");
+      writeStorage(STORAGE_KEYS.activeNavItem, "chat");
     },
     [],
   );

@@ -18,9 +18,10 @@ src/renderer/src/screens/Hermes/
 - **V7.2 Remote Experts Pivot** + **Expert MCP Gateway v6.1**：直连 `/api/v1/expert/mcp` 同步召唤（无 HermesTask）；root `tools/list` 严格 kind 过滤；统一 `callCatalogSkill`；`ExpertCatalogCallDrawer`；Workbench Expert Gateway 健康；本地 Runs/Artifacts（schema v3）
 - **V7.1** Hermes Experts Workspace：专家广场 / 专家团队 / 专家运行 + profile-aware Chat
 - **V7.1.1** E2E：Chat↔Run 事件桥接、Tools&MCP Inspector、Desktop register/heartbeat
-- **v7.4.1 Work 任务 Hotfix**：`pages/Tasks/` — `WorkTaskStartComposer` 启动任务并绑定 Hermes `sessionId`；`TaskWindow` = `HermesDefaultWebChatSurface` + `WorkTaskContextBar` + 可折叠 `TaskRightPanel`；主导航仅 tasks / experts / expertTeams；`work-tasks.json` 元数据持久化
+- **v7.4.2 Chat-first Work Controls**：Chat 恢复默认入口与侧栏首位；`ComposerBar.workControlsSlot` 内嵌 `WorkComposerControls`（Expert / Skill / Permission / Gateway）；`WorkChatContextBar`；Send 双路径（Hermes SSE vs `workExpertGatewayApi.callExpertSkill`）；`tasks` / `workbench` 导航隐藏；`pages/Tasks/**` 源码保留不继续优化
+- **v7.4.1 Work 任务 Hotfix**（导航已由 v7.4.2 回退）：`pages/Tasks/` — `WorkTaskStartComposer`、`TaskWindow`、`work-tasks.json` 仍保留供遗留路径
 - **v1.4 Work 任务窗口**（已由 v7.4.1 取代主路径）：~~TaskStream mock SSE~~
-- 左栏 Sidebar：**三段分组**（主流程含 **tasks** / workbench / chat …；能力管理 / 高级设置，后两组默认折叠）；**v1.3 Phase 6** `requiresGateway` 离线门控（disabled + tooltip，当前页自动回 workbench）；窄栏仅显示主流程 icon
+- 左栏 Sidebar：**三段分组**（主流程含 **chat**（默认）/ experts / expertTeams …；`tasks` / `workbench` **v7.4.2 隐藏**；能力管理 / 高级设置，后两组默认折叠）；**v1.3 Phase 6** `requiresGateway` 离线门控（disabled + tooltip）；窄栏仅显示主流程 icon
 - 中栏：当前选中页面内容
 - 右栏：Right Panel（Runtime / Inspector）
 - 固定使用 `default` profile 做本地 Chat；远端专家 `profileId: remote`
@@ -32,8 +33,8 @@ src/renderer/src/screens/Hermes/
 |---|---|
 | `index.tsx` | 导出入口 + `useRemoteExpertContextBridge` |
 | `api/hermesDefaultApi.ts` | 封装 `window.hermesAPI` |
-| `constants.ts` | 导航项（含 workbench / artifacts） |
-| `context/HermesDefaultContext.tsx` | 默认页 **tasks**（v1.4） |
+| `constants.ts` | 导航项（**v7.4.2**：`chat` 首位可见；`tasks`/`workbench` hidden） |
+| `context/HermesDefaultContext.tsx` | 默认页 **chat**（v7.4.2）；历史 `tasks`/`workbench` localStorage 迁移至 `chat` |
 | `context/HermesExpertsContext.tsx` | 专家/团队目录 Context（Inspector / Chat 用 `getExpertById`；**Phase 6** 已移除 `runs`/`refreshRuns`） |
 | `hooks/useRemoteExpertContextBridge.ts` | WebOperator/屏幕上下文事件桥 |
 | `utils/remote-expert-context.ts` | tools/call context 存储 |
@@ -53,7 +54,13 @@ src/renderer/src/screens/Hermes/
 | `pages/Tasks/WorkTasksPage.tsx` | **v7.4.1** 任务首页 + Hermes Chat 任务窗口 |
 | `pages/Tasks/components/WorkTaskStartComposer.tsx` | Popover 选择器 + 首条消息启动 |
 | `pages/Tasks/components/WorkTaskContextBar.tsx` | 任务上下文 chips |
-| `pages/Chat/HermesDefaultWebChatSurface.tsx` | 支持 `forcedSessionId`（任务窗口复用） |
+| `api/workExpertGatewayApi.ts` | **v7.4.2** Chat Work 控件唯一 Expert Gateway 封装（`callCatalogSkill` / health / catalog skills） |
+| `types/work-chat.ts` | **v7.4.2** Work Chat 上下文类型 |
+| `pages/Chat/hooks/useWorkChatContext.ts` | Gateway / expert / skill / permission 状态 |
+| `pages/Chat/hooks/useWorkExpertGatewaySend.ts` | Expert Gateway Send 路径 |
+| `pages/Chat/components/work/*` | `WorkComposerControls`、`WorkChatContextBar`、选择器（English-only） |
+| `pages/Chat/ComposerBar.tsx` | **v7.4.2** `workControlsSlot` 插槽 |
+| `pages/Chat/HermesDefaultWebChatSurface.tsx` | Chat 主面 + Work 控件 + Send 双路径；支持 `forcedSessionId`（任务窗口遗留） |
 | `features/expert-run/` | Runs 列表/详情 hooks（`useExpertRuns`、`useExpertRunDetail`） |
 | `features/artifact/` | 成果列表/预览/导入 hooks |
 | `features/workbench/` | Workbench 聚合 hooks（`useWorkbenchOverview`、`useQuickTaskEntry`） |
@@ -66,7 +73,7 @@ src/renderer/src/screens/Hermes/
 | 来源 | API |
 |---|---|
 | Preload | `window.hermesAPI.*`（本地 default profile） |
-| Preload | `window.hermesExperts.*`（Expert MCP v6.1：`listCatalogSkills` / `callCatalogSkill` / catalog/summon/Runs/本地 artifacts；`getExpertGatewayHealth`；`listExpertSkills` 委托 `listCatalogSkills`；install* deprecated） |
+| Preload | `window.hermesExperts.*`（Expert MCP v6.1；Chat Work 控件经 `workExpertGatewayApi` 间接调用，组件禁止直连） |
 | Preload | `window.work.task.*`（**v7.4.1**：`start` / `resume` / `list` / `getBySession`；legacy `send`/`onEvent` 保留） |
 | Preload | `window.mcpSkillGatewayRuntime.*`（非专家 MCP Skill Gateway；legacy hermes-client task） |
 
@@ -76,4 +83,4 @@ src/renderer/src/screens/Hermes/
 
 ## 7. IPC
 
-见 `docs/API_CONTRACTS.md` § Hermes Experts Workspace（V7.2）。
+见 `docs/API_CONTRACTS.md` § Hermes Experts Workspace（V7.2）与 § v7.4.2 Chat-first Work Controls。

@@ -2,11 +2,16 @@ import { useCallback, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useI18n } from "../../../../components/useI18n";
 import { formatChatError } from "../../utils/formatChatError";
+import { WorkChatContextBar } from "./components/work/WorkChatContextBar";
+import { WorkComposerControls } from "./components/work/WorkComposerControls";
 import { ChatScrollArea } from "./ChatScrollArea";
 import { ComposerBar } from "./ComposerBar";
 import { HermesActiveExpertBar } from "./components/HermesActiveExpertBar";
 import { StatusToast } from "./StatusToast";
 import { useHermesDefaultWebChat } from "./hooks/useHermesDefaultWebChat";
+import { useWorkChatContext } from "./hooks/useWorkChatContext";
+import { useWorkExpertGatewaySend } from "./hooks/useWorkExpertGatewaySend";
+import { HERMES_DEFAULT_PROFILE } from "../../constants";
 
 type Props = {
   forcedSessionId?: string | null;
@@ -21,10 +26,20 @@ export function HermesDefaultWebChatSurface({
   const chat = useHermesDefaultWebChat(
     forcedSessionId !== undefined ? { forcedSessionId } : undefined,
   );
-  const { models, attachments, composer, stream, newConversation, viewSessions, modelId } = chat;
+  const workContext = useWorkChatContext();
+  const { models, attachments, composer, stream, newConversation, viewSessions, modelId, activeSessionId } =
+    chat;
+  const expertGatewaySend = useWorkExpertGatewaySend(workContext, {
+    appendLocalMessage: stream.appendLocalMessage,
+    setExternalRunState: stream.setExternalRunState,
+    setLastError: stream.setLastError,
+  });
+
   const [search, setSearch] = useState("");
   const selectedModelId =
     models.pendingModel?.id ?? models.models.find((m) => m.is_current)?.id ?? null;
+
+  const showWorkControls = !hideActiveExpertBar;
 
   const toast =
     stream.historyLoadError ??
@@ -56,11 +71,35 @@ export function HermesDefaultWebChatSurface({
     if (!composer.canSend(attachments.attachments.length > 0)) return;
     const attachmentMetas = attachments.attachments;
     const attachmentIds = attachmentMetas.map((a) => a.id);
+
+    if (workContext.useExpertGateway) {
+      void expertGatewaySend.sendToExpertGateway({
+        text,
+        attachmentIds,
+        modelId,
+        sessionId: activeSessionId,
+        profile: HERMES_DEFAULT_PROFILE,
+        onComposerClear: () => {
+          composer.clear();
+          attachments.clear();
+        },
+      });
+      return;
+    }
+
     void stream.send(text, attachmentIds, modelId, attachmentMetas).then(() => {
       composer.clear();
       attachments.clear();
     });
-  }, [attachments, composer, modelId, stream]);
+  }, [
+    activeSessionId,
+    attachments,
+    composer,
+    expertGatewaySend,
+    modelId,
+    stream,
+    workContext.useExpertGateway,
+  ]);
 
   const disabled = false;
   const busy = stream.runState === "streaming" || stream.runState === "creating";
@@ -93,6 +132,7 @@ export function HermesDefaultWebChatSurface({
           </p>
         ) : null}
       </div>
+      {showWorkControls ? <WorkChatContextBar context={workContext} /> : null}
       <ChatScrollArea
         messages={visibleMessages}
         streamingContent={stream.streamingContent}
@@ -142,8 +182,8 @@ export function HermesDefaultWebChatSurface({
         }}
         onDropFiles={handleDropFiles}
         onViewSessions={viewSessions}
+        workControlsSlot={showWorkControls ? <WorkComposerControls context={workContext} /> : null}
       />
     </div>
   );
 }
-

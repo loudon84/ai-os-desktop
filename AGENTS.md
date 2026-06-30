@@ -8,7 +8,7 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | 0.3.6（… + **v7.4.1 Work 任务 Hotfix** + **v1.4 Work 任务窗口** + **V7.2.1 Expert MCP v6.1 Hotfix** + …） |
+| 版本 | 0.3.6（… + **v7.4.2 Chat-first Work Controls** + **v7.4.1 Work 任务 Hotfix** + **v1.4 Work 任务窗口** + **V7.2.1 Expert MCP v6.1 Hotfix** + …） |
 | appId | `com.smc.smc-ai-copilot`（productName: **SMC-Copilot**；主程序 **desktop.exe**） |
 | 后端 | Hermes Python Gateway，`http://127.0.0.1:8642`（default Profile） |
 
@@ -549,7 +549,8 @@ Cursor rules：`.cursor/rules/workbuddy-product-line.mdc`、`.cursor/rules/herme
 | **V6.3.3** | **WebOperator Task Session 绑定键调整**：`source + requestId` 替代 `pageUrl` 唯一键；schema v2 + v1 迁移；Main 派生 `taskId`；HostBridge `web-host-bridge` | `prd/v6.3.3_task-to-session-request.md`, `web-operator-task-session-*`, `shared/web-operator/build-task-id.ts`, `HermesTaskPanel.tsx`, `HostBridgePanel.tsx` |
 | **V6.3.4** | **WebOperator Hermes→Host 表单写回**：Hermes 输出 `host_form_fill` artifact；Panel「写回当前表单」按钮；`HostBridgeCommandContext` 共享 `runCommand`；`desktop.host.form.fill` | `prd/v6.3.4_weboperator-hermes-host-form-fill.md`, `host-bridge/HostBridgeCommandContext.tsx`, `components/hermes/panel/host-form-fill/*`, `WebOperatorHermesPanelMessageList.tsx` |
 | **V6.7.1** | **GeneHub MCP Registration Hardening**：bundle-preview 不 claim、ignore 同步服务端、profile-mapping.json、serverProfileId sync、签名校验、scripts provenance、MCP Gateway 卡片增强 | `genehub-profile-mapping.ts`, `genehub-client.ts`, `mcp-registration-service.ts`, `skill-install-worker.ts`, `script-provenance.ts`, `skill-package-validator.ts`, `GeneHubMcpRegistrationPanel.tsx`, `McpGatewayGeneHubRegistrationCard.tsx` |
-| **v7.4.1** | **Work 任务 Hotfix**：Hermes session 绑定、`HermesDefaultWebChatSurface` 任务窗口、`work-tasks.json`、`work:task-start/list/resume`、Popover 启动器、导航收敛 | `pages/Tasks/`, `workTaskApi.ts`, `work-task-store.ts`, `prd_work/v7.4.1_hotfix.md` |
+| **v7.4.2** | **Chat-first Work Controls**：Chat 恢复默认入口；`ComposerBar.workControlsSlot` + `WorkComposerControls` / `WorkChatContextBar`；`workExpertGatewayApi` 封装 Expert Gateway；Send 双路径（Hermes SSE vs `callCatalogSkill`）；`tasks` 导航隐藏 | `pages/Chat/components/work/`, `api/workExpertGatewayApi.ts`, `hooks/useWorkChatContext.ts`, `hooks/useWorkExpertGatewaySend.ts`, `prd_work/v7.4.2_hotfix.md` |
+| **v7.4.1** | **Work 任务 Hotfix**（导航已由 v7.4.2 回退）：Hermes session 绑定、`HermesDefaultWebChatSurface` 任务窗口、`work-tasks.json`、`work:task-start/list/resume`、Popover 启动器 | `pages/Tasks/`, `workTaskApi.ts`, `work-task-store.ts`, `prd_work/v7.4.1_hotfix.md` |
 | **v1.4** | **Work 任务窗口**（主路径已由 v7.4.1 取代）：`tasks` 导航、`pages/Tasks/`、stream blocks 代码保留供 RightDock | `screens/Hermes/pages/Tasks/`, `src/main/work/`, `prd_work/v1.4_work-agent-event-stream.md` |
 | **V7.2.1** | **Expert MCP v6.1 Hotfix**：`ExpertMcpClient` class、`callCatalogSkill` 统一调用、`expert-route-guard` 强拦截、`expert-mcp-mappers`、严格 catalog kind 过滤、DB schema v3、`ExpertCatalogCallDrawer`、IPC `list-catalog-skills` / `call-catalog-skill` | `expert-mcp-client.ts`, `expert-route-guard.ts`, `expert-mcp-mappers.ts`, `expert-runtime.ts`, `ExpertCatalogCallDrawer.tsx`, `docs/API_CONTRACTS.md` § Hermes Experts |
 | **V7.2** | **Remote Experts Pivot** + **Expert MCP Gateway v6**：直连 `/api/v1/expert/mcp` 同步 `tools/call`（无 HermesTask）；root `tools/list` 目录；`expert-mcp-client.ts`；Workbench Expert Gateway 健康；skill 选择 Call Drawer；本地 Runs/Artifacts | `expert-mcp-client.ts`, `expert-remote-catalog.ts`, `pages/Workbench|Artifacts|Experts`, `docs/specs/v7.2-nodeskclaw-remote-experts/` |
