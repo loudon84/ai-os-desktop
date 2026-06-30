@@ -15,8 +15,12 @@ function expertsApi(): NonNullable<typeof window.hermesExperts> {
 }
 
 function mapGatewayStatus(health: Awaited<ReturnType<typeof workApi.gateway.health>>): ExpertGatewayStatus {
-  if (!health.ok) return "unavailable";
-  if (health.runtimeReady === false) return "unavailable";
+  if (!health?.ok) return "unavailable";
+
+  if (health.runtimeReady === false && health.callableSkills === 0) {
+    return "unavailable";
+  }
+
   return "remote";
 }
 

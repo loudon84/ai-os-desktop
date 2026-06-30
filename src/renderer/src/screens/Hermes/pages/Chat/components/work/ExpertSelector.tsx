@@ -69,6 +69,9 @@ export function ExpertSelector({ context }: Props) {
           placeholder={placeholder}
           disabled={disabled}
           searchable
+          placement="top"
+          menuWidth={280}
+          maxMenuHeight={320}
           onChange={(id) => {
             const expert = experts.find((e) => e.expertId === id) ?? null;
             setExpert(expert);

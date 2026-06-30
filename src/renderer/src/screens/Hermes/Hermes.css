@@ -2675,6 +2675,9 @@
   border-top: 1px solid var(--border);
 }
 .hermes-work-composer-controls {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -2761,60 +2764,82 @@
   cursor: pointer;
   color: var(--text-muted);
 }
-.hermes-work-popover {
+.hermes-work-popover-select {
   position: relative;
+  min-width: 160px;
 }
-.hermes-work-popover__trigger {
+.hermes-work-popover-trigger {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  min-width: 140px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  font-size: 12px;
+  gap: 8px;
   cursor: pointer;
 }
-.hermes-work-popover__menu {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 200px;
-  max-height: 240px;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+.hermes-work-popover-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
-.hermes-work-popover__search {
+.hermes-work-popover-panel {
+  position: fixed;
+  z-index: 99999;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.18),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+  padding: 6px;
+}
+.hermes-work-popover-search {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  border-bottom: 1px solid #f1f1f1;
+  color: #6b7280;
 }
-.hermes-work-popover__search input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  outline: none;
-}
-.hermes-work-popover__option {
-  display: block;
+.hermes-work-popover-search input {
   width: 100%;
-  text-align: left;
-  border: none;
+  border: 0;
+  outline: none;
   background: transparent;
-  padding: 8px 10px;
   font-size: 12px;
-  cursor: pointer;
 }
-.hermes-work-popover__option.is-active,
-.hermes-work-popover__option:hover {
-  background: var(--bg-secondary);
+.hermes-work-popover-options {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.hermes-work-popover-option {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #111827;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  display: block;
+}
+.hermes-work-popover-option:hover,
+.hermes-work-popover-option.is-selected {
+  background: #f4f4f5;
+}
+.hermes-webchat-composer {
+  overflow: visible;
 }

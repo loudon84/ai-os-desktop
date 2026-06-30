@@ -26,6 +26,10 @@ export function PermissionSelector({ context }: Props) {
       <WorkPopoverSelect
         value={permissionMode}
         options={options}
+        placeholder={LABELS.default}
+        placement="top"
+        menuWidth={180}
+        maxMenuHeight={180}
         onChange={(id) => {
           if (id) setPermissionMode(id as WorkPermissionMode);
         }}
