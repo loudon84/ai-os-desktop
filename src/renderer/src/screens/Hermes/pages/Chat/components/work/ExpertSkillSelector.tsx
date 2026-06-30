@@ -65,8 +65,8 @@ export function ExpertSkillSelector({ context }: Props) {
         disabled={disabled}
         searchable
         placement="top"
-        menuWidth={320}
-        maxMenuHeight={320}
+        menuWidth={240}
+        maxMenuHeight={280}
         onChange={(id) => {
           const skill = skills.find((s) => s.name === id) ?? null;
           setSkill(skill);

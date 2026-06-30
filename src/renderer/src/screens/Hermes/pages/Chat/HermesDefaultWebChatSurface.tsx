@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useI18n } from "../../../../components/useI18n";
 import { formatChatError } from "../../utils/formatChatError";
 import { WorkChatContextBar } from "./components/work/WorkChatContextBar";
 import { WorkComposerControls } from "./components/work/WorkComposerControls";
+import { WorkExpertOutputPanel } from "./components/work/WorkExpertOutputPanel";
 import { ChatScrollArea } from "./ChatScrollArea";
 import { ComposerBar } from "./ComposerBar";
 import { HermesActiveExpertBar } from "./components/HermesActiveExpertBar";
@@ -11,8 +12,7 @@ import { StatusToast } from "./StatusToast";
 import { useHermesDefaultWebChat } from "./hooks/useHermesDefaultWebChat";
 import { useWorkChatContext } from "./hooks/useWorkChatContext";
 import { useWorkExpertGatewaySend } from "./hooks/useWorkExpertGatewaySend";
-import { HERMES_DEFAULT_PROFILE } from "../../constants";
-
+import { useExpertTaskStream } from "./hooks/useExpertTaskStream";
 type Props = {
   forcedSessionId?: string | null;
   hideActiveExpertBar?: boolean;
@@ -27,14 +27,14 @@ export function HermesDefaultWebChatSurface({
     forcedSessionId !== undefined ? { forcedSessionId } : undefined,
   );
   const workContext = useWorkChatContext();
+  const expertTaskStream = useExpertTaskStream();
   const { models, attachments, composer, stream, newConversation, viewSessions, modelId, activeSessionId } =
     chat;
   const expertGatewaySend = useWorkExpertGatewaySend(workContext, {
     appendLocalMessage: stream.appendLocalMessage,
     setExternalRunState: stream.setExternalRunState,
     setLastError: stream.setLastError,
-  });
-
+  }, expertTaskStream);
   const [search, setSearch] = useState("");
   const selectedModelId =
     models.pendingModel?.id ?? models.models.find((m) => m.is_current)?.id ?? null;
@@ -78,7 +78,6 @@ export function HermesDefaultWebChatSurface({
         attachmentIds,
         modelId,
         sessionId: activeSessionId,
-        profile: HERMES_DEFAULT_PROFILE,
         onComposerClear: () => {
           composer.clear();
           attachments.clear();
@@ -104,9 +103,35 @@ export function HermesDefaultWebChatSurface({
   const disabled = false;
   const busy = stream.runState === "streaming" || stream.runState === "creating";
 
+  const handlePreviewArtifact = useCallback(
+    (artifact: Parameters<typeof expertTaskStream.previewArtifact>[0]) => {
+      void expertTaskStream.previewArtifact(artifact);
+    },
+    [expertTaskStream],
+  );
+
+  const handleDownloadArtifact = useCallback(
+    (artifact: Parameters<typeof expertTaskStream.downloadArtifact>[0]) => {
+      void expertTaskStream.downloadArtifact(artifact);
+    },
+    [expertTaskStream],
+  );
+
+  const showOutputPanel =
+    expertTaskStream.selectedArtifact != null || expertTaskStream.artifacts.length > 0;
+
+  useEffect(() => {
+    const latest = expertTaskStream.timelines.at(-1);
+    if (!latest) return;
+    if (latest.status === "completed") {
+      stream.setExternalRunState("completed");
+    } else if (latest.status === "failed") {
+      stream.setExternalRunState("error");
+    }
+  }, [expertTaskStream.timelines, stream]);
+
   return (
-    <div className="hermes-panel-root is-chat hermes-webchat-root">
-      {!hideActiveExpertBar ? <HermesActiveExpertBar /> : null}
+    <div className="hermes-panel-root is-chat hermes-webchat-root">      {!hideActiveExpertBar ? <HermesActiveExpertBar /> : null}
       <StatusToast message={toast} variant={stream.lastError ? "error" : "info"} />
       <div className="hermes-skills-tab__toolbar">
         <label className="hermes-skills-search">
@@ -133,15 +158,18 @@ export function HermesDefaultWebChatSurface({
         ) : null}
       </div>
       {showWorkControls ? <WorkChatContextBar context={workContext} /> : null}
-      <ChatScrollArea
+      <div className={`hermes-webchat-main${showOutputPanel ? " has-expert-output" : ""}`}>
+        <ChatScrollArea
         messages={visibleMessages}
         streamingContent={stream.streamingContent}
         activeTool={stream.activeTool}
         runState={stream.runState}
         lastError={stream.lastError}
         lastUsage={stream.lastUsage}
-        emptyTitle={
-          searchActive
+        expertTaskTimelines={expertTaskStream.timelines}
+        onPreviewArtifact={handlePreviewArtifact}
+        onDownloadArtifact={handleDownloadArtifact}
+        emptyTitle={          searchActive
             ? t("workspaces.hermes.chat.search.noResultsTitle", { defaultValue: "No results" })
             : undefined
         }
@@ -153,6 +181,17 @@ export function HermesDefaultWebChatSurface({
             : undefined
         }
       />
+        {showOutputPanel ? (
+          <WorkExpertOutputPanel
+            artifacts={expertTaskStream.artifacts}
+            selectedArtifact={expertTaskStream.selectedArtifact}
+            previewContent={expertTaskStream.previewContent}
+            previewLoading={expertTaskStream.previewLoading}
+            onClose={() => expertTaskStream.setSelectedArtifact(null)}
+            onSelectArtifact={(artifact) => void expertTaskStream.previewArtifact(artifact)}
+          />
+        ) : null}
+      </div>
       <ComposerBar
         displayModel={models.displayModel}
         selectedModelId={selectedModelId}
@@ -184,6 +223,5 @@ export function HermesDefaultWebChatSurface({
         onViewSessions={viewSessions}
         workControlsSlot={showWorkControls ? <WorkComposerControls context={workContext} /> : null}
       />
-    </div>
-  );
+    </div>  );
 }

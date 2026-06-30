@@ -23,6 +23,7 @@ import type {
   ToolsCallResult,
   ToolsListResult,
 } from "../../shared/hermes-experts/hermes-experts-contract";
+import type { OpenAICompatibleExpertPayload } from "../../shared/hermes-experts/expert-task-stream-contract";
 import { HermesExpertsError } from "../../shared/hermes-experts/hermes-experts-errors";
 import {
   extractTextContent,
@@ -234,7 +235,7 @@ export class ExpertMcpClient {
   async callSkill(input: {
     slug: string;
     skillName: string;
-    arguments: ExpertCallArguments;
+    arguments: ExpertCallArguments | OpenAICompatibleExpertPayload | Record<string, unknown>;
   }): Promise<ToolsCallResult> {
     assertNoRouteOverride(input.arguments as Record<string, unknown>);
     const slugUrl = resolveExpertMcpSlugUrl(input.slug.trim());

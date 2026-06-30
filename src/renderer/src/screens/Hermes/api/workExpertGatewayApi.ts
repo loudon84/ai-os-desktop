@@ -1,3 +1,8 @@
+import type { CallCatalogSkillResult } from "../../../../../shared/hermes-experts/hermes-experts-contract";
+import type {
+  ExpertGatewayCallResult,
+  OpenAICompatibleExpertPayload,
+} from "../../../../../shared/hermes-experts/expert-task-stream-contract";
 import { workApi } from "./workApi";
 import type {
   ExpertGatewayStatus,
@@ -22,6 +27,63 @@ function mapGatewayStatus(health: Awaited<ReturnType<typeof workApi.gateway.heal
   }
 
   return "remote";
+}
+
+function mapCallResult(result: CallCatalogSkillResult): ExpertGatewayCallResult {
+  if (!result.ok) {
+    return {
+      ok: false,
+      mode: result.mode,
+      error: result.message ?? result.errorCode ?? "Expert Gateway call failed",
+      errorCode: result.errorCode,
+    };
+  }
+
+  if (
+    result.mode === "event_stream" ||
+    result.taskId ||
+    result.eventSseUrl ||
+    result.streaming === true
+  ) {
+    return {
+      ok: true,
+      mode: "event_stream",
+      taskId: result.taskId ?? "",
+      taskNo: result.taskNo,
+      eventSseUrl: result.eventSseUrl ?? "",
+      artifactUrl: result.artifactUrl,
+      status: result.status ?? "accepted",
+      streaming: true,
+      rawStructuredContent: result.structuredContent as Record<string, unknown> | undefined,
+    };
+  }
+
+  return {
+    ok: true,
+    mode: "sync_result",
+    responseText: result.responseText ?? "(empty response)",
+    structuredContent: result.structuredContent as Record<string, unknown> | undefined,
+  };
+}
+
+function buildOpenAIPayload(input: WorkExpertGatewayCallInput): OpenAICompatibleExpertPayload {
+  return {
+    model: input.modelId ?? "expert-gateway",
+    messages: [
+      {
+        role: "user",
+        content: input.prompt,
+      },
+    ],
+    stream: true,
+    metadata: {
+      source: "copilot-desktop",
+      conversation_id: input.sessionId ?? undefined,
+      model_id: input.modelId ?? undefined,
+      permission_mode: input.permissionMode,
+      attachment_ids: input.attachmentIds?.length ? input.attachmentIds : undefined,
+    },
+  };
 }
 
 export const workExpertGatewayApi = {
@@ -59,31 +121,44 @@ export const workExpertGatewayApi = {
 
   async callExpertSkill(input: WorkExpertGatewayCallInput): Promise<WorkExpertGatewayCallResult> {
     try {
+      const payload = buildOpenAIPayload(input);
       const result = await expertsApi().callCatalogSkill({
         slug: input.expertSlug,
         catalogKind: "expert",
         skillName: input.skillName,
         prompt: input.prompt,
-        sessionId: input.context?.sessionId ?? undefined,
-        context: {
-          source: input.context?.source ?? "chat",
-          profile: input.context?.profile,
-          modelId: input.context?.modelId,
-          permissionMode: input.permissionMode,
-          attachmentIds: input.attachmentIds,
-        },
+        sessionId: input.sessionId ?? undefined,
+        payload,
       });
 
-      if (!result.ok) {
+      const mapped = mapCallResult(result);
+      if (!mapped.ok) {
         return {
           ok: false,
-          error: result.message ?? result.errorCode ?? "Expert Gateway call failed",
+          error: mapped.error,
+          errorCode: mapped.errorCode,
+        };
+      }
+
+      if (mapped.mode === "event_stream") {
+        return {
+          ok: true,
+          mode: "event_stream",
+          taskId: mapped.taskId,
+          taskNo: mapped.taskNo,
+          eventSseUrl: mapped.eventSseUrl,
+          artifactUrl: mapped.artifactUrl,
+          status: mapped.status,
+          streaming: true,
+          runId: result.runId,
         };
       }
 
       return {
         ok: true,
-        responseText: result.responseText ?? "(empty response)",
+        mode: "sync_result",
+        responseText: mapped.responseText,
+        runId: result.runId,
       };
     } catch (err) {
       return {
@@ -93,3 +168,5 @@ export const workExpertGatewayApi = {
     }
   },
 };
+
+export type { ExpertGatewayCallResult };

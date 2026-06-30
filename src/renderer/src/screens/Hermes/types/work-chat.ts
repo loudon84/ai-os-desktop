@@ -38,24 +38,11 @@ export interface WorkExpertGatewayCallInput {
   prompt: string;
   permissionMode: WorkPermissionMode;
   attachmentIds?: string[];
-  context?: {
-    source: "chat";
-    sessionId?: string | null;
-    profile?: string;
-    modelId?: string | null;
-  };
+  sessionId?: string | null;
+  modelId?: string | null;
 }
 
-export interface WorkExpertGatewayCallResult {
-  ok: boolean;
-  responseText?: string;
-  artifactRefs?: Array<{
-    id: string;
-    name: string;
-    type: string;
-  }>;
-  error?: string;
-}
+export type { WorkExpertGatewayCallResult } from "./expert-task-stream";
 
 export type WorkChatContextActions = {
   setExpert: (expert: WorkChatSelectedExpert | null) => void;

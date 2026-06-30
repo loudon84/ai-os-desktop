@@ -1,4 +1,32 @@
-/** Hermes Experts Workspace — shared contract (v7.2 remote pivot + Expert MCP Gateway v6.1). */
+/** Hermes Experts Workspace — shared contract (v7.2 remote pivot + Expert MCP Gateway v6.1 + v7.5 stream). */
+
+import type {
+  ExpertArtifact,
+  ExpertArtifactDownloadInput,
+  ExpertArtifactDownloadResult,
+  ExpertArtifactPreview,
+  ExpertArtifactPreviewInput,
+  ExpertTaskEvent,
+  ExpertTaskStreamClosedEvent,
+  ExpertTaskStreamError,
+  OpenAICompatibleExpertPayload,
+  SubscribeExpertTaskEventsInput,
+  SubscribeExpertTaskEventsResult,
+} from "./expert-task-stream-contract";
+
+export type {
+  ExpertArtifact,
+  ExpertArtifactDownloadInput,
+  ExpertArtifactDownloadResult,
+  ExpertArtifactPreview,
+  ExpertArtifactPreviewInput,
+  ExpertTaskEvent,
+  ExpertTaskStreamClosedEvent,
+  ExpertTaskStreamError,
+  OpenAICompatibleExpertPayload,
+  SubscribeExpertTaskEventsInput,
+  SubscribeExpertTaskEventsResult,
+} from "./expert-task-stream-contract";
 
 // --- Expert MCP Gateway v6.1 JSON-RPC & catalog types ---
 
@@ -190,9 +218,12 @@ export type CallCatalogSkillInput = {
   slug: string;
   catalogKind: ExpertCatalogKind;
   skillName: string;
-  prompt: string;
+  /** Legacy prompt path — ignored when `payload` is provided. */
+  prompt?: string;
   context?: Record<string, unknown>;
   sessionId?: string;
+  /** v7.5 OpenAI-compatible Chat Completion arguments for tools/call. */
+  payload?: OpenAICompatibleExpertPayload;
 };
 
 export type CallCatalogSkillResult = {
@@ -202,6 +233,14 @@ export type CallCatalogSkillResult = {
   structuredContent?: ExpertCallStructuredContent;
   errorCode?: string;
   message?: string;
+  /** v7.5 event_stream accepted result fields */
+  mode?: "event_stream" | "sync_result";
+  taskId?: string;
+  taskNo?: string;
+  eventSseUrl?: string;
+  artifactUrl?: string;
+  status?: "accepted" | "queued" | "running";
+  streaming?: boolean;
 };
 
 /** @deprecated Use RemoteExpertSkill — kept for backward compatibility. */
@@ -775,4 +814,20 @@ export interface HermesExpertsAPI {
   getDesktopSyncStatus: () => Promise<HermesExpertsActionResult<ExpertDesktopSyncStatus>>;
   registerDesktop: () => Promise<HermesExpertsActionResult<ExpertDesktopSyncStatus>>;
   onExpertRuntimeEvent: (callback: (event: ExpertRuntimeEvent) => void) => () => void;
+  subscribeExpertTaskEvents: (
+    input: SubscribeExpertTaskEventsInput,
+  ) => Promise<SubscribeExpertTaskEventsResult>;
+  unsubscribeExpertTaskEvents: (taskId: string) => Promise<void>;
+  onExpertTaskEvent: (callback: (event: ExpertTaskEvent) => void) => () => void;
+  onExpertTaskStreamError: (callback: (error: ExpertTaskStreamError) => void) => () => void;
+  onExpertTaskStreamClosed: (
+    callback: (event: ExpertTaskStreamClosedEvent) => void,
+  ) => () => void;
+  listExpertTaskArtifacts: (taskId: string) => Promise<HermesExpertsActionResult<ExpertArtifact[]>>;
+  previewExpertArtifact: (
+    input: ExpertArtifactPreviewInput,
+  ) => Promise<HermesExpertsActionResult<ExpertArtifactPreview>>;
+  downloadExpertArtifact: (
+    input: ExpertArtifactDownloadInput,
+  ) => Promise<ExpertArtifactDownloadResult>;
 }

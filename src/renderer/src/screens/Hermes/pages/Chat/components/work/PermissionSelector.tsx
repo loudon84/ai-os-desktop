@@ -28,8 +28,8 @@ export function PermissionSelector({ context }: Props) {
         options={options}
         placeholder={LABELS.default}
         placement="top"
-        menuWidth={180}
-        maxMenuHeight={180}
+        menuWidth={160}
+        maxMenuHeight={160}
         onChange={(id) => {
           if (id) setPermissionMode(id as WorkPermissionMode);
         }}

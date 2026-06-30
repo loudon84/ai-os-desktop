@@ -54,4 +54,30 @@ export const hermesExpertsApi: HermesExpertsAPI = {
     ipcRenderer.on("hermes-experts:event", handler);
     return () => ipcRenderer.removeListener("hermes-experts:event", handler);
   },
+  subscribeExpertTaskEvents: (input) =>
+    ipcRenderer.invoke("hermes-experts:subscribe-task-events", input),
+  unsubscribeExpertTaskEvents: (taskId) =>
+    ipcRenderer.invoke("hermes-experts:unsubscribe-task-events", taskId),
+  onExpertTaskEvent: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: Parameters<typeof callback>[0]) =>
+      callback(payload);
+    ipcRenderer.on("hermes-experts:task-event", handler);
+    return () => ipcRenderer.removeListener("hermes-experts:task-event", handler);
+  },
+  onExpertTaskStreamError: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: Parameters<typeof callback>[0]) =>
+      callback(payload);
+    ipcRenderer.on("hermes-experts:task-stream-error", handler);
+    return () => ipcRenderer.removeListener("hermes-experts:task-stream-error", handler);
+  },
+  onExpertTaskStreamClosed: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: Parameters<typeof callback>[0]) =>
+      callback(payload);
+    ipcRenderer.on("hermes-experts:task-stream-closed", handler);
+    return () => ipcRenderer.removeListener("hermes-experts:task-stream-closed", handler);
+  },
+  listExpertTaskArtifacts: (taskId) =>
+    ipcRenderer.invoke("hermes-experts:list-task-artifacts", taskId),
+  previewExpertArtifact: (input) => ipcRenderer.invoke("hermes-experts:preview-artifact", input),
+  downloadExpertArtifact: (input) => ipcRenderer.invoke("hermes-experts:download-artifact", input),
 };

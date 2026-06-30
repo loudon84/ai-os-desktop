@@ -4,6 +4,7 @@ import type {
   SummonExpertInput,
   SummonExpertResult,
 } from "../../shared/hermes-experts/hermes-experts-contract";
+import type { OpenAICompatibleExpertPayload } from "../../shared/hermes-experts/expert-task-stream-contract";
 import { isHermesExpertsError } from "../../shared/hermes-experts/hermes-experts-errors";
 import { getExpert } from "./expert-catalog-client";
 import { getMockExpert } from "./expert-mock-catalog";
@@ -18,6 +19,7 @@ import {
   createExpertRun,
   insertArtifact,
   insertRunEvent,
+  setExpertRunRemoteTaskId,
   updateExpertRunStatus,
 } from "./expert-runtime-db";
 import { emitExpertRuntimeEvent } from "./expert-run-events";
@@ -33,10 +35,71 @@ function buildArtifactTitle(
   return `${displayName} - ${skillDisplayName}`;
 }
 
+function resolvePromptFromInput(input: CallCatalogSkillInput): string {
+  const direct = input.prompt?.trim();
+  if (direct) return direct;
+  const messages = input.payload?.messages;
+  if (!messages?.length) return "";
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg.role === "user" && msg.content.trim()) {
+      return msg.content.trim();
+    }
+  }
+  return "";
+}
+
+function resolveCallArguments(
+  input: CallCatalogSkillInput,
+  prompt: string,
+): OpenAICompatibleExpertPayload | ReturnType<typeof buildExpertToolArguments> {
+  if (input.payload?.messages?.length) {
+    return input.payload;
+  }
+  return buildExpertToolArguments({ prompt, context: input.context as never });
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+function parseEventStreamAccepted(structured: Record<string, unknown> | undefined): {
+  taskId: string;
+  taskNo?: string;
+  eventSseUrl: string;
+  artifactUrl?: string;
+  status: "accepted" | "queued" | "running";
+} | null {
+  if (!structured) return null;
+  const taskId = String(structured.taskId ?? structured.task_id ?? "").trim();
+  const eventSseUrl = String(structured.eventSseUrl ?? structured.event_sse_url ?? "").trim();
+  const streaming = structured.streaming === true;
+  if (!taskId && !eventSseUrl && !streaming) return null;
+  if (!taskId || !eventSseUrl) return null;
+
+  const rawStatus = String(structured.status ?? "accepted");
+  const status =
+    rawStatus === "queued" || rawStatus === "running" ? rawStatus : "accepted";
+
+  return {
+    taskId,
+    taskNo: structured.taskNo != null ? String(structured.taskNo) : structured.task_no != null ? String(structured.task_no) : undefined,
+    eventSseUrl,
+    artifactUrl:
+      structured.artifactUrl != null
+        ? String(structured.artifactUrl)
+        : structured.artifact_url != null
+          ? String(structured.artifact_url)
+          : undefined,
+    status,
+  };
+}
+
 export async function callCatalogSkill(
   input: CallCatalogSkillInput,
 ): Promise<CallCatalogSkillResult> {
-  const prompt = input.prompt.trim();
+  const prompt = resolvePromptFromInput(input);
   const skillName = input.skillName.trim();
   const slug = input.slug.trim();
 
@@ -46,7 +109,7 @@ export async function callCatalogSkill(
   if (!skillName) {
     return { ok: false, errorCode: "EXPERT_TOOL_NAME_REQUIRED", message: "skillName is required" };
   }
-  if (!prompt) {
+  if (!prompt && !input.payload?.messages?.length) {
     return { ok: false, errorCode: "EXPERT_PROMPT_REQUIRED", message: "prompt is required" };
   }
 
@@ -57,7 +120,7 @@ export async function callCatalogSkill(
     profileId: "remote",
     sessionId: input.sessionId,
     title: slug,
-    userPrompt: prompt,
+    userPrompt: prompt || "(expert payload)",
     status: "running",
     catalogSlug: slug,
     catalogKind: input.catalogKind,
@@ -79,11 +142,49 @@ export async function callCatalogSkill(
     const result = await getExpertMcpClient().callSkill({
       slug,
       skillName,
-      arguments: buildExpertToolArguments({ prompt, context: input.context as never }),
+      arguments: resolveCallArguments(input, prompt),
     });
 
     const responseText = extractTextContent(result);
     const structuredContent = result.structuredContent;
+    const structuredRecord = asRecord(structuredContent);
+    const accepted = parseEventStreamAccepted(structuredRecord);
+
+    if (accepted) {
+      setExpertRunRemoteTaskId(run.runId, accepted.taskId);
+      updateExpertRunStatus(run.runId, "running", {
+        structuredContentJson: structuredContent ? JSON.stringify(structuredContent) : undefined,
+      });
+      insertRunEvent({
+        runId: run.runId,
+        eventType: "mcp.call.accepted",
+        payload: {
+          slug,
+          catalogKind: input.catalogKind,
+          skillName,
+          taskId: accepted.taskId,
+          eventSseUrl: accepted.eventSseUrl,
+        },
+      });
+      emitExpertRuntimeEvent({
+        type: "run_updated",
+        runId: run.runId,
+        payload: { status: "running", taskId: accepted.taskId },
+      });
+
+      return {
+        ok: true,
+        runId: run.runId,
+        mode: "event_stream",
+        taskId: accepted.taskId,
+        taskNo: accepted.taskNo,
+        eventSseUrl: accepted.eventSseUrl,
+        artifactUrl: accepted.artifactUrl,
+        status: accepted.status,
+        streaming: true,
+        structuredContent,
+      };
+    }
 
     if (!responseText && !structuredContent) {
       updateExpertRunStatus(run.runId, "failed", {
@@ -162,6 +263,7 @@ export async function callCatalogSkill(
     return {
       ok: true,
       runId: run.runId,
+      mode: "sync_result",
       responseText,
       structuredContent,
     };

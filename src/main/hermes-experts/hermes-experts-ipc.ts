@@ -11,6 +11,11 @@ import type {
   SummonExpertInput,
   SummonTeamInput,
 } from "../../shared/hermes-experts/hermes-experts-contract";
+import type {
+  ExpertArtifactDownloadInput,
+  ExpertArtifactPreviewInput,
+  SubscribeExpertTaskEventsInput,
+} from "../../shared/hermes-experts/expert-task-stream-contract";
 import { isHermesExpertsError } from "../../shared/hermes-experts/hermes-experts-errors";
 import {
   fetchExpertInstallPlan,
@@ -49,6 +54,16 @@ import {
 } from "./expert-remote-run-service";
 import { getExpertGatewayHealth, listCatalogSkills, listExpertSkills } from "./expert-mcp-client";
 import { listAllArtifacts } from "./expert-runtime-db";
+import {
+  downloadExpertArtifact,
+  listExpertTaskArtifacts,
+  previewExpertArtifact,
+} from "./expert-artifact-client";
+import {
+  subscribeExpertTaskEvents,
+  unsubscribeExpertTaskEvents,
+  shutdownExpertTaskStreams,
+} from "./expert-task-stream";
 
 function toError(err: unknown): { ok: false; error: string; errorCode: string } {
   if (isHermesExpertsError(err)) {
@@ -105,6 +120,44 @@ export function registerHermesExpertsIpc(): void {
 
   ipcMain.handle("hermes-experts:call-catalog-skill", async (_, input: CallCatalogSkillInput) =>
     callCatalogSkill(input),
+  );
+
+  ipcMain.handle(
+    "hermes-experts:subscribe-task-events",
+    async (event, input: SubscribeExpertTaskEventsInput) => {
+      try {
+        return subscribeExpertTaskEvents(input, event.sender);
+      } catch (err) {
+        return toError(err);
+      }
+    },
+  );
+
+  ipcMain.handle("hermes-experts:unsubscribe-task-events", async (_, taskId: string) => {
+    unsubscribeExpertTaskEvents(taskId);
+    return { ok: true as const };
+  });
+
+  ipcMain.handle("hermes-experts:list-task-artifacts", async (_, taskId: string) => ({
+    ok: true as const,
+    data: listExpertTaskArtifacts(taskId),
+  }));
+
+  ipcMain.handle(
+    "hermes-experts:preview-artifact",
+    async (_, input: ExpertArtifactPreviewInput) => {
+      try {
+        const data = await previewExpertArtifact(input);
+        return { ok: true as const, data };
+      } catch (err) {
+        return toError(err);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "hermes-experts:download-artifact",
+    async (_, input: ExpertArtifactDownloadInput) => downloadExpertArtifact(input),
   );
 
   ipcMain.handle("hermes-experts:list-local-artifacts", async (_, limit?: number) => ({
@@ -301,4 +354,5 @@ export function registerHermesExpertsIpc(): void {
 
 export function shutdownHermesExpertsIpc(): void {
   stopExpertDesktopHeartbeat();
+  shutdownExpertTaskStreams();
 }

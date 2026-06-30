@@ -705,7 +705,12 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 | `hermes-experts:clear-expert-catalog-cache` | — | `{ ok: true }` — 清除本地 expert/team catalog cache（v1.2.1 hotfix） |
 | `hermes-experts:list-catalog-skills` | `slug` | `{ ok, data?: RemoteExpertSkill[], error?, errorCode? }` |
 | `hermes-experts:list-expert-skills` | `expertSlug` | `{ ok, data?: RemoteExpertSkill[], error?, errorCode? }`（委托 `list-catalog-skills`） |
-| `hermes-experts:call-catalog-skill` | `CallCatalogSkillInput`（**禁止** route override；Main `assertNoRouteOverride` 抛错） | `CallCatalogSkillResult` |
+| `hermes-experts:call-catalog-skill` | `CallCatalogSkillInput`（**v7.5** 可选 `payload: OpenAICompatibleExpertPayload`；legacy `prompt`；**禁止** route override；Main `assertNoRouteOverride` 抛错） | `CallCatalogSkillResult`（**v7.5** `mode: event_stream` 时含 `taskId` / `eventSseUrl` / `artifactUrl` / `streaming`；`sync_result` 含 `responseText`） |
+| `hermes-experts:subscribe-task-events` | `SubscribeExpertTaskEventsInput` | `SubscribeExpertTaskEventsResult` — Main 代理 `eventSseUrl` SSE（Bearer 仅 Main） |
+| `hermes-experts:unsubscribe-task-events` | `taskId` | `{ ok: true }` |
+| `hermes-experts:list-task-artifacts` | `taskId` | `{ ok, data?: ExpertArtifact[] }` — 来自 stream 事件缓存 |
+| `hermes-experts:preview-artifact` | `ExpertArtifactPreviewInput` | `{ ok, data?: ExpertArtifactPreview, error?, errorCode? }` |
+| `hermes-experts:download-artifact` | `ExpertArtifactDownloadInput` | `ExpertArtifactDownloadResult` |
 | `hermes-experts:list-local-artifacts` | `limit?` | `{ ok, data?: HermesExpertArtifact[] }` |
 | `hermes-experts:preview-install-expert` | `expertId` | `{ ok, data?, error?, errorCode? }` — **@deprecated V7.2** |
 | `hermes-experts:install-expert` | `expertId`, `InstallOptions?` | `{ ok, data?, ... }` — **@deprecated V7.2** |
@@ -733,9 +738,13 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 | `hermes-experts:get-desktop-sync-status` | — | `{ ok, data: ExpertDesktopSyncStatus }` |
 | `hermes-experts:register-desktop` | — | `{ ok, data?, error?, errorCode? }` |
 
-**事件（Main → Renderer）**：`hermes-experts:event` — Preload `hermesExperts.onExpertRuntimeEvent(cb)` 返回 unsubscribe。
+**事件（Main → Renderer）**：
+- `hermes-experts:event` — Preload `hermesExperts.onExpertRuntimeEvent(cb)` 返回 unsubscribe。
+- **v7.5** `hermes-experts:task-event` — `ExpertTaskEvent`（`task.started` / `task.progress` / `task.artifact.ready` / `task.completed` / `task.failed` / `task.stream.closed`）；Preload `onExpertTaskEvent(cb)`。
+- **v7.5** `hermes-experts:task-stream-error` — `ExpertTaskStreamError`；Preload `onExpertTaskStreamError(cb)`。
+- **v7.5** `hermes-experts:task-stream-closed` — `ExpertTaskStreamClosedEvent`；Preload `onExpertTaskStreamClosed(cb)`。
 
-**Main 模块**：`src/main/hermes-experts/`（**Expert MCP v6.1 / v1.2.1 hotfix** `expert-mcp-endpoint.ts` + `ExpertMcpClient` + `expert-mcp-mappers.ts` + `expert-route-guard.ts`；`expert-catalog-client.ts` 主路径 `POST /api/v1/expert/mcp` tools/list，MCP 成功但 0 expert **不** fallback 旧 cache；`callCatalogSkill` in `expert-runtime.ts`；legacy HermesTask：`expert-remote-client.ts`；deprecated：`expert-installer.ts`、`expert-profile-manager.ts`）。
+**Main 模块**：`src/main/hermes-experts/`（**Expert MCP v6.1 / v1.2.1 hotfix** `expert-mcp-endpoint.ts` + `ExpertMcpClient` + `expert-mcp-mappers.ts` + `expert-route-guard.ts`；**v7.5** `expert-task-stream.ts` SSE 代理 + `expert-artifact-client.ts`；`expert-catalog-client.ts` 主路径 `POST /api/v1/expert/mcp` tools/list，MCP 成功但 0 expert **不** fallback 旧 cache；`callCatalogSkill` in `expert-runtime.ts`；legacy HermesTask：`expert-remote-client.ts`；deprecated：`expert-installer.ts`、`expert-profile-manager.ts`）。
 
 **传输**：Expert 域 → `GET /api/v1/expert/health` + `POST /api/v1/expert/mcp`（root/slug JSON-RPC）；非专家 Skill 仍走 `mcp-skill-gateway-runtime`。
 
@@ -743,9 +752,9 @@ nodeskclaw 企业 GeneHub Registry 本地安装执行器：拉取授权 Skill / 
 
 **Chat 桥接**：`expert-run-bridge.ts` 远端 run（`profileId: remote`）跳过本地 team dispatch；artifact 预览优先本地 `preview_text`，legacy 走 `hermes-client-api`。
 
-**契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`hermes-experts-errors.ts`（含 `ExpertErrorCode`）
+**契约**：`src/shared/hermes-experts/hermes-experts-contract.ts`、`expert-task-stream-contract.ts`（**v7.5**）、`hermes-experts-errors.ts`（含 `ExpertErrorCode`）
 
-**Renderer**：默认页 **chat**（**v7.4.2**）；`pages/Chat/` 内嵌 Work 控件（`workExpertGatewayApi` → `hermes-experts:call-catalog-skill`，无新 IPC）；`pages/Workbench/`、`pages/Artifacts/`、`pages/Experts/` + `pages/ExpertTeams/`（统一 `ExpertCatalogCallDrawer` + `callCatalogSkill`）；`ExpertRuns/`；GeneHub `skillPush` 页签；`pages/Tasks/` 保留但导航隐藏（v7.4.1 遗留）。
+**Renderer**：默认页 **chat**（**v7.4.2** + **v7.5 event_stream**）；`pages/Chat/` 内嵌 Work 控件（`workExpertGatewayApi` OpenAI-compatible payload → `hermes-experts:call-catalog-skill` + `subscribeExpertTaskEvents` / `onExpertTaskEvent`）；`ExpertTaskTimelineBlock` / `ExpertTaskArtifactCard` / `WorkExpertOutputPanel`；`pages/Workbench/`、`pages/Artifacts/`、`pages/Experts/` + `pages/ExpertTeams/`（统一 `ExpertCatalogCallDrawer` + `callCatalogSkill`）；`ExpertRuns/`；GeneHub `skillPush` 页签；`pages/Tasks/` 保留但导航隐藏（v7.4.1 遗留）。
 
 ---
 

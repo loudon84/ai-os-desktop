@@ -70,8 +70,8 @@ export function ExpertSelector({ context }: Props) {
           disabled={disabled}
           searchable
           placement="top"
-          menuWidth={280}
-          maxMenuHeight={320}
+          menuWidth={220}
+          maxMenuHeight={260}
           onChange={(id) => {
             const expert = experts.find((e) => e.expertId === id) ?? null;
             setExpert(expert);

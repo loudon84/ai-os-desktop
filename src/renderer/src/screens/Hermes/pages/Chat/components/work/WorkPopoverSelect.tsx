@@ -18,9 +18,10 @@ export type WorkPopoverOption = {
 
 type FloatingRect = {
   left: number;
-  top: number;
   width: number;
   maxHeight: number;
+  top?: number;
+  bottom?: number;
 };
 
 type Props = {
@@ -36,38 +37,6 @@ type Props = {
 };
 
 const DEFAULT_MAX_MENU_HEIGHT = 320;
-
-function computeFloatingRect(
-  trigger: HTMLElement,
-  placement: WorkPopoverPlacement,
-  menuWidth: number | undefined,
-  maxMenuHeight: number,
-): FloatingRect {
-  const gap = 8;
-  const rect = trigger.getBoundingClientRect();
-  const width = menuWidth ?? Math.max(rect.width, 280);
-
-  if (placement === "top") {
-    const availableTop = Math.max(rect.top - gap - 8, 160);
-    const height = Math.min(maxMenuHeight, availableTop);
-    return {
-      left: rect.left,
-      top: Math.max(8, rect.top - height - gap),
-      width,
-      maxHeight: height,
-    };
-  }
-
-  const viewportHeight = window.innerHeight;
-  const availableBottom = viewportHeight - rect.bottom - gap - 8;
-  const height = Math.min(maxMenuHeight, Math.max(160, availableBottom));
-  return {
-    left: rect.left,
-    top: rect.bottom + gap,
-    width,
-    maxHeight: height,
-  };
-}
 
 export function WorkPopoverSelect({
   value,
@@ -98,9 +67,29 @@ export function WorkPopoverSelect({
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
-    setFloatingRect(
-      computeFloatingRect(trigger, placement, menuWidth, maxMenuHeight),
-    );
+
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const width = menuWidth ?? Math.max(rect.width, 220);
+
+    if (placement === "top") {
+      const availableTop = Math.max(rect.top - gap - 8, 120);
+      setFloatingRect({
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + gap,
+        width,
+        maxHeight: Math.min(maxMenuHeight, availableTop),
+      });
+      return;
+    }
+
+    const availableBottom = window.innerHeight - rect.bottom - gap - 8;
+    setFloatingRect({
+      left: rect.left,
+      top: rect.bottom + gap,
+      width,
+      maxHeight: Math.min(maxMenuHeight, Math.max(120, availableBottom)),
+    });
   }, [placement, menuWidth, maxMenuHeight]);
 
   useLayoutEffect(() => {
@@ -157,12 +146,11 @@ export function WorkPopoverSelect({
             className="hermes-work-popover-panel"
             role="listbox"
             style={{
-              position: "fixed",
               left: floatingRect.left,
               top: floatingRect.top,
+              bottom: floatingRect.bottom,
               width: floatingRect.width,
               maxHeight: floatingRect.maxHeight,
-              zIndex: 99999,
             }}
           >
             {searchable ? (
@@ -225,7 +213,9 @@ export function WorkPopoverSelect({
           setOpen((v) => !v);
         }}
       >
-        <span>{selected?.label ?? placeholder}</span>
+        <span className="hermes-work-popover-trigger-label">
+          {selected?.label ?? placeholder}
+        </span>
         <ChevronDown size={14} aria-hidden />
       </button>
       {panel}

@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { workExpertGatewayApi } from "../../../api/workExpertGatewayApi";
-import { HERMES_DEFAULT_PROFILE } from "../../../constants";
 import type { WorkChatContext } from "../../../types/work-chat";
 
 type LocalMessage = { role: "user" | "assistant"; content: string };
@@ -11,9 +10,22 @@ type StreamHelpers = {
   setLastError: (error: string | null) => void;
 };
 
+type TaskStreamHelpers = {
+  startStream: (input: {
+    taskId: string;
+    taskNo?: string;
+    eventSseUrl: string;
+    artifactUrl?: string;
+    expertName?: string;
+    skillName?: string;
+    runId?: string;
+  }) => Promise<void>;
+};
+
 export function useWorkExpertGatewaySend(
   workContext: WorkChatContext,
   stream: StreamHelpers,
+  taskStream: TaskStreamHelpers,
 ) {
   const sendToExpertGateway = useCallback(
     async (input: {
@@ -21,7 +33,6 @@ export function useWorkExpertGatewaySend(
       attachmentIds: string[];
       modelId: string | null;
       sessionId?: string | null;
-      profile?: string;
       onComposerClear?: () => void;
     }) => {
       const expert = workContext.selectedExpert;
@@ -44,22 +55,37 @@ export function useWorkExpertGatewaySend(
         prompt: trimmed,
         permissionMode: workContext.permissionMode,
         attachmentIds: input.attachmentIds,
-        context: {
-          source: "chat",
-          sessionId: input.sessionId,
-          profile: input.profile ?? HERMES_DEFAULT_PROFILE,
-          modelId: input.modelId,
-        },
+        sessionId: input.sessionId,
+        modelId: input.modelId,
       });
 
-      if (result.ok && result.responseText) {
+      if (result.ok && result.mode === "event_stream" && result.taskId && result.eventSseUrl) {
+        await taskStream.startStream({
+          taskId: result.taskId,
+          taskNo: result.taskNo,
+          eventSseUrl: result.eventSseUrl,
+          artifactUrl: result.artifactUrl,
+          expertName: expert.name,
+          skillName: skill.displayName,
+          runId: result.runId,
+        });
+        stream.setExternalRunState("streaming");
+      } else if (result.ok && result.mode === "sync_result" && result.responseText) {
         stream.appendLocalMessage({
           role: "assistant",
           content: result.responseText,
         });
         stream.setExternalRunState("completed");
-      } else {
+      } else if (!result.ok) {
         const errText = result.error ?? "Expert Gateway call failed";
+        stream.appendLocalMessage({
+          role: "assistant",
+          content: `**Expert Gateway error**\n\n${errText}`,
+        });
+        stream.setLastError(errText);
+        stream.setExternalRunState("error");
+      } else {
+        const errText = "Expert Gateway call failed";
         stream.appendLocalMessage({
           role: "assistant",
           content: `**Expert Gateway error**\n\n${errText}`,
@@ -70,7 +96,7 @@ export function useWorkExpertGatewaySend(
 
       input.onComposerClear?.();
     },
-    [workContext, stream],
+    [workContext, stream, taskStream],
   );
 
   return { sendToExpertGateway };
